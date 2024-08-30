@@ -4,7 +4,8 @@
 import React from 'react';
 import Split from 'react-split'; // Import Split from react-split
 import './globals.css'; // Import global styles
-import CueCardDisplay from './ui/CueCardDisplay';
+import CueCardDisplay  from './ui/CueCardDisplay'; // Correct import for the component
+
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -35,14 +36,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Main Split Pane Layout */}
         <Split
           className="flex h-[calc(100vh-50px)]"
-          sizes={[25, 55, 20]}
-          minSize={[200, 300, 150]} // Set minimum size for the left panel
+          sizes={[25, 55, 20]} // Set default sizes for each panel in percentages
+          minSize={[200, 300, 150]} // Set minimum size for each panel
+          maxSize={[400, Infinity, 300]} // Set maximum size constraints if needed
           gutterSize={8}
           direction="horizontal"
           cursor="col-resize"
         >
           {/* Left Panel (Slide Viewer) */}
-          <div className="bg-gray-200 p-4 shadow-lg rounded-lg overflow-y-auto min-w-[200px] flex flex-col space-y-2">
+          <div className="bg-gray-800 p-4 shadow-lg rounded-lg overflow-y-auto min-w-[200px] flex flex-col space-y-2">
             {/* Placeholder for Cue Cards */}
             <CueCardDisplay />
           </div>

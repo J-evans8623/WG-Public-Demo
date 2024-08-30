@@ -33,5 +33,5 @@ export interface CueCard {
   }
 
   export interface CueCardDisplayProps {
-    cueCards: CueCard[]; // Define the type for cueCards prop
+    cueCards?: CueCard[]; // Define the type for cueCards prop
   }
