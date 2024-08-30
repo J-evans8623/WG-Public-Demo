@@ -3,7 +3,7 @@
 
 import React from 'react';
 import Split from 'react-split'; // Import Split from react-split
-import './globals.css'; // Import global styles
+import '@/app/globals.css'; // Import global styles
 import CueCardDisplay  from './ui/CueCardDisplay'; // Correct import for the component
 
 
@@ -44,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           cursor="col-resize"
         >
           {/* Left Panel (Slide Viewer) */}
-          <div className="bg-gray-800 p-4 shadow-lg rounded-lg overflow-y-auto min-w-[200px] flex flex-col space-y-2">
+          <div className="bg-gray-200 p-4 shadow-lg rounded-lg overflow-y-auto min-w-[200px] flex flex-col space-y-2">
             {/* Placeholder for Cue Cards */}
             <CueCardDisplay />
           </div>
