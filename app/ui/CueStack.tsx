@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 import { CueStackProps } from '@/app/Definitions/Definitions';
 
@@ -15,34 +16,32 @@ import { CueStackProps } from '@/app/Definitions/Definitions';
     'bg-green-500', // Layer 3 color
     'bg-yellow-500' // Layer 4 color
   ]; */
-
-  // CueStack provides a visualization of how many cards are in a current concept-node
-function CueStack({ cueCardCount, colorTheme, onClick }: CueStackProps) {
-  // Limit the stack to a maximum of four cards
-  const visibleCards = Math.min(cueCardCount, 4);
-
-  return (
-    <div
-      className="relative w-8 h-12 cursor-pointer"
-      onClick={onClick}
-      title="Click to add a new cue card" // Tooltip for cue stack hover
-    >
-      {Array.from({ length: visibleCards }).map((_, index) => (
-        <div
-          key={index}
-          className="absolute rounded-lg shadow-lg"
-          style={{
-            width: '100%',
-            height: '100%',
-            top: `${index * 5}px`,
-            left: `${index * 5}px`,
-            zIndex: visibleCards - index,
-            backgroundColor: colorTheme[index],
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-export default CueStack;
+  function CueStack({ cueCardCount, colorTheme, onClick }: CueStackProps) {
+    // Limit the stack to a maximum of four cards
+    const visibleCards = Math.min(cueCardCount, 4);
+  
+    return (
+      <div
+        className="relative w-8 h-12 cursor-pointer"
+        onClick={onClick} // Use the updated onClick prop
+        title="Click to add a new cue card"
+      >
+        {Array.from({ length: visibleCards }).map((_, index) => (
+          <div
+            key={index}
+            className="absolute rounded-lg shadow-lg"
+            style={{
+              width: '100%',
+              height: '100%',
+              top: `${index * 5}px`,
+              left: `${index * 5}px`,
+              zIndex: visibleCards - index,
+              backgroundColor: colorTheme[index],
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+  
+  export default CueStack;

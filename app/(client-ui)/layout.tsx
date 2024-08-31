@@ -1,10 +1,17 @@
-// /app/route-with-client-layout/layout.tsx
+// bloom-maps/app/(client-ui)/layout.tsx
+
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Split from 'react-split'; // Client-side only component
+import CueCardDisplay from '../ui/CueCardDisplay'; // Import the CueCardDisplay component
+import ConceptMap from '../ui/ConceptMap'; // Import the ConceptMap component
+import { CueCard } from '@/app/Definitions/Definitions'; // Import CueCard type
 
-export default function ClientLayout({ children }: { children: React.ReactNode }) {
+export default function ClientLayout() {
+  // State to manage selected cue cards for display
+  const [selectedCueCards, setSelectedCueCards] = useState<CueCard[]>([]);
+
   return (
     <Split
       className="flex h-[calc(100vh-50px)]"
@@ -17,17 +24,19 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     >
       {/* Left Panel (Cue Card Viewer) */}
       <div className="bg-gray-200 p-4 shadow-lg rounded-lg overflow-y-auto min-w-[200px] flex flex-col space-y-2">
-        {/* Dynamic content like CueCardDisplay */}
+        {/* Display selected cue cards here */}
+        <CueCardDisplay cueCards={selectedCueCards} />
       </div>
 
       {/* Center Pane (Map Canvas) */}
       <div className="flex-1 bg-white p-4 shadow-lg rounded-lg overflow-auto">
-        {children}
+        {/* Render ConceptMap with setSelectedCueCards function */}
+        <ConceptMap setSelectedCueCards={setSelectedCueCards} />
       </div>
 
       {/* Right Panel (Tool Interface) */}
       <div className="bg-white p-4 shadow-lg rounded-lg overflow-auto">
-        {/* Dynamic content */}
+        {/* Dynamic content for future toolbar */}
       </div>
     </Split>
   );

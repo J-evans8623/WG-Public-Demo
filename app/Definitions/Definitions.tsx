@@ -21,16 +21,18 @@ export interface ConceptNode {
 }
 
 
-  export interface CueStackProps {
-    cueCardCount: number;
-    colorTheme: string[]; // Number of cue cards to display in the stack
-    className?: string;
-    onClick: () => void;
-  }
+// bloom-maps/app/Definitions/Definitions.ts
+
+export interface CueStackProps {
+  cueCardCount: number;
+  colorTheme: string[];
+  onClick: (e: React.MouseEvent<HTMLDivElement>) => void; // Updated type for onClick to accept an event parameter
+}
+
 
   export interface ConceptNodeProps {
     node: ConceptNode; // The data representing a Concept-node, including cue cards
-    onClick: () => void;
+    onClick: (cueCards: CueCard[]) => void; // Update to expect a CueCard[] argument
   }
 
   export interface CueCardProps {
@@ -41,3 +43,4 @@ export interface ConceptNode {
   export interface CueCardDisplayProps {
     cueCards?: CueCard[]; // Define the type for cueCards prop
   }
+

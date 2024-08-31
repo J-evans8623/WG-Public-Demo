@@ -13,7 +13,13 @@ interface ExtendedConceptNodeProps extends ConceptNodeProps {
   createNewChildNode: (parentId: string) => void;
 }
 
-function ConceptNode({ node, onClick, addCueCardToNode, updateNodeTitle, createNewChildNode }: ExtendedConceptNodeProps) {
+function ConceptNode({
+  node,
+  onClick,
+  addCueCardToNode,
+  updateNodeTitle,
+  createNewChildNode,
+}: ExtendedConceptNodeProps) {
   const { title, cueCards } = node;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isAddingCueCard, setIsAddingCueCard] = useState(false);
@@ -30,7 +36,8 @@ function ConceptNode({ node, onClick, addCueCardToNode, updateNodeTitle, createN
     setIsEditingTitle(true);
   };
 
-  const handleCueStackClick = () => {
+  const handleCueStackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation(); // Prevent the click event from propagating to the parent div
     setNewCueCard({
       id: Date.now().toString(),
       title: '',
@@ -61,11 +68,16 @@ function ConceptNode({ node, onClick, addCueCardToNode, updateNodeTitle, createN
   return (
     <div
       className="relative flex flex-col items-center cursor-pointer group border rounded shadow-md"
-      style={{ width: '200px', height: '100px' }} // Adjust size here
+      style={{ width: '200px', height: '150px' }}
+      onClick={() => onClick(cueCards)} // Correctly pass cue cards on click
+      title="View Concept" // Hover text for the entire concept node container
     >
       {/* Title of the Concept-node */}
       <h2
-        onClick={handleTitleClick}
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent the click event from propagating to the parent div
+          handleTitleClick();
+        }}
         className="mb-1 text-lg font-semibold text-gray-800 group-hover:bg-gray-100 rounded"
         title="Click to edit title"
       >
@@ -76,12 +88,15 @@ function ConceptNode({ node, onClick, addCueCardToNode, updateNodeTitle, createN
       <CueStack
         cueCardCount={cueCards.length}
         colorTheme={['rgb(223, 252, 173)', 'rgb(181, 245, 216)', 'rgb(168, 204, 252)', 'rgb(137, 112, 252)']}
-        onClick={handleCueStackClick}
+        onClick={handleCueStackClick} // Pass the updated click handler
       />
 
       {/* + Button Encased in a Gray Round Cornered Box, visible only on hover */}
       <button
-        onClick={handleAddChildNode}
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent the click event from propagating to the parent div
+          handleAddChildNode();
+        }}
         className="absolute bottom-2 left-2 bg-gray-200 text-black rounded px-2 py-1 flex items-center justify-center hover:bg-gray-300 transition-colors duration-200 text-sm group-hover:flex hidden"
         title="Click to add a new child concept"
       >
