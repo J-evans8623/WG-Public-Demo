@@ -7,7 +7,7 @@ import ConceptNode from '@/app/ui/ConceptNode'; // Import the ConceptNode compon
 // Mock data for testing the ConceptNode component
 const mockNode = {
   id: '1',
-  title: 'Sample Concept',
+  title: 'Same Concept',
   description: 'A brief description of this concept',
   cueCards: [
     { id: '1', title: 'Cue 1', content: 'Content of Cue 1' },
