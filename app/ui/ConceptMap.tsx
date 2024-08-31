@@ -7,8 +7,9 @@ import React from 'react';
 function ConceptMap() {
   return (
     <div className="relative w-full h-full bg-white overflow-auto">
-      <div className="relative w-[2000px] h-[2000px]">
+      <div className="relative min-w-full min-h-full">
         <h2 className="text-center text-gray-600">Concept Map</h2>
+        {/* Add more content or dynamic map nodes here */}
       </div>
     </div>
   );

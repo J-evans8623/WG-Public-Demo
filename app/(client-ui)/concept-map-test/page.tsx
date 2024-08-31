@@ -1,5 +1,5 @@
 import React from 'react';
-import ConceptMapTest from '../ui/__tests__/ConceptMapTest';
+import ConceptMapTest from '@/app/ui/__tests__/ConceptMapTest'
 
 export default function ConceptNodeTestPage() {
   return (

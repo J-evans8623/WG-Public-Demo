@@ -2,11 +2,11 @@
 'use client';
 
 import React from 'react';
-import ConceptMap from '@/app/ui/ConceptMap'; // Import the ConceptMap component
+import ConceptMap from '../ConceptMap'; // Import the ConceptMap component
 
 function ConceptMapTest() {
   return (
-    <div className="h-screen w-screen p-4">
+    <div className="flex justify-center items-center p-4 h-full w-full">
       <ConceptMap />
     </div>
   );
