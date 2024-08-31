@@ -10,7 +10,7 @@ import { ConceptNodeProps, CueCard } from '@/app/Definitions/Definitions';
 interface ExtendedConceptNodeProps extends ConceptNodeProps {
   addCueCardToNode: (nodeId: string, cueCard: CueCard) => void;
   updateNodeTitle: (nodeId: string, newTitle: string) => void;
-  createNewChildNode: (parentId: string) => void; // New prop to handle child node creation
+  createNewChildNode: (parentId: string) => void;
 }
 
 function ConceptNode({ node, onClick, addCueCardToNode, updateNodeTitle, createNewChildNode }: ExtendedConceptNodeProps) {
@@ -54,15 +54,14 @@ function ConceptNode({ node, onClick, addCueCardToNode, updateNodeTitle, createN
     });
   };
 
-  // Handle adding a new child node
   const handleAddChildNode = () => {
-    createNewChildNode(node.id); // Call the function to create a new child node
+    createNewChildNode(node.id);
   };
 
   return (
     <div
       className="relative flex flex-col items-center cursor-pointer group border rounded shadow-md"
-      style={{ width: '200px', height: '150px' }} // Set appropriate dimensions here
+      style={{ width: '200px', height: '100px' }} // Adjust size here
     >
       {/* Title of the Concept-node */}
       <h2
@@ -80,10 +79,10 @@ function ConceptNode({ node, onClick, addCueCardToNode, updateNodeTitle, createN
         onClick={handleCueStackClick}
       />
 
-      {/* + Add New Child Node Button at Bottom Left */}
+      {/* + Button Encased in a Gray Round Cornered Box, visible only on hover */}
       <button
         onClick={handleAddChildNode}
-        className="absolute bottom-2 left-2 bg-blue-500 text-white rounded-full p-1 flex items-center justify-center shadow hover:bg-blue-600 transition-colors duration-200"
+        className="absolute bottom-2 left-2 bg-gray-200 text-black rounded px-2 py-1 flex items-center justify-center hover:bg-gray-300 transition-colors duration-200 text-sm group-hover:flex hidden"
         title="Click to add a new child concept"
       >
         +
