@@ -95,7 +95,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     };
 
     setNodes([newRootNode]);
-    // Additional logic to handle Bloom Depth if necessary
+    setSelectedCueCards([]); // Clear selected cue cards when a new document is initialized
   };
 
   return (
@@ -103,14 +103,14 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       value={{
         nodes,
         selectedCueCards,
+        createNewNode,
         addNode,
         removeNode,
         updateNode,
-        selectCueCards,
-        resetDocument,
-        createNewNode, // Ensure 'createNewNode' is properly declared above
         addCueCardToNode,
         updateNodeTitle,
+        resetDocument,
+        selectCueCards,
         initializeNewDocument,
       }}
     >

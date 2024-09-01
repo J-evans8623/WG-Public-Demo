@@ -4,20 +4,16 @@
 
 import React from 'react';
 import ConceptNode from './ConceptNode';
-import { useDocumentContext } from '@/app/Component/context/DocumentProvider'; // Updated import path if necessary
+import { useDocumentContext } from '../Component/context/DocumentProvider'; // Use the correct import statement
 import { CueCard } from '@/app/Definitions/Definitions';
 
-function ConceptMap({ setSelectedCueCards }: { setSelectedCueCards: (cards: CueCard[]) => void }) {
+function ConceptMap() {
   // Destructure the updated context to get all necessary functions and state
-  const {
-    nodes,
-    selectCueCards,
-  } = useDocumentContext(); // Access only the necessary context
+  const { nodes, selectCueCards } = useDocumentContext(); // Access context directly
 
   // Function to handle selecting a concept node and displaying its cue cards
   const handleViewConcept = (cueCards: CueCard[]) => {
-    setSelectedCueCards(cueCards); // Update state with the cue cards from the selected concept node
-    selectCueCards(cueCards); // Ensure selected cue cards are updated in the global context
+    selectCueCards(cueCards); // Update the global context state for selected cue cards
   };
 
   return (
@@ -27,7 +23,7 @@ function ConceptMap({ setSelectedCueCards }: { setSelectedCueCards: (cards: CueC
         <ConceptNode
           key={node.id}
           node={node}
-          onClick={handleViewConcept}
+          onClick={handleViewConcept} // Pass the function to handle viewing the concept's cue cards
         />
       ))}
     </div>
