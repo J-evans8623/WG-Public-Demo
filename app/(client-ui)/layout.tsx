@@ -8,17 +8,52 @@ import CueCardDisplay from '../Component/CueCardDisplay';
 import ConceptMap from '../Component/ConceptMap';
 import DocumentCreationModal from '../Component/DocumentCreationModal';
 import Modal from '../Component/Modal';
-import { GlobalSettingsProvider, useGlobalSettings } from '../Component/context/old/GlobalSettingsContext';
+import { GlobalSettingsProvider } from '../Component/context/old/GlobalSettingsContext'; // Keep it for backward compatibility if needed
 import { DocumentProvider, useDocumentContext } from '../Component/context/DocumentProvider';
+import { ColorTheme } from '@/app/Definitions/Definitions'; // Import ColorTheme type
+
+// Updated component to handle theme selection
+const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) => void }) => { // Use ColorTheme type
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative inline-block">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+      >
+        Customize
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20">
+          <div className="py-1">
+            <div className="px-4 py-2 text-sm text-gray-700">Color Theme</div>
+            <button
+              onClick={() => { setColorTheme('cool-spring'); setIsOpen(false); }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Cool Spring
+            </button>
+            <button
+              onClick={() => { setColorTheme('warm-summer'); setIsOpen(false); }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Warm Summer
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 function ClientLayoutContent() {
-  const { initializeNewDocument } = useDocumentContext();
+  const { initializeNewDocument, setColorTheme } = useDocumentContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
 
-  // Handle creating a new document
   const handleCreateNewDocument = useCallback((selectedDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
     initializeNewDocument(selectedDepth);
     closeModal();
@@ -27,17 +62,14 @@ function ClientLayoutContent() {
   // Placeholder functions for other buttons
   const handleOpenDocument = () => {
     console.log("Open Document clicked");
-    // Implement the logic to open a document here
   };
 
   const handleSaveDocument = () => {
     console.log("Save Document clicked");
-    // Implement the logic to save the document here
   };
 
   const handleHelp = () => {
     console.log("Help clicked");
-    // Implement the help functionality here
   };
 
   return (
@@ -64,6 +96,7 @@ function ClientLayoutContent() {
           <button onClick={handleSaveDocument} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
             Save
           </button>
+          <ThemeDropdown setColorTheme={setColorTheme} /> {/* Correctly typed Customize dropdown */}
         </div>
         <div className="flex items-center space-x-4">
           <button onClick={handleHelp} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
@@ -77,6 +110,7 @@ function ClientLayoutContent() {
         sizes={[20, 60, 20]} // Adjust sizes to be consistent
         minSize={[200, 600, 200]} // Ensure minSize does not exceed initial sizes
         maxSize={[600, Infinity, 400]} // Ensure maxSize does not conflict with sizes
+
         gutterSize={8}
         direction="horizontal"
         cursor="col-resize"

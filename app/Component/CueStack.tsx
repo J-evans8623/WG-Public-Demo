@@ -3,11 +3,14 @@
 'use client';
 
 import React from 'react';
-import { CueStackProps } from '@/app/Definitions/Definitions';
-import { useGlobalSettings } from './context/old/GlobalSettingsContext'; // Import the global settings context
+import { CueStackProps, colorThemes } from '@/app/Definitions/Definitions';
+import { useDocumentContext } from './context/DocumentProvider'; // Import the DocumentProvider context
 
-function CueStack({ cueCardCount, colorTheme, onClick }: CueStackProps) {
-  const { bloomDepth } = useGlobalSettings(); // Get the Bloom Depth from global settings
+function CueStack({ cueCardCount, onClick }: CueStackProps) {
+  const { bloomDepth, colorTheme } = useDocumentContext(); // Get Bloom Depth and Color Theme from DocumentProvider
+
+  // Get the colors from the selected color theme
+  const themeColors = colorThemes[colorTheme];
 
   // Limit the stack to the maximum number of cards based on the Bloom Depth
   const visibleCards = Math.min(cueCardCount, bloomDepth);
@@ -28,7 +31,7 @@ function CueStack({ cueCardCount, colorTheme, onClick }: CueStackProps) {
             top: `${index * 5}px`,
             left: `${index * 5}px`,
             zIndex: visibleCards - index,
-            backgroundColor: colorTheme[index],
+            backgroundColor: themeColors[index], // Use colors from the selected theme
           }}
         />
       ))}

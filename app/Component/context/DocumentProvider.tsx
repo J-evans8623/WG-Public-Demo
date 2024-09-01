@@ -1,12 +1,11 @@
-// DocumentContext.tsx
+// DocumentProvider.tsx
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { CueCard, ConceptNode, DocumentContextType } from '@/app/Definitions/Definitions';
+import { CueCard, ConceptNode, DocumentContextType, ColorTheme } from '@/app/Definitions/Definitions';
 
 // Create the context with an undefined initial value
 const DocumentContext = createContext<DocumentContextType | undefined>(undefined);
 
-// Provider component to wrap around the parts of the app that need access to the document context
 export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   // State to manage all concept nodes
   const [nodes, setNodes] = useState<ConceptNode[]>([
@@ -21,6 +20,12 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
   // State to manage selected cue cards
   const [selectedCueCards, setSelectedCueCards] = useState<CueCard[]>([]);
+
+  // State to manage Bloom Depth
+  const [bloomDepth, setBloomDepth] = useState<1 | 2 | 3 | 4 | 5 | 6>(4); // Default bloom depth
+
+  // State to manage Color Theme
+  const [colorTheme, setColorTheme] = useState<ColorTheme>('cool-spring'); // Default to 'cool-spring' theme
 
   // Function to add a new node (receives a title)
   const createNewNode = (title: string) => {
@@ -95,7 +100,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     };
 
     setNodes([newRootNode]);
-    setSelectedCueCards([]); // Clear selected cue cards when a new document is initialized
+    setBloomDepth(bloomDepth); // Set the new bloom depth
   };
 
   return (
@@ -103,14 +108,18 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       value={{
         nodes,
         selectedCueCards,
-        createNewNode,
+        bloomDepth,
+        setBloomDepth,
+        colorTheme, // Add color theme to the context
+        setColorTheme, // Expose the function to set color theme
         addNode,
         removeNode,
         updateNode,
+        selectCueCards,
+        resetDocument,
+        createNewNode,
         addCueCardToNode,
         updateNodeTitle,
-        resetDocument,
-        selectCueCards,
         initializeNewDocument,
       }}
     >

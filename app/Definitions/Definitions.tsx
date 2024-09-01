@@ -76,9 +76,17 @@ export const colorThemes: Record<ColorTheme, string[]> = {
 };
 
 // Define the types for the context state and the provider's children props
+// Definitions.tsx
+
+// Definitions.tsx
+
 export interface DocumentContextType {
   nodes: ConceptNode[];
   selectedCueCards: CueCard[];
+  bloomDepth: 1 | 2 | 3 | 4 | 5 | 6;
+  setBloomDepth: (depth: 1 | 2 | 3 | 4 | 5 | 6) => void;
+  colorTheme: ColorTheme; // Define colorTheme as part of the context state
+  setColorTheme: (theme: ColorTheme) => void; // Function to set colorTheme
   addNode: (node: ConceptNode) => void;
   removeNode: (nodeId: string) => void;
   updateNode: (nodeId: string, updatedNode: Partial<ConceptNode>) => void;
@@ -89,3 +97,5 @@ export interface DocumentContextType {
   updateNodeTitle: (nodeId: string, newTitle: string) => void;
   initializeNewDocument: (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6) => void;
 }
+
+
