@@ -1,12 +1,16 @@
 // bloom-maps/Definitions/Definitions.tsx
 
+// bloom-maps/app/Definitions/Definitions.tsx
+
 export interface CueCard {
   id: string; // Unique identifier for the cue card
   title: string; // Title of the cue card
   content: string; // Main content of the cue card
   createdDate?: Date; // Optional: Date the cue card was created
   tags?: string[]; // Optional: Tags for categorizing cue cards
+  bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6; // Add bloomLevel as an optional property
 }
+
 
 // Define the Concept-node interface
 export interface ConceptNode {

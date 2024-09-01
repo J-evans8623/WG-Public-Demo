@@ -9,11 +9,11 @@ import ConceptMap from '../Component/ConceptMap';
 import DocumentCreationModal from '../Component/DocumentCreationModal';
 import Modal from '../Component/Modal';
 import { GlobalSettingsProvider } from '../Component/context/old/GlobalSettingsContext'; // Keep it for backward compatibility if needed
-import { DocumentProvider, useDocumentContext } from '../Component/context/DocumentProvider';
-import { ColorTheme } from '@/app/Definitions/Definitions'; // Import ColorTheme type
+import DocumentProvider, { useDocumentContext } from '../Component/context/DocumentProvider'; // Correct import for default and named export
+import { ColorTheme } from '@/app/Definitions/Definitions';
 
 // Updated component to handle theme selection
-const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) => void }) => { // Use ColorTheme type
+const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) => void }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -59,7 +59,6 @@ function ClientLayoutContent() {
     closeModal();
   }, [initializeNewDocument]);
 
-  // Placeholder functions for other buttons
   const handleOpenDocument = () => {
     console.log("Open Document clicked");
   };
@@ -96,7 +95,7 @@ function ClientLayoutContent() {
           <button onClick={handleSaveDocument} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
             Save
           </button>
-          <ThemeDropdown setColorTheme={setColorTheme} /> {/* Correctly typed Customize dropdown */}
+          <ThemeDropdown setColorTheme={setColorTheme} />
         </div>
         <div className="flex items-center space-x-4">
           <button onClick={handleHelp} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
@@ -107,10 +106,9 @@ function ClientLayoutContent() {
 
       <Split
         className="flex h-[calc(100vh-50px)]"
-        sizes={[20, 60, 20]} // Adjust sizes to be consistent
-        minSize={[200, 600, 200]} // Ensure minSize does not exceed initial sizes
-        maxSize={[600, Infinity, 400]} // Ensure maxSize does not conflict with sizes
-
+        sizes={[20, 60, 20]} 
+        minSize={[200, 600, 200]} 
+        maxSize={[600, Infinity, 400]} 
         gutterSize={8}
         direction="horizontal"
         cursor="col-resize"

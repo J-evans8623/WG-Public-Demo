@@ -3,25 +3,25 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useDocumentContext } from './context/DocumentProvider'; // Use DocumentProvider context
+import { useDocumentContext } from '../Component/context/DocumentProvider'; // Use the updated DocumentProvider
 
 interface DocumentCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (selectedDepth: 1 | 2 | 3 | 4 | 5 | 6) => void; // Modify to accept bloom level
+  onCreate: (depth: 1 | 2 | 3 | 4 | 5 | 6) => void; // Pass the selected bloom depth to the onCreate function
 }
 
 export default function DocumentCreationModal({ isOpen, onClose, onCreate }: DocumentCreationModalProps) {
-  const { setBloomDepth } = useDocumentContext();
-  const [selectedDepth, setSelectedDepth] = useState<1 | 2 | 3 | 4 | 5 | 6>(4); // Default depth is 4
+  const { setBloomDepth } = useDocumentContext(); // Access the DocumentContext to set the bloom depth
+  const [selectedDepth, setSelectedDepth] = useState<1 | 2 | 3 | 4 | 5 | 6>(4); // Default bloom depth to 4
 
-  const handleDepthChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedDepth(parseInt(event.target.value, 10) as 1 | 2 | 3 | 4 | 5 | 6);
+  const handleDepthChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedDepth(parseInt(event.target.value, 10) as 1 | 2 | 3 | 4 | 5 | 6); // Ensure the selected depth is one of the allowed values
   };
 
   const handleCreate = () => {
-    setBloomDepth(selectedDepth); // Set the selected depth
-    onCreate(selectedDepth); // Pass the selected depth back to the parent handler
+    setBloomDepth(selectedDepth); // Set the selected bloom depth in the context
+    onCreate(selectedDepth); // Call the onCreate callback with the selected depth
     onClose(); // Close the modal
   };
 
@@ -30,24 +30,22 @@ export default function DocumentCreationModal({ isOpen, onClose, onCreate }: Doc
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded shadow-lg w-1/3">
-        <h2 className="text-xl font-bold mb-4">Create New Cue Card</h2>
-        <p>Select a Bloom Level for this Cue Card:</p>
-        {/* Bloom Level Checkboxes */}
-        <div className="mt-4">
+        <h2 className="text-xl font-bold mb-4">Create New Document</h2>
+        <label htmlFor="depth" className="block text-sm font-medium text-gray-700">
+          Select Bloom Depth:
+        </label>
+        <select
+          id="depth"
+          value={selectedDepth}
+          onChange={handleDepthChange}
+          className="mt-1 block w-full p-2 border border-gray-300 rounded"
+        >
           {[1, 2, 3, 4, 5, 6].map((depth) => (
-            <label key={depth} className="flex items-center space-x-2 mb-2">
-              <input
-                type="radio"
-                name="bloomDepth"
-                value={depth}
-                checked={selectedDepth === depth}
-                onChange={handleDepthChange}
-                className="form-radio text-blue-600"
-              />
-              <span>Bloom Level {depth}</span>
-            </label>
+            <option key={depth} value={depth}>
+              {depth}
+            </option>
           ))}
-        </div>
+        </select>
         <div className="mt-4 flex justify-end space-x-2">
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
             Cancel

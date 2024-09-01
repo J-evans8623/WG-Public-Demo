@@ -1,14 +1,12 @@
-// bloom-maps/ui/ConceptNode.tsx
+// bloom-maps/app/ui/ConceptNode.tsx
 
 'use client';
 
 import React, { useState } from 'react';
 import CueStack from './CueStack';
 import Modal from './Modal';
-import { CueCard, ExtendedConceptNodeProps } from '@/app/Definitions/Definitions';
-import { useDocumentContext,  } from '@/app/Component/context/DocumentProvider'; 
-
-
+import { CueCard, ExtendedConceptNodeProps, colorThemes } from '@/app/Definitions/Definitions'; // Import colorThemes
+import { useDocumentContext } from '@/app/Component/context/DocumentProvider';
 
 function ConceptNode({ node, onClick }: ExtendedConceptNodeProps) {
   const {
@@ -16,6 +14,7 @@ function ConceptNode({ node, onClick }: ExtendedConceptNodeProps) {
     updateNodeTitle,
     createNewNode,
     selectCueCards,
+    colorTheme, // Get the colorTheme from the context
   } = useDocumentContext(); // Use updated context hooks
 
   const { title, cueCards } = node;
@@ -23,11 +22,12 @@ function ConceptNode({ node, onClick }: ExtendedConceptNodeProps) {
   const [isAddingCueCard, setIsAddingCueCard] = useState(false);
   const [newTitle, setNewTitle] = useState(title);
 
-  // Initialize newCueCard with a unique ID
+  // Initialize newCueCard with a unique ID and bloom level
   const [newCueCard, setNewCueCard] = useState<CueCard>({
     id: Date.now().toString(),
     title: '',
     content: '',
+    bloomLevel: 1, // Default to bloom level 1
   });
 
   const handleTitleClick = () => {
@@ -40,6 +40,7 @@ function ConceptNode({ node, onClick }: ExtendedConceptNodeProps) {
       id: Date.now().toString(),
       title: '',
       content: '',
+      bloomLevel: 1, // Reset to default bloom level
     });
     setIsAddingCueCard(true);
   };
@@ -49,14 +50,15 @@ function ConceptNode({ node, onClick }: ExtendedConceptNodeProps) {
     setIsEditingTitle(false);
   };
 
-  const handleCueCardSave = () => {
-    addCueCardToNode(node.id, newCueCard);
-    setIsAddingCueCard(false);
-    setNewCueCard({
+  const handleCueCardSave = (title: string, content: string, bloomLevel: 1 | 2 | 3 | 4 | 5 | 6) => {
+    const newCard: CueCard = {
       id: Date.now().toString(),
-      title: '',
-      content: '',
-    });
+      title,
+      content,
+      bloomLevel,
+    };
+    addCueCardToNode(node.id, newCard);
+    setIsAddingCueCard(false);
   };
 
   const handleAddChildNode = () => {
@@ -91,7 +93,7 @@ function ConceptNode({ node, onClick }: ExtendedConceptNodeProps) {
       {/* CueStack visualization with updated onClick */}
       <CueStack
         cueCardCount={cueCards.length}
-        colorTheme={['rgb(223, 252, 173)', 'rgb(181, 245, 216)', 'rgb(168, 204, 252)', 'rgb(137, 112, 252)']}
+        colorTheme={colorThemes[colorTheme]} // Correctly use colorThemes
         onClick={handleCueStackClick}
       />
 
@@ -121,7 +123,11 @@ function ConceptNode({ node, onClick }: ExtendedConceptNodeProps) {
       </Modal>
 
       {/* Modal for Adding Cue Card */}
-      <Modal isOpen={isAddingCueCard} onClose={() => setIsAddingCueCard(false)}>
+      <Modal
+        isOpen={isAddingCueCard}
+        onClose={() => setIsAddingCueCard(false)}
+        onCreateCueCard={handleCueCardSave} // Pass cue card creation handler
+      >
         <input
           type="text"
           value={newCueCard.title}
@@ -135,7 +141,24 @@ function ConceptNode({ node, onClick }: ExtendedConceptNodeProps) {
           placeholder="Cue Card Content"
           className="border p-2 w-full mt-2"
         />
-        <button onClick={handleCueCardSave} className="mt-2 bg-green-500 text-white px-4 py-2 rounded">
+        {/* Bloom Level Radio Buttons */}
+        <p>Select Bloom Level:</p>
+        <div className="mt-4">
+          {[1, 2, 3, 4, 5, 6].map((level) => (
+            <label key={level} className="flex items-center space-x-2 mb-2">
+              <input
+                type="radio"
+                name="bloomLevel"
+                value={level}
+                checked={newCueCard.bloomLevel === level}
+                onChange={() => setNewCueCard({ ...newCueCard, bloomLevel: level as 1 | 2 | 3 | 4 | 5 | 6 })} // Cast to the correct type
+                className="form-radio text-blue-600"
+              />
+              <span>Bloom Level {level}</span>
+            </label>
+          ))}
+        </div>
+        <button onClick={() => handleCueCardSave(newCueCard.title, newCueCard.content, newCueCard.bloomLevel!)} className="mt-2 bg-green-500 text-white px-4 py-2 rounded">
           Save Cue Card
         </button>
       </Modal>

@@ -1,4 +1,4 @@
-// DocumentProvider.tsx
+// DocumentContext.tsx
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { CueCard, ConceptNode, DocumentContextType, ColorTheme } from '@/app/Definitions/Definitions';
@@ -6,7 +6,8 @@ import { CueCard, ConceptNode, DocumentContextType, ColorTheme } from '@/app/Def
 // Create the context with an undefined initial value
 const DocumentContext = createContext<DocumentContextType | undefined>(undefined);
 
-export const DocumentProvider = ({ children }: { children: ReactNode }) => {
+// Provider component to wrap around the parts of the app that need access to the document context
+const DocumentProvider = ({ children }: { children: ReactNode }) => {
   // State to manage all concept nodes
   const [nodes, setNodes] = useState<ConceptNode[]>([
     {
@@ -21,11 +22,11 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   // State to manage selected cue cards
   const [selectedCueCards, setSelectedCueCards] = useState<CueCard[]>([]);
 
-  // State to manage Bloom Depth
+  // State to manage bloom depth
   const [bloomDepth, setBloomDepth] = useState<1 | 2 | 3 | 4 | 5 | 6>(4); // Default bloom depth
 
-  // State to manage Color Theme
-  const [colorTheme, setColorTheme] = useState<ColorTheme>('cool-spring'); // Default to 'cool-spring' theme
+  // State to manage color theme
+  const [colorTheme, setColorTheme] = useState<ColorTheme>('cool-spring'); // Default color theme
 
   // Function to add a new node (receives a title)
   const createNewNode = (title: string) => {
@@ -80,13 +81,8 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
   // Function to reset the document state
   const resetDocument = () => {
-    setNodes([]);
-    setSelectedCueCards([]);
-  };
-
-  // Function to select cue cards
-  const selectCueCards = (cueCards: CueCard[]) => {
-    setSelectedCueCards(cueCards);
+    setNodes([]); // Clear all nodes
+    setSelectedCueCards([]); // Clear selected cue cards
   };
 
   // Function to initialize a new document
@@ -99,8 +95,14 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       childrenNodeIds: [],
     };
 
-    setNodes([newRootNode]);
+    setNodes([newRootNode]); // Reset nodes to the new root node
+    setSelectedCueCards([]); // Clear selected cue cards
     setBloomDepth(bloomDepth); // Set the new bloom depth
+  };
+
+  // Function to select cue cards
+  const selectCueCards = (cueCards: CueCard[]) => {
+    setSelectedCueCards(cueCards);
   };
 
   return (
@@ -108,19 +110,20 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       value={{
         nodes,
         selectedCueCards,
+        createNewNode,
+        resetDocument,
+        initializeNewDocument,
         bloomDepth,
         setBloomDepth,
-        colorTheme, // Add color theme to the context
-        setColorTheme, // Expose the function to set color theme
+        colorTheme,
+        setColorTheme,
         addNode,
         removeNode,
         updateNode,
         selectCueCards,
-        resetDocument,
-        createNewNode,
         addCueCardToNode,
         updateNodeTitle,
-        initializeNewDocument,
+        // Other context functions...
       }}
     >
       {children}
@@ -136,3 +139,6 @@ export const useDocumentContext = () => {
   }
   return context;
 };
+
+// Export DocumentProvider as the default export
+export default DocumentProvider;
