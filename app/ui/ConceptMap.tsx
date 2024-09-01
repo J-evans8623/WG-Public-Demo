@@ -2,13 +2,13 @@
 
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import ConceptNode from './ConceptNode';
 import useNodeManager from './hooks/useNodeManager';
 import { CueCard } from '@/app/Definitions/Definitions';
 
-function ConceptMap({ setSelectedCueCards, reset }: { setSelectedCueCards: (cards: CueCard[]) => void; reset?: boolean }) {
-  const { nodes, createNewNode, addCueCardToNode, updateNodeTitle, resetNodes } = useNodeManager();
+function ConceptMap({ setSelectedCueCards }: { setSelectedCueCards: (cards: CueCard[]) => void }) {
+  const { nodes, createNewNode, addCueCardToNode, updateNodeTitle } = useNodeManager();
 
   // Function to handle selecting a concept node and displaying its cue cards
   const handleViewConcept = (cueCards: CueCard[]) => {
@@ -21,15 +21,11 @@ function ConceptMap({ setSelectedCueCards, reset }: { setSelectedCueCards: (card
     createNewNode(newChildTitle);
   };
 
-  // Use useEffect to reset nodes when reset prop is true
-  useEffect(() => {
-    if (reset) {
-      resetNodes(); // Call the reset function to clear all nodes and create a new root node
-    }
-  }, [reset]);
-
   return (
     <div className="relative w-full h-full bg-white overflow-auto">
+      {/* Floating button to create a new top-level concept */}
+
+
       {/* Render concept nodes */}
       {nodes.map((node) => (
         <ConceptNode
