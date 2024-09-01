@@ -74,15 +74,15 @@ function ClientLayoutContent() {
 
       <Split
         className="flex h-[calc(100vh-50px)]"
-        sizes={[25, 55, 20]}
-        minSize={[200, 300, 150]}
-        maxSize={[400, Infinity, 300]}
+        sizes={[20, 60, 20]} // Adjust sizes to be consistent
+        minSize={[200, 600, 200]} // Ensure minSize does not exceed initial sizes
+        maxSize={[600, Infinity, 400]} // Ensure maxSize does not conflict with sizes
         gutterSize={8}
         direction="horizontal"
         cursor="col-resize"
       >
         {/* Left Panel (Cue Card Viewer) */}
-        <div className="bg-gray-200 p-4 shadow-lg rounded-lg overflow-y-auto min-w-[200px] flex flex-col space-y-2">
+        <div className="flex flex-col space-y-2 bg-gray-200 p-4 shadow-lg rounded-lg overflow-y-auto">
           <CueCardDisplay />
         </div>
 
