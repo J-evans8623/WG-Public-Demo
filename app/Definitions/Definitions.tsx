@@ -44,3 +44,28 @@ export interface CueStackProps {
     cueCards?: CueCard[]; // Define the type for cueCards prop
   }
 
+// Color definitions
+export type ColorTheme = 'cool-spring' | 'warm-summer' | 'gray';
+
+// Define the colors for each theme
+export const colorThemes: Record<ColorTheme, string[]> = {
+  'cool-spring': [
+    'rgb(223, 252, 173)', // Light green
+    'rgb(181, 245, 216)', // Light teal
+    'rgb(168, 204, 252)', // Light blue
+    'rgb(137, 112, 252)', // Light purple
+    'rgb(93, 76, 204)',   // Dark purple
+    'rgb(25, 116, 210)'   // Deep blue
+  ],
+  'warm-summer': [
+    'rgb(247, 244, 212)', // Light beige
+    'rgb(254, 228, 119)', // Light yellow
+    'rgb(254, 228, 11)',  // Yellow
+    'rgb(254, 159, 171)', // Light pink
+    'rgb(57, 212, 192)',  // Aqua
+    'rgb(1, 175, 218)'    // Bright blue
+  ],
+  'gray': [
+    'rgb(211, 211, 211)', // Light gray for unspecified levels
+  ],
+};
