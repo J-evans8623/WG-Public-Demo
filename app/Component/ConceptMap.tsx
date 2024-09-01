@@ -4,37 +4,30 @@
 
 import React from 'react';
 import ConceptNode from './ConceptNode';
-import useNodeManager from './hooks/useNodeManager';
+import { useDocumentContext } from '@/app/Component/context/DocumentProvider'; // Updated import path if necessary
 import { CueCard } from '@/app/Definitions/Definitions';
 
 function ConceptMap({ setSelectedCueCards }: { setSelectedCueCards: (cards: CueCard[]) => void }) {
-  const { nodes, createNewNode, addCueCardToNode, updateNodeTitle } = useNodeManager();
+  // Destructure the updated context to get all necessary functions and state
+  const {
+    nodes,
+    selectCueCards,
+  } = useDocumentContext(); // Access only the necessary context
 
   // Function to handle selecting a concept node and displaying its cue cards
   const handleViewConcept = (cueCards: CueCard[]) => {
     setSelectedCueCards(cueCards); // Update state with the cue cards from the selected concept node
-  };
-
-  // Function to create a new child node
-  const createNewChildNode = (parentId: string) => {
-    const newChildTitle = `Child of ${parentId}`;
-    createNewNode(newChildTitle);
+    selectCueCards(cueCards); // Ensure selected cue cards are updated in the global context
   };
 
   return (
     <div className="relative w-full h-full bg-white overflow-auto">
-      {/* Floating button to create a new top-level concept */}
-
-
       {/* Render concept nodes */}
       {nodes.map((node) => (
         <ConceptNode
           key={node.id}
           node={node}
-          onClick={handleViewConcept} // Pass the function to handle viewing the concept's cue cards
-          addCueCardToNode={addCueCardToNode}
-          updateNodeTitle={updateNodeTitle}
-          createNewChildNode={createNewChildNode}
+          onClick={handleViewConcept}
         />
       ))}
     </div>

@@ -1,14 +1,14 @@
-export interface CueCard {
-    id: string; // Unique identifier for the cue card
-    title: string; // Title of the cue card
-    content: string; // Main content of the cue card
-    createdDate?: Date; // Optional: Date the cue card was created
-    tags?: string[]; // Optional: Tags for categorizing cue cards
-  }
-  
-  // Define the Concept-node interface
- // bloom-maps/Definitions/Definitions.tsx
+// bloom-maps/Definitions/Definitions.tsx
 
+export interface CueCard {
+  id: string; // Unique identifier for the cue card
+  title: string; // Title of the cue card
+  content: string; // Main content of the cue card
+  createdDate?: Date; // Optional: Date the cue card was created
+  tags?: string[]; // Optional: Tags for categorizing cue cards
+}
+
+// Define the Concept-node interface
 export interface ConceptNode {
   id: string;
   title: string;
@@ -20,29 +20,34 @@ export interface ConceptNode {
   y?: number; // Y-coordinate for positioning
 }
 
-
-// bloom-maps/app/Definitions/Definitions.ts
-
+// Interface for CueStackProps
 export interface CueStackProps {
   cueCardCount: number;
   colorTheme: string[];
-  onClick: (e: React.MouseEvent<HTMLDivElement>) => void; // Updated type for onClick to accept an event parameter
+  onClick: (e: React.MouseEvent<HTMLDivElement>) => void;
 }
 
+// Interface for ConceptNodeProps
+export interface ConceptNodeProps {
+  node: ConceptNode; // The data representing a Concept-node, including cue cards
+  onClick: (cueCards: CueCard[]) => void; // Expect a CueCard[] argument for handling clicks
+}
 
-  export interface ConceptNodeProps {
-    node: ConceptNode; // The data representing a Concept-node, including cue cards
-    onClick: (cueCards: CueCard[]) => void; // Update to expect a CueCard[] argument
-  }
+// Extended props for ConceptNode with additional context functions
+export interface ExtendedConceptNodeProps extends ConceptNodeProps {
+  onClick: (cueCards: CueCard[]) => void;
+}
 
-  export interface CueCardProps {
-    title: string;
-    content: string;
-  }
+// Interface for CueCardProps
+export interface CueCardProps {
+  title: string;
+  content: string;
+}
 
-  export interface CueCardDisplayProps {
-    cueCards?: CueCard[]; // Define the type for cueCards prop
-  }
+// Interface for CueCardDisplayProps
+export interface CueCardDisplayProps {
+  cueCards?: CueCard[]; // Define the type for cueCards prop
+}
 
 // Color definitions
 export type ColorTheme = 'cool-spring' | 'warm-summer' | 'gray';
@@ -69,3 +74,18 @@ export const colorThemes: Record<ColorTheme, string[]> = {
     'rgb(211, 211, 211)', // Light gray for unspecified levels
   ],
 };
+
+// Define the types for the context state and the provider's children props
+export interface DocumentContextType {
+  nodes: ConceptNode[];
+  selectedCueCards: CueCard[];
+  addNode: (node: ConceptNode) => void;
+  removeNode: (nodeId: string) => void;
+  updateNode: (nodeId: string, updatedNode: Partial<ConceptNode>) => void;
+  selectCueCards: (cueCards: CueCard[]) => void;
+  resetDocument: () => void;
+  createNewNode: (title: string) => void;
+  addCueCardToNode: (nodeId: string, cueCard: CueCard) => void;
+  updateNodeTitle: (nodeId: string, newTitle: string) => void;
+  initializeNewDocument: (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6) => void;
+}

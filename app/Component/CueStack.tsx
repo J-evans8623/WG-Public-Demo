@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { CueStackProps } from '@/app/Definitions/Definitions';
-import { useGlobalSettings } from './context/GlobalSettingsContext'; // Import the global settings context
+import { useGlobalSettings } from './context/old/GlobalSettingsContext'; // Import the global settings context
 
 function CueStack({ cueCardCount, colorTheme, onClick }: CueStackProps) {
   const { bloomDepth } = useGlobalSettings(); // Get the Bloom Depth from global settings

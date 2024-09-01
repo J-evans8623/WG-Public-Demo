@@ -3,7 +3,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import  useNodeManager from '@/app/ui/hooks/useNodeManager'; // Import the useNodeManager hook
+import  useNodeManager from '@/app/Component/hooks/useNodeManager'; // Import the useNodeManager hook
 
 // Define the types for settings
 type ColorTheme = 'ThemeA' | 'ThemeB';

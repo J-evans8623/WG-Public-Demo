@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useGlobalSettings } from './context/GlobalSettingsContext';
+import { useGlobalSettings } from './context/old/GlobalSettingsContext';
 
 interface DocumentCreationModalProps {
   isOpen: boolean;

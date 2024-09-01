@@ -5,21 +5,19 @@
 import React, { useState } from 'react';
 import CueStack from './CueStack';
 import Modal from './Modal';
-import { ConceptNodeProps, CueCard } from '@/app/Definitions/Definitions';
+import { CueCard, ExtendedConceptNodeProps } from '@/app/Definitions/Definitions';
+import { useDocumentContext,  } from '@/app/Component/context/DocumentProvider'; 
 
-interface ExtendedConceptNodeProps extends ConceptNodeProps {
-  addCueCardToNode: (nodeId: string, cueCard: CueCard) => void;
-  updateNodeTitle: (nodeId: string, newTitle: string) => void;
-  createNewChildNode: (parentId: string) => void;
-}
 
-function ConceptNode({
-  node,
-  onClick,
-  addCueCardToNode,
-  updateNodeTitle,
-  createNewChildNode,
-}: ExtendedConceptNodeProps) {
+
+function ConceptNode({ node, onClick }: ExtendedConceptNodeProps) {
+  const {
+    addCueCardToNode,
+    updateNodeTitle,
+    createNewNode,
+    selectCueCards,
+  } = useDocumentContext(); // Use updated context hooks
+
   const { title, cueCards } = node;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isAddingCueCard, setIsAddingCueCard] = useState(false);
@@ -37,7 +35,7 @@ function ConceptNode({
   };
 
   const handleCueStackClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation(); // Prevent the click event from propagating to the parent div
+    e.stopPropagation();
     setNewCueCard({
       id: Date.now().toString(),
       title: '',
@@ -62,20 +60,26 @@ function ConceptNode({
   };
 
   const handleAddChildNode = () => {
-    createNewChildNode(node.id);
+    const newChildTitle = `Child of ${node.id}`;
+    createNewNode(newChildTitle);
+  };
+
+  const handleNodeClick = () => {
+    onClick(cueCards);
+    selectCueCards(cueCards); // Sync selected cue cards with global state
   };
 
   return (
     <div
       className="relative flex flex-col items-center cursor-pointer group border rounded shadow-md"
       style={{ width: '200px', height: '150px' }}
-      onClick={() => onClick(cueCards)} // Correctly pass cue cards on click
-      title="View Concept" // Hover text for the entire concept node container
+      onClick={handleNodeClick} // Updated to handle both local and global cue card selection
+      title="View Concept"
     >
       {/* Title of the Concept-node */}
       <h2
         onClick={(e) => {
-          e.stopPropagation(); // Prevent the click event from propagating to the parent div
+          e.stopPropagation();
           handleTitleClick();
         }}
         className="mb-1 text-lg font-semibold text-gray-800 group-hover:bg-gray-100 rounded"
@@ -88,13 +92,13 @@ function ConceptNode({
       <CueStack
         cueCardCount={cueCards.length}
         colorTheme={['rgb(223, 252, 173)', 'rgb(181, 245, 216)', 'rgb(168, 204, 252)', 'rgb(137, 112, 252)']}
-        onClick={handleCueStackClick} // Pass the updated click handler
+        onClick={handleCueStackClick}
       />
 
-      {/* + Button Encased in a Gray Round Cornered Box, visible only on hover */}
+      {/* + Button for adding a new child concept */}
       <button
         onClick={(e) => {
-          e.stopPropagation(); // Prevent the click event from propagating to the parent div
+          e.stopPropagation();
           handleAddChildNode();
         }}
         className="absolute bottom-2 left-2 bg-gray-200 text-black rounded px-2 py-1 flex items-center justify-center hover:bg-gray-300 transition-colors duration-200 text-sm group-hover:flex hidden"
