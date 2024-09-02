@@ -70,9 +70,9 @@ export const colorThemes: Record<ColorTheme, string[]> = {
     'rgb(247, 244, 212)', // Light beige
     'rgb(254, 228, 119)', // Light yellow
     'rgb(254, 228, 11)',  // Yellow
-    'rgb(254, 159, 171)', // Light pink
-    'rgb(57, 212, 192)',  // Aqua
-    'rgb(1, 175, 218)'    // Bright blue
+    'rgb(255, 99, 71)', // Tomato
+    'rgb(255, 166, 0)',  // Orange yellow
+    'rgb(255, 68, 0)'    // Red orang
   ],
   'gray': [
     'rgb(211, 211, 211)', // Light gray for unspecified levels
