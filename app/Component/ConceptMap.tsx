@@ -5,12 +5,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ConceptNode from './ConceptNode';
 import { useDocumentContext } from '../Component/context/DocumentProvider';
-import { CueCard } from '@/app/Definitions/Definitions';
-import ContextMenu from './ContextMenu'; // Import the new ContextMenu component
+import { CueCard, ConceptNode as ConceptNodeType } from '@/app/Definitions/Definitions';
+import ContextMenu from './ContextMenu';
+import { drawLines } from './utils/drawLines'; 
 
 function ConceptMap() {
-  const { nodes, selectCueCards, createNewNode } = useDocumentContext();
+  const { nodes, selectCueCards, createNewNode, updateNode } = useDocumentContext();
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,11 +35,30 @@ function ConceptMap() {
     if (option === 'New Map') {
       createNewNode('New Root Concept');
     }
-    // Handle other options here
   };
 
   const handleViewConcept = (cueCards: CueCard[]) => {
     selectCueCards(cueCards);
+  };
+
+  const handleDragStart = (node: ConceptNodeType) => {
+    setDraggedNode(node);
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault(); // Allow dropping
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    if (!draggedNode) return;
+
+    const mapRect = mapRef.current?.getBoundingClientRect();
+    const x = event.clientX - (mapRect?.left ?? 0);
+    const y = event.clientY - (mapRect?.top ?? 0);
+
+    updateNode(draggedNode.id, { x, y });
+    setDraggedNode(null);
   };
 
   return (
@@ -45,8 +66,9 @@ function ConceptMap() {
       ref={mapRef}
       className="relative w-full h-full bg-white overflow-auto"
       onContextMenu={handleRightClick}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
-      {/* Render context menu if position is set */}
       {contextMenuPosition && (
         <ContextMenu
           position={contextMenuPosition}
@@ -54,14 +76,22 @@ function ConceptMap() {
         />
       )}
 
-      {/* Render concept nodes */}
-      {nodes.map((node) => (
-        <ConceptNode
-          key={node.id}
-          node={node}
-          onClick={handleViewConcept}
-        />
-      ))}
+      <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
+        {drawLines(nodes)}
+      </svg>
+
+      {nodes.map((node) => {
+        // Ensure node is defined before rendering ConceptNode
+        if (!node) return null; // Skip undefined nodes
+        return (
+          <ConceptNode
+            key={node.id}
+            node={node}
+            onClick={handleViewConcept}
+            onDragStart={handleDragStart}
+          />
+        );
+      })}
     </div>
   );
 }
