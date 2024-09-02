@@ -7,7 +7,7 @@ import { useDocumentContext } from '../Component/context/DocumentProvider'; // I
 
 // Define a default blank cue card
 const defaultCueCards: CueCardInterface[] = [
-  { id: 'default', title: 'Add a new concept to get started!', content: 'Select a concept from the map' },
+  { id: 'default', title: 'Add a new concept to get started!', content: 'Select a concept from the map', bloomLevel: 1 },
 ];
 
 function CueCardDisplay() {
@@ -17,12 +17,14 @@ function CueCardDisplay() {
   const cueCards = selectedCueCards.length > 0 ? selectedCueCards : defaultCueCards;
 
   return (
-    <div
-      className="flex flex-col space-y-2"
-      data-testid="cue-card-display"
-    >
+    <div className="flex flex-col space-y-2" data-testid="cue-card-display">
       {cueCards.map((cueCard) => (
-        <CueCard key={cueCard.id} title={cueCard.title} content={cueCard.content} />
+        <CueCard
+          key={cueCard.id}
+          title={cueCard.title}
+          content={cueCard.content}
+          bloomLevel={cueCard.bloomLevel || 1} // Pass bloomLevel to CueCard, default to 1 if not specified
+        />
       ))}
     </div>
   );

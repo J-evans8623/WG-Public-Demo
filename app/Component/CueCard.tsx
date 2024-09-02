@@ -6,8 +6,12 @@ import React, { useState } from 'react';
 import { CueCardProps, colorThemes } from '@/app/Definitions/Definitions';
 import { useDocumentContext } from './context/DocumentProvider'; // Import the DocumentProvider context
 
-function CueCard({ title, content }: CueCardProps) {
-  const { colorTheme, bloomDepth } = useDocumentContext(); // Get Color Theme and Bloom Depth from DocumentProvider
+interface CueCardPropsWithBloom extends CueCardProps {
+  bloomLevel: 1 | 2 | 3 | 4 | 5 | 6; // Add bloom level as a required prop
+}
+
+function CueCard({ title, content, bloomLevel }: CueCardPropsWithBloom) {
+  const { colorTheme } = useDocumentContext(); // Get Color Theme from DocumentProvider
   const [showTitle, setShowTitle] = useState(true);
 
   // Function to toggle between title and content
@@ -17,7 +21,7 @@ function CueCard({ title, content }: CueCardProps) {
 
   // Determine the color for the dot
   const themeColors = colorThemes[colorTheme];
-  const bloomColor = themeColors[bloomDepth - 1] || colorThemes['gray'][0]; // Use gray if no bloom level is specified
+  const bloomColor = themeColors[bloomLevel - 1] || colorThemes['gray'][0]; // Use gray if no bloom level is specified
 
   return (
     <div
@@ -28,7 +32,7 @@ function CueCard({ title, content }: CueCardProps) {
       <div
         className="absolute top-2 left-2 w-3 h-3 rounded-full"
         style={{ backgroundColor: bloomColor }}
-        title={`Bloom Level: ${bloomDepth}`}
+        title={`Bloom Level: ${bloomLevel}`}
       ></div>
 
       {showTitle ? (
