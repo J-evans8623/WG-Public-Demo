@@ -49,17 +49,30 @@ function ConceptMap() {
     event.preventDefault(); // Allow dropping
   };
 
-  const handleDrop = (event: React.DragEvent) => {
-    event.preventDefault();
-    if (!draggedNode) return;
+  const GRID_SIZE = 20; // Define the size of each grid cell
 
-    const mapRect = mapRef.current?.getBoundingClientRect();
-    const x = event.clientX - (mapRect?.left ?? 0);
-    const y = event.clientY - (mapRect?.top ?? 0);
+  const snapToGrid = (value: number) => Math.round(value / GRID_SIZE) * GRID_SIZE;
 
-    updateNode(draggedNode.id, { x, y });
-    setDraggedNode(null);
-  };
+const handleDrop = (event: React.DragEvent) => {
+  event.preventDefault();
+  if (!draggedNode) return;
+
+  const mapRect = mapRef.current?.getBoundingClientRect();
+  const offsetX = event.clientX - (mapRect?.left ?? 0);
+  const offsetY = event.clientY - (mapRect?.top ?? 0);
+
+  // Adjust positioning to center the node under the mouse pointer
+  const adjustedX = offsetX - 100; // Assuming node width is 200px
+  const adjustedY = offsetY - 75;  // Assuming node height is 150px
+
+   // Snap to nearest grid point
+   const snappedX = snapToGrid(adjustedX);
+   const snappedY = snapToGrid(adjustedY);
+ 
+
+   updateNode(draggedNode.id, { x: snappedX, y: snappedY });
+  setDraggedNode(null);
+};
 
   return (
     <div
