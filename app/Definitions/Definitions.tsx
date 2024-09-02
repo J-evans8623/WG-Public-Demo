@@ -20,8 +20,8 @@ export interface ConceptNode {
   cueCards: CueCard[];
   parentNodeId?: string;
   childrenNodeIds?: string[];
-  x?: number; // X-coordinate for positioning
-  y?: number; // Y-coordinate for positioning
+  x: number; // X-coordinate for positioning (required)
+  y: number; // Y-coordinate for positioning (required)
 }
 
 // Interface for CueStackProps

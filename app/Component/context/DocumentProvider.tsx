@@ -16,7 +16,9 @@ const DocumentProvider = ({ children }: { children: ReactNode }) => {
       cueCards: [],
       parentNodeId: undefined,
       childrenNodeIds: [],
-    }
+      x: window.innerWidth / 2 - 100, // Center horizontally by default
+      y: 50, // Position at the top
+    },
   ]);
 
   // State to manage selected cue cards
@@ -29,26 +31,56 @@ const DocumentProvider = ({ children }: { children: ReactNode }) => {
   const [colorTheme, setColorTheme] = useState<ColorTheme>('cool-spring'); // Default color theme
 
   // Function to add a new node (receives a title)
-  const createNewNode = (title: string) => {
-    const newNode: ConceptNode = {
-      id: `node-${nodes.length + 1}`,
-      title: title || `Untitled Concept ${nodes.length + 1}`,
-      cueCards: [],
-      parentNodeId: undefined,
-      childrenNodeIds: [],
-    };
-    setNodes((prevNodes) => [...prevNodes, newNode]);
+// bloom-maps/app/Component/context/DocumentProvider.tsx
+
+// bloom-maps/app/Component/context/DocumentProvider.tsx
+
+const createNewNode = (title: string, parentNodeId?: string) => {
+  const isRootNode = !parentNodeId; // Determine if the new node is a root
+  const newNodeId = `node-${nodes.length + 1}`;
+
+  // Default position for a new node
+  let x = 0;
+  let y = 0;
+
+  if (parentNodeId) {
+    const parentNode = nodes.find((node) => node.id === parentNodeId);
+    if (parentNode) {
+      // Position the new node relative to its parent
+      x = parentNode.x + 250; // Example offset, adjust as needed
+      y = parentNode.y + 150; // Example offset, adjust as needed
+    }
+  } else {
+    // Default position for a root node
+    x = window.innerWidth / 2 - 100; // Center horizontally
+    y = 50; // Position at the top
+  }
+
+  const newNode: ConceptNode = {
+    id: newNodeId,
+    title: title || `Untitled Concept ${nodes.length + 1}`,
+    cueCards: [],
+    parentNodeId: parentNodeId, // Correctly assign parentNodeId
+    childrenNodeIds: [],
+    x,
+    y,
   };
 
-  // Function to add a node directly (receives a full node object)
-  const addNode = (node: ConceptNode) => {
-    setNodes((prevNodes) => [...prevNodes, node]);
-  };
+  setNodes((prevNodes) => [...prevNodes, newNode]);
 
-  // Function to remove a node by ID
-  const removeNode = (nodeId: string) => {
-    setNodes((prevNodes) => prevNodes.filter((node) => node.id !== nodeId));
-  };
+  // Update parent's childrenNodeIds if this is a child node
+  if (parentNodeId) {
+    const parentNode = nodes.find((node) => node.id === parentNodeId);
+    if (parentNode) {
+      const updatedChildrenNodeIds = [...(parentNode.childrenNodeIds || []), newNodeId];
+      updateNode(parentNodeId, { childrenNodeIds: updatedChildrenNodeIds });
+    }
+  }
+};
+
+
+
+
 
   // Function to update a node by ID
   const updateNode = (nodeId: string, updatedNode: Partial<ConceptNode>) => {
@@ -58,7 +90,15 @@ const DocumentProvider = ({ children }: { children: ReactNode }) => {
       )
     );
   };
+  // Function to add a node directly (receives a full node object)
+  const addNode = (node: ConceptNode) => {
+    setNodes((prevNodes) => [...prevNodes, node]);
+  };
 
+  // Function to remove a node by ID
+  const removeNode = (nodeId: string) => {
+    setNodes((prevNodes) => prevNodes.filter((node) => node.id !== nodeId));
+  };
   // Function to add a cue card to a specific node
   const addCueCardToNode = (nodeId: string, cueCard: CueCard) => {
     setNodes((prevNodes) =>
@@ -87,13 +127,15 @@ const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
   // Function to initialize a new document
   const initializeNewDocument = (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
-    console.log('Setting bloomDepth to:', bloomDepth); // Debug log
+
     const newRootNode: ConceptNode = {
       id: 'node-1',
       title: 'Root Concept',
       cueCards: [],
       parentNodeId: undefined,
       childrenNodeIds: [],
+      x: window.innerWidth / 2 - 100, // Center horizontally
+      y: 50, // Position at the top
     };
 
     setNodes([newRootNode]); // Reset nodes to the new root node

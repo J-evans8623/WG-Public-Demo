@@ -11,14 +11,18 @@ import { useDocumentContext } from '@/app/Component/context/DocumentProvider';
 // Create a local alias for the ConceptNode type definition
 import { ConceptNode as ConceptNodeType } from '@/app/Definitions/Definitions';
 
+
+
 function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & { onDragStart: (node: ConceptNodeType) => void }) {
+  
   const {
     addCueCardToNode,
     updateNodeTitle,
-    createNewNode,
     selectCueCards,
     colorTheme, 
   } = useDocumentContext();
+
+  const { createNewNode }: { createNewNode: (title: string, parentNodeId?: string) => void } = useDocumentContext();
 
   const { title, cueCards, x, y } = node;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -67,7 +71,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
 
   const handleAddChildNode = () => {
     const newChildTitle = `Child of ${node.id}`;
-    createNewNode(newChildTitle);
+    createNewNode(newChildTitle, node.id); // Pass the current node ID as parent ID
   };
 
   const handleNodeClick = () => {

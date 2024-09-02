@@ -3,10 +3,10 @@
 'use client';
 
 import React from 'react';
-import { ConceptNode } from '@/app/Definitions/Definitions';
+import { ConceptNode as ConceptNodeType } from '@/app/Definitions/Definitions';
 
-export function drawLines(nodes: ConceptNode[]): JSX.Element[] { // Explicitly define the return type
-  const lines: JSX.Element[] = []; // Explicitly declare the type of 'lines'
+export function drawLines(nodes: ConceptNodeType[]): JSX.Element[] {
+  const lines: JSX.Element[] = [];
 
   nodes.forEach((node) => {
     if (!node.childrenNodeIds) return;
@@ -15,14 +15,18 @@ export function drawLines(nodes: ConceptNode[]): JSX.Element[] { // Explicitly d
       const childNode = nodes.find((n) => n.id === childId);
       if (!childNode) return;
 
-      // Create a line between the parent node and each child node
+      const x1 = node.x;
+      const y1 = node.y;
+      const x2 = childNode.x;
+      const y2 = childNode.y;
+
       lines.push(
         <line
           key={`${node.id}-${childId}`}
-          x1={node.x}
-          y1={node.y}
-          x2={childNode.x}
-          y2={childNode.y}
+          x1={x1 + 100} // Adjust for node width offset
+          y1={y1 + 75}  // Adjust for node height offset
+          x2={x2 + 100}
+          y2={y2 + 75}
           stroke="black"
           strokeWidth={2}
         />
@@ -30,5 +34,5 @@ export function drawLines(nodes: ConceptNode[]): JSX.Element[] { // Explicitly d
     });
   });
 
-  return lines; // Return the array of lines to be rendered
+  return lines;
 }

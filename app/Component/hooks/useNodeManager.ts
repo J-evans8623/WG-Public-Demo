@@ -4,26 +4,50 @@ import { useState } from 'react';
 import { ConceptNode, CueCard } from '@/app/Definitions/Definitions';
 
 const useNodeManager = () => {
-  // Initial state for a root concept node
+  // Initial state for a root concept node with x and y coordinates
   const initialNode: ConceptNode = {
     id: 'node-1',
     title: 'Root Concept',
     cueCards: [],
     parentNodeId: undefined,
     childrenNodeIds: [],
+    x: window.innerWidth / 2 - 100, // Center horizontally
+    y: 50, // Position at the top
   };
 
   const [nodes, setNodes] = useState<ConceptNode[]>([initialNode]); // State to manage nodes
 
   // Function to create a new node
-  const createNewNode = (title: string) => {
+  const createNewNode = (title: string, parentNodeId?: string) => {
+    const newNodeId = `node-${nodes.length + 1}`;
+
+    // Default position for a new node
+    let x = 0;
+    let y = 0;
+
+    if (parentNodeId) {
+      const parentNode = nodes.find((node) => node.id === parentNodeId);
+      if (parentNode) {
+        // Position the new node relative to its parent
+        x = parentNode.x + 250; // Example offset, adjust as needed
+        y = parentNode.y + 150; // Example offset, adjust as needed
+      }
+    } else {
+      // Default position for a root node
+      x = window.innerWidth / 2 - 100; // Center horizontally
+      y = 50; // Position at the top
+    }
+
     const newNode: ConceptNode = {
-      id: `node-${nodes.length + 1}`,
+      id: newNodeId,
       title: title || `Untitled Concept ${nodes.length + 1}`,
       cueCards: [],
-      parentNodeId: undefined,
+      parentNodeId: parentNodeId,
       childrenNodeIds: [],
+      x,
+      y,
     };
+
     setNodes((prevNodes) => [...prevNodes, newNode]);
   };
 
@@ -55,8 +79,10 @@ const useNodeManager = () => {
       cueCards: [],
       parentNodeId: undefined,
       childrenNodeIds: [],
+      x: window.innerWidth / 2 - 100, // Center horizontally
+      y: 50, // Position at the top
     };
-    
+
     // Reset nodes to initial state with the new root node
     setNodes([newRootNode]);
 

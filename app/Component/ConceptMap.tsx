@@ -46,33 +46,23 @@ function ConceptMap() {
   };
 
   const handleDragOver = (event: React.DragEvent) => {
-    event.preventDefault(); // Allow dropping
+    event.preventDefault();
   };
 
-  const GRID_SIZE = 20; // Define the size of each grid cell
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    if (!draggedNode) return;
 
-  const snapToGrid = (value: number) => Math.round(value / GRID_SIZE) * GRID_SIZE;
+    const mapRect = mapRef.current?.getBoundingClientRect();
+    const offsetX = event.clientX - (mapRect?.left ?? 0);
+    const offsetY = event.clientY - (mapRect?.top ?? 0);
 
-const handleDrop = (event: React.DragEvent) => {
-  event.preventDefault();
-  if (!draggedNode) return;
+    const adjustedX = offsetX - 100; 
+    const adjustedY = offsetY - 75; 
 
-  const mapRect = mapRef.current?.getBoundingClientRect();
-  const offsetX = event.clientX - (mapRect?.left ?? 0);
-  const offsetY = event.clientY - (mapRect?.top ?? 0);
-
-  // Adjust positioning to center the node under the mouse pointer
-  const adjustedX = offsetX - 100; // Assuming node width is 200px
-  const adjustedY = offsetY - 75;  // Assuming node height is 150px
-
-   // Snap to nearest grid point
-   const snappedX = snapToGrid(adjustedX);
-   const snappedY = snapToGrid(adjustedY);
- 
-
-   updateNode(draggedNode.id, { x: snappedX, y: snappedY });
-  setDraggedNode(null);
-};
+    updateNode(draggedNode.id, { x: adjustedX, y: adjustedY });
+    setDraggedNode(null);
+  };
 
   return (
     <div
@@ -89,13 +79,13 @@ const handleDrop = (event: React.DragEvent) => {
         />
       )}
 
+      {/* Render lines between nodes */}
       <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
         {drawLines(nodes)}
       </svg>
 
       {nodes.map((node) => {
-        // Ensure node is defined before rendering ConceptNode
-        if (!node) return null; // Skip undefined nodes
+        if (!node) return null;
         return (
           <ConceptNode
             key={node.id}
