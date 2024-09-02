@@ -1,29 +1,65 @@
-// bloom-maps/app/ui/ConceptMap.tsx
+// bloom-maps/app/Component/ConceptMap.tsx
 
 'use client';
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ConceptNode from './ConceptNode';
-import { useDocumentContext } from '../Component/context/DocumentProvider'; // Use the correct import statement
+import { useDocumentContext } from '../Component/context/DocumentProvider';
 import { CueCard } from '@/app/Definitions/Definitions';
+import ContextMenu from './ContextMenu'; // Import the new ContextMenu component
 
 function ConceptMap() {
-  // Destructure the updated context to get all necessary functions and state
-  const { nodes, selectCueCards } = useDocumentContext(); // Access context directly
+  const { nodes, selectCueCards, createNewNode } = useDocumentContext();
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
 
-  // Function to handle selecting a concept node and displaying its cue cards
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mapRef.current && !mapRef.current.contains(event.target as Node)) {
+        setContextMenuPosition(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const handleRightClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    setContextMenuPosition({ x: event.clientX, y: event.clientY });
+  };
+
+  const handleContextMenuOption = (option: string) => {
+    setContextMenuPosition(null);
+    if (option === 'New Map') {
+      createNewNode('New Root Concept');
+    }
+    // Handle other options here
+  };
+
   const handleViewConcept = (cueCards: CueCard[]) => {
-    selectCueCards(cueCards); // Update the global context state for selected cue cards
+    selectCueCards(cueCards);
   };
 
   return (
-    <div className="relative w-full h-full bg-white overflow-auto">
+    <div
+      ref={mapRef}
+      className="relative w-full h-full bg-white overflow-auto"
+      onContextMenu={handleRightClick}
+    >
+      {/* Render context menu if position is set */}
+      {contextMenuPosition && (
+        <ContextMenu
+          position={contextMenuPosition}
+          onSelectOption={handleContextMenuOption}
+        />
+      )}
+
       {/* Render concept nodes */}
       {nodes.map((node) => (
         <ConceptNode
           key={node.id}
           node={node}
-          onClick={handleViewConcept} // Pass the function to handle viewing the concept's cue cards
+          onClick={handleViewConcept}
         />
       ))}
     </div>
