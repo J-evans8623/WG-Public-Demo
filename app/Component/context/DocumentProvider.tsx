@@ -87,6 +87,7 @@ const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
   // Function to initialize a new document
   const initializeNewDocument = (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
+    console.log('Setting bloomDepth to:', bloomDepth); // Debug log
     const newRootNode: ConceptNode = {
       id: 'node-1',
       title: 'Root Concept',

@@ -8,8 +8,8 @@ import CueCardDisplay from '../Component/CueCardDisplay';
 import ConceptMap from '../Component/ConceptMap';
 import DocumentCreationModal from '../Component/DocumentCreationModal';
 import Modal from '../Component/Modal';
-import { GlobalSettingsProvider } from '../Component/context/old/GlobalSettingsContext'; // Keep it for backward compatibility if needed
-import DocumentProvider, { useDocumentContext } from '../Component/context/DocumentProvider'; // Correct import for default and named export
+import { GlobalSettingsProvider } from '../Component/context/old/GlobalSettingsContext';
+import DocumentProvider, { useDocumentContext } from '../Component/context/DocumentProvider';
 import { ColorTheme } from '@/app/Definitions/Definitions';
 
 // Updated component to handle theme selection
@@ -54,6 +54,7 @@ function ClientLayoutContent() {
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
 
+  // Remove the hardcoded value and adjust the callback to handle dynamic bloomDepth
   const handleCreateNewDocument = useCallback((selectedDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
     initializeNewDocument(selectedDepth);
     closeModal();
@@ -78,7 +79,7 @@ function ClientLayoutContent() {
         <DocumentCreationModal
           isOpen={isModalOpen}
           onClose={closeModal}
-          onCreate={() => handleCreateNewDocument(4)}
+          onCreate={handleCreateNewDocument} // Pass the function directly
         />
       </Modal>
 
