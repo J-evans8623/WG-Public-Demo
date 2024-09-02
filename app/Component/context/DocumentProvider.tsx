@@ -9,17 +9,10 @@ const DocumentContext = createContext<DocumentContextType | undefined>(undefined
 // Provider component to wrap around the parts of the app that need access to the document context
 const DocumentProvider = ({ children }: { children: ReactNode }) => {
   // State to manage all concept nodes
-  const [nodes, setNodes] = useState<ConceptNode[]>([
-    {
-      id: 'node-1',
-      title: 'Root Concept',
-      cueCards: [],
-      parentNodeId: undefined,
-      childrenNodeIds: [],
-      x: window.innerWidth / 2 - 100, // Center horizontally by default
-      y: 50, // Position at the top
-    },
-  ]);
+  const [nodes, setNodes] = useState<ConceptNode[]>([]);
+
+  // State to manage the "ground" width
+  const [groundWidth, setGroundWidth] = useState<number>(0);
 
   // State to manage selected cue cards
   const [selectedCueCards, setSelectedCueCards] = useState<CueCard[]>([]);
@@ -30,37 +23,67 @@ const DocumentProvider = ({ children }: { children: ReactNode }) => {
   // State to manage color theme
   const [colorTheme, setColorTheme] = useState<ColorTheme>('cool-spring'); // Default color theme
 
+  // Function to initialize the root node dynamically from client-side
+const initializeRootNode = (title: string, rootX: number) => {
+  const newRootNode: ConceptNode = {
+    id: 'node-1',
+    title: title || 'Root Concept',
+    cueCards: [],
+    parentNodeId: undefined,
+    childrenNodeIds: [],
+    x: rootX, // Centered horizontally based on client width
+    y: 50, // Initial y-position for the root node
+  };
+
+  setNodes([newRootNode]); // Set the new root node in the state
+};
+
+
+  // Function to set the ground width dynamically
+  const updateGroundWidth = (width: number) => {
+    setGroundWidth(width);
+  };
+
+
+
+  // Function to create a secondary root node
+  const createSecondaryRootNode = (title: string, x: number, y: number) => {
+    const newNodeId = `node-${nodes.length + 1}`;
+
+    const newRootNode: ConceptNode = {
+      id: newNodeId,
+      title: title || `New Root Concept ${nodes.length + 1}`,
+      cueCards: [],
+      parentNodeId: undefined, // No parent for a root node
+      childrenNodeIds: [],
+      x,
+      y,
+    };
+
+    setNodes((prevNodes) => [...prevNodes, newRootNode]);
+  };
   // Function to add a new node (receives a title)
 // bloom-maps/app/Component/context/DocumentProvider.tsx
-
-// bloom-maps/app/Component/context/DocumentProvider.tsx
-
-const createNewNode = (title: string, parentNodeId?: string) => {
-  const isRootNode = !parentNodeId; // Determine if the new node is a root
+// Updated function to add a new node
+const createNewNode = (title: string, parentNodeId: string) => {
   const newNodeId = `node-${nodes.length + 1}`;
 
-  // Default position for a new node
-  let x = 0;
-  let y = 0;
-
-  if (parentNodeId) {
-    const parentNode = nodes.find((node) => node.id === parentNodeId);
-    if (parentNode) {
-      // Position the new node relative to its parent
-      x = parentNode.x + 250; // Example offset, adjust as needed
-      y = parentNode.y + 150; // Example offset, adjust as needed
-    }
-  } else {
-    // Default position for a root node
-    x = window.innerWidth / 2 - 100; // Center horizontally
-    y = 50; // Position at the top
+  // Ensure that parentNodeId is defined for all nodes except the root
+  const parentNode = nodes.find((node) => node.id === parentNodeId);
+  if (!parentNode) {
+    console.error(`Parent node with ID ${parentNodeId} not found.`);
+    return;
   }
+
+  // Calculate the position for the new child node relative to its parent
+  const x = parentNode.x + 250; // Example offset, adjust as needed
+  const y = parentNode.y + 150; // Example offset, adjust as needed
 
   const newNode: ConceptNode = {
     id: newNodeId,
     title: title || `Untitled Concept ${nodes.length + 1}`,
     cueCards: [],
-    parentNodeId: parentNodeId, // Correctly assign parentNodeId
+    parentNodeId: parentNodeId,
     childrenNodeIds: [],
     x,
     y,
@@ -68,14 +91,9 @@ const createNewNode = (title: string, parentNodeId?: string) => {
 
   setNodes((prevNodes) => [...prevNodes, newNode]);
 
-  // Update parent's childrenNodeIds if this is a child node
-  if (parentNodeId) {
-    const parentNode = nodes.find((node) => node.id === parentNodeId);
-    if (parentNode) {
-      const updatedChildrenNodeIds = [...(parentNode.childrenNodeIds || []), newNodeId];
-      updateNode(parentNodeId, { childrenNodeIds: updatedChildrenNodeIds });
-    }
-  }
+  // Update parent's childrenNodeIds
+  const updatedChildrenNodeIds = [...(parentNode.childrenNodeIds || []), newNodeId];
+  updateNode(parentNodeId, { childrenNodeIds: updatedChildrenNodeIds });
 };
 
 
@@ -127,7 +145,7 @@ const createNewNode = (title: string, parentNodeId?: string) => {
 
   // Function to initialize a new document
   const initializeNewDocument = (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
-
+    
     const newRootNode: ConceptNode = {
       id: 'node-1',
       title: 'Root Concept',
@@ -154,6 +172,9 @@ const createNewNode = (title: string, parentNodeId?: string) => {
         nodes,
         selectedCueCards,
         createNewNode,
+        createSecondaryRootNode,
+        initializeRootNode, // Expose the function to initialize the root node
+        updateGroundWidth,
         resetDocument,
         initializeNewDocument,
         bloomDepth,

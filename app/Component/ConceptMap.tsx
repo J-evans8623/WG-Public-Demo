@@ -10,12 +10,19 @@ import ContextMenu from './ContextMenu';
 import { drawLines } from './utils/drawLines'; 
 
 function ConceptMap() {
-  const { nodes, selectCueCards, createNewNode, updateNode } = useDocumentContext();
+  const { nodes, selectCueCards, createNewNode, updateNode, initializeRootNode, updateGroundWidth, createSecondaryRootNode } = useDocumentContext();
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+
+    if (nodes.length === 0) {
+      const rootX = window.innerWidth / 2 - 100;
+      initializeRootNode('Root Concept', rootX);
+      updateGroundWidth(window.innerWidth);
+    }
+
     const handleClickOutside = (event: MouseEvent) => {
       if (mapRef.current && !mapRef.current.contains(event.target as Node)) {
         setContextMenuPosition(null);
@@ -23,7 +30,7 @@ function ConceptMap() {
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
+  }, [nodes, initializeRootNode, updateGroundWidth]);
 
   const handleRightClick = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -33,7 +40,9 @@ function ConceptMap() {
   const handleContextMenuOption = (option: string) => {
     setContextMenuPosition(null);
     if (option === 'New Map') {
-      createNewNode('New Root Concept');
+      if (contextMenuPosition) {
+        createSecondaryRootNode('New Root Concept', contextMenuPosition.x, contextMenuPosition.y);
+      }
     }
   };
 

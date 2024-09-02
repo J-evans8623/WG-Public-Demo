@@ -8,7 +8,6 @@ import CueCardDisplay from '../Component/CueCardDisplay';
 import ConceptMap from '../Component/ConceptMap';
 import DocumentCreationModal from '../Component/DocumentCreationModal';
 import Modal from '../Component/Modal';
-import { GlobalSettingsProvider } from '../Component/context/old/GlobalSettingsContext';
 import DocumentProvider, { useDocumentContext } from '../Component/context/DocumentProvider';
 import { ColorTheme } from '@/app/Definitions/Definitions';
 
@@ -135,10 +134,8 @@ function ClientLayoutContent() {
 
 export default function ClientLayout() {
   return (
-    <GlobalSettingsProvider>
       <DocumentProvider>
         <ClientLayoutContent />
       </DocumentProvider>
-    </GlobalSettingsProvider>
   );
 }

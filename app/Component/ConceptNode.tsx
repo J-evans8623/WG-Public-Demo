@@ -22,7 +22,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
     colorTheme, 
   } = useDocumentContext();
 
-  const { createNewNode }: { createNewNode: (title: string, parentNodeId?: string) => void } = useDocumentContext();
+  const { createNewNode }: { createNewNode: (title: string, parentNodeId: string) => void } = useDocumentContext();
 
   const { title, cueCards, x, y } = node;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
