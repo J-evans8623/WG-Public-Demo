@@ -21,7 +21,8 @@ export interface ConceptNode {
   parentNodeId?: string;
   childrenNodeIds?: string[];
   x: number; // X-coordinate for positioning (required)
-  y: number; // Y-coordinate for positioning (required)
+  y: number;
+  mod?: number; // Modification offset for node positioning // Y-coordinate for positioning (required)
 }
 
 // Interface for CueStackProps

@@ -7,17 +7,26 @@ import ConceptNode from './ConceptNode';
 import { useDocumentContext } from '../Component/context/DocumentProvider';
 import { CueCard, ConceptNode as ConceptNodeType } from '@/app/Definitions/Definitions';
 import ContextMenu from './ContextMenu';
-import { drawLines } from './utils/drawLines'; 
-
+import { drawLines } from './utils/drawLines';
+import { reingoldTilfordLayout } from './utils/reingoldTilford';
 
 interface ConceptMapProps {
   groundWidth: number; // New prop for the width of the center pane
 }
 function ConceptMap({ groundWidth }: ConceptMapProps) {
-  const { nodes, selectCueCards, createNewNode, updateNode, primaryRootNode, updateGroundWidth, createSecondaryRootNode } = useDocumentContext();
+  const { 
+    nodes, 
+    selectCueCards,
+    updateNode,
+    primaryRootNode,
+    createSecondaryRootNode
+  } = useDocumentContext();
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
+
+    // Calculate node positions using the Reingold-Tilford layout
+    const laidOutNodes = reingoldTilfordLayout(nodes, nodes[0]?.id || 'node-1');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

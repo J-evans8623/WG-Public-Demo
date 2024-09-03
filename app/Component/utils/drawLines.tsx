@@ -6,68 +6,58 @@ import React from 'react';
 import { ConceptNode } from '@/app/Definitions/Definitions';
 
 export function drawLines(nodes: ConceptNode[]): JSX.Element[] {
-
-    // Constants for layout and spacing
-  const VERTICAL_OFFSET = 100; // Vertical distance from parent node to Anchor Point A
-  const HORIZONTAL_SPACING = 100; // Horizontal spacing between child nodes
-  const CHILD_NODE_WIDTH = 200; // Width of each child node (can be adjusted)
-  const PADDING_BETWEEN_CHILDREN = 50; // Padding between children nodes
   const lines: JSX.Element[] = [];
+
   nodes.forEach((node) => {
     if (!node.childrenNodeIds || node.childrenNodeIds.length === 0) return;
 
     // Calculate Parent Bottom Center (PBC)
-    const PBC_X = node.x + CHILD_NODE_WIDTH / 2;
-    const PBC_Y = node.y + CHILD_NODE_WIDTH; // Bottom of the parent node
+    const PBC_X = node.x + 100; // Assuming each node is 200px wide
+    const PBC_Y = node.y + 150; // Y coordinate at the bottom center of the parent node
 
-    // Calculate Anchor Point A
-    const A_X = PBC_X;
-    const A_Y = PBC_Y + VERTICAL_OFFSET;
+    // Define a fixed vertical offset for the anchor point
+    const ANCHOR_Y = PBC_Y + 100; // Adjust this value to increase or decrease vertical spacing
 
-    // Draw Vertical Line from Parent to Anchor Point A
-    lines.push(
-      <line
-        key={`vertical-${node.id}`}
-        x1={PBC_X}
-        y1={PBC_Y}
-        x2={A_X}
-        y2={A_Y}
-        stroke="black"
-        strokeWidth={2}
-      />
-    );
-
-    // Calculate positions for horizontal line and points for children
-    const numberOfChildren = node.childrenNodeIds.length;
-    const horizontalLineLength = (numberOfChildren - 1) * (HORIZONTAL_SPACING + CHILD_NODE_WIDTH);
-
-    // Draw Horizontal Line at Point A
-    lines.push(
-      <line
-        key={`horizontal-${node.id}`}
-        x1={A_X - horizontalLineLength / 2}
-        y1={A_Y}
-        x2={A_X + horizontalLineLength / 2}
-        y2={A_Y}
-        stroke="black"
-        strokeWidth={2}
-      />
-    );
-
-    // Draw Vertical Lines to Each Child
-    node.childrenNodeIds.forEach((childId, index) => {
+    node.childrenNodeIds.forEach((childId) => {
       const childNode = nodes.find((n) => n.id === childId);
       if (!childNode) return;
 
-      const childX = A_X - horizontalLineLength / 2 + index * (HORIZONTAL_SPACING + CHILD_NODE_WIDTH);
-      const childY = A_Y + VERTICAL_OFFSET;
+      const childX = childNode.x + 100;  // Child Center X
+      const childY = childNode.y;        // Child Top Center Y
 
+      // Draw a vertical line from the parent node to the anchor point
+      lines.push(
+        <line
+          key={`vertical-${node.id}-${childId}`}
+          x1={PBC_X}
+          y1={PBC_Y}
+          x2={PBC_X}
+          y2={ANCHOR_Y}
+          stroke="black"
+          strokeWidth={2}
+        />
+      );
+
+      // Draw a horizontal line from the anchor point to the child's top center
+      lines.push(
+        <line
+          key={`horizontal-${node.id}-${childId}`}
+          x1={PBC_X}
+          y1={ANCHOR_Y}
+          x2={childX}
+          y2={ANCHOR_Y}
+          stroke="black"
+          strokeWidth={2}
+        />
+      );
+
+      // Draw a vertical line from the anchor point to the child's top center
       lines.push(
         <line
           key={`vertical-child-${node.id}-${childId}`}
-          x1={childX + CHILD_NODE_WIDTH / 2}
-          y1={A_Y}
-          x2={childX + CHILD_NODE_WIDTH / 2}
+          x1={childX}
+          y1={ANCHOR_Y}
+          x2={childX}
           y2={childY}
           stroke="black"
           strokeWidth={2}
