@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
 import CueCardDisplay from '../Component/CueCardDisplay';
 import ConceptMap from '../Component/ConceptMap';
@@ -13,7 +13,8 @@ import { ColorTheme } from '@/app/Definitions/Definitions';
 
 // Updated component to handle theme selection
 const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) => void }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const [isOpen, setIsOpen] = useState(false);
+
 
   return (
     <div className="relative inline-block">
@@ -49,15 +50,31 @@ const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) =
 function ClientLayoutContent() {
   const { initializeNewDocument, setColorTheme } = useDocumentContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [groundWidth, setGroundWidth] = useState<number>(0); // Initialize to 0
+  const centerPaneRef = useRef<HTMLDivElement>(null); // Ref to center pane
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
 
-  // Remove the hardcoded value and adjust the callback to handle dynamic bloomDepth
+    // Update ground width once component is mounted on the client side
+    useEffect(() => {
+      const updateGroundWidth = () => {
+        if (centerPaneRef.current) {
+          setGroundWidth(centerPaneRef.current.offsetWidth); // Use the width of the center pane
+        }
+      };
+  
+      updateGroundWidth(); // Initial update on mount
+  
+      window.addEventListener('resize', updateGroundWidth); // Update on window resize
+      return () => window.removeEventListener('resize', updateGroundWidth);
+    }, []); // Only run on mount and unmount
+
+
   const handleCreateNewDocument = useCallback((selectedDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
-    initializeNewDocument(selectedDepth);
+    initializeNewDocument(selectedDepth, groundWidth); // Pass ground width to initializeNewDocument
     closeModal();
-  }, [initializeNewDocument]);
+  }, [initializeNewDocument, groundWidth]);
 
   const handleOpenDocument = () => {
     console.log("Open Document clicked");
@@ -119,8 +136,8 @@ function ClientLayoutContent() {
         </div>
 
         {/* Center Pane (Map Canvas) */}
-        <div className="flex-1 bg-white p-4 shadow-lg rounded-lg overflow-auto">
-          <ConceptMap />
+        <div ref={centerPaneRef} className="flex-1 bg-white p-4 shadow-lg rounded-lg overflow-auto">
+           <ConceptMap groundWidth={groundWidth} /> {/* Pass groundWidth as a prop */}
         </div>
 
         {/* Right Panel (Tool Interface) */}

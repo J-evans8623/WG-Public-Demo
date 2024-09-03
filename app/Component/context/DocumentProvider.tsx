@@ -24,14 +24,14 @@ const DocumentProvider = ({ children }: { children: ReactNode }) => {
   const [colorTheme, setColorTheme] = useState<ColorTheme>('cool-spring'); // Default color theme
 
   // Function to initialize the root node dynamically from client-side
-const initializeRootNode = (title: string, rootX: number) => {
+const primaryRootNode = (title: string,groundWidth: number) => {
   const newRootNode: ConceptNode = {
     id: 'node-1',
     title: title || 'Root Concept',
     cueCards: [],
     parentNodeId: undefined,
     childrenNodeIds: [],
-    x: rootX, // Centered horizontally based on client width
+    x: groundWidth / 2 - 100, // Centered horizontally based on client width -> groundWidth
     y: 50, // Initial y-position for the root node
   };
 
@@ -144,18 +144,20 @@ const createNewNode = (title: string, parentNodeId: string) => {
   };
 
   // Function to initialize a new document
-  const initializeNewDocument = (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
-    
+  const initializeNewDocument = (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6, groundWidth: number) => {
+    console.log('Setting bloomDepth to:', bloomDepth); // Debug log
+  
+    // Calculate the center position using the provided groundWidth
     const newRootNode: ConceptNode = {
       id: 'node-1',
       title: 'Root Concept',
       cueCards: [],
       parentNodeId: undefined,
       childrenNodeIds: [],
-      x: window.innerWidth / 2 - 100, // Center horizontally
+      x: groundWidth / 2 - 100, // Center horizontally based on the client-provided ground width
       y: 50, // Position at the top
     };
-
+  
     setNodes([newRootNode]); // Reset nodes to the new root node
     setSelectedCueCards([]); // Clear selected cue cards
     setBloomDepth(bloomDepth); // Set the new bloom depth
@@ -173,7 +175,7 @@ const createNewNode = (title: string, parentNodeId: string) => {
         selectedCueCards,
         createNewNode,
         createSecondaryRootNode,
-        initializeRootNode, // Expose the function to initialize the root node
+        primaryRootNode, // Expose the function to initialize the root node
         updateGroundWidth,
         resetDocument,
         initializeNewDocument,
