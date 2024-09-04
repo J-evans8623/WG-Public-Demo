@@ -9,6 +9,7 @@ import { CueCard, ConceptNode as ConceptNodeType } from '@/app/Definitions/Defin
 import ContextMenu from './ContextMenu';
 import { drawLines } from './utils/drawLines';
 import { reingoldTilfordLayout } from './utils/reingoldTilford';
+import { useDynamicMapSize } from './hooks/useDynamicMapSize';
 
 interface ConceptMapProps {
   groundWidth: number; // New prop for the width of the center pane
@@ -27,6 +28,7 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
 
     // Calculate node positions using the Reingold-Tilford layout
     const laidOutNodes = reingoldTilfordLayout(nodes, nodes[0]?.id || 'node-1');
+    const { minHeight, minWidth } = useDynamicMapSize({ mapRef, nodes });
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -87,8 +89,9 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
 
   return (
     <div
-      ref={mapRef}
-      className="relative w-full h-full bg-white overflow-auto"
+      ref={mapRef}// Testing 
+      className="relative bg-white overflow-auto"
+      style={{ minHeight: `${minHeight}px`, minWidth: `${minWidth}px` }} // Dynamically adjust the size
       onContextMenu={handleRightClick}
       onDragOver={handleDragOver}
       onDrop={handleDrop}

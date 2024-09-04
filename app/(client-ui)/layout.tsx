@@ -136,7 +136,10 @@ function ClientLayoutContent() {
         </div>
 
         {/* Center Pane (Map Canvas) */}
-        <div ref={centerPaneRef} className="flex-1 bg-white p-4 shadow-lg rounded-lg overflow-auto">
+        <div ref={centerPaneRef} 
+             className="flex-1 bg-white p-4 shadow-lg rounded-lg overflow-auto"
+             style={{ position: 'relative' }}   
+        >
            <ConceptMap groundWidth={groundWidth} /> {/* Pass groundWidth as a prop */}
         </div>
 

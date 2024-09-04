@@ -1,24 +1,11 @@
-// pages/resizable-box/ResizableBox.tsx
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 
 const ResizableBox: React.FC = () => {
   // Reference for Box A to control scrolling
-  const boxARef = useRef<HTMLDivElement>(null); 
-
-  // States to dynamically adjust Box B's size
   const [content, setContent] = useState<string[]>([]);
   const [minHeight, setMinHeight] = useState<number>(200); // Initial minimum height
   const [minWidth, setMinWidth] = useState<number>(300);   // Initial minimum width
-
-  // Keep scrollbar at the bottom or right on content or size change
-  useEffect(() => {
-    if (boxARef.current) {
-      // Scroll to the bottom and right of Box A
-      boxARef.current.scrollTop = boxARef.current.scrollHeight;  // For vertical scrolling
-      boxARef.current.scrollLeft = boxARef.current.scrollWidth;  // For horizontal scrolling
-    }
-  }, [content, minHeight, minWidth]); // Run effect when content or size changes
 
   // Function to add text content dynamically
   const addText = () => {
@@ -66,13 +53,12 @@ const ResizableBox: React.FC = () => {
 
       {/* Outer Box A */}
       <div
-        ref={boxARef} // Attach ref to Box A
-        className="w-[60vw] h-[40vh] bg-gray-100 p-4 overflow-auto" // Fixed size and scrolling enabled
+        className="w-[60vw] h-[40vh] bg-gray-100 p-4 overflow-auto flex justify-center items-center" // Center content inside and enable scrolling
       >
         {/* Inner Box B */}
         <div
-          className="relative"
-          style={{ minHeight: `${minHeight}px`, minWidth: `${minWidth}px` }} // Dynamic size adjustments
+          className="relative bg-white shadow-lg rounded-lg"
+          style={{ minHeight: `${minHeight}px`, minWidth: `${minWidth}px`, margin: 'auto' }} // Centering and dynamic size adjustments
         >
           {/* Content Inside Box B */}
           <div className="absolute top-0 left-0">
