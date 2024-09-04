@@ -26,12 +26,15 @@ export function reingoldTilfordLayout(nodes: ConceptNode[], rootId: string): Con
   return nodes;
 }
 
+// First pass: Assign initial X coordinates and calculate modification offsets
 function firstWalk(node: ConceptNode, depth: number, nodes: ConceptNode[]) {
   const children = node.childrenNodeIds?.map(id => nodes.find(n => n.id === id)).filter(Boolean) as ConceptNode[];
 
-  const LEVEL_HEIGHT = 250; // Increase level height to provide more space between nodes
+  const LEVEL_HEIGHT = 250; // Fixed vertical distance between levels
+  const MINIMUM_HORIZONTAL_SPACING = 250; // Minimum horizontal distance between sibling nodes
 
-  node.y = depth * LEVEL_HEIGHT; // Updated: Y-position only based on depth
+  // Set vertical position based on depth
+  node.y = depth * LEVEL_HEIGHT;
   node.mod = 0; // Initialize mod value
 
   if (children.length > 0) {
@@ -41,25 +44,32 @@ function firstWalk(node: ConceptNode, depth: number, nodes: ConceptNode[]) {
     const rightChild = children[children.length - 1];
     const midPoint = (leftChild.x + rightChild.x) / 2;
 
+    // Set the X position of the current node based on its children's midpoint
     node.x = midPoint;
 
+    // Ensure minimum spacing between siblings
     let shift = 0;
     for (let i = 1; i < children.length; i++) {
       const child = children[i];
       const sibling = children[i - 1];
       const distance = child.x - sibling.x;
 
-      if (distance < 100) {
-        shift += 100 - distance;
+      if (distance < MINIMUM_HORIZONTAL_SPACING) {
+        shift = MINIMUM_HORIZONTAL_SPACING - distance;
         child.x += shift;
         child.mod = (child.mod || 0) + shift;
       }
     }
+
+    // Adjust parent's x position based on the children's spread
+    const actualMidPoint = (children[0].x + children[children.length - 1].x) / 2;
+    node.x = actualMidPoint;
   }
 }
 
+// Second pass: Apply modifications and compute final positions
 function secondWalk(node: ConceptNode, modSum: number, nodes: ConceptNode[]) {
-  node.x += modSum;
+  node.x += modSum; // Apply horizontal modifications
   const children = node.childrenNodeIds?.map(id => nodes.find(n => n.id === id)).filter(Boolean) as ConceptNode[];
   children.forEach(child => secondWalk(child, modSum + (node.mod ?? 0), nodes));
 }
