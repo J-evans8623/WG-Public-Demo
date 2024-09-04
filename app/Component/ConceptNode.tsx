@@ -102,7 +102,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
         position: 'absolute',
         left: `${x}px`,
         top: `${y}px`,
-        borderColor: colorThemes[colorTheme][5],
+        borderColor: colorThemes[colorTheme][5]
       }}
       onClick={handleNodeClick} 
       draggable
