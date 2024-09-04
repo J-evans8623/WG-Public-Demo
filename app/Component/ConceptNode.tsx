@@ -24,7 +24,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
 
   const { createNewNode }: { createNewNode: (title: string, parentNodeId: string) => void } = useDocumentContext();
 
-  const { title, cueCards, x, y } = node;
+  const { title, cueCards, x, y, isRoot } = node;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isAddingCueCard, setIsAddingCueCard] = useState(false);
   const [newTitle, setNewTitle] = useState(title);
@@ -99,7 +99,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
       style={{
         width: '200px',
         height: '150px',
-        position: 'absolute',
+        position: isRoot ? 'relative' : 'absolute', // Use the isRoot field for positioning
         left: `${x}px`,
         top: `${y}px`,
         borderColor: colorThemes[colorTheme][5]

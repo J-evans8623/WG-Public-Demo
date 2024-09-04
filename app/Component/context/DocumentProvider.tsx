@@ -33,6 +33,7 @@ const primaryRootNode = (title: string,groundWidth: number) => {
     childrenNodeIds: [],
     x: groundWidth / 2 - 100, // Centered horizontally based on client width -> groundWidth
     y: 50, // Initial y-position for the root node
+    isRoot: true,
   };
 
   setNodes([newRootNode]); // Set the new root node in the state
@@ -87,6 +88,7 @@ const createNewNode = (title: string, parentNodeId: string) => {
     childrenNodeIds: [],
     x,
     y,
+    isRoot: false,
   };
 
   setNodes((prevNodes) => [...prevNodes, newNode]);
@@ -145,7 +147,7 @@ const createNewNode = (title: string, parentNodeId: string) => {
 
   // Function to initialize a new document
   const initializeNewDocument = (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6, groundWidth: number) => {
-    console.log('Setting bloomDepth to:', bloomDepth); // Debug log
+    
   
     // Calculate the center position using the provided groundWidth
     const newRootNode: ConceptNode = {
@@ -156,6 +158,7 @@ const createNewNode = (title: string, parentNodeId: string) => {
       childrenNodeIds: [],
       x: groundWidth / 2 - 100, // Center horizontally based on the client-provided ground width
       y: 50, // Position at the top
+      isRoot: true,
     };
   
     setNodes([newRootNode]); // Reset nodes to the new root node
