@@ -93,7 +93,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
 
   return (
     <div
-      className={`relative flex flex-col items-center cursor-pointer group border rounded shadow-md ${
+      className={`relative flex flex-col items-center cursor-pointer group border rounded-md shadow-md ${
         isDragging ? 'opacity-50 border-dashed border-2 border-blue-500' : ''
       }`}
       style={{
@@ -102,6 +102,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
         position: 'absolute',
         left: `${x}px`,
         top: `${y}px`,
+        borderColor: colorThemes[colorTheme][5],
       }}
       onClick={handleNodeClick} 
       draggable
