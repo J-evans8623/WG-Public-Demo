@@ -20,15 +20,18 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
     selectCueCards,
     updateNode,
     primaryRootNode,
-    createSecondaryRootNode
+    createSecondaryRootNode,
+    zoomLevel,
   } = useDocumentContext();
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
+  const [mapWidth, setMapWidth] = useState<number>(0);
     // Calculate node positions using the Reingold-Tilford layout
     const laidOutNodes = reingoldTilfordLayout(nodes, nodes[0]?.id || 'node-1');
     const { minHeight, minWidth } = useDynamicMapSize({ mapRef, nodes });
+  
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -41,11 +44,18 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
   }, []);
 
   useEffect(() => {
-    // Initialize root node when the component mounts and groundWidth is available
-    if (nodes.length === 0 && groundWidth > 0) {
-      primaryRootNode('Root Concept', groundWidth); // Center the root node with offset
+    // Calculate the map width dynamically
+    if (mapRef.current) {
+      setMapWidth(mapRef.current.offsetWidth);
     }
-  }, [nodes, groundWidth, primaryRootNode]);
+  }, [mapRef.current]); // Runs when the map reference changes
+
+  useEffect(() => {
+    // Initialize root node when the component mounts and mapWidth is available
+    if (nodes.length === 0 && mapWidth > 0) {
+      primaryRootNode('Root Concept', mapWidth); // Use map width to center the root node
+    }
+  }, [nodes, mapWidth, primaryRootNode]);
 
   const handleRightClick = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -77,8 +87,8 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
     if (!draggedNode) return;
 
     const mapRect = mapRef.current?.getBoundingClientRect();
-    const offsetX = event.clientX - (mapRect?.left ?? 0);
-    const offsetY = event.clientY - (mapRect?.top ?? 0);
+    const offsetX = (event.clientX - (mapRect?.left ?? 0)) / zoomLevel; // Adjust for zoom level
+    const offsetY = (event.clientY - (mapRect?.top ?? 0)) / zoomLevel; // Adjust for zoom level
 
     const adjustedX = offsetX - 100; 
     const adjustedY = offsetY - 75; 
@@ -90,8 +100,8 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
   return (
     <div
       ref={mapRef}// Testing 
-      className="relative bg-white overflow-auto"
-      style={{ minHeight: `${minHeight}px`, minWidth: `${minWidth}px` }} // Dynamically adjust the size
+      className="relative bg-white overflow-x-auto w-full h-full scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200" // Consider Removing auto flow
+      style={{ transform: `scale(${zoomLevel})`, minHeight: `${minHeight}px`, minWidth: `${minWidth}px` }} // Dynamically adjust the size
       onContextMenu={handleRightClick}
       onDragOver={handleDragOver}
       onDrop={handleDrop}

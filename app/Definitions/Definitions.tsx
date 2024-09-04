@@ -105,6 +105,9 @@ export interface DocumentContextType {
   initializeNewDocument: (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6, groundWidth: number ) => void;
   primaryRootNode: (title: string,groundWidth: number) => void;
   updateGroundWidth: (width: number) => void;
+  zoomLevel: number;
+  zoomIn: () => void;
+  zoomOut: () => void;
 }
 
 

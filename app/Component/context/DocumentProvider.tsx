@@ -23,15 +23,28 @@ const DocumentProvider = ({ children }: { children: ReactNode }) => {
   // State to manage color theme
   const [colorTheme, setColorTheme] = useState<ColorTheme>('cool-spring'); // Default color theme
 
+   // State to manage zoom level
+   const [zoomLevel, setZoomLevel] = useState<number>(1); // Default zoom level is 100%
+
+     // Function to zoom in
+  const zoomIn = () => {
+    setZoomLevel((prevZoom) => Math.min(prevZoom + 0.1, 2)); // Max zoom level 200%
+  };
+
+  // Function to zoom out
+  const zoomOut = () => {
+    setZoomLevel((prevZoom) => Math.max(prevZoom - 0.1, 0.1)); // Min zoom level 50%
+  };
+
   // Function to initialize the root node dynamically from client-side
-const primaryRootNode = (title: string,groundWidth: number) => {
+const primaryRootNode = (title: string,mapWidth: number) => {
   const newRootNode: ConceptNode = {
     id: 'node-1',
     title: title || 'Root Concept',
     cueCards: [],
     parentNodeId: undefined,
     childrenNodeIds: [],
-    x: groundWidth / 2 - 100, // Centered horizontally based on client width -> groundWidth
+    x: mapWidth / 2 - 100, // Centered horizontally based on client width -> groundWidth
     y: 50, // Initial y-position for the root node
     isRoot: true,
   };
@@ -175,6 +188,9 @@ const createNewNode = (title: string, parentNodeId: string) => {
     <DocumentContext.Provider
       value={{
         nodes,
+        zoomLevel,
+        zoomIn,
+        zoomOut,
         selectedCueCards,
         createNewNode,
         createSecondaryRootNode,

@@ -10,6 +10,7 @@ import DocumentCreationModal from '../Component/DocumentCreationModal';
 import Modal from '../Component/Modal';
 import DocumentProvider, { useDocumentContext } from '../Component/context/DocumentProvider';
 import { ColorTheme } from '@/app/Definitions/Definitions';
+import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 
 // Updated component to handle theme selection
 const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) => void }) => {
@@ -48,7 +49,7 @@ const [isOpen, setIsOpen] = useState(false);
 };
 
 function ClientLayoutContent() {
-  const { initializeNewDocument, setColorTheme } = useDocumentContext();
+  const { initializeNewDocument, setColorTheme, zoomIn, zoomOut, zoomLevel } = useDocumentContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [groundWidth, setGroundWidth] = useState<number>(0); // Initialize to 0
   const centerPaneRef = useRef<HTMLDivElement>(null); // Ref to center pane
@@ -137,16 +138,33 @@ function ClientLayoutContent() {
 
         {/* Center Pane (Map Canvas) */}
         <div ref={centerPaneRef} 
-             className="flex-1 bg-white p-4 shadow-lg rounded-lg overflow-auto"
+             className="flex-1 bg-gray-200 p-4 shadow-lg rounded-lg overflow-auto flex justify-center items-center"
              style={{ position: 'relative' }}   
-        >
+            >
            <ConceptMap groundWidth={groundWidth} /> {/* Pass groundWidth as a prop */}
         </div>
 
         {/* Right Panel (Tool Interface) */}
-        <div className="bg-white p-4 shadow-lg rounded-lg overflow-auto">
-          {/* Other tools can be placed here */}
-        </div>
+        <div className="relative bg-gray-200 p-4 shadow-lg rounded-lg overflow-auto">
+  {/* Zoom Buttons */}
+  <div className="absolute top-2 left-2 flex space-x-2 bg-gray-300 p-2 rounded shadow">
+    <button
+      title={`Zoom In (${Math.ceil(zoomLevel * 100)}%)`}
+      onClick={zoomIn}
+      className="p-1 rounded hover:bg-gray-400"
+    >
+      <RiZoomInLine />
+    </button>
+    <button
+      title={`Zoom Out (${Math.ceil(zoomLevel * 100)}%)`}
+      onClick={zoomOut}
+      className="p-1 rounded hover:bg-gray-400"
+    >
+      <RiZoomOutLine />
+    </button>
+  </div>
+  {/* Add other tools here */}
+</div>
       </Split>
     </>
   );
