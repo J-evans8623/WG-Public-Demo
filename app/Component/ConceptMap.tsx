@@ -30,13 +30,13 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
 
   const [mapWidth, setMapWidth] = useState<number>(0);
     // Calculate node positions using the Reingold-Tilford layout
-    const { laidOutNodes, minX, maxX, minY, maxY } = reingoldTilfordLayout(nodes, nodes[0]?.id || 'node-1');
+    const laidOutNodes = reingoldTilfordLayout(nodes, nodes[0]?.id || 'node-1');
     const { minHeight, minWidth } = useDynamicMapSize({ mapRef, nodes });
-    const { updateTreeSize } = useTreeSizeContext(); 
+    
   
-    useEffect(() => {
+   /** useEffect(() => {
       updateTreeSize(minX, maxX, minY, maxY); // Update state in effect to prevent infinite loop
-    }, [minX, maxX, minY, maxY, updateTreeSize]);
+    }, [minX, maxX, minY, maxY, updateTreeSize]);*/  
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

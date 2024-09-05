@@ -1,80 +1,48 @@
 // TreeSizeContext.tsx
 'use client';
 
-import React, { createContext, useContext, useReducer, ReactNode, useMemo } from 'react';
-import { TreeSizeContextType } from '@/app/Definitions/Definitions';
+import React, { createContext, useContext, useState } from 'react';
+import  TreeSizeContextType from '@/app/Definitions/Definitions';
 
-// Define the initial state for the tree size
-const initialState = {
-  treeWidth: 0,
-  treeHeight: 0,
-  minX: 0,
-  maxX: 0,
-  minY: 0,
-  maxY: 0,
-};
+// Create the context with a default value of undefined
+const TreeSizeContext = createContext<TreeSizeContextType | undefined>(undefined);
 
-// Define the action types for the reducer
-type Action =
-  | { type: 'SET_MIN_X'; payload: number }
-  | { type: 'SET_MAX_X'; payload: number }
-  | { type: 'SET_MIN_Y'; payload: number }
-  | { type: 'SET_MAX_Y'; payload: number }
-  | { type: 'UPDATE_TREE_SIZE'; payload: { minX: number; maxX: number; minY: number; maxY: number } };
+// Provider component for the tree size context
+export const TreeSizeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [minX, setMinX] = useState<number>(0);
+  const [maxX, setMaxX] = useState<number>(0);
+  const [minY, setMinY] = useState<number>(0);
+  const [maxY, setMaxY] = useState<number>(0);
+  const [treeWidth, setTreeWidth] = useState<number>(0);
+  const [treeHeight, setTreeHeight] = useState<number>(0);
 
-// Reducer function to manage the state
-function treeSizeReducer(state: typeof initialState, action: Action) {
-  switch (action.type) {
-    case 'SET_MIN_X':
-      return { ...state, minX: action.payload };
-    case 'SET_MAX_X':
-      return { ...state, maxX: action.payload };
-    case 'SET_MIN_Y':
-      return { ...state, minY: action.payload };
-    case 'SET_MAX_Y':
-      return { ...state, maxY: action.payload };
-    case 'UPDATE_TREE_SIZE':
-      const { minX, maxX, minY, maxY } = action.payload;
-      return {
-        ...state,
+  return (
+    <TreeSizeContext.Provider
+      value={{
         minX,
         maxX,
         minY,
         maxY,
-        treeWidth: Math.abs(maxX - minX),
-        treeHeight: Math.abs(maxY - minY),
-      };
-    default:
-      return state;
-  }
+        treeWidth,
+        treeHeight,
+        setMinX,
+        setMaxX,
+        setMinY,
+        setMaxY,
+        setTreeWidth,
+        setTreeHeight,
+      }}
+    >
+      {children}
+    </TreeSizeContext.Provider>
+  );
 }
 
-const TreeSizeContext = createContext<TreeSizeContextType | undefined>(undefined);
-
-const TreeSizeProvider = ({ children }: { children: ReactNode }) => {
-  const [state, dispatch] = useReducer(treeSizeReducer, initialState);
-
-  const updateTreeSize = (minX: number, maxX: number, minY: number, maxY: number) => {
-    dispatch({ type: 'UPDATE_TREE_SIZE', payload: { minX, maxX, minY, maxY } });
-  };
-
-  const contextValue = useMemo(
-    () => ({
-      ...state,
-      updateTreeSize,
-    }),
-    [state]
-  );
-
-  return <TreeSizeContext.Provider value={contextValue}>{children}</TreeSizeContext.Provider>;
-};
-
-export const useTreeSizeContext = () => {
+// Custom hook to use the tree size context
+export const useTreeSizeContext = (): TreeSizeContextType => {
   const context = useContext(TreeSizeContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useTreeSizeContext must be used within a TreeSizeProvider');
   }
   return context;
-};
-
-export default TreeSizeProvider;
+}

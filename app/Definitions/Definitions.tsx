@@ -110,12 +110,17 @@ export interface DocumentContextType {
   zoomOut: () => void;
 }
 
-export interface TreeSizeContextType {
-  treeWidth: number;
-  treeHeight: number;
+export default interface TreeSizeContextType {
   minX: number;
   maxX: number;
   minY: number;
   maxY: number;
-  updateTreeSize: (minX: number, maxX: number, minY: number, maxY: number)=> void;
+  treeWidth: number;
+  treeHeight: number;
+  setMinX: (value: number) => void;
+  setMaxX: (value: number) => void;
+  setMinY: (value: number) => void;
+  setMaxY: (value: number) => void;
+  setTreeWidth: (value: number) => void;
+  setTreeHeight: (value: number) => void;
 }
