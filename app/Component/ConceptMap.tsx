@@ -5,6 +5,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ConceptNode from './ConceptNode';
 import { useDocumentContext } from '../Component/context/DocumentProvider';
+import { useTreeSizeContext } from '../Component/context/TreeSizeContext';
 import { CueCard, ConceptNode as ConceptNodeType } from '@/app/Definitions/Definitions';
 import ContextMenu from './ContextMenu';
 import { drawLines } from './utils/drawLines';
@@ -29,9 +30,13 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
 
   const [mapWidth, setMapWidth] = useState<number>(0);
     // Calculate node positions using the Reingold-Tilford layout
-    const laidOutNodes = reingoldTilfordLayout(nodes, nodes[0]?.id || 'node-1');
+    const { laidOutNodes, minX, maxX, minY, maxY } = reingoldTilfordLayout(nodes, nodes[0]?.id || 'node-1');
     const { minHeight, minWidth } = useDynamicMapSize({ mapRef, nodes });
+    const { updateTreeSize } = useTreeSizeContext(); 
   
+    useEffect(() => {
+      updateTreeSize(minX, maxX, minY, maxY); // Update state in effect to prevent infinite loop
+    }, [minX, maxX, minY, maxY, updateTreeSize]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

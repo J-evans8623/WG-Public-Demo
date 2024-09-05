@@ -111,17 +111,11 @@ export interface DocumentContextType {
 }
 
 export interface TreeSizeContextType {
-treeWidth:number;
-treeHeight:number;
-maxX: number;
-maxY: number;
-minY: number;
-minX: number;
-setMaxX: (maxX:number) => void;
-setMinX: (minX:number) => void;
-setMaxY: (maxY:number) => void;
-setMinY: (minY:number) => void;
-updateTreeSize: (minX: number, maxX: number, minY: number, maxY: number) => void;
-
+  treeWidth: number;
+  treeHeight: number;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  updateTreeSize: (minX: number, maxX: number, minY: number, maxY: number)=> void;
 }
-

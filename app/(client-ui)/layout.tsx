@@ -9,6 +9,7 @@ import ConceptMap from '../Component/ConceptMap';
 import DocumentCreationModal from '../Component/DocumentCreationModal';
 import Modal from '../Component/Modal';
 import DocumentProvider, { useDocumentContext } from '../Component/context/DocumentProvider';
+import TreeSizeProvider from '../Component/context/TreeSizeContext'; // Add this import
 import { ColorTheme } from '@/app/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 
@@ -172,8 +173,10 @@ function ClientLayoutContent() {
 
 export default function ClientLayout() {
   return (
-      <DocumentProvider>
+    <DocumentProvider>
+      <TreeSizeProvider> {/* Wrap within TreeSizeProvider */}
         <ClientLayoutContent />
-      </DocumentProvider>
+      </TreeSizeProvider>
+    </DocumentProvider>
   );
 }
