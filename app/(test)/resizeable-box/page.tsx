@@ -3,13 +3,13 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import ConceptNode from './ConceptNode';
-import { useDocumentContext } from '../Component/context/DocumentProvider';
+import ConceptNode from '@/app/Component/ConceptNode';
+import { useDocumentContext } from '@/app/Component/context/DocumentProvider';
 import { CueCard, ConceptNode as ConceptNodeType } from '@/app/Definitions/Definitions';
-import ContextMenu from './ContextMenu';
-import { drawLines } from './utils/drawLines';
-import { hvTreeLayoutLayout } from './utils/hvTreeLayout';
-import { useDynamicMapSize } from './hooks/useDynamicMapSize';
+import ContextMenu from '@/app/Component/ContextMenu';
+import { drawLines } from '@/app/Component/utils/drawLines';
+import  hvTreeLayoutLayout from '@/app/Component/utils/hvTreeLayout';
+import { useDynamicMapSize } from '@/app/Component/hooks/useDynamicMapSize';
 
 interface ConceptMapProps {
   groundWidth: number; // New prop for the width of the center pane

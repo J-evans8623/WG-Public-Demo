@@ -19,7 +19,8 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
     addCueCardToNode,
     updateNodeTitle,
     selectCueCards,
-    colorTheme, 
+    colorTheme,
+    setGetLayout, 
   } = useDocumentContext();
 
   const { createNewNode }: { createNewNode: (title: string, parentNodeId: string) => void } = useDocumentContext();
@@ -72,6 +73,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
   const handleAddChildNode = () => {
     const newChildTitle = `Child of ${node.id}`;
     createNewNode(newChildTitle, node.id); // Pass the current node ID as parent ID
+    setGetLayout(true);
   };
 
   const handleNodeClick = () => {

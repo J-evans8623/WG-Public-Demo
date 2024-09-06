@@ -10,6 +10,7 @@ import DocumentCreationModal from '../Component/DocumentCreationModal';
 import Modal from '../Component/Modal';
 import DocumentProvider, { useDocumentContext } from '../Component/context/DocumentProvider';
 import { TreeSizeProvider } from '../Component/context/TreeSizeContext';
+import { PositionProvider } from '../Component/context/PositionTrackingContext'; // Import PositionProvider
 import { ColorTheme } from '@/app/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 
@@ -183,7 +184,9 @@ export default function ClientLayout() {
   return (
     <DocumentProvider>
       <TreeSizeProvider> {/* Wrap within TreeSizeProvider */}
+      <PositionProvider>
         <ClientLayoutContent />
+        </PositionProvider> 
       </TreeSizeProvider>
     </DocumentProvider>
   );

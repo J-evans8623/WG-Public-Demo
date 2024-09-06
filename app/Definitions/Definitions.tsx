@@ -110,6 +110,8 @@ export interface DocumentContextType {
   zoomOut: () => void;
   defaultMapWidth: number;
   defaultMapHeight: number;
+  getLayout: boolean;
+  setGetLayout: (bool:boolean) => void;
   updateDefaultMapSize: (width: number, height: number) => void;
 
 }

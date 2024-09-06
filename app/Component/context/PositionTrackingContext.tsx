@@ -31,20 +31,27 @@ export const PositionProvider: React.FC<{ children: ReactNode }> = ({ children }
   const updatePosition = (depth: number, xCoordinate: number) => {
     setOccupiedPositions((prev) => {
       const updatedPositions = { ...prev };
-      if (!updatedPositions[depth]) {
-        updatedPositions[depth] = [];
+      if (!updatedPositions[depth]?.includes(xCoordinate)) {
+        if (!updatedPositions[depth]) {
+          updatedPositions[depth] = [];
+        }
+        updatedPositions[depth].push(xCoordinate);
       }
-      // Add the x-coordinate to the list of occupied positions at the given depth
-      updatedPositions[depth].push(xCoordinate);
       return updatedPositions;
     });
   };
-
+// Function to reset all positions
+  // Refactored function to reset all positions
   // Function to reset all positions
   const resetPositions = () => {
-    setOccupiedPositions({});
+    setOccupiedPositions((prev) => {
+      // Only reset if there is any occupied position stored
+      if (Object.keys(prev).length !== 0) {
+        return {};
+      }
+      return prev; // No update needed if already empty
+    });
   };
-
   // Function to get positions occupied at a specific depth
   const getPositionsAtDepth = (depth: number): number[] => {
     return occupiedPositions[depth] || [];

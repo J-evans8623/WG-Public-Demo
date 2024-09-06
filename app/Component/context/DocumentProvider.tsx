@@ -25,6 +25,8 @@ const DocumentProvider = ({ children }: { children: ReactNode }) => {
 
    // State to manage zoom level
    const [zoomLevel, setZoomLevel] = useState<number>(0.7); // Default zoom level is 100%
+  
+   const [getLayout, setGetLayout] = useState<boolean>(false); // HV Lay-out flag
 
      // Function to zoom in
   const zoomIn = () => {
@@ -61,6 +63,7 @@ const primaryRootNode = (title: string,mapWidth: number) => {
   };
 
   setNodes([newRootNode]); // Set the new root node in the state
+  setGetLayout(true); // Set layout flag to true, this line was not needed, simply added for consistency
 };
 
 
@@ -86,6 +89,7 @@ const primaryRootNode = (title: string,mapWidth: number) => {
     };
 
     setNodes((prevNodes) => [...prevNodes, newRootNode]);
+    setGetLayout(true); // Set layout flag to true
   };
   // Function to add a new node (receives a title)
 // bloom-maps/app/Component/context/DocumentProvider.tsx
@@ -116,6 +120,7 @@ const createNewNode = (title: string, parentNodeId: string) => {
   };
 
   setNodes((prevNodes) => [...prevNodes, newNode]);
+  
 
   // Update parent's childrenNodeIds
   const updatedChildrenNodeIds = [...(parentNode.childrenNodeIds || []), newNodeId];
@@ -230,6 +235,8 @@ const initializeNewDocument = (
         defaultMapWidth, // Expose default map width
         defaultMapHeight, // Expose default map height
         updateDefaultMapSize, // Expose function to update default map size
+        getLayout,
+        setGetLayout,
       }}
     >
       {children}

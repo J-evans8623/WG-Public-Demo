@@ -8,7 +8,8 @@ import { useDocumentContext } from '../Component/context/DocumentProvider';
 import { CueCard, ConceptNode as ConceptNodeType } from '@/app/Definitions/Definitions';
 import ContextMenu from './ContextMenu';
 import { drawLines } from './utils/drawLines';
-import { hvTreeLayout } from './utils/hvTreeLayout';
+import { useHVTreeLayout } from './utils/hvTreeLayout';
+import { usePositionTracking } from '@/app/Component/context/PositionTrackingContext'; // Import the context
 import { useResizableMap } from './hooks/useResizableMap';
 
 interface ConceptMapProps {
@@ -24,6 +25,8 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
     zoomLevel,
     defaultMapWidth,
     defaultMapHeight,
+    getLayout,
+    setGetLayout,
   } = useDocumentContext();
 
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
@@ -36,9 +39,9 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
     initialHeight: 1400, // Default initial height
   });
 
-  
-    // Calculate node positions using the Reingold-Tilford layout
-    const laidOutNodes = hvTreeLayout(nodes, nodes[0]?.id || 'node-1');
+     
+   // Calculate node positions using the Reingold-Tilford layout
+    const laidOutNodes = useHVTreeLayout(nodes, nodes[0]?.id || 'node-1');
 
 
 
@@ -79,14 +82,18 @@ const [mapWidth ] = useState<number>(defaultMapWidth); // Set to default width
   {/*  Click and Drag Node events    */}
   const handleDragStart = (node: ConceptNodeType) => {
     setDraggedNode(node);
+    
+
   };
 
   const handleDragOver = (event: React.DragEvent) => {
     event.preventDefault();
+    
   };
 
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
+    setGetLayout(true);
     if (!draggedNode) return;
 
 
