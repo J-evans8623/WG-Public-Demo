@@ -175,8 +175,8 @@ const initializeNewDocument = (
   bloomDepth: 1 | 2 | 3 | 4 | 5 | 6,
   groundWidth: number,
   mapWidth: number = 2000, // Default map width
-  minHeight: number = 1400, // Default map height
-  minWidth: number = 2000,
+  height: number = 1400, // Default map height
+  width: number = 2000,
 ) => {
   // Set the initial map size
   setGroundWidth(mapWidth);

@@ -6,7 +6,7 @@ import { useTreeSizeContext } from '@/app/Component/context/TreeSizeContext';
 // Function to calculate tree layout using the Reingold-Tilford algorithm
 export function reingoldTilfordLayout(nodes: ConceptNode[], rootId: string): ConceptNode[] {
   // Use the context to store the final computed values
-  const { setMinX, setMaxX, setMinY, setMaxY, setTreeWidth, setTreeHeight } = useTreeSizeContext();
+  //const { setMinX, setMaxX, setMinY, setMaxY, setTreeWidth, setTreeHeight } = useTreeSizeContext();
 
   const rootNode = nodes.find(node => node.id === rootId);
   if (!rootNode) return nodes;
@@ -44,12 +44,12 @@ export function reingoldTilfordLayout(nodes: ConceptNode[], rootId: string): Con
   const treeHeight = maxY - minY;
 
   // Store the final computed values in the context
-  setMinX(minX);
+  /**setMinX(minX);
   setMaxX(maxX);
   setMinY(minY);
   setMaxY(maxY);
   setTreeWidth(treeWidth);
-  setTreeHeight(treeHeight);
+  setTreeHeight(treeHeight);*/
 
   return nodes;
 }

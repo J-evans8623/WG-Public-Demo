@@ -1,76 +1,73 @@
-'use client';
-import React, { useState } from 'react';
+// components/ResizableBox.tsx
+'use client'
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 const ResizableBox: React.FC = () => {
-  // Reference for Box A to control scrolling
-  const [content, setContent] = useState<string[]>([]);
-  const [minHeight, setMinHeight] = useState<number>(200); // Initial minimum height
-  const [minWidth, setMinWidth] = useState<number>(300);   // Initial minimum width
+  const [width, setWidth] = useState(300); // Initial width of the resizable box
+  const [isResizing, setIsResizing] = useState(false);
+  const resizableRef = useRef<HTMLDivElement>(null);
 
-  // Function to add text content dynamically
-  const addText = () => {
-    setContent((prevContent) => [
-      ...prevContent,
-      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
-    ]);
+  // Mouse down handler to start resizing
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
   };
 
-  // Function to increase the minimum height of Box B
-  const increasePageHeight = () => {
-    setMinHeight((prevHeight) => prevHeight + 100); // Adds 100px height dynamically
-  };
+  // Mouse move handler to resize
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (isResizing && resizableRef.current) {
+        const newWidth = e.clientX - resizableRef.current.getBoundingClientRect().left;
+        setWidth(newWidth > 100 ? newWidth : 100); // Minimum width of 100px
+      }
+    },
+    [isResizing]
+  );
 
-  // Function to increase the minimum width of Box B
-  const increasePageWidth = () => {
-    setMinWidth((prevWidth) => prevWidth + 100); // Adds 100px width dynamically
-  };
+  // Mouse up handler to stop resizing
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    }
+
+    // Cleanup the event listeners on component unmount
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
 
   return (
-    <div className="relative flex flex-col items-center justify-center h-screen">
-      {/* Button to add content */}
-      <button
-        onClick={addText}
-        className="mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-      >
-        Add Text
-      </button>
-
-      {/* Button to increase page height */}
-      <button
-        onClick={increasePageHeight}
-        className="mb-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-      >
-        Increase Page Height
-      </button>
-
-      {/* Button to increase page width */}
-      <button
-        onClick={increasePageWidth}
-        className="mb-4 px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
-      >
-        Increase Page Width
-      </button>
-
-      {/* Outer Box A */}
+    <div
+      ref={resizableRef}
+      style={{
+        width: `${width}px`,
+        height: '200px',
+        border: '1px solid #ccc',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
       <div
-        className="w-[60vw] h-[40vh] bg-gray-100 p-4 overflow-auto flex justify-center items-center" // Center content inside and enable scrolling
-      >
-        {/* Inner Box B */}
-        <div
-          className="relative bg-white shadow-lg rounded-lg"
-          style={{ minHeight: `${minHeight}px`, minWidth: `${minWidth}px`, margin: 'auto' }} // Centering and dynamic size adjustments
-        >
-          {/* Content Inside Box B */}
-          <div className="absolute top-0 left-0">
-            {/* Dynamically added content */}
-            {content.map((text, index) => (
-              <p key={index} className="mb-4">
-                {text}
-              </p>
-            ))}
-          </div>
-        </div>
-      </div>
+        style={{
+          width: '10px',
+          height: '100%',
+          backgroundColor: '#ddd',
+          cursor: 'ew-resize',
+          position: 'absolute',
+          top: 0,
+          right: 0,
+        }}
+        onMouseDown={handleMouseDown}
+      />
     </div>
   );
 };

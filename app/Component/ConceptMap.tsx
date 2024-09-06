@@ -9,7 +9,7 @@ import { CueCard, ConceptNode as ConceptNodeType } from '@/app/Definitions/Defin
 import ContextMenu from './ContextMenu';
 import { drawLines } from './utils/drawLines';
 import { reingoldTilfordLayout } from './utils/reingoldTilford';
-import { useDynamicMapSize } from './hooks/useDynamicMapSize';
+import { useResizableMap } from './hooks/useResizableMap';
 
 interface ConceptMapProps {
   groundWidth: number; // New prop for the width of the center pane
@@ -25,14 +25,21 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
     defaultMapWidth,
     defaultMapHeight,
   } = useDocumentContext();
+
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
+  const { width, height, handleMouseDown } = useResizableMap({
+    mapRef,
+    initialWidth: 2000,
+    initialHeight: 1400, // Default initial height
+  });
+
   
     // Calculate node positions using the Reingold-Tilford layout
     const laidOutNodes = reingoldTilfordLayout(nodes, nodes[0]?.id || 'node-1');
-    const { minHeight, minWidth, handleMouseDown } = useDynamicMapSize({ mapRef});
+
 
 
 const [mapWidth ] = useState<number>(defaultMapWidth); // Set to default width
@@ -103,8 +110,8 @@ const [mapWidth ] = useState<number>(defaultMapWidth); // Set to default width
    className="relative bg-white overflow-hidden w-full h-full scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200"
    style={{
      transform: `scale(${zoomLevel})`,
-     minHeight: `${minHeight}px`, // Minimum height for resizing
-     minWidth: `${minWidth}px`, // Minimum width for resizing
+     minWidth: `${width}px`, // Minimum height for resizing
+     minHeight: `${height}px`, // Minimum width for resizing
      /**
       *      width: `${minWidth}px`,
      height: `${minHeight}px`
@@ -121,19 +128,20 @@ const [mapWidth ] = useState<number>(defaultMapWidth); // Set to default width
  >
    {/* Visual cues for resizing */}
 
-   <div
+{/* Resizable Handles */}
+<div
         className="absolute w-4 h-4 bg-gray-800 cursor-se-resize"
-        style={{ bottom: 0, right: 0, zIndex: 10 }} // Ensure the handle is above other elements
+        style={{ bottom: 0, right: 0, zIndex: 10 }}
         onMouseDown={handleMouseDown('both')}
       />
       <div
         className="absolute w-4 h-4 bg-gray-800 cursor-ew-resize"
-        style={{ bottom: '50%', right: 0, transform: 'translateY(50%)', zIndex: 10 }} // Ensure the handle is above other elements
+        style={{ bottom: '50%', right: 0, transform: 'translateY(50%)', zIndex: 10 }}
         onMouseDown={handleMouseDown('horizontal')}
       />
       <div
         className="absolute w-4 h-4 bg-gray-800 cursor-ns-resize"
-        style={{ bottom: 0, left: '50%', transform: 'translateX(-50%)', zIndex: 10 }} // Ensure the handle is above other elements
+        style={{ bottom: 0, left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}
         onMouseDown={handleMouseDown('vertical')}
       />
       {/* Bottom side handle */}
