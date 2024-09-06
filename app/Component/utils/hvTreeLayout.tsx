@@ -27,7 +27,7 @@ export function useHVTreeLayout(nodes: ConceptNode[], rootId: string): ConceptNo
   // Define constants for the layout
   const LEVEL_HEIGHT = 250; // Vertical distance between levels
   const NODE_WIDTH = 200; // Node width
-  const MIN_HORIZONTAL_SPACING = 350; // Minimum horizontal spacing between nodes
+  const MIN_HORIZONTAL_SPACING = 275; // Minimum horizontal spacing between nodes
 
   // Initialize a local variable to accumulate all updates
   const localOccupiedPositions: { [key: number]: number[] } = {};
@@ -83,7 +83,7 @@ function positionNodesHV(
 
   if (!children.length) {
     // If no children, this is a leaf node
-    node.x = getNextAvailablePosition(depth, nodeWidth, localOccupiedPositions);
+    node.x = getNextAvailablePosition(depth, node.x, nodeWidth, localOccupiedPositions); // Pass parentX correctly
     // Store position locally
     if (!localOccupiedPositions[depth]) {
       localOccupiedPositions[depth] = [];
@@ -109,6 +109,8 @@ function positionNodesHV(
   const leftmostChild = children[0];
   const rightmostChild = children[children.length - 1];
   const midpoint = (leftmostChild.x + rightmostChild.x) / 2;
+
+  // Ensure the parent node's position is set to the midpoint of its children
   node.x = midpoint;
 
   // Ensure minimum horizontal spacing between sibling nodes
@@ -129,9 +131,22 @@ function positionNodesHV(
     }
   }
 
-  // Update x position of parent node based on children's positions
+  // Update x position of the parent node based on children's positions
   const actualMidPoint = (leftmostChild.x + rightmostChild.x) / 2;
   node.x = actualMidPoint;
+
+  // Recalculate the parent's position if needed
+  if (node.x < leftmostChild.x - minSpacing || node.x > rightmostChild.x + minSpacing) {
+    node.x = actualMidPoint; // Set the node to the mid-point of its children
+  }
+
+  // Ensure parent maintains enough spacing from its children
+  if (node.x < leftmostChild.x) {
+    node.x = leftmostChild.x; // Move parent to align with leftmost child
+  } else if (node.x > rightmostChild.x) {
+    node.x = rightmostChild.x; // Move parent to align with rightmost child
+  }
+
   // Store position locally
   if (!localOccupiedPositions[depth]) {
     localOccupiedPositions[depth] = [];
@@ -140,18 +155,50 @@ function positionNodesHV(
 }
 
 // Helper function to get the next available position for a node at a specific depth
+// Helper function to get the next available position for a node at a specific depth
+// Helper function to get the next available position for a node at a specific depth
 function getNextAvailablePosition(
   depth: number,
+  parentX: number,
   nodeWidth: number,
   localOccupiedPositions: { [key: number]: number[] }
 ): number {
   const occupiedPositions = localOccupiedPositions[depth] || [];
-  let x = nodeWidth / 2; // Start position
+  let x = parentX; // Start search at the parent's x position
 
-  // Find the first available position
+  // If parentX is already occupied, look for the closest available position
+  if (!occupiedPositions.includes(x)) {
+    return x; // If the position directly below the parent is available, use it
+  }
+
+  // Define step size for incrementing positions
+  let step = nodeWidth + 100; // Increment step by node width + padding
+
+  // Check closest positions around parentX in increasing order of distance
+  let distance = step; // Start checking at the smallest step distance
+  while (distance < Infinity) {
+    // Check to the right first
+    if (!occupiedPositions.includes(parentX + distance)) {
+      return parentX + distance; // Closest available position to the right
+    }
+    // Check to the left next
+    if (!occupiedPositions.includes(parentX - distance) && parentX - distance >= 0) {
+      return parentX - distance; // Closest available position to the left
+    }
+    // Increase distance incrementally
+    distance += step;
+  }
+
+  // Fallback: If all positions around parentX are taken, use the next available spot beyond current positions
+  x += step;
   while (occupiedPositions.includes(x)) {
-    x += nodeWidth + 50; // Increment by node width + padding
+    x += step;
   }
 
   return x;
 }
+/**
+ * Nodes now priotize position directly below parent
+ * 
+ * 
+ */
