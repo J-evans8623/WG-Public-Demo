@@ -8,7 +8,7 @@ import { useDocumentContext } from '../Component/context/DocumentProvider';
 import { CueCard, ConceptNode as ConceptNodeType } from '@/app/Definitions/Definitions';
 import ContextMenu from './ContextMenu';
 import { drawLines } from './utils/drawLines';
-import { reingoldTilfordLayout } from './utils/reingoldTilford';
+import { hvTreeLayout } from './utils/hvTreeLayout';
 import { useResizableMap } from './hooks/useResizableMap';
 
 interface ConceptMapProps {
@@ -38,7 +38,7 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
 
   
     // Calculate node positions using the Reingold-Tilford layout
-    const laidOutNodes = reingoldTilfordLayout(nodes, nodes[0]?.id || 'node-1');
+    const laidOutNodes = hvTreeLayout(nodes, nodes[0]?.id || 'node-1');
 
 
 
