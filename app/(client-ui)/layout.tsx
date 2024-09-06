@@ -124,49 +124,57 @@ function ClientLayoutContent() {
       </div>
 
       <Split
-        className="flex h-[calc(100vh-50px)]"
-        sizes={[20, 60, 20]} 
-        minSize={[200, 600, 200]} 
-        maxSize={[600, Infinity, 400]} 
-        gutterSize={8}
-        direction="horizontal"
-        cursor="col-resize"
-      >
-        {/* Left Panel (Cue Card Viewer) */}
-        <div className="flex flex-col space-y-2 bg-gray-200 p-4 shadow-lg rounded-lg overflow-y-auto">
-          <CueCardDisplay />
-        </div>
-
-        {/* Center Pane (Map Canvas) */}
-        <div ref={centerPaneRef} 
-             className="flex-1 bg-gray-200 p-4 shadow-lg rounded-lg overflow-auto flex justify-center items-center"
-             style={{ position: 'relative' }}   
-            >
-           <ConceptMap groundWidth={groundWidth} /> {/* Pass groundWidth as a prop */}
-        </div>
-
-        {/* Right Panel (Tool Interface) */}
-        <div className="relative bg-gray-200 p-4 shadow-lg rounded-lg overflow-auto">
-  {/* Zoom Buttons */}
-  <div className="absolute top-2 left-2 flex space-x-2 bg-gray-300 p-2 rounded shadow">
-    <button
-      title={`Zoom In (${Math.ceil(zoomLevel * 100)}%)`}
-      onClick={zoomIn}
-      className="p-1 rounded hover:bg-gray-400"
-    >
-      <RiZoomInLine />
-    </button>
-    <button
-      title={`Zoom Out (${Math.ceil(zoomLevel * 100)}%)`}
-      onClick={zoomOut}
-      className="p-1 rounded hover:bg-gray-400"
-    >
-      <RiZoomOutLine />
-    </button>
+  className="flex h-[calc(100vh-50px)]"
+  sizes={[20, 60, 20]} 
+  minSize={[200, 600, 200]} 
+  maxSize={[600, Infinity, 400]} 
+  gutterSize={8}
+  direction="horizontal"
+  cursor="col-resize"
+>
+  {/* Left Panel (Cue Card Viewer) */}
+  <div className="flex flex-col space-y-2 bg-gray-200 p-4 shadow-lg rounded-lg overflow-y-auto">
+    <CueCardDisplay />
   </div>
-  {/* Add other tools here */}
-</div>
-      </Split>
+
+  {/* Center Pane (Map Canvas) */}
+  <div
+    ref={centerPaneRef}
+    className="flex-1 bg-gray-200 p-4 shadow-lg rounded-lg overflow-auto flex justify-center items-center scrollbar-thin"
+    style={{
+      position: 'relative',
+      overflowX: 'auto', // Enables horizontal scrolling
+      overflowY: 'auto', // Enables vertical scrolling
+      display: 'flex',
+      justifyContent: 'center', // Center horizontally
+      alignItems: 'center', // Center vertically
+    }}
+  >
+    <ConceptMap groundWidth={groundWidth} />
+  </div>
+
+  {/* Right Panel (Tool Interface) */}
+  <div className="relative bg-gray-200 p-4 shadow-lg rounded-lg overflow-auto">
+    {/* Zoom Buttons */}
+    <div className="absolute top-2 left-2 flex space-x-2 bg-gray-300 p-2 rounded shadow">
+      <button
+        title={`Zoom In (${Math.ceil(zoomLevel * 100)}%)`}
+        onClick={zoomIn}
+        className="p-1 rounded hover:bg-gray-400"
+      >
+        <RiZoomInLine />
+      </button>
+      <button
+        title={`Zoom Out (${Math.ceil(zoomLevel * 100)}%)`}
+        onClick={zoomOut}
+        className="p-1 rounded hover:bg-gray-400"
+      >
+        <RiZoomOutLine />
+      </button>
+    </div>
+    {/* Add other tools here */}
+  </div>
+</Split>
     </>
   );
 }

@@ -108,6 +108,10 @@ export interface DocumentContextType {
   zoomLevel: number;
   zoomIn: () => void;
   zoomOut: () => void;
+  defaultMapWidth: number;
+  defaultMapHeight: number;
+  updateDefaultMapSize: (width: number, height: number) => void;
+
 }
 
 export default interface TreeSizeContextType {

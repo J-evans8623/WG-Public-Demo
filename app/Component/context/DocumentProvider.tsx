@@ -24,7 +24,7 @@ const DocumentProvider = ({ children }: { children: ReactNode }) => {
   const [colorTheme, setColorTheme] = useState<ColorTheme>('cool-spring'); // Default color theme
 
    // State to manage zoom level
-   const [zoomLevel, setZoomLevel] = useState<number>(1); // Default zoom level is 100%
+   const [zoomLevel, setZoomLevel] = useState<number>(0.7); // Default zoom level is 100%
 
      // Function to zoom in
   const zoomIn = () => {
@@ -35,6 +35,17 @@ const DocumentProvider = ({ children }: { children: ReactNode }) => {
   const zoomOut = () => {
     setZoomLevel((prevZoom) => Math.max(prevZoom - 0.1, 0.1)); // Min zoom level 50%
   };
+
+
+    // **New State** to manage default map size
+    const [defaultMapWidth, setDefaultMapWidth] = useState<number>(2000); // Default width
+    const [defaultMapHeight, setDefaultMapHeight] = useState<number>(1400); // Default height
+  
+    // Function to set default map size
+    const updateDefaultMapSize = (width: number, height: number) => {
+      setDefaultMapWidth(width);
+      setDefaultMapHeight(height);
+    };
 
   // Function to initialize the root node dynamically from client-side
 const primaryRootNode = (title: string,mapWidth: number) => {
@@ -159,25 +170,33 @@ const createNewNode = (title: string, parentNodeId: string) => {
   };
 
   // Function to initialize a new document
-  const initializeNewDocument = (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6, groundWidth: number) => {
-    
-  
-    // Calculate the center position using the provided groundWidth
-    const newRootNode: ConceptNode = {
-      id: 'node-1',
-      title: 'Root Concept',
-      cueCards: [],
-      parentNodeId: undefined,
-      childrenNodeIds: [],
-      x: groundWidth / 2 - 100, // Center horizontally based on the client-provided ground width
-      y: 50, // Position at the top
-      isRoot: true,
-    };
-  
-    setNodes([newRootNode]); // Reset nodes to the new root node
-    setSelectedCueCards([]); // Clear selected cue cards
-    setBloomDepth(bloomDepth); // Set the new bloom depth
+// Function to initialize a new document with map size
+const initializeNewDocument = (
+  bloomDepth: 1 | 2 | 3 | 4 | 5 | 6,
+  groundWidth: number,
+  mapWidth: number = 2000, // Default map width
+  minHeight: number = 1400, // Default map height
+  minWidth: number = 2000,
+) => {
+  // Set the initial map size
+  setGroundWidth(mapWidth);
+
+  // Calculate the center position using the provided groundWidth
+  const newRootNode: ConceptNode = {
+    id: 'node-1',
+    title: 'Root Concept',
+    cueCards: [],
+    parentNodeId: undefined,
+    childrenNodeIds: [],
+    x: mapWidth / 2 - 100, // Center horizontally based on the client-provided ground width
+    y: 50, // Position at the top
+    isRoot: true,
   };
+
+  setNodes([newRootNode]); // Reset nodes to the new root node
+  setSelectedCueCards([]); // Clear selected cue cards
+  setBloomDepth(bloomDepth); // Set the new bloom depth
+};
 
   // Function to select cue cards
   const selectCueCards = (cueCards: CueCard[]) => {
@@ -208,7 +227,9 @@ const createNewNode = (title: string, parentNodeId: string) => {
         selectCueCards,
         addCueCardToNode,
         updateNodeTitle,
-        // Other context functions...
+        defaultMapWidth, // Expose default map width
+        defaultMapHeight, // Expose default map height
+        updateDefaultMapSize, // Expose function to update default map size
       }}
     >
       {children}
