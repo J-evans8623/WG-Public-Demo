@@ -80,7 +80,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
     onClick(cueCards);
     selectCueCards(cueCards); 
   };
-
+  {/** More drag logic for concept node  **/}
   // Handle drag start with visual feedback
   const handleDragStartLocal = (event: React.DragEvent) => {
     event.dataTransfer.setData('text/plain', node.id);
@@ -92,7 +92,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
   const handleDragEnd = () => {
     setIsDragging(false); 
   };
-
+  {/** End of dragging logic  **/}
   return (
     <div
       className={`relative flex flex-col items-center cursor-pointer group border rounded-md shadow-md ${

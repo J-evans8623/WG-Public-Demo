@@ -15,6 +15,8 @@ import { useResizableMap } from './hooks/useResizableMap';
 interface ConceptMapProps {
   groundWidth: number; // New prop for the width of the center pane
 }
+
+
 function ConceptMap({ groundWidth }: ConceptMapProps) {
   const { 
     nodes, 
@@ -46,14 +48,31 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
 
 
 
-const [mapWidth ] = useState<number>(defaultMapWidth); // Set to default width
-  /**useEffect(() => {
-    // Calculate the map width dynamically
-    if (mapRef.current) {
-      setMapWidth(mapRef.current.offsetWidth);
-    }
-  }, [mapRef.current]); // Runs when the map reference changes **/
-
+  const [mapWidth ] = useState<number>(defaultMapWidth); // Set to default width
+  
+  /**Helper function for subtree operations */
+  function updateSubtreePositions(parentNode: ConceptNodeType, deltaX: number, deltaY: number) {
+    const updateChildPositions = (nodeId: string) => {
+      const currentNode = nodes.find((n) => n.id === nodeId);
+      if (!currentNode) return;
+  
+      // Calculate new positions
+      const newX = currentNode.x + deltaX;
+      // Apply vertical delta if the parent node is a root; otherwise, keep the y position unchanged
+      const newY = parentNode.isRoot ? currentNode.y + deltaY : currentNode.y;
+  
+      // Use the updateNode function to update the global state
+      updateNode(currentNode.id, { x: newX, y: newY });
+  
+      // Recursively update child nodes
+      currentNode.childrenNodeIds?.forEach(updateChildPositions);
+    };
+  
+    // Update the positions for the subtree starting from the parent node
+    updateChildPositions(parentNode.id);
+  }
+  
+  
   useEffect(() => {
     // Initialize root node when the component mounts and mapWidth is available
     if (nodes.length === 0 && mapWidth > 0) {
@@ -92,28 +111,27 @@ const [mapWidth ] = useState<number>(defaultMapWidth); // Set to default width
     
   };
 
-  const handleDrop = (event: React.DragEvent) => {
-    event.preventDefault();
-    setGetLayout(true);
-    if (!draggedNode) return;
-
-
-
-    {/** Map Zoom control */}
-    const mapRect = mapRef.current?.getBoundingClientRect();
-    const offsetX = (event.clientX - (mapRect?.left ?? 0)) / zoomLevel; // Adjust for zoom level
-    const offsetY = (event.clientY - (mapRect?.top ?? 0)) / zoomLevel; // Adjust for zoom level
-
-    const adjustedX = offsetX - 100; 
-    const adjustedY = offsetY - 75; 
-
-    updateNode(draggedNode.id, { x: adjustedX, y: adjustedY });
-    setDraggedNode(null);
-
-  
-
-  };
-
+    {/** Dragged node control with incoporated zoom level scale */}
+    const handleDrop = (event: React.DragEvent) => {
+      event.preventDefault();
+    
+      if (!draggedNode) return;
+    
+      const mapRect = mapRef.current?.getBoundingClientRect();
+      const offsetX = (event.clientX - (mapRect?.left ?? 0)) / zoomLevel; // Adjust for zoom level
+      const offsetY = (event.clientY - (mapRect?.top ?? 0)) / zoomLevel; // Adjust for zoom level
+    
+      const adjustedX = offsetX - 100; 
+      const adjustedY = draggedNode.isRoot ? (offsetY - 75) : draggedNode.y;
+    
+      const deltaX = adjustedX - draggedNode.x;
+      const deltaY = adjustedY - draggedNode.y;
+    
+      // Update the subtree positions and use updateNode for each
+      updateSubtreePositions(draggedNode, deltaX, draggedNode.isRoot ? deltaY : 0);
+      setDraggedNode(null);
+    };
+  {/** End of click and drag events */}
   
 
   return (
