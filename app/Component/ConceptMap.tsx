@@ -26,6 +26,7 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
     defaultMapWidth,
     defaultMapHeight,
     getLayout,
+    initializeNewDocument,
     setGetLayout,
   } = useDocumentContext();
 
@@ -33,10 +34,10 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
   const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
-  const { width, height, handleMouseDown } = useResizableMap({
+  const { width, height, handleMouseDown, offset } = useResizableMap({
     mapRef,
     initialWidth: 2000,
-    initialHeight: 1400, // Default initial height
+    initialHeight: 1400, // Default initial height and width
   });
 
      
@@ -109,25 +110,24 @@ const [mapWidth ] = useState<number>(defaultMapWidth); // Set to default width
     updateNode(draggedNode.id, { x: adjustedX, y: adjustedY });
     setDraggedNode(null);
 
+  
+
   };
+
+  
 
   return (
    <div
    ref={mapRef}
    className="relative bg-white overflow-hidden w-full h-full scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200"
    style={{
-     transform: `scale(${zoomLevel})`,
+     transform: `scale(${zoomLevel}) translate(${offset.x}px, ${offset.y}px)`,
      minWidth: `${width}px`, // Minimum height for resizing
      minHeight: `${height}px`, // Minimum width for resizing
-     /**
-      *      width: `${minWidth}px`,
-     height: `${minHeight}px`
-      * 
-      */
      transition: 'min-height 0.3s ease, min-width 0.3s ease',
      position: 'relative',
      display: 'flex', // Flex for content alignment
-     paddingLeft: '0px', // Add extra padding on the left to create additional scroll space
+     
    }}
    onContextMenu={handleRightClick}
    onDragOver={handleDragOver}

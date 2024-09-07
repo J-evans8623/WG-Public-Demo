@@ -91,30 +91,34 @@ export interface DocumentContextType {
   selectedCueCards: CueCard[];
   bloomDepth: 1 | 2 | 3 | 4 | 5 | 6;
   setBloomDepth: (depth: 1 | 2 | 3 | 4 | 5 | 6) => void;
-  colorTheme: ColorTheme; // Define colorTheme as part of the context state
-  setColorTheme: (theme: ColorTheme) => void; // Function to set colorTheme
+  colorTheme: ColorTheme;
+  setColorTheme: (theme: ColorTheme) => void;
   addNode: (node: ConceptNode) => void;
   removeNode: (nodeId: string) => void;
   updateNode: (nodeId: string, updatedNode: Partial<ConceptNode>) => void;
   selectCueCards: (cueCards: CueCard[]) => void;
   resetDocument: () => void;
   createNewNode: (title: string, parentNodeId: string) => void;
-  createSecondaryRootNode : (title: string, x: number, y: number) => void;
+  createSecondaryRootNode: (title: string, x: number, y: number) => void;
   addCueCardToNode: (nodeId: string, cueCard: CueCard) => void;
   updateNodeTitle: (nodeId: string, newTitle: string) => void;
-  initializeNewDocument: (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6, groundWidth: number ) => void;
-  primaryRootNode: (title: string,groundWidth: number) => void;
+  initializeNewDocument: (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6, groundWidth: number) => void;
+  primaryRootNode: (title: string, groundWidth: number) => void;
   updateGroundWidth: (width: number) => void;
   zoomLevel: number;
   zoomIn: () => void;
   zoomOut: () => void;
+  updateScrollPosition: (left: number, top: number) => void;
   defaultMapWidth: number;
   defaultMapHeight: number;
   getLayout: boolean;
-  setGetLayout: (bool:boolean) => void;
+  setGetLayout: (bool: boolean) => void;
   updateDefaultMapSize: (width: number, height: number) => void;
-
+  scrollLeft: number; // Added scrollLeft to track horizontal scroll position
+  scrollTop: number; // Added scrollTop to track vertical scroll position
+  adjustScrollPosition: (newZoomLevel: number) => void; // Added adjustScrollPosition function
 }
+
 
 export default interface TreeSizeContextType {
   minX: number;

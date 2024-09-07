@@ -27,17 +27,36 @@ const DocumentProvider = ({ children }: { children: ReactNode }) => {
    const [zoomLevel, setZoomLevel] = useState<number>(0.7); // Default zoom level is 100%
   
    const [getLayout, setGetLayout] = useState<boolean>(false); // HV Lay-out flag
+   const [scrollLeft, setScrollLeft] = useState<number>(0); //  define the state for horizontal scroll
+   const [scrollTop, setScrollTop] = useState<number>(0); //  define the state for vertical scroll
 
+   
      // Function to zoom in
-  const zoomIn = () => {
-    setZoomLevel((prevZoom) => Math.min(prevZoom + 0.1, 2)); // Max zoom level 200%
+     const zoomIn = () => {
+      setZoomLevel((prevZoom: number) => {
+        const newZoom = Math.min(prevZoom + 0.1, 2); // Max zoom level 200%
+        adjustScrollPosition(newZoom);
+        return newZoom;
+      });
+    };
+    
+    const zoomOut = () => {
+      setZoomLevel((prevZoom: number) => {
+        const newZoom = Math.max(prevZoom - 0.1, 0.1); // Min zoom level 50%
+        adjustScrollPosition(newZoom);
+        return newZoom;
+      });
+    };
+   // Function to adjust scroll positions during zoom
+   const adjustScrollPosition = (newZoomLevel: number) => {
+    setScrollLeft((prevScrollLeft: number) => (prevScrollLeft * newZoomLevel) / zoomLevel);
+    setScrollTop((prevScrollTop: number) => (prevScrollTop * newZoomLevel) / zoomLevel);
   };
 
-  // Function to zoom out
-  const zoomOut = () => {
-    setZoomLevel((prevZoom) => Math.max(prevZoom - 0.1, 0.1)); // Min zoom level 50%
+  const updateScrollPosition = (left: number, top: number) => {
+    setScrollLeft(left);
+    setScrollTop(top);
   };
-
 
     // **New State** to manage default map size
     const [defaultMapWidth, setDefaultMapWidth] = useState<number>(2000); // Default width
@@ -177,14 +196,14 @@ const createNewNode = (title: string, parentNodeId: string) => {
   // Function to initialize a new document
 // Function to initialize a new document with map size
 const initializeNewDocument = (
-  bloomDepth: 1 | 2 | 3 | 4 | 5 | 6,
+  bloomDepth: 1 | 2 | 3 | 4 | 5 | 6 = 4,
   groundWidth: number,
   mapWidth: number = 2000, // Default map width
   height: number = 1400, // Default map height
   width: number = 2000,
 ) => {
   // Set the initial map size
-  setGroundWidth(mapWidth);
+  setGroundWidth(groundWidth);
 
   // Calculate the center position using the provided groundWidth
   const newRootNode: ConceptNode = {
@@ -215,10 +234,13 @@ const initializeNewDocument = (
         zoomLevel,
         zoomIn,
         zoomOut,
+        scrollLeft,
+        scrollTop,
+        adjustScrollPosition,
         selectedCueCards,
         createNewNode,
         createSecondaryRootNode,
-        primaryRootNode, // Expose the function to initialize the root node
+        primaryRootNode,
         updateGroundWidth,
         resetDocument,
         initializeNewDocument,
@@ -232,11 +254,12 @@ const initializeNewDocument = (
         selectCueCards,
         addCueCardToNode,
         updateNodeTitle,
-        defaultMapWidth, // Expose default map width
-        defaultMapHeight, // Expose default map height
-        updateDefaultMapSize, // Expose function to update default map size
+        defaultMapWidth,
+        defaultMapHeight,
+        updateDefaultMapSize,
         getLayout,
         setGetLayout,
+        updateScrollPosition,
       }}
     >
       {children}
