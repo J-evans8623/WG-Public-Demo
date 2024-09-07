@@ -37,7 +37,7 @@ export function drawLines(nodes: ConceptNode[], color: string = 'black'): JSX.El
           x2={PBC_X}
           y2={ANCHOR_Y}
           stroke={color} // Use the dynamic color
-          strokeWidth={2}
+          strokeWidth={5}
         />
       );
 
@@ -50,7 +50,7 @@ export function drawLines(nodes: ConceptNode[], color: string = 'black'): JSX.El
           x2={childX}
           y2={ANCHOR_Y}
           stroke={color} // Use the dynamic color
-          strokeWidth={2}
+          strokeWidth={5}
         />
       );
 
@@ -63,7 +63,7 @@ export function drawLines(nodes: ConceptNode[], color: string = 'black'): JSX.El
           x2={childX}
           y2={adjustedChildY} // Shorten the vertical line to stop just above the child node
           stroke={color} // Use the dynamic color
-          strokeWidth={2}
+          strokeWidth={5}
         />
       );
     });

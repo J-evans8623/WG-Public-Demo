@@ -38,6 +38,7 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
   const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const [isDraggingSubtree, setIsDraggingSubtree] = useState<boolean>(false); // State for subtree dragging
+  const [boundingBox, setBoundingBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null); // State for bounding box
 
   const { width, height, handleMouseDown, offset } = useResizableMap({
     mapRef,
@@ -66,6 +67,19 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
   
       // Use the updateNode function to update the global state
       updateNode(currentNode.id, { x: newX, y: newY });
+
+
+      // Check if the current node has exactly one child
+    if (currentNode.childrenNodeIds && currentNode.childrenNodeIds.length === 1) {
+      const childNodeId = currentNode.childrenNodeIds[0];
+      const childNode = nodes.find((n) => n.id === childNodeId);
+      
+      if (childNode) {
+        // Assign the child node the same x-coordinate as the parent to align them
+        updateNode(childNode.id, { x: newX }); // Align child node x with parent
+      }
+    }
+
   
       // Recursively update child nodes
       currentNode.childrenNodeIds?.forEach(updateChildPositions);
@@ -106,13 +120,65 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
   const handleDragStart = (node: ConceptNodeType) => {
     setDraggedNode(node);
     setIsDraggingSubtree(true);
+  
+    // Calculate bounding box for the subtree
+    const subtreeNodes = getSubtreeNodes(node.id);
+    const xPositions = subtreeNodes.map((n) => n.x);
+    const yPositions = subtreeNodes.map((n) => n.y);
+  
+    const minX = Math.min(...xPositions);
+    const minY = Math.min(...yPositions);
+    const maxX = Math.max(...xPositions) + 200; // Node width
+    const maxY = Math.max(...yPositions) + 150; // Node height
+  
+    /** Convert to viewport coordinates using zoom level
+    const adjustedMinX = minX * zoomLevel;
+    const adjustedMinY = minY * zoomLevel;
+    const adjustedWidth = (maxX - minX) * zoomLevel;
+    const adjustedHeight = (maxY - minY) * zoomLevel;*/
+  
+    setBoundingBox({
+      x: minX,
+      y: minY,
+      width:  maxX - minX,
+      height: maxY - minY,
+    });
+  };
+  
 
+  const getSubtreeNodes = (nodeId: string): ConceptNodeType[] => {
+    const rootNode = nodes.find((node) => node.id === nodeId);
+    if (!rootNode) return [];
+
+    const subtree: ConceptNodeType[] = [rootNode];
+    if (rootNode.childrenNodeIds) {
+      rootNode.childrenNodeIds.forEach((childId) => {
+        subtree.push(...getSubtreeNodes(childId));
+      });
+    }
+
+    return subtree;
   };
 
   const handleDragOver = (event: React.DragEvent) => {
+    if (!draggedNode) return;
+  
     event.preventDefault();
-    
+  
+    const mapRect = mapRef.current?.getBoundingClientRect();
+    const offsetX = (event.clientX - (mapRect?.left ?? 0)) / zoomLevel; // Adjust for zoom level
+    const offsetY = (event.clientY - (mapRect?.top ?? 0)) / zoomLevel; // Adjust for zoom level
+  
+    if (boundingBox) {
+      // Update bounding box position dynamically during drag
+      setBoundingBox({
+        ...boundingBox,
+        x: offsetX - boundingBox.width / 2,
+        y: offsetY - 75, // vertical offset  
+      });
+    }
   };
+  
 
     {/** Dragged node control with incoporated zoom level scale */}
     const handleDrop = (event: React.DragEvent) => {
@@ -134,6 +200,7 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
       updateSubtreePositions(draggedNode, deltaX, draggedNode.isRoot ? deltaY : 0);
       setDraggedNode(null);
       setIsDraggingSubtree(false);
+      setBoundingBox(null);
     };
 
 
@@ -194,8 +261,31 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
         {drawLines(nodes, 'black')}
       </svg>
 
+
+       { isDraggingSubtree && draggedNode && <SubtreeVisualizer movingNodeId={draggedNode.id} /> }
+
+            {/* Render the dashed bounding box for the subtree */}
+            {isDraggingSubtree && boundingBox && (
+         <div
+         style={{
+          position: 'absolute',
+          left: `${boundingBox.x}px`,
+          top: `${boundingBox.y}px`,
+          width: `${boundingBox.width}px`,
+          height: `${boundingBox.height}px`,
+          border: '2px dashed #1E90FF', // Use a brighter color
+          borderWidth: '3px', // Increase stroke width for better visibility
+          borderStyle: 'dashed', // Ensure the border is dashed
+          borderColor: '#1E90FF', // Set a more contrasting color
+          pointerEvents: 'none',
+          opacity: 1, // Ensure full opacity
+          zIndex: 10, // Ensure the box is above other elements
+         }}
+       />
+      )}
+
       {/* Render the Subtree Visualizer when dragging (highlighted lines for the subtree) */}
-      {isDraggingSubtree && draggedNode && <SubtreeVisualizer movingNodeId={draggedNode.id} />}
+     
  
 
      {nodes.map((node) => {
