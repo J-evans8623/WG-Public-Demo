@@ -5,7 +5,7 @@
 import React from 'react';
 import { ConceptNode } from '@/app/Definitions/Definitions';
 
-export function drawLines(nodes: ConceptNode[]): JSX.Element[] {
+export function drawLines(nodes: ConceptNode[], color: string = 'black'): JSX.Element[] {
   const lines: JSX.Element[] = [];
 
   nodes.forEach((node) => {
@@ -36,7 +36,7 @@ export function drawLines(nodes: ConceptNode[]): JSX.Element[] {
           y1={PBC_Y}
           x2={PBC_X}
           y2={ANCHOR_Y}
-          stroke="black"
+          stroke={color} // Use the dynamic color
           strokeWidth={2}
         />
       );
@@ -49,7 +49,7 @@ export function drawLines(nodes: ConceptNode[]): JSX.Element[] {
           y1={ANCHOR_Y}
           x2={childX}
           y2={ANCHOR_Y}
-          stroke="black"
+          stroke={color} // Use the dynamic color
           strokeWidth={2}
         />
       );
@@ -62,7 +62,7 @@ export function drawLines(nodes: ConceptNode[]): JSX.Element[] {
           y1={ANCHOR_Y}
           x2={childX}
           y2={adjustedChildY} // Shorten the vertical line to stop just above the child node
-          stroke="black"
+          stroke={color} // Use the dynamic color
           strokeWidth={2}
         />
       );

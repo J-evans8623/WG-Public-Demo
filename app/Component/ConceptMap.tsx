@@ -5,15 +5,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ConceptNode from './ConceptNode';
 import { useDocumentContext } from '../Component/context/DocumentProvider';
-import { CueCard, ConceptNode as ConceptNodeType } from '@/app/Definitions/Definitions';
+import { CueCard, ConceptNode as ConceptNodeType, colorThemes } from '@/app/Definitions/Definitions';
 import ContextMenu from './ContextMenu';
 import { drawLines } from './utils/drawLines';
 import { useHVTreeLayout } from './utils/hvTreeLayout';
 import { usePositionTracking } from '@/app/Component/context/PositionTrackingContext'; // Import the context
 import { useResizableMap } from './hooks/useResizableMap';
+import SubtreeVisualizer from './SubtreeVisualizer'; // Import SubtreeVisualizer
 
 interface ConceptMapProps {
-  groundWidth: number; // New prop for the width of the center pane
+  groundWidth: number; 
 }
 
 
@@ -30,11 +31,13 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
     getLayout,
     initializeNewDocument,
     setGetLayout,
+    colorTheme,
   } = useDocumentContext();
 
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
+  const [isDraggingSubtree, setIsDraggingSubtree] = useState<boolean>(false); // State for subtree dragging
 
   const { width, height, handleMouseDown, offset } = useResizableMap({
     mapRef,
@@ -102,7 +105,7 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
   {/*  Click and Drag Node events    */}
   const handleDragStart = (node: ConceptNodeType) => {
     setDraggedNode(node);
-    
+    setIsDraggingSubtree(true);
 
   };
 
@@ -130,7 +133,12 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
       // Update the subtree positions and use updateNode for each
       updateSubtreePositions(draggedNode, deltaX, draggedNode.isRoot ? deltaY : 0);
       setDraggedNode(null);
+      setIsDraggingSubtree(false);
     };
+
+
+    // Determine line color based on dragging state
+    const lineColor = isDraggingSubtree ? colorThemes[colorTheme][5] : 'black';
   {/** End of click and drag events */}
   
 
@@ -151,7 +159,8 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
    onDragOver={handleDragOver}
    onDrop={handleDrop}
  >
-   {/* Visual cues for resizing */}
+  {/* Render the Subtree Visualizer when dragging */}
+  {isDraggingSubtree && draggedNode && <SubtreeVisualizer movingNodeId={draggedNode.id} />}
 
 {/* Resizable Handles */}
 <div
@@ -180,11 +189,15 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
        />
      )}
  
-     {/* Render lines between nodes */}
+     {/* Render lines between nodes (black lines for the entire tree) */}
      <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
-       {drawLines(nodes)}
-     </svg>
+        {drawLines(nodes, 'black')}
+      </svg>
+
+      {/* Render the Subtree Visualizer when dragging (highlighted lines for the subtree) */}
+      {isDraggingSubtree && draggedNode && <SubtreeVisualizer movingNodeId={draggedNode.id} />}
  
+
      {nodes.map((node) => {
        if (!node) return null;
        return (
