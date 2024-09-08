@@ -16,6 +16,7 @@ import DocumentProvider, { useDocumentContext } from '@/app/Refactor/Context/Doc
 import { PositionProvider } from '@/app/Refactor/Context/PositionTrackingContext'//'../Component/context/PositionTrackingContext'; // Import PositionProvider
 import { ColorTheme } from '@/app/Refactor/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
+import { useResizableMap } from  '@/app/Refactor/Component/hooks/useResizableMap'  //'./hooks/useResizableMap';
 
 // Updated component to handle theme selection
 const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) => void }) => {
@@ -143,9 +144,9 @@ function ClientLayoutContent() {
 
       <Split
   className="flex h-[calc(100vh-50px)]"
-  sizes={[20, 60, 20]} 
-  minSize={[200, 600, 200]} 
-  maxSize={[600, Infinity, 400]} 
+  sizes={[20, 60, 20]}    // sizes={[20, 60, 20]} 
+  minSize={[200, 400, 200]}  // minSize={[200, 600, 200]} 
+  maxSize={[500, Infinity, 400]} 
   gutterSize={8}
   direction="horizontal"
   cursor="col-resize"
@@ -158,7 +159,7 @@ function ClientLayoutContent() {
   {/* Center Pane (Map Canvas) */}
   <div
     ref={centerPaneRef}
-    className="flex-1 bg-gray-200 p-4 shadow-lg rounded-lg overflow-auto flex justify-center items-center scrollbar-thin"
+    className="flex-1 bg-gray-200 p-4 shadow-lg rounded-lg flex justify-center items-center scrollbar-thin"
     style={{
       position: 'relative',
       overflowX: 'auto', // Enables horizontal scrolling

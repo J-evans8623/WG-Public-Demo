@@ -9,14 +9,15 @@ export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps 
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState<'both' | 'horizontal' | 'vertical' | null>(null);
   const [initialMousePosition, setInitialMousePosition] = useState<{ x: number; y: number } | null>(null);
-  const { defaultMapWidth, defaultMapHeight, zoomLevel } = useDocumentContext(); // Access zoom level
+  const [currentMousePosition, setCurrentMousePosition] = useState<{ x: number; y: number } | null>(null);
+  const { defaultMapWidth, defaultMapHeight, zoomLevel } = useDocumentContext(); 
   const [width, setWidth] = useState(defaultMapWidth);
   const [height, setHeight] = useState(defaultMapHeight);
   const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Calculate initial offsets
   useEffect(() => {
-    if (centerPaneRef.current && mapRef.current) { // Ensure both refs are not null
+    if (centerPaneRef.current && mapRef.current) {
       const centerPaneWidth = centerPaneRef.current.offsetWidth;
       const centerPaneHeight = centerPaneRef.current.offsetHeight;
 
@@ -34,51 +35,51 @@ export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps 
       setIsResizing(true);
       setResizeDirection(direction);
       setInitialMousePosition({ x: e.clientX, y: e.clientY });
+      setCurrentMousePosition({ x: e.clientX, y: e.clientY });
     },
     []
   );
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!isResizing || !resizeDirection || !mapRef.current || !initialMousePosition) return;
+      if (!isResizing || !resizeDirection || !initialMousePosition) return;
 
-      const deltaX = e.clientX - initialMousePosition.x;
-      const deltaY = e.clientY - initialMousePosition.y;
-
-      const prevWidth = width;
-      const prevHeight = height;
-
-      let newWidth = prevWidth;
-      let newHeight = prevHeight;
-
-      // Calculate new dimensions
-      if (resizeDirection === 'horizontal' || resizeDirection === 'both') {
-        newWidth = Math.max(prevWidth + deltaX, 500); // Minimum width of 500px
-        setWidth(newWidth);
-      }
-
-      if (resizeDirection === 'vertical' || resizeDirection === 'both') {
-        newHeight = Math.max(prevHeight + deltaY, 400); // Minimum height of 400px
-        setHeight(newHeight);
-      }
-
-      // Ensure that centerPaneRef is not null before accessing its properties
-      if (centerPaneRef.current) {
-        const offsetX = (newWidth * zoomLevel - centerPaneRef.current.offsetWidth) / 2;
-        const offsetY = (newHeight * zoomLevel - centerPaneRef.current.offsetHeight) / 2;
-
-        setOffset({ x: offsetX, y: offsetY });
-      }
-
-      setInitialMousePosition({ x: e.clientX, y: e.clientY });
+      // Update the current mouse position to draw the dashed outline
+      setCurrentMousePosition({ x: e.clientX, y: e.clientY });
     },
-    [isResizing, resizeDirection, mapRef, initialMousePosition, width, height, zoomLevel, centerPaneRef]
+    [isResizing, resizeDirection, initialMousePosition]
   );
 
   const handleMouseUp = useCallback(() => {
+    if (!isResizing || !initialMousePosition || !currentMousePosition) return;
+
+    // Calculate the delta changes
+    const deltaX = (currentMousePosition.x - initialMousePosition.x) * (1 + (1 - zoomLevel)) * 2; // Scaled adjustment
+    const deltaY = (currentMousePosition.y - initialMousePosition.y) * (1 + (1 - zoomLevel)) * 2; 
+
+    // Apply new dimensions
+    if (resizeDirection === 'horizontal' || resizeDirection === 'both') {
+      setWidth((prevWidth) => Math.max(prevWidth + deltaX, 500)); // Update width
+    }
+
+    if (resizeDirection === 'vertical' || resizeDirection === 'both') {
+      setHeight((prevHeight) => Math.max(prevHeight + deltaY, 400)); // Update height
+    }
+
+    // Adjust offsets to keep the map centered within the viewport
+    if (centerPaneRef.current) {
+      const offsetX = (width * zoomLevel - centerPaneRef.current.offsetWidth) / 2;
+      const offsetY = (height * zoomLevel - centerPaneRef.current.offsetHeight) / 2;
+
+      setOffset({ x: offsetX, y: offsetY });
+    }
+
+    // Reset state after resizing
     setIsResizing(false);
     setResizeDirection(null);
-  }, []);
+    setInitialMousePosition(null);
+    setCurrentMousePosition(null);
+  }, [isResizing, initialMousePosition, currentMousePosition, zoomLevel, resizeDirection, centerPaneRef, width, height]);
 
   useEffect(() => {
     if (isResizing) {
@@ -95,5 +96,7 @@ export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps 
     };
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
-  return { width, height, handleMouseDown, offset };
+  // Function to render the dashed outline during resizing
+
+  return { width, height, handleMouseDown, offset , isResizing};
 };

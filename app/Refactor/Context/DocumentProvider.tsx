@@ -5,6 +5,19 @@ import { CueCard, ConceptNode, DocumentContextType, ColorTheme } from '@/app/Ref
 
 // Create the context with an undefined initial value
 const baseZoomLevel = 0.7;
+
+// Define debounce at the top
+function debounce(func: (...args: any[]) => void, delay: number) {
+  let timeoutId: NodeJS.Timeout;
+  return (...args: any[]) => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => {
+      func(...args);
+    }, delay);
+  };
+}
 const DocumentContext = createContext<DocumentContextType | undefined>(undefined);
 
  const DocumentProvider = ({ children }: { children: ReactNode }) => {
@@ -30,6 +43,7 @@ const DocumentContext = createContext<DocumentContextType | undefined>(undefined
     const [defaultMapHeight, setDefaultMapHeight] = useState<number>(1800); // Default height
     const [scrollLeft, setScrollLeft] = useState<number>(0); //  define the state for horizontal scroll
     const [scrollTop, setScrollTop] = useState<number>(0); //  define the state for vertical scroll
+    
  
       // State to manage the "ground" width
   const [groundWidth, setGroundWidth] = useState<number>(0);
@@ -48,21 +62,22 @@ const DocumentContext = createContext<DocumentContextType | undefined>(undefined
     setScrollLeft((prevScrollLeft: number) => (prevScrollLeft * newZoomLevel) / zoomLevel);
     setScrollTop((prevScrollTop: number) => (prevScrollTop * newZoomLevel) / zoomLevel);
   };
-  const zoomIn = () => {
+  const zoomIn = debounce(() => {
     setZoomLevel((prevZoom: number) => {
       const newZoom = Math.min(prevZoom + 0.1 * baseZoomLevel, 2 * baseZoomLevel); // Max zoom level 200% relative to base
       adjustScrollPosition(newZoom);
       return newZoom;
     });
-  };
+  }, 100); // Debounce delay
   
-  const zoomOut = () => {
+  const zoomOut = debounce(() => {
     setZoomLevel((prevZoom: number) => {
       const newZoom = Math.max(prevZoom - 0.1 * baseZoomLevel, 0.1 * baseZoomLevel); // Min zoom level 10% relative to base
       adjustScrollPosition(newZoom);
       return newZoom;
     });
-  };
+  }, 100); // Debounce delay
+  
   
 
     //Allowed Array Datastructures

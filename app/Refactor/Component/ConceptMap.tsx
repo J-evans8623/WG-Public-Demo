@@ -43,6 +43,7 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
 
   const { width, height, handleMouseDown, offset } = useResizableMap({ mapRef, centerPaneRef });
 
+  // Define the state variable at the top of your component
      
    // Calculate node positions using the Reingold-Tilford layout
    const firstNodeId = nodes.size > 0 ? nodes.values().next().value.id : 'node-1';
@@ -86,16 +87,7 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
     updateChildPositions(parentNode.id);
   }
   
-  
-  
- /** useEffect(() => {
-    // Initialize root node when the component mounts and mapWidth is available
-    if (nodes.size === 0 && mapWidth > 0) {
-      primaryRootNode('Root Concept', groundWidth); // Use map width to center the root node
-    }
-  }, [nodes, groundWidth, primaryRootNode,mapWidth]);*/ 
-
-  const handleRightClick = (event: React.MouseEvent) => {
+    const handleRightClick = (event: React.MouseEvent) => {
     event.preventDefault();
     setContextMenuPosition({ x: event.clientX, y: event.clientY });
   };  
@@ -216,7 +208,7 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
      transform: `scale(${zoomLevel}) translate(${offset.x}px, ${offset.y}px)`,
      minWidth: `${width}px`, // Minimum height for resizing
      minHeight: `${height}px`, // Minimum width for resizing
-     transition: 'min-height 0.3s ease, min-width 0.3s ease',
+     transition: 'transform 0.3s ease, min-height 0.3s ease, min-width 0.3s ease',
      position: 'relative',
      display: 'flex', // Flex for content alignment
      
@@ -225,22 +217,23 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
    onDragOver={handleDragOver}
    onDrop={handleDrop}
  >
+
   {/* Render the Subtree Visualizer when dragging */}
   {isDraggingSubtree && draggedNode && <SubtreeVisualizer movingNodeId={draggedNode.id} />}
 
 {/* Resizable Handles */}
 <div
-        className="absolute w-4 h-4 bg-gray-800 cursor-se-resize"
+        className="absolute w-8 h-8 bg-gray-800 cursor-se-resize"
         style={{ bottom: 0, right: 0, zIndex: 10 }}
         onMouseDown={handleMouseDown('both')}
       />
       <div
-        className="absolute w-4 h-4 bg-gray-800 cursor-ew-resize"
+        className="absolute w-8 h-8 bg-gray-800 cursor-ew-resize"
         style={{ bottom: '50%', right: 0, transform: 'translateY(50%)', zIndex: 10 }}
         onMouseDown={handleMouseDown('horizontal')}
       />
       <div
-        className="absolute w-4 h-4 bg-gray-800 cursor-ns-resize"
+        className="absolute w-8 h-8 bg-gray-800 cursor-ns-resize"
         style={{ bottom: 0, left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}
         onMouseDown={handleMouseDown('vertical')}
       />
