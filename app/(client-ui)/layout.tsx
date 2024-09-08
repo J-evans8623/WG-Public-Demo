@@ -1,17 +1,20 @@
 // bloom-maps/app/(client-ui)/layout.tsx
 
 'use client';
-
+/**
+ * Refactored
+ * 
+ */
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
-import CueCardDisplay from '../Component/CueCardDisplay';
-import ConceptMap from '../Component/ConceptMap';
-import DocumentCreationModal from '../Component/DocumentCreationModal';
-import Modal from '../Component/Modal';
-import DocumentProvider, { useDocumentContext } from '../Component/context/DocumentProvider';
-import { TreeSizeProvider } from '../Component/context/TreeSizeContext';
-import { PositionProvider } from '../Component/context/PositionTrackingContext'; // Import PositionProvider
-import { ColorTheme } from '@/app/Definitions/Definitions';
+import CueCardDisplay from '@/app/Refactor/Component/CueCardDisplay'//'../Component/CueCardDisplay';
+import ConceptMap from '@/app/Refactor/Component/ConceptMap';
+import DocumentCreationModal from '@/app/Refactor/Component/DocumentCreationModal';
+import Modal from '@/app/Refactor/Component/Modal';
+import DocumentProvider, { useDocumentContext } from '@/app/Refactor/Context/DocumentProvider';
+//import { TreeSizeProvider } from //'../Component/context/TreeSizeContext';
+import { PositionProvider } from '@/app/Refactor/Context/PositionTrackingContext'//'../Component/context/PositionTrackingContext'; // Import PositionProvider
+import { ColorTheme } from '@/app/Refactor/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 
 // Updated component to handle theme selection
@@ -183,11 +186,11 @@ function ClientLayoutContent() {
 export default function ClientLayout() {
   return (
     <DocumentProvider>
-      <TreeSizeProvider> {/* Wrap within TreeSizeProvider */}
+      {/**<TreeSizeProvider>*/ }{/* Wrap within TreeSizeProvider */}
       <PositionProvider>
         <ClientLayoutContent />
         </PositionProvider> 
-      </TreeSizeProvider>
+      {/** </TreeSizeProvider>*/}
     </DocumentProvider>
   );
 }
