@@ -81,9 +81,8 @@ export interface DocumentContextType {
     addCueCardToNode: (nodeId: string, cueCard: CueCard) => void;
     updateNodeTitle: (nodeId: string, newTitle: string) => void;
     updateNode: (nodeId: string, updatedNode: Partial<ConceptNode>) => void;
-    initializeNewDocument: (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6, groundWidth: number) => void;
+    initializeNewDocument: (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6, groundWidth: number, isInitialLoad: boolean) => void;
     primaryRootNode: (title: string, groundWidth: number) => void;
-    //updateGroundWidth: (width: number) => void;
     zoomLevel: number;
     zoomIn: () => void;
     zoomOut: () => void;

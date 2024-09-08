@@ -4,6 +4,7 @@ import { CueCard, ConceptNode, DocumentContextType, ColorTheme } from '@/app/Ref
 
 
 // Create the context with an undefined initial value
+const baseZoomLevel = 0.7;
 const DocumentContext = createContext<DocumentContextType | undefined>(undefined);
 
  const DocumentProvider = ({ children }: { children: ReactNode }) => {
@@ -25,15 +26,19 @@ const DocumentContext = createContext<DocumentContextType | undefined>(undefined
     // General Settigns
       // State to manage bloom depth
     const [bloomDepth, setBloomDepth] = useState<1 | 2 | 3 | 4 | 5 | 6>(6); // Default bloom depth
-    const [defaultMapWidth, setDefaultMapWidth] = useState<number>(2000); // Default width
-    const [defaultMapHeight, setDefaultMapHeight] = useState<number>(1400); // Default height
+    const [defaultMapWidth, setDefaultMapWidth] = useState<number>(1800); // Default width
+    const [defaultMapHeight, setDefaultMapHeight] = useState<number>(1800); // Default height
     const [scrollLeft, setScrollLeft] = useState<number>(0); //  define the state for horizontal scroll
     const [scrollTop, setScrollTop] = useState<number>(0); //  define the state for vertical scroll
  
       // State to manage the "ground" width
   const [groundWidth, setGroundWidth] = useState<number>(0);
-  const [zoomLevel, setZoomLevel] = useState<number>(0.7); // Default zoom level is 100%
+  const [zoomLevel, setZoomLevel] = useState<number>(baseZoomLevel); // Default zoom level is 100%
 
+  const getDisplayedZoomLevel = () => {
+    // Convert actual zoom level to displayed zoom level
+    return (zoomLevel / baseZoomLevel) * 100;
+  };
 
   const updateScrollPosition = (left: number, top: number) => {
     setScrollLeft(left);
@@ -45,7 +50,7 @@ const DocumentContext = createContext<DocumentContextType | undefined>(undefined
   };
   const zoomIn = () => {
     setZoomLevel((prevZoom: number) => {
-      const newZoom = Math.min(prevZoom + 0.1, 2); // Max zoom level 200%
+      const newZoom = Math.min(prevZoom + 0.1 * baseZoomLevel, 2 * baseZoomLevel); // Max zoom level 200% relative to base
       adjustScrollPosition(newZoom);
       return newZoom;
     });
@@ -53,7 +58,7 @@ const DocumentContext = createContext<DocumentContextType | undefined>(undefined
   
   const zoomOut = () => {
     setZoomLevel((prevZoom: number) => {
-      const newZoom = Math.max(prevZoom - 0.1, 0.1); // Min zoom level 50%
+      const newZoom = Math.max(prevZoom - 0.1 * baseZoomLevel, 0.1 * baseZoomLevel); // Min zoom level 10% relative to base
       adjustScrollPosition(newZoom);
       return newZoom;
     });
@@ -73,12 +78,12 @@ const DocumentContext = createContext<DocumentContextType | undefined>(undefined
         cueCards: [],
         parentNodeId: undefined,
         childrenNodeIds: [],
-        x: mapWidth / 2 - 100, // Centered horizontally based on client width
-        y: 50, // Initial y-position for the root node
+        x: mapWidth / 2, // Centered horizontally based on client width
+        y: 200, // Initial y-position for the root node
         isRoot: true,
       };
     
-      setNodes((prevNodes) => {
+      setNodes(() => {
         const updatedNodes = new Map<string, ConceptNode>(); // Create a new Map
         updatedNodes.set(newRootNode.id, newRootNode); // Add the new root node to the Map
     
@@ -90,24 +95,33 @@ const DocumentContext = createContext<DocumentContextType | undefined>(undefined
 
 
     const initializeNewDocument = (
-      bloomDepth: 1 | 2 | 3 | 4 | 5 | 6=6,
+      bloomDepth: 1 | 2 | 3 | 4 | 5 | 6 = 6,
       groundWidth: number,
-      mapWidth: number = 2000, // Default map width
-      height: number = 1400, // Default map height
-      width: number = 2000
+      isInitialLoad: boolean,
+      mapWidth: number = defaultMapWidth,
+      mapHeight: number = defaultMapHeight
     ) => {
-      // Set the initial map size
-      setGroundWidth(mapWidth);
+      // If it's not the initial load, reset global data
+      if (!isInitialLoad) {
+        setNodes(new Map());
+        setSelectedCueCards([]);
+        setZoomLevel(0.7); // Reset zoom level to default
+      }
     
-      // Calculate the center position using the provided groundWidth
+      // Reset map size to default
+      setGroundWidth(groundWidth);// revisit
+      setDefaultMapWidth(mapWidth);
+      setDefaultMapHeight(mapHeight);
+    
+      // Create the primary root node
       const newRootNode: ConceptNode = {
         id: 'node-1',
         title: 'Root Concept',
         cueCards: [],
         parentNodeId: undefined,
         childrenNodeIds: [],
-        x: mapWidth / 2 - 100, // Center horizontally based on the client-provided ground width
-        y: 50, // Position at the top
+        x: (mapWidth / 2) - 100, // 0.5 * node width = 100
+        y: 200, // Position at the top
         isRoot: true,
       };
     
@@ -119,9 +133,10 @@ const DocumentContext = createContext<DocumentContextType | undefined>(undefined
         return updatedNodes; // Return the new Map
       });
     
-      setSelectedCueCards([]); // Clear selected cue cards
       setBloomDepth(bloomDepth); // Set the new bloom depth
+      setGetLayout(true); // Set layout flag to true
     };
+    
     
     const createSecondaryRootNode = (title: string, x: number, y: number) => {
       const newNodeId = `node-${nodes.size + 1}`; // Use size property to get the count of nodes

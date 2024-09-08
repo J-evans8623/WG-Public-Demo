@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect,  RefObject } from 'react';
 import ConceptNode from './ConceptNode';
 import { useDocumentContext } from '../Context/DocumentProvider';
 import { CueCard, ConceptNode as ConceptNodeType, colorThemes } from '@/app/Archived/Definitions/Definitions';
@@ -15,10 +15,11 @@ import SubtreeVisualizer from './SubtreeVisualizer'
 
 interface ConceptMapProps {
   groundWidth: number; 
+  centerPaneRef: RefObject<HTMLDivElement>; 
 }
 
 
-function ConceptMap({ groundWidth }: ConceptMapProps) {
+function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPaneRef: RefObject<HTMLDivElement> }){
   const { 
     nodes, 
     selectCueCards,
@@ -40,11 +41,7 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
   const [isDraggingSubtree, setIsDraggingSubtree] = useState<boolean>(false); // State for subtree dragging
   const [boundingBox, setBoundingBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null); // State for bounding box
 
-  const { width, height, handleMouseDown, offset } = useResizableMap({
-    mapRef,
-    initialWidth: 2000,
-    initialHeight: 1400, // Default initial height and width
-  });
+  const { width, height, handleMouseDown, offset } = useResizableMap({ mapRef, centerPaneRef });
 
      
    // Calculate node positions using the Reingold-Tilford layout
@@ -91,17 +88,17 @@ function ConceptMap({ groundWidth }: ConceptMapProps) {
   
   
   
-  useEffect(() => {
+ /** useEffect(() => {
     // Initialize root node when the component mounts and mapWidth is available
     if (nodes.size === 0 && mapWidth > 0) {
-      primaryRootNode('Root Concept', mapWidth); // Use map width to center the root node
+      primaryRootNode('Root Concept', groundWidth); // Use map width to center the root node
     }
-  }, [nodes, mapWidth, primaryRootNode]);
+  }, [nodes, groundWidth, primaryRootNode,mapWidth]);*/ 
 
   const handleRightClick = (event: React.MouseEvent) => {
     event.preventDefault();
     setContextMenuPosition({ x: event.clientX, y: event.clientY });
-  };
+  };  
 
   /***/ //Dysfunctional SecondaryMap
   const handleContextMenuOption = (option: string) => {

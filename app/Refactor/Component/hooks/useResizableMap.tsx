@@ -3,21 +3,30 @@ import { useDocumentContext } from '@/app/Refactor/Context/DocumentProvider';
 
 interface UseResizableMapProps {
   mapRef: RefObject<HTMLDivElement>;
-  initialWidth?: number;
-  initialHeight?: number;
 }
 
-export const useResizableMap = ({ mapRef, initialWidth = 2000, initialHeight = 1400 }: UseResizableMapProps) => {
-    
-  const [width, setWidth] = useState(initialWidth);
-  const [height, setHeight] = useState(initialHeight);
+export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps & { centerPaneRef: RefObject<HTMLDivElement> }) => {
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState<'both' | 'horizontal' | 'vertical' | null>(null);
   const [initialMousePosition, setInitialMousePosition] = useState<{ x: number; y: number } | null>(null);
-  const {defaultMapWidth, defaultMapHeight,} = useDocumentContext();
-
-  // New state to hold the current offset
+  const { defaultMapWidth, defaultMapHeight, zoomLevel } = useDocumentContext(); // Access zoom level
+  const [width, setWidth] = useState(defaultMapWidth);
+  const [height, setHeight] = useState(defaultMapHeight);
   const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Calculate initial offsets
+  useEffect(() => {
+    if (centerPaneRef.current && mapRef.current) { // Ensure both refs are not null
+      const centerPaneWidth = centerPaneRef.current.offsetWidth;
+      const centerPaneHeight = centerPaneRef.current.offsetHeight;
+
+      // Calculate initial offsets based on zoom level
+      const initialOffsetX = (width * zoomLevel - centerPaneWidth) / 2;
+      const initialOffsetY = (height * zoomLevel - centerPaneHeight) / 2;
+
+      setOffset({ x: initialOffsetX, y: initialOffsetY });
+    }
+  }, [centerPaneRef, mapRef, width, height, zoomLevel]);
 
   const handleMouseDown = useCallback(
     (direction: 'both' | 'horizontal' | 'vertical') => (e: React.MouseEvent<HTMLDivElement>) => {
@@ -53,17 +62,17 @@ export const useResizableMap = ({ mapRef, initialWidth = 2000, initialHeight = 1
         setHeight(newHeight);
       }
 
-      // Calculate the offset to keep the center position constant
-      const offsetX = (newWidth - defaultMapWidth) /2; 
-      const offsetY = (newHeight - defaultMapHeight) / 2; 
-      setOffset(() => ({
-        x: offsetX ,  
-        y: offsetY ,
-      }));
+      // Ensure that centerPaneRef is not null before accessing its properties
+      if (centerPaneRef.current) {
+        const offsetX = (newWidth * zoomLevel - centerPaneRef.current.offsetWidth) / 2;
+        const offsetY = (newHeight * zoomLevel - centerPaneRef.current.offsetHeight) / 2;
+
+        setOffset({ x: offsetX, y: offsetY });
+      }
 
       setInitialMousePosition({ x: e.clientX, y: e.clientY });
     },
-    [isResizing, resizeDirection, mapRef, initialMousePosition, width, height,initialHeight,initialWidth]
+    [isResizing, resizeDirection, mapRef, initialMousePosition, width, height, zoomLevel, centerPaneRef]
   );
 
   const handleMouseUp = useCallback(() => {
