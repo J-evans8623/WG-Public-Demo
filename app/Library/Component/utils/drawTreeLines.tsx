@@ -1,45 +1,19 @@
-// bloom-maps/app/Library/Component/utils/drawTreeLines.tsx
+// drawTreeLines.tsx
 
 import React from 'react';
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+import { drawHVStyleLines } from './drawHVStyleLines';
+import { drawIndentedStyleLines } from './drawIndentedStyleLines';
 
-// Function to draw lines between nodes
 export function drawTreeLines(nodes: Map<string, ConceptNode>): JSX.Element[] {
-    const lines: JSX.Element[] = [];
+  const lineElements: JSX.Element[] = [];
+  const lineWidth = 5; // Centralized line width control
 
-    nodes.forEach((node) => {
-        if (!node.childrenNodeIds || node.childrenNodeIds.length === 0) return;
+  // Draw lines for HV style at depth 1
+  lineElements.push(...drawHVStyleLines(nodes, lineWidth));
 
-        // Calculate Parent Bottom Center (PBC) coordinates
-        const PBC_X = node.x + 100; // Center X, assuming each node is 200px wide
-        const PBC_Y = node.y + 150; // Bottom center Y, assuming each node is 150px high
+  // Draw lines for indented style at depth 2 and beyond
+  lineElements.push(...drawIndentedStyleLines(nodes, lineWidth));
 
-        node.childrenNodeIds.forEach((childId) => {
-            const childNode = nodes.get(childId);
-            if (!childNode) return;
-
-            // Calculate Child Top Center (CTC) coordinates
-            const CTC_X = childNode.x + 100; // Center X of the child
-            const CTC_Y = childNode.y; // Top center Y of the child
-
-            // Different line styles for different depths
-            const lineStyle = node.depth === 1 ? 'solid' : 'dotted'; // Example: solid for depth 1, dotted for others
-
-            // Draw line from parent to child
-            lines.push(
-                <line
-                    key={`line-${node.id}-${childId}`}
-                    x1={PBC_X}
-                    y1={PBC_Y}
-                    x2={CTC_X}
-                    y2={CTC_Y}
-                    stroke="black"
-                    strokeWidth={2}
-                    strokeDasharray={lineStyle === 'dotted' ? '5,5' : '0'}
-                />
-            );
-        });
-    });
-
-    return lines;
+  return lineElements;
 }

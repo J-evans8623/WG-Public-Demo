@@ -18,7 +18,7 @@ export function applyIndentedLayout(nodes: Map<string, ConceptNode>): Map<string
 
             if (parentNode) {
                 // Set the x position based on the parent's x position and indentation
-                node.x = parentNode.x + indentationWidth;
+                node.x = parentNode.x? parentNode.x + indentationWidth : 0;
 
                 // Assign the current node's y position, ensuring it's below the parent
                 node.y = currentY; 
@@ -46,7 +46,7 @@ export function applyIndentedLayout(nodes: Map<string, ConceptNode>): Map<string
     const depthOneNodes = Array.from(nodes.values()).filter((node) => node.depth === 1);
     depthOneNodes.forEach((depthOneNode) => {
         // Reset currentY for each new subtree rooted at depth 1
-        let currentY = depthOneNode.y + verticalSpacing; // Start y-coordinate below the depth 1 node
+        let currentY = depthOneNode.y? depthOneNode.y + verticalSpacing : 0; // Start y-coordinate below the depth 1 node
 
         // Retrieve all depth 2 children of this depth 1 node
         const depthTwoNodes = depthOneNode.childrenNodeIds?.map(id => nodes.get(id)).filter(Boolean) as ConceptNode[];
