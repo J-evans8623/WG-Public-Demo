@@ -7,16 +7,16 @@
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
-import CueCardDisplay from '@/app/Refactor/Component/CueCardDisplay'//'../Component/CueCardDisplay';
-import ConceptMap from '@/app/Refactor/Component/ConceptMap';
-import DocumentCreationModal from '@/app/Refactor/Component/DocumentCreationModal';
-import Modal from '@/app/Refactor/Component/Modal';
-import DocumentProvider, { useDocumentContext } from '@/app/Refactor/Context/DocumentProvider';
+import CueCardDisplay from '@/app/Library/Component/CueCardDisplay'//'../Component/CueCardDisplay';
+import ConceptMap from '@/app/Library/Component/ConceptMap';
+import DocumentCreationModal from '@/app/Library/Component/DocumentCreationModal';
+import Modal from '@/app/Library/Component/Modal';
+import DocumentProvider, { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 //import { TreeSizeProvider } from //'../Component/context/TreeSizeContext';
-import { PositionProvider } from '@/app/Refactor/Context/PositionTrackingContext'//'../Component/context/PositionTrackingContext'; // Import PositionProvider
-import { ColorTheme } from '@/app/Refactor/Definitions/Definitions';
+import { PositionProvider } from '@/app/Library/Context/PositionTrackingContext'//'../Component/context/PositionTrackingContext'; // Import PositionProvider
+import { ColorTheme } from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
-import { useResizableMap } from  '@/app/Refactor/Component/hooks/useResizableMap'  //'./hooks/useResizableMap';
+import { useResizableMap } from  '@/app/Library/Component/hooks/useResizableMap'  //'./hooks/useResizableMap';
 
 // Updated component to handle theme selection
 const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) => void }) => {
