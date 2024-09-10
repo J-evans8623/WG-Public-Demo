@@ -38,11 +38,11 @@ export interface ExtendedConceptNodeProps extends ConceptNodeProps {
     cueCards: CueCard[];
     parentNodeId?: string;
     childrenNodeIds?: string[];
-    x: number; // X-coordinate for positioning
-    y: number; // Y-coordinate for positioning
+    x?: number; // Optional: X-coordinate for positioning (initially undefined)
+    y?: number; // Optional: Y-coordinate for positioning (initially undefined)
     mod?: number; // Modification offset for node positioning
     isRoot?: boolean; // Flag to indicate if the node is a root node
-    depth: number; // New field to indicate the depth level
+    depth: number; // Depth level of the node
 }
 
   // Color definitions

@@ -61,9 +61,9 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
       if (!currentNode) return;
   
       // Calculate new positions
-      const newX = currentNode.x + deltaX;
+      const newX = currentNode.x ? currentNode.x + deltaX : 0;
       // Apply vertical delta if the parent node is a root; otherwise, keep the y position unchanged
-      const newY = parentNode.isRoot ? currentNode.y + deltaY : currentNode.y;
+      const newY = parentNode.isRoot ? (currentNode.y ?? 0) + deltaY : (currentNode.y ?? 0);
   
       // Use the updateNode function to update the global state
       updateNode(currentNode.id, { x: newX, y: newY });
@@ -110,30 +110,27 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
   const handleDragStart = (node: ConceptNodeType) => {
     setDraggedNode(node);
     setIsDraggingSubtree(true);
-  
+
     // Calculate bounding box for the subtree
     const subtreeNodes = getSubtreeNodes(node.id);
-    const xPositions = subtreeNodes.map((n) => n.x);
-    const yPositions = subtreeNodes.map((n) => n.y);
-  
+
+    // Handle undefined positions by using 0 as the default
+    const xPositions = subtreeNodes.map((n) => n.x ?? 0);
+    const yPositions = subtreeNodes.map((n) => n.y ?? 0);
+
     const minX = Math.min(...xPositions);
     const minY = Math.min(...yPositions);
     const maxX = Math.max(...xPositions) + 200; // Node width
     const maxY = Math.max(...yPositions) + 150; // Node height
-  
-    /** Convert to viewport coordinates using zoom level
-    const adjustedMinX = minX * zoomLevel;
-    const adjustedMinY = minY * zoomLevel;
-    const adjustedWidth = (maxX - minX) * zoomLevel;
-    const adjustedHeight = (maxY - minY) * zoomLevel;*/
-  
+
     setBoundingBox({
-      x: minX,
-      y: minY,
-      width:  maxX - minX,
-      height: maxY - minY,
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
     });
-  };
+};
+
   
 
   const getSubtreeNodes = (nodeId: string): ConceptNodeType[] => {
@@ -174,26 +171,28 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
     {/** Dragged node control with incoporated zoom level scale */}
     const handleDrop = (event: React.DragEvent) => {
       event.preventDefault();
-    
+  
       if (!draggedNode) return;
-    
+  
       const mapRect = mapRef.current?.getBoundingClientRect();
       const offsetX = (event.clientX - (mapRect?.left ?? 0)) / zoomLevel; // Adjust for zoom level
       const offsetY = (event.clientY - (mapRect?.top ?? 0)) / zoomLevel; // Adjust for zoom level
-    
+  
+      // Calculate adjusted positions
       const adjustedX = offsetX - 100; 
-      const adjustedY = draggedNode.isRoot ? (offsetY - 75) : draggedNode.y;
-    
-      const deltaX = adjustedX - draggedNode.x;
-      const deltaY = adjustedY - draggedNode.y;
-    
+      const adjustedY = draggedNode.isRoot ? (offsetY - 75) : (draggedNode.y ?? 0); // Default to 0 if undefined
+  
+      // Calculate deltas with defaults for undefined positions
+      const deltaX = adjustedX - (draggedNode.x ?? 0); // Default to 0 if undefined
+      const deltaY = adjustedY - (draggedNode.y ?? 0); // Default to 0 if undefined
+  
       // Update the subtree positions and use updateNode for each
       updateSubtreePositions(draggedNode, deltaX, draggedNode.isRoot ? deltaY : 0);
       setDraggedNode(null);
       setIsDraggingSubtree(false);
       setBoundingBox(null);
-    };
-
+  };
+  
 
     // Determine line color based on dragging state
    // const lineColor = isDraggingSubtree ? colorThemes[colorTheme][5] : 'black';

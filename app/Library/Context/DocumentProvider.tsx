@@ -184,48 +184,46 @@ const DocumentContext = createContext<DocumentContextType | undefined>(undefined
   };
 
     //Map Datastructure
-    const createNewNode = (title: string, parentNodeId: string) => {
-      const newNodeId = `node-${nodes.size + 1}`; // Use nodes.size to get the current number of nodes
-  
-      // Ensure that parentNodeId is defined for all nodes except the root
-      const parentNode = nodes.get(parentNodeId);
-      if (!parentNode) {
-          console.error(`Parent node with ID ${parentNodeId} not found.`);
-          return;
-      }
-  
-      // Calculate the position for the new child node relative to its parent
-      const x = parentNode.x //+ 250; // Example offset, adjust as needed
-      const y = parentNode.y //+ 150; // Example offset, adjust as needed
-  
-      // Determine the depth for the new node
-      const newDepth = (parentNode.depth || 0) + 1;
-  
-      const newNode: ConceptNode = {
-          id: newNodeId,
-          title: title || `Untitled Concept ${nodes.size + 1}`,
-          cueCards: [],
-          parentNodeId: parentNodeId,
-          childrenNodeIds: [],
-          x,
-          y,
-          isRoot: false,
-          depth: newDepth, // Set the depth
-      };
-  
-      // Add the new node to the state using Map
-      setNodes((prevNodes) => {
-          const updatedNodes = new Map(prevNodes);
-          updatedNodes.set(newNode.id, newNode);
-  
-          // Update parent's childrenNodeIds
-          const updatedChildrenNodeIds = [...(parentNode.childrenNodeIds || []), newNodeId];
-          const updatedParentNode = { ...parentNode, childrenNodeIds: updatedChildrenNodeIds };
-          updatedNodes.set(parentNodeId, updatedParentNode);
-  
-          return updatedNodes;
-      });
+// Function to create a new node in the map
+const createNewNode = (title: string, parentNodeId: string) => {
+  const newNodeId = `node-${nodes.size + 1}`; // Use nodes.size to get the current number of nodes
+
+  // Ensure that parentNodeId is defined for all nodes except the root
+  const parentNode = nodes.get(parentNodeId);
+  if (!parentNode) {
+      console.error(`Parent node with ID ${parentNodeId} not found.`);
+      return;
+  }
+
+  // Determine the depth for the new node
+  const newDepth = (parentNode.depth || 0) + 1;
+
+  // Define new node with undefined positions
+  const newNode: ConceptNode = {
+      id: newNodeId,
+      title: title || `Untitled Concept ${nodes.size + 1}`,
+      cueCards: [],
+      parentNodeId: parentNodeId,
+      childrenNodeIds: [],
+      x: undefined, // Set x to undefined
+      y: undefined, // Set y to undefined
+      isRoot: false,
+      depth: newDepth, // Set the depth
   };
+
+  // Add the new node to the state using Map
+  setNodes((prevNodes) => {
+      const updatedNodes = new Map(prevNodes);
+      updatedNodes.set(newNode.id, newNode);
+
+      // Update parent's childrenNodeIds
+      const updatedChildrenNodeIds = [...(parentNode.childrenNodeIds || []), newNodeId];
+      const updatedParentNode = { ...parentNode, childrenNodeIds: updatedChildrenNodeIds };
+      updatedNodes.set(parentNodeId, updatedParentNode);
+
+      return updatedNodes;
+  });
+};
 
     // Function to update a node by ID
 const updateNode = (nodeId: string, updatedNode: Partial<ConceptNode>) => {
