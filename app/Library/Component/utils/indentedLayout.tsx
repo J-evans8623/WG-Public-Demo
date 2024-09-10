@@ -42,14 +42,19 @@ export function applyIndentedLayout(nodes: Map<string, ConceptNode>): Map<string
         return currentY + verticalSpacing;
     };
 
-    // Find all nodes at depth 2 (children of root) and apply depth-first positioning
-    const depthTwoNodes = Array.from(nodes.values()).filter((node) => node.depth === 2);
-    let currentY = 0; // Start y-coordinate
+    // Find all nodes at depth 1 (direct children of the root) and apply depth-first positioning
+    const depthOneNodes = Array.from(nodes.values()).filter((node) => node.depth === 1);
+    depthOneNodes.forEach((depthOneNode) => {
+        // Reset currentY for each new subtree rooted at depth 1
+        let currentY = depthOneNode.y + verticalSpacing; // Start y-coordinate below the depth 1 node
 
-    depthTwoNodes.forEach((node) => {
-        const parentNode = node.parentNodeId ? nodes.get(node.parentNodeId) : undefined;
-        const startY = parentNode ? parentNode.y + verticalSpacing : currentY; // Start below the parent node or from current Y
-        currentY = positionNodeAndChildren(node, startY); // Update the current Y after placing each depth 2 node
+        // Retrieve all depth 2 children of this depth 1 node
+        const depthTwoNodes = depthOneNode.childrenNodeIds?.map(id => nodes.get(id)).filter(Boolean) as ConceptNode[];
+
+        // Position each depth 2 node and its descendants
+        depthTwoNodes.forEach((depthTwoNode) => {
+            currentY = positionNodeAndChildren(depthTwoNode, currentY); // Properly increment the y-coordinate for each depth 2 node
+        });
     });
 
     return updatedNodes;

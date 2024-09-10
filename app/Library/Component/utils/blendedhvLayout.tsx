@@ -8,7 +8,7 @@ export function applyHVLayout(nodes: Map<string, ConceptNode>): Map<string, Conc
 
     // Define spacing values
     const verticalOffset = 200; // Vertical space between depth levels
-    const horizontalSpacing = 250; // Horizontal space between child nodes
+    const horizontalSpacing = 400; // Horizontal space between child nodes
 
     // Iterate through all nodes and apply HV layout only for depth 1 nodes
     nodes.forEach((node) => {

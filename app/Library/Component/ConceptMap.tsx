@@ -10,7 +10,7 @@ import ContextMenu from './ContextMenu';
 //import { drawLines } from './utils/drawLines';
 import { drawTreeLines } from './utils/drawTreeLines';
 //import { useHVTreeLayout } from '@/app/Library/Component/utils/hvTreeLayout';
-import { applyCompositeLayout } from './utils/compositeLayout';
+import { useCompositeLayout } from './utils/compositeLayout';
 import { useResizableMap } from './hooks/useResizableMap';
 import { useRectangleSelection } from './hooks/useRectangleSelection';
 import SubtreeVisualizer from './SubtreeVisualizer';
@@ -49,7 +49,7 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
    // Calculate node positions using the Reingold-Tilford layout
   const firstNodeId = nodes.size > 0 ? nodes.values().next().value.id : 'node-1';
    //const laidOutNodes = useHVTreeLayout(nodes, firstNodeId);
-  const laidOutNodes = applyCompositeLayout(nodes);
+  const laidOutNodes = useCompositeLayout(nodes);
   const [mapWidth ] = useState<number>(defaultMapWidth); // Set to default width
    // Use the rectangle selection hook
 
