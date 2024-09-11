@@ -5,6 +5,7 @@ import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 
 export function drawHVStyleLines(nodes: Map<string, ConceptNode>, lineWidth: number): JSX.Element[] {
   const lineElements: JSX.Element[] = [];
+  const strokeColor = '#6e6e6e'; // Dark gray color for the line outline
 
   // Get the root node and its children at depth 1
   const depthOneNodes = Array.from(nodes.values()).filter(node => node.depth === 1);
@@ -25,16 +26,14 @@ export function drawHVStyleLines(nodes: Map<string, ConceptNode>, lineWidth: num
     if (singleChild.x !== undefined && singleChild.y !== undefined) {
       const childCCP = { x: singleChild.x + 100, y: singleChild.y }; // Midpoint top of the single child node
 
-      // Draw a single line from PCP of the root to CCP of the child
+      // Draw a single curved line from PCP of the root to CCP of the child
       lineElements.push(
-        <line
-          key={`line-root-to-single-child`}
-          x1={rootPCP.x}
-          y1={rootPCP.y}
-          x2={childCCP.x}
-          y2={childCCP.y}
-          stroke="black"
-          strokeWidth={lineWidth} // Use centralized line width
+        <path
+          key={`curve-root-to-single-child`}
+          d={`M ${rootPCP.x},${rootPCP.y} Q ${rootPCP.x},${(rootPCP.y + childCCP.y) / 2} ${childCCP.x},${childCCP.y}`}
+          stroke={strokeColor}
+          strokeWidth={lineWidth}
+          fill="none"
         />
       );
     }
@@ -60,43 +59,39 @@ export function drawHVStyleLines(nodes: Map<string, ConceptNode>, lineWidth: num
 
     // Draw the horizontal anchor line from the leftmost to the rightmost CCPs
     lineElements.push(
-      <line
-        key="anchor-line-depth1"
-        x1={leftmostX}
-        y1={anchorY}
-        x2={rightmostX}
-        y2={anchorY}
-        stroke="black"
-        strokeWidth={lineWidth} // Use centralized line width
+      <path
+        key="curved-anchor-line-depth1"
+        d={`M ${leftmostX},${anchorY} L ${rightmostX},${anchorY}`}
+        stroke={strokeColor}
+        strokeWidth={lineWidth}
+        fill="none"
       />
     );
 
-    // Draw lines connecting from the PCP of the root node to the anchor line
+    // Draw a curved line from the PCP of the root node to the anchor line
     lineElements.push(
-      <line
-        key={`line-root-to-anchor`}
-        x1={rootPCP.x}
-        y1={rootPCP.y}
-        x2={rootPCP.x}
-        y2={anchorY}
-        stroke="black"
-        strokeWidth={lineWidth} // Use centralized line width
+      <path
+        key={`curve-root-to-anchor`}
+        d={`M ${rootPCP.x},${rootPCP.y} Q ${rootPCP.x},${anchorY - 25} ${rootPCP.x},${anchorY}`}
+        stroke={strokeColor}
+        strokeWidth={lineWidth}
+        fill="none"
       />
     );
 
-    // Draw lines from each child node's CCP to the anchor line
+    // Draw curved lines from the anchor line into each child node's CCP
     depthOneNodes.forEach(node => {
       if (node.x !== undefined && node.y !== undefined) {
         const childCCP = { x: node.x + 100, y: node.y }; // Midpoint top of each child node
+        const controlY = anchorY + 10; // Adjusted control point slightly below the anchor line to create a dip
+
         lineElements.push(
-          <line
-            key={`line-ccp-to-anchor-${node.id}`}
-            x1={childCCP.x}
-            y1={childCCP.y}
-            x2={childCCP.x}
-            y2={anchorY}
-            stroke="black"
-            strokeWidth={lineWidth} // Use centralized line width
+          <path
+            key={`curve-anchor-to-ccp-${node.id}`}
+            d={`M ${childCCP.x},${anchorY} Q ${childCCP.x},${controlY} ${childCCP.x},${childCCP.y}`}
+            stroke={strokeColor}
+            strokeWidth={lineWidth}
+            fill="none"
           />
         );
       }

@@ -61,9 +61,11 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
       if (!currentNode) return;
   
       // Calculate new positions
-      const newX = currentNode.x ? currentNode.x + deltaX : 0;
+      const newX = (currentNode.x ?? 0) + deltaX;
+
       // Apply vertical delta if the parent node is a root; otherwise, keep the y position unchanged
       const newY = parentNode.isRoot ? (currentNode.y ?? 0) + deltaY : (currentNode.y ?? 0);
+
   
       // Use the updateNode function to update the global state
       updateNode(currentNode.id, { x: newX, y: newY });
