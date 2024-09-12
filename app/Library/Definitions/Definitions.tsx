@@ -116,3 +116,65 @@ export interface DocumentContextType {
     setTreeWidth: (value: number) => void;
     setTreeHeight: (value: number) => void;
   }
+
+  //Document Reducer
+  export interface DocumentState {
+    nodes: Map<string, ConceptNode>; // A map of all concept nodes
+    selectedCueCards: CueCard[]; // An array of currently selected cue cards
+    bloomDepth: 1 | 2 | 3 | 4 | 5 | 6; // Represents the Bloom's Taxonomy depth
+    colorTheme: ColorTheme; // The current color theme
+    getLayout: boolean; // Flag to trigger layout computation
+    zoomLevel: number; // Add this line
+    defaultMapWidth: number;
+    defaultMapHeight: number;
+    groundWidth: number;
+    
+    // Add other state properties as needed
+  }
+  export type DocumentAction =
+  | { type: DocumentActionType.SELECT_CUE_CARDS; payload: CueCard[] }
+  | { type: DocumentActionType.SET_NODES; payload: Map<string, ConceptNode> }
+  | { type: DocumentActionType.SET_COLOR_THEME; payload: ColorTheme }
+  | { type: DocumentActionType.ADD_CUE_CARD_TO_NODE; payload: { nodeId: string; cueCard: CueCard } }
+  | { type: DocumentActionType.UPDATE_NODE_TITLE; payload: { nodeId: string; newTitle: string } }
+  | { type: DocumentActionType.SET_GET_LAYOUT; payload: boolean }
+  | { type: DocumentActionType.CREATE_NEW_NODE; payload: { title: string; parentNodeId: string } }
+  | { type: DocumentActionType.INIT_NEW_DOCUMENT; payload: { bloomDepth: 1 | 2 | 3 | 4 | 5 | 6; mapWidth: number; mapHeight: number } }
+  | { type: DocumentActionType.SET_MAP_SIZE; payload: { groundWidth: number; mapWidth: number; mapHeight: number } }
+  | { type: DocumentActionType.RESET_GLOBAL_DATA }
+  | { type: DocumentActionType.SET_ZOOM_LEVEL; payload: number }
+  | { type: DocumentActionType.ZOOM_IN }
+  | { type: DocumentActionType.ZOOM_OUT };
+
+// Action Types
+export enum DocumentActionType {
+  SELECT_CUE_CARDS = 'SELECT_CUE_CARDS',
+  SET_NODES = 'SET_NODES',
+  SET_COLOR_THEME = 'SET_COLOR_THEME',
+  ADD_CUE_CARD_TO_NODE = 'ADD_CUE_CARD_TO_NODE', // New action type
+  UPDATE_NODE_TITLE = 'UPDATE_NODE_TITLE', // New action type
+  SET_GET_LAYOUT = 'SET_GET_LAYOUT', // New action type
+  CREATE_NEW_NODE = 'CREATE_NEW_NODE', // New action type
+  INIT_NEW_DOCUMENT = 'INIT_NEW_DOCUMENT', // New action for initializing a document
+  SET_MAP_SIZE = 'SET_MAP_SIZE', // Action to reset map size
+  RESET_GLOBAL_DATA = 'RESET_GLOBAL_DATA', // Action to reset global state
+  SET_ZOOM_LEVEL = 'SET_ZOOM_LEVEL',
+  ZOOM_IN = 'ZOOM_IN',
+  ZOOM_OUT = 'ZOOM_OUT',
+  // Add other action types as needed
+}
+
+  /**
+   * 
+   * case DocumentActionType.SET_NODES:
+      return {
+        ...state,
+        nodes: action.payload,
+      };
+    
+      case DocumentActionType.SET_COLOR_THEME: // Handle setting color theme
+      return {
+        ...state,
+        colorTheme: action.payload,
+      };
+   */

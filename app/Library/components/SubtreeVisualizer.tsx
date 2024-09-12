@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useDocumentContext } from '../Context/DocumentProvider';
 import { ConceptNode, colorThemes } from '../Definitions/Definitions';
-import { drawLines } from './utils/drawLines';
+import { drawLines } from  '../utils/drawLines' //'../utils/drawLines';
 
 interface SubtreeVisualizerProps {
   movingNodeId: string; // The ID of the node being moved

@@ -7,20 +7,31 @@
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
-import CueCardDisplay from '@/app/Library/Component/CueCardDisplay'//'../Component/CueCardDisplay';
-import ConceptMap from '@/app/Library/Component/ConceptMap';
-import DocumentCreationModal from '@/app/Library/Component/DocumentCreationModal';
-import Modal from '@/app/Library/Component/Modal';
+import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Component/CueCardDisplay';
+import ConceptMap from '@/app/Library/components/ConceptMap';
+import DocumentCreationModal from '@/app/Library/components/DocumentCreationModal';
+import Modal from '@/app/Library/components/Modal';
 import DocumentProvider, { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import { NewDocumentProvider, useNewDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument} from '@/app/Library/Context/newDocumentProvider'; // Import the new provider
 //import { TreeSizeProvider } from //'../Component/context/TreeSizeContext';
 import { PositionProvider } from '@/app/Library/Context/PositionTrackingContext'//'../Component/context/PositionTrackingContext'; // Import PositionProvider
 import { ColorTheme } from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
-import { useResizableMap } from  '@/app/Library/Component/hooks/useResizableMap'  //'./hooks/useResizableMap';
+//import { useResizableMap } from  '@/app/Library/hooks/useResizableMap'  //'./hooks/useResizableMap';
+
+
 
 // Updated component to handle theme selection
 const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) => void }) => {
+  const { dispatch } = useNewDocumentContext();  // Use the new context for dispatching the action
 const [isOpen, setIsOpen] = useState(false);
+
+  // Handler to update both old and new providers
+  const handleSetColorTheme = (theme: ColorTheme) => {
+    setColorTheme(theme); // Old provider function call (to be removed)
+    dispatch(setNewColorTheme(theme)); // New provider function call
+    setIsOpen(false); // Close the dropdown menu
+  };
 
 
   return (
@@ -36,13 +47,13 @@ const [isOpen, setIsOpen] = useState(false);
           <div className="py-1">
             <div className="px-4 py-2 text-sm text-gray-700">Color Theme</div>
             <button
-              onClick={() => { setColorTheme('cool-spring'); setIsOpen(false); }}
+              onClick={() => handleSetColorTheme('cool-spring')}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
               Cool Spring
             </button>
             <button
-              onClick={() => { setColorTheme('warm-summer'); setIsOpen(false); }}
+              onClick={() => handleSetColorTheme('warm-summer')}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
               Warm Summer
@@ -55,13 +66,14 @@ const [isOpen, setIsOpen] = useState(false);
 };
 
 function ClientLayoutContent() {
-  const { initializeNewDocument, setColorTheme, zoomIn, zoomOut, zoomLevel } = useDocumentContext();
+  const {setColorTheme, zoomIn, zoomOut, zoomLevel } = useDocumentContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   //const [groundWidth, setGroundWidth] = useState<number>(0); // Initialize to 0
   const centerPaneRef = useRef<HTMLDivElement>(null); // Ref to center pane
   const [windowWidth, setWindowWidth] = useState<number>(0);
   const [windowHeight, setWindowHeight] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const { dispatch } = useNewDocumentContext();
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
@@ -79,7 +91,7 @@ function ClientLayoutContent() {
     window.addEventListener('resize', updateWindowSize);
     return () => window.removeEventListener('resize', updateWindowSize);
   }, []);
-
+  /** 
     // Initialize document on first page load
     useEffect(() => {
       if (!isInitialized) {
@@ -96,6 +108,21 @@ function ClientLayoutContent() {
     },
     [initializeNewDocument, windowWidth]
   );
+*/
+useEffect(() => {
+  if (!isInitialized) {
+    initializeNewDocument(dispatch, 6, windowWidth, true); // Set isInitialLoad to true
+    setIsInitialized(true); // Ensure this only runs once
+  }
+}, [isInitialized, dispatch, windowWidth]);
+
+const handleCreateNewDocument = useCallback(
+  (selectedDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
+    initializeNewDocument(dispatch, selectedDepth, windowWidth, false); // Reset and create a new document
+    closeModal();
+  },
+  [dispatch, windowWidth]
+);
 
   const handleOpenDocument = () => {
     console.log("Open Document clicked");
@@ -200,6 +227,7 @@ function ClientLayoutContent() {
 
 export default function ClientLayout() {
   return (
+    <NewDocumentProvider>
     <DocumentProvider>
       {/**<TreeSizeProvider>*/ }{/* Wrap within TreeSizeProvider */}
       <PositionProvider>
@@ -207,5 +235,6 @@ export default function ClientLayout() {
         </PositionProvider> 
       {/** </TreeSizeProvider>*/}
     </DocumentProvider>
+    </NewDocumentProvider>
   );
 }

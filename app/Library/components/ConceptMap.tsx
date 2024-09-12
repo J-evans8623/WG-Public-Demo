@@ -8,12 +8,13 @@ import { useDocumentContext } from '../Context/DocumentProvider';
 import { CueCard, ConceptNode as ConceptNodeType, colorThemes } from '@/app/Library/Definitions/Definitions'
 import ContextMenu from './ContextMenu';
 //import { drawLines } from './utils/drawLines';
-import { drawTreeLines } from './utils/drawTreeLines';
+import { drawTreeLines } from '../utils/drawTreeLines'; //'./utils/drawTreeLines';
 //import { useHVTreeLayout } from '@/app/Library/Component/utils/hvTreeLayout';
-import { useCompositeLayout } from './utils/compositeLayout';
-import { useResizableMap } from './hooks/useResizableMap';
-import { useRectangleSelection } from './hooks/useRectangleSelection';
+import { useCompositeLayout } from '../utils/compositeLayout';
+import { useResizableMap } from '../hooks/useResizableMap';
+import { useRectangleSelection } from '../hooks/useRectangleSelection';
 import SubtreeVisualizer from './SubtreeVisualizer';
+import { useNewDocumentContext } from '@/app/Library/Context/newDocumentProvider';
 
 
 interface ConceptMapProps {
@@ -24,17 +25,19 @@ interface ConceptMapProps {
 
 function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPaneRef: RefObject<HTMLDivElement> }){
   const { 
-    nodes, 
+    //nodes, //old import
     selectCueCards,
     updateNode,
     createSecondaryRootNode,
     zoomLevel,
     defaultMapWidth,
     defaultMapHeight,
-    getLayout,
+    //getLayout,
     setGetLayout,
     colorTheme,
   } = useDocumentContext();
+  const { state, dispatch } = useNewDocumentContext();
+  const { nodes, getLayout } = state;
 
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
@@ -59,33 +62,24 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
     const updateChildPositions = (nodeId: string) => {
       const currentNode = nodes.get(nodeId); // Retrieve the current node from the Map
       if (!currentNode) return;
-  
-      // Calculate new positions
-      const newX = (currentNode.x ?? 0) + deltaX;
 
-      // Apply vertical delta if the parent node is a root; otherwise, keep the y position unchanged
+      const newX = (currentNode.x ?? 0) + deltaX;
       const newY = parentNode.isRoot ? (currentNode.y ?? 0) + deltaY : (currentNode.y ?? 0);
 
-  
-      // Use the updateNode function to update the global state
-      updateNode(currentNode.id, { x: newX, y: newY });
-  
-      // Check if the current node has exactly one child
+      dispatch(updateNode(currentNode.id, { x: newX, y: newY })); // Update node positions via dispatch
+
       if (currentNode.childrenNodeIds && currentNode.childrenNodeIds.length === 1) {
         const childNodeId = currentNode.childrenNodeIds[0];
         const childNode = nodes.get(childNodeId); // Retrieve the child node from the Map
-  
+
         if (childNode) {
-          // Assign the child node the same x-coordinate as the parent to align them
-          updateNode(childNode.id, { x: newX }); // Align child node x with parent
+          dispatch(updateNode(childNode.id, { x: newX })); // Align child node x with parent
         }
       }
-  
-      // Recursively update child nodes
+
       currentNode.childrenNodeIds?.forEach(updateChildPositions);
     };
-  
-    // Update the positions for the subtree starting from the parent node
+
     updateChildPositions(parentNode.id);
   }
   

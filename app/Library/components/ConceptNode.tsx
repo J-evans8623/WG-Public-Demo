@@ -5,25 +5,25 @@
 import React, { useState } from 'react';
 import CueStack from './CueStack';
 import Modal from './Modal';
-import { CueCard, ExtendedConceptNodeProps, colorThemes } from '@/app/Library/Definitions/Definitions'; 
+import { CueCard, ExtendedConceptNodeProps, colorThemes, ConceptNode as ConceptNodeType, } from '@/app/Library/Definitions/Definitions'; 
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
-
-// Create a local alias for the ConceptNode type definition
-import { ConceptNode as ConceptNodeType } from '@/app/Library/Definitions/Definitions';
-
-
+import { useNewDocumentContext, addCueCardToNode, updateNodeTitle, setGetLayout, createNewNode } from '@/app/Library/Context/newDocumentProvider';
 
 function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & { onDragStart: (node: ConceptNodeType) => void }) {
   
   const {
     addCueCardToNode,
     updateNodeTitle,
-    selectCueCards,
-    colorTheme,
+    selectCueCards,// not complete
+    //colorTheme,
     setGetLayout, 
   } = useDocumentContext();
 
-  const { createNewNode }: { createNewNode: (title: string, parentNodeId: string) => void } = useDocumentContext();
+  //const { createNewNode }: { createNewNode: (title: string, parentNodeId: string) => void } = useDocumentContext();
+
+  // New Document Reducer context
+  const { state, dispatch } = useNewDocumentContext(); 
+  const { colorTheme } = state;
 
   const { title, cueCards, x, y, isRoot } = node;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -70,15 +70,21 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
     setIsAddingCueCard(false);
   };
 
-  const handleAddChildNode = () => {
+  /**const handleAddChildNode = () => {
     const newChildTitle = `Child of ${node.id}`;
     createNewNode(newChildTitle, node.id); // Pass the current node ID as parent ID
     setGetLayout(true);
+  };*/
+  const handleAddChildNode = () => {
+    const newChildTitle = `Child of ${node.id}`;
+    dispatch(createNewNode(newChildTitle, node.id)); // Dispatch action with title and parent node ID
+    dispatch(setGetLayout(true)); // Dispatch action to update layout flag
   };
 
   const handleNodeClick = () => {
+    dispatch(selectCueCards(node.cueCards));
     onClick(cueCards);
-    selectCueCards(cueCards); 
+    
   };
   {/** More drag logic for concept node  **/}
   // Handle drag start with visual feedback

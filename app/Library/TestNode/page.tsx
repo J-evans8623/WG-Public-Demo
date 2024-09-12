@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import ConceptNode from '@/app/Library/Component/ConceptNode';
+import ConceptNode from '@/app/Library/components/ConceptNode';
 import  DocumentProvider  from '@/app/Library/Context/DocumentProvider';
 import { ConceptNode as ConceptNodeType } from '@/app/Library/Definitions/Definitions';
 
