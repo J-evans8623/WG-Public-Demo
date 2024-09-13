@@ -49,6 +49,7 @@ export const NewDocumentProvider = ({ children }: { children: ReactNode }) => {
 
 // Custom hook to use the NewDocumentContext
 export const useNewDocumentContext = () => {
+    
   const context = useContext(NewDocumentContext);
   if (context === undefined) {
     throw new Error('useNewDocumentContext must be used within a NewDocumentProvider');
@@ -72,10 +73,18 @@ export const setColorTheme = (colorTheme: ColorTheme): DocumentAction => ({
   payload: colorTheme,
 });
 
-export const addCueCardToNode = (nodeId: string, cueCard: CueCard): DocumentAction => ({
+export const addCueCardToNode = (nodeId: string, cueCard: CueCard): DocumentAction => {
+    // Place the debugger statement here
+    return {
+      type: DocumentActionType.ADD_CUE_CARD_TO_NODE,
+      payload: { nodeId, cueCard },
+    };
+  };
+
+/**export const addCueCardToNode = (nodeId: string, cueCard: CueCard): DocumentAction => ({
   type: DocumentActionType.ADD_CUE_CARD_TO_NODE,
   payload: { nodeId, cueCard },
-});
+});*/
 
 export const updateNodeTitle = (nodeId: string, newTitle: string): DocumentAction => ({
   type: DocumentActionType.UPDATE_NODE_TITLE,
@@ -83,9 +92,9 @@ export const updateNodeTitle = (nodeId: string, newTitle: string): DocumentActio
 });
 
 export const setGetLayout = (getLayout: boolean): DocumentAction => ({
-  type: DocumentActionType.SET_GET_LAYOUT,
-  payload: getLayout,
-});
+    type: DocumentActionType.SET_GET_LAYOUT,
+    payload: getLayout,
+  });
 
 export const createNewNode = (title: string, parentNodeId: string): DocumentAction => ({
   type: DocumentActionType.CREATE_NEW_NODE,

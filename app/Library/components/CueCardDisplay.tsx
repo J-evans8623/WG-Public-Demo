@@ -3,7 +3,7 @@
 import React from 'react';
 import CueCard from './CueCard'; // Assuming CueCard component already exists
 import { CueCard as CueCardInterface } from '@/app/Library/Definitions/Definitions';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import { useNewDocumentContext } from '@/app/Library/Context/newDocumentProvider'; // Use new context
 
 // Define a default blank cue card
 const defaultCueCards: CueCardInterface[] = [
@@ -11,8 +11,8 @@ const defaultCueCards: CueCardInterface[] = [
 ];
 
 function CueCardDisplay() {
-  const { selectedCueCards } = useDocumentContext(); // Access cue cards directly from context
-
+  const { state } = useNewDocumentContext(); // Use new context to access state
+  const { selectedCueCards } = state;
   // Use the context-provided cue cards or fallback to default
   const cueCards = selectedCueCards.length > 0 ? selectedCueCards : defaultCueCards;
 

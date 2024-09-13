@@ -7,16 +7,16 @@ import CueStack from './CueStack';
 import Modal from './Modal';
 import { CueCard, ExtendedConceptNodeProps, colorThemes, ConceptNode as ConceptNodeType, } from '@/app/Library/Definitions/Definitions'; 
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
-import { useNewDocumentContext, addCueCardToNode, updateNodeTitle, setGetLayout, createNewNode } from '@/app/Library/Context/newDocumentProvider';
+import { useNewDocumentContext, addCueCardToNode, updateNodeTitle, setGetLayout, createNewNode, selectCueCards} from '@/app/Library/Context/newDocumentProvider';
 
 function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & { onDragStart: (node: ConceptNodeType) => void }) {
   
   const {
-    addCueCardToNode,
+    //addCueCardToNode,
     updateNodeTitle,
-    selectCueCards,// not complete
+    //selectCueCards,// not complete
     //colorTheme,
-    setGetLayout, 
+    //setGetLayout, 
   } = useDocumentContext();
 
   //const { createNewNode }: { createNewNode: (title: string, parentNodeId: string) => void } = useDocumentContext();
@@ -66,7 +66,15 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
       content,
       bloomLevel,
     };
-    addCueCardToNode(node.id, newCard);
+  
+    // Check if the cue card already exists in the node to prevent duplication
+    if (node.cueCards.some((card) => card.id === newCard.id)) {
+      
+      return; // Exit the function early to prevent duplication
+    }
+  
+    // Use dispatch to send the action to the reducer
+    dispatch(addCueCardToNode(node.id, newCard));
     setIsAddingCueCard(false);
   };
 
@@ -82,8 +90,8 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
   };
 
   const handleNodeClick = () => {
-    dispatch(selectCueCards(node.cueCards));
     onClick(cueCards);
+    dispatch(selectCueCards(node.cueCards));
     
   };
   {/** More drag logic for concept node  **/}
@@ -198,7 +206,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
             </label>
           ))}
         </div>
-        <button onClick={() => handleCueCardSave(newCueCard.title, newCueCard.content, newCueCard.bloomLevel!)} className="mt-2 bg-green-500 text-white px-4 py-2 rounded">
+         <button onClick={() => handleCueCardSave(newCueCard.title, newCueCard.content, newCueCard.bloomLevel!)} className="mt-2 bg-green-500 text-white px-4 py-2 rounded">
           Save Cue Card
         </button>
       </Modal>

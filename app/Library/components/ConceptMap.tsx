@@ -14,7 +14,7 @@ import { useCompositeLayout } from '../utils/compositeLayout';
 import { useResizableMap } from '../hooks/useResizableMap';
 import { useRectangleSelection } from '../hooks/useRectangleSelection';
 import SubtreeVisualizer from './SubtreeVisualizer';
-import { useNewDocumentContext } from '@/app/Library/Context/newDocumentProvider';
+import { useNewDocumentContext, selectCueCards } from '@/app/Library/Context/newDocumentProvider';
 
 
 interface ConceptMapProps {
@@ -26,18 +26,18 @@ interface ConceptMapProps {
 function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPaneRef: RefObject<HTMLDivElement> }){
   const { 
     //nodes, //old import
-    selectCueCards,
+    //selectCueCards,
     updateNode,
     createSecondaryRootNode,
     zoomLevel,
     defaultMapWidth,
     defaultMapHeight,
     //getLayout,
-    setGetLayout,
-    colorTheme,
+    //setGetLayout,
+    //colorTheme,
   } = useDocumentContext();
   const { state, dispatch } = useNewDocumentContext();
-  const { nodes, getLayout } = state;
+  const { nodes, getLayout } = state; // zoomLevel
 
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
@@ -99,7 +99,7 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
   };
 
   const handleViewConcept = (cueCards: CueCard[]) => {
-    selectCueCards(cueCards);
+    dispatch(selectCueCards(cueCards)); 
   };
 
   {/*  Click and Drag Node events    */}

@@ -1,4 +1,4 @@
-// Import necessary types
+// bloom-maps\app\Library\Context\documentReducer.ts
 import { ConceptNode, CueCard, DocumentState, DocumentAction, DocumentActionType } from '@/app/Library/Definitions/Definitions';
 
 
@@ -31,15 +31,22 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
         return { ...state, nodes: action.payload };
       case DocumentActionType.SET_COLOR_THEME:
         return { ...state, colorTheme: action.payload };
-      case DocumentActionType.ADD_CUE_CARD_TO_NODE:
-        const { nodeId, cueCard } = action.payload;
-        const updatedNodes = new Map(state.nodes);
-        const targetNode = updatedNodes.get(nodeId);
-        if (targetNode) {
-          targetNode.cueCards.push(cueCard);
-          updatedNodes.set(nodeId, targetNode);
-        }
-        return { ...state, nodes: updatedNodes };
+      
+        case DocumentActionType.ADD_CUE_CARD_TO_NODE:
+            const { nodeId, cueCard } = action.payload;
+            const updatedNodes = new Map(state.nodes);
+            const targetNode = updatedNodes.get(nodeId);
+          
+            if (targetNode) {
+              // Create a shallow copy of the cueCards array and add the new cue card
+              const updatedCueCards = [...targetNode.cueCards, cueCard];
+              
+              // Create a new node object to avoid direct mutation
+              const updatedNode = { ...targetNode, cueCards: updatedCueCards };
+              
+              updatedNodes.set(nodeId, updatedNode);
+            }
+            return { ...state, nodes: updatedNodes };
       
         case DocumentActionType.UPDATE_NODE_TITLE:
         const { nodeId: titleNodeId, newTitle } = action.payload;
