@@ -128,6 +128,8 @@ export interface DocumentContextType {
     defaultMapWidth: number;
     defaultMapHeight: number;
     groundWidth: number;
+    scrollLeft: number; // Add this line for horizontal scroll position
+    scrollTop: number; // Add this line for vertical scroll position
     
     // Add other state properties as needed
   }

@@ -2,10 +2,11 @@
 
 import React from 'react';
 import { CueStackProps, colorThemes } from '@/app/Library/Definitions/Definitions'
-import { useDocumentContext } from '../Context/DocumentProvider' // Import the DocumentProvider context
+import { useNewDocumentContext } from '@/app/Library/Context/newDocumentProvider'; // Use the new DocumentProvider context
 
 function CueStack({ cueCardCount, onClick }: CueStackProps) {
-  const { bloomDepth, colorTheme } = useDocumentContext(); // Get Bloom Depth and Color Theme from DocumentProvider
+  const { state } = useNewDocumentContext(); // Use the new context to get the state
+  const { bloomDepth, colorTheme } = state; // Extract Bloom Depth and Color Theme from state
 
   // Get the colors from the selected color theme
   const themeColors = colorThemes[colorTheme];

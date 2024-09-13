@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 import { CueCardProps, colorThemes } from '@/app/Library/Definitions/Definitions';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider' // Import the DocumentProvider context
+import { useNewDocumentContext } from '@/app/Library/Context/newDocumentProvider'; // Use the new DocumentProvider context
 
 interface CueCardPropsWithBloom extends CueCardProps {
   bloomLevel: 1 | 2 | 3 | 4 | 5 | 6; // Add bloom level as a required prop
@@ -21,8 +21,9 @@ const bloomLevelNames = {
 };
 
 function CueCard({ title, content, bloomLevel }: CueCardPropsWithBloom) {
-  const { colorTheme } = useDocumentContext(); // Get Color Theme from DocumentProvider
   const [showTitle, setShowTitle] = useState(true);
+  const { state } = useNewDocumentContext(); // Use the new context to get the state
+  const { colorTheme } = state; // Extract the colorTheme from state
 
   // Function to toggle between title and content
   const handleClick = () => {

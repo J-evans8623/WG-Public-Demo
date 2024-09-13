@@ -4,7 +4,6 @@
 
 import React, { useState, useRef, useEffect,  RefObject } from 'react';
 import ConceptNode from './ConceptNode';
-import { useDocumentContext } from '../Context/DocumentProvider';
 import { CueCard, ConceptNode as ConceptNodeType, colorThemes } from '@/app/Library/Definitions/Definitions'
 import ContextMenu from './ContextMenu';
 import { drawTreeLines } from '../utils/drawTreeLines'; //'./utils/drawTreeLines';
@@ -21,12 +20,8 @@ interface ConceptMapProps {
 
 
 function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPaneRef: RefObject<HTMLDivElement> }){
-  const { 
-    zoomLevel,
-
-  } = useDocumentContext();
   const { state, dispatch } = useNewDocumentContext();
-  const { nodes, getLayout, defaultMapWidth, defaultMapHeight } = state; // zoomLevel
+  const { nodes, getLayout, defaultMapWidth, defaultMapHeight, zoomLevel } = state; // zoomLevel
 
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
@@ -34,7 +29,7 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
   const [isDraggingSubtree, setIsDraggingSubtree] = useState<boolean>(false); // State for subtree dragging
   const [boundingBox, setBoundingBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null); // State for bounding box
 
-  const { width, height, handleMouseDown, offset } = useResizableMap({ mapRef, centerPaneRef });
+  const { width, height, handleMouseDown, offset, } = useResizableMap({ mapRef, centerPaneRef });
 
   // Define the state variable at the top of your component
      

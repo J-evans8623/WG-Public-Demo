@@ -30,6 +30,7 @@ const NewDocumentContext = createContext<{
   dispatch: React.Dispatch<DocumentAction>;
   zoomIn: () => void;
   zoomOut: () => void;
+  setColorTheme: (colorTheme: ColorTheme) => void;
 } | undefined>(undefined);
 
 // Define the provider component
@@ -39,9 +40,12 @@ export const NewDocumentProvider = ({ children }: { children: ReactNode }) => {
   // Debounced zoom functions
   const debouncedZoomIn = debounce(() => dispatch(zoomIn()), 100);
   const debouncedZoomOut = debounce(() => dispatch(zoomOut()), 100);
+  const handleSetColorTheme = (colorTheme: ColorTheme) => {
+    dispatch(setColorTheme(colorTheme));
+  };
 
   return (
-    <NewDocumentContext.Provider value={{ state, dispatch, zoomIn: debouncedZoomIn, zoomOut: debouncedZoomOut }}>
+    <NewDocumentContext.Provider value={{ state, dispatch, zoomIn: debouncedZoomIn, zoomOut: debouncedZoomOut, setColorTheme: handleSetColorTheme }}>
       {children}
     </NewDocumentContext.Provider>
   );

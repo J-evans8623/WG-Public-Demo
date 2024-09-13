@@ -14,6 +14,9 @@ export const initialDocumentState: DocumentState = {
     defaultMapWidth: 1800, // Default map width
     defaultMapHeight: 1800, // Default map height
     groundWidth: 0, // Initial ground width ???
+    scrollLeft: 0, // Initial scroll position on the x-axis
+  scrollTop: 0, // Initial scroll position on the y-axis
+
   };
 
 
@@ -146,13 +149,33 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
 
         case DocumentActionType.ZOOM_IN: {
             const newZoom = Math.min(state.zoomLevel + 0.1 * baseZoomLevel, 2 * baseZoomLevel);
-            return { ...state, zoomLevel: newZoom };
-          }
+            
+            // Adjust scroll positions to maintain the center
+            const adjustedScrollLeft = state.scrollLeft * (newZoom / state.zoomLevel);
+            const adjustedScrollTop = state.scrollTop * (newZoom / state.zoomLevel);
+            
+            return { 
+                ...state, 
+                zoomLevel: newZoom,
+                scrollLeft: adjustedScrollLeft,
+                scrollTop: adjustedScrollTop,
+            };
+        }
       
-          case DocumentActionType.ZOOM_OUT: {
+        case DocumentActionType.ZOOM_OUT: {
             const newZoom = Math.max(state.zoomLevel - 0.1 * baseZoomLevel, 0.1 * baseZoomLevel);
-            return { ...state, zoomLevel: newZoom };
-          }
+            
+            // Adjust scroll positions to maintain the center
+            const adjustedScrollLeft = state.scrollLeft * (newZoom / state.zoomLevel);
+            const adjustedScrollTop = state.scrollTop * (newZoom / state.zoomLevel);
+            
+            return { 
+                ...state, 
+                zoomLevel: newZoom,
+                scrollLeft: adjustedScrollLeft,
+                scrollTop: adjustedScrollTop,
+            };
+        }
           case DocumentActionType.UPDATE_NODE: {
             const { nodeId, updatedNode } = action.payload;
             const nodesWithUpdatedNode = new Map(state.nodes);

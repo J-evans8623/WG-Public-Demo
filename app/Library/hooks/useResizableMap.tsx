@@ -1,16 +1,18 @@
 import { useState, useCallback, useEffect, RefObject } from 'react';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import { useNewDocumentContext } from '@/app/Library/Context/newDocumentProvider';
 
 interface UseResizableMapProps {
   mapRef: RefObject<HTMLDivElement>;
 }
 
 export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps & { centerPaneRef: RefObject<HTMLDivElement> }) => {
+  const { state } = useNewDocumentContext(); // Use the new context
+  const { defaultMapWidth, defaultMapHeight, zoomLevel } = state; // Destructure values from state
+
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState<'both' | 'horizontal' | 'vertical' | null>(null);
   const [initialMousePosition, setInitialMousePosition] = useState<{ x: number; y: number } | null>(null);
   const [currentMousePosition, setCurrentMousePosition] = useState<{ x: number; y: number } | null>(null);
-  const { defaultMapWidth, defaultMapHeight, zoomLevel } = useDocumentContext(); 
   const [width, setWidth] = useState(defaultMapWidth);
   const [height, setHeight] = useState(defaultMapHeight);
   const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -96,7 +98,5 @@ export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps 
     };
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
-  // Function to render the dashed outline during resizing
-
-  return { width, height, handleMouseDown, offset , isResizing};
+  return { width, height, handleMouseDown, offset, isResizing };
 };

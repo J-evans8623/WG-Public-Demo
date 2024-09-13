@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useDocumentContext } from '../Context/DocumentProvider'; // Use the updated DocumentProvider
+import { useNewDocumentContext, setGetLayout, initializeNewDocumentAction } from '@/app/Library/Context/newDocumentProvider'; // Use the updated newDocumentProvider
 
 interface DocumentCreationModalProps {
   isOpen: boolean;
@@ -12,15 +12,16 @@ interface DocumentCreationModalProps {
 }
 
 export default function DocumentCreationModal({ isOpen, onClose, onCreate }: DocumentCreationModalProps) {
-  const { setBloomDepth } = useDocumentContext(); // Access the DocumentContext to set the bloom depth
-  const [selectedDepth, setSelectedDepth] = useState<1 | 2 | 3 | 4 | 5 | 6>(4); // Default bloom depth to 4
+  const { dispatch } = useNewDocumentContext(); // Use the new context
+  const [selectedDepth, setSelectedDepth] = useState<1 | 2 | 3 | 4 | 5 | 6>(6); // Default bloom depth to 4
 
   const handleDepthChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedDepth(parseInt(event.target.value, 10) as 1 | 2 | 3 | 4 | 5 | 6); // Ensure the selected depth is one of the allowed values
   };
 
   const handleCreate = () => {
-    setBloomDepth(selectedDepth); // Set the selected bloom depth in the context
+    dispatch(initializeNewDocumentAction(selectedDepth, 1800, 1800)); // Initialize the new document with the selected depth
+    dispatch(setGetLayout(true)); // Set layout flag to trigger layout computation
     onCreate(selectedDepth); // Call the onCreate callback with the selected depth
     onClose(); // Close the modal
   };

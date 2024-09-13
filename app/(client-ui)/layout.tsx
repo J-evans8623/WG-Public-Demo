@@ -11,7 +11,7 @@ import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Compon
 import ConceptMap from '@/app/Library/components/ConceptMap';
 import DocumentCreationModal from '@/app/Library/components/DocumentCreationModal';
 import Modal from '@/app/Library/components/Modal';
-import DocumentProvider, { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import DocumentProvider from '@/app/Library/Context/DocumentProvider';
 import { NewDocumentProvider, useNewDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument} from '@/app/Library/Context/newDocumentProvider'; // Import the new provider
 //import { TreeSizeProvider } from //'../Component/context/TreeSizeContext';
 import { PositionProvider } from '@/app/Library/Context/PositionTrackingContext'//'../Component/context/PositionTrackingContext'; // Import PositionProvider
@@ -23,12 +23,12 @@ import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 
 // Updated component to handle theme selection
 const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) => void }) => {
-  const { dispatch } = useNewDocumentContext();  // Use the new context for dispatching the action
+  const {dispatch,  } = useNewDocumentContext();  // Use the new context for dispatching the action
 const [isOpen, setIsOpen] = useState(false);
 
   // Handler to update both old and new providers
   const handleSetColorTheme = (theme: ColorTheme) => {
-    setColorTheme(theme); // Old provider function call (to be removed)
+    //setColorTheme(theme); // Old provider function call (to be removed)
     dispatch(setNewColorTheme(theme)); // New provider function call
     setIsOpen(false); // Close the dropdown menu
   };
@@ -66,14 +66,15 @@ const [isOpen, setIsOpen] = useState(false);
 };
 
 function ClientLayoutContent() {
-  const {setColorTheme, zoomIn, zoomOut, zoomLevel } = useDocumentContext();
+ 
   const [isModalOpen, setIsModalOpen] = useState(false);
   //const [groundWidth, setGroundWidth] = useState<number>(0); // Initialize to 0
   const centerPaneRef = useRef<HTMLDivElement>(null); // Ref to center pane
   const [windowWidth, setWindowWidth] = useState<number>(0);
   const [windowHeight, setWindowHeight] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
-  const { dispatch } = useNewDocumentContext();
+  const {state, dispatch, zoomIn, zoomOut, setColorTheme  } = useNewDocumentContext();
+  const zoomLevel = state.zoomLevel;
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);

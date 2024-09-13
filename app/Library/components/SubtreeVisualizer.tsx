@@ -1,14 +1,15 @@
 import React, { useMemo } from 'react';
-import { useDocumentContext } from '../Context/DocumentProvider';
+import { useNewDocumentContext } from '../Context/newDocumentProvider'; // Updated to use newDocumentProvider
 import { ConceptNode, colorThemes } from '../Definitions/Definitions';
-import { drawLines } from  '../utils/drawLines' //'../utils/drawLines';
+import { drawLines } from '../utils/drawLines';
 
 interface SubtreeVisualizerProps {
   movingNodeId: string; // The ID of the node being moved
 }
 
 const SubtreeVisualizer: React.FC<SubtreeVisualizerProps> = ({ movingNodeId }) => {
-  const { nodes, colorTheme } = useDocumentContext();
+  const { state } = useNewDocumentContext(); // Use new context
+  const { nodes, colorTheme } = state; // Destructure state values
 
   // Find all nodes in the subtree using a memoized function
   const subtreeNodes = useMemo(() => {

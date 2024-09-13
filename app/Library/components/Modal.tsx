@@ -3,7 +3,6 @@
 'use client';
 
 import React, { useState, ReactNode } from 'react';
-import { useDocumentContext } from '../Context/DocumentProvider'; // Import the DocumentProvider context
 
 interface ModalProps {
   isOpen: boolean;
