@@ -124,6 +124,11 @@ export const zoomOut = (): DocumentAction => ({
   type: DocumentActionType.ZOOM_OUT,
 });
 
+export const updateNode = (nodeId: string, updatedNode: Partial<ConceptNode>): DocumentAction => ({
+    type: DocumentActionType.UPDATE_NODE,
+    payload: { nodeId, updatedNode },
+  });
+  
 export const initializeNewDocument = (
   dispatch: React.Dispatch<DocumentAction>, 
   bloomDepth: 1 | 2 | 3 | 4 | 5 | 6 = 6,

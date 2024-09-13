@@ -6,22 +6,11 @@ import React, { useState } from 'react';
 import CueStack from './CueStack';
 import Modal from './Modal';
 import { CueCard, ExtendedConceptNodeProps, colorThemes, ConceptNode as ConceptNodeType, } from '@/app/Library/Definitions/Definitions'; 
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { useNewDocumentContext, addCueCardToNode, updateNodeTitle, setGetLayout, createNewNode, selectCueCards} from '@/app/Library/Context/newDocumentProvider';
 
 function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & { onDragStart: (node: ConceptNodeType) => void }) {
   
-  const {
-    //addCueCardToNode,
-    updateNodeTitle,
-    //selectCueCards,// not complete
-    //colorTheme,
-    //setGetLayout, 
-  } = useDocumentContext();
-
-  //const { createNewNode }: { createNewNode: (title: string, parentNodeId: string) => void } = useDocumentContext();
-
-  // New Document Reducer context
+ // New Document Reducer context
   const { state, dispatch } = useNewDocumentContext(); 
   const { colorTheme } = state;
 
@@ -55,7 +44,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
   };
 
   const handleTitleSave = () => {
-    updateNodeTitle(node.id, newTitle);
+    dispatch(updateNodeTitle(node.id, newTitle)); // Dispatch the action to update the node title
     setIsEditingTitle(false);
   };
 
@@ -78,11 +67,6 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
     setIsAddingCueCard(false);
   };
 
-  /**const handleAddChildNode = () => {
-    const newChildTitle = `Child of ${node.id}`;
-    createNewNode(newChildTitle, node.id); // Pass the current node ID as parent ID
-    setGetLayout(true);
-  };*/
   const handleAddChildNode = () => {
     const newChildTitle = `Child of ${node.id}`;
     dispatch(createNewNode(newChildTitle, node.id)); // Dispatch action with title and parent node ID
@@ -99,7 +83,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
   const handleDragStartLocal = (event: React.DragEvent) => {
     event.dataTransfer.setData('text/plain', node.id);
     onDragStart(node); 
-    setIsDragging(true); 
+    setIsDragging(true); // is this functional???
   };
 
   // Handle drag end to reset visual feedback

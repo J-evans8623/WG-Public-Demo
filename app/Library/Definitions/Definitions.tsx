@@ -132,6 +132,7 @@ export interface DocumentContextType {
     // Add other state properties as needed
   }
   export type DocumentAction =
+  | { type: DocumentActionType.UPDATE_NODE; payload: { nodeId: string; updatedNode: Partial<ConceptNode> } }
   | { type: DocumentActionType.SELECT_CUE_CARDS; payload: CueCard[] }
   | { type: DocumentActionType.SET_NODES; payload: Map<string, ConceptNode> }
   | { type: DocumentActionType.SET_COLOR_THEME; payload: ColorTheme }
@@ -161,20 +162,6 @@ export enum DocumentActionType {
   SET_ZOOM_LEVEL = 'SET_ZOOM_LEVEL',
   ZOOM_IN = 'ZOOM_IN',
   ZOOM_OUT = 'ZOOM_OUT',
+  UPDATE_NODE = 'UPDATE_NODE',
   // Add other action types as needed
 }
-
-  /**
-   * 
-   * case DocumentActionType.SET_NODES:
-      return {
-        ...state,
-        nodes: action.payload,
-      };
-    
-      case DocumentActionType.SET_COLOR_THEME: // Handle setting color theme
-      return {
-        ...state,
-        colorTheme: action.payload,
-      };
-   */

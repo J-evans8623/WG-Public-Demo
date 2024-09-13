@@ -153,6 +153,22 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
             const newZoom = Math.max(state.zoomLevel - 0.1 * baseZoomLevel, 0.1 * baseZoomLevel);
             return { ...state, zoomLevel: newZoom };
           }
+          case DocumentActionType.UPDATE_NODE: {
+            const { nodeId, updatedNode } = action.payload;
+            const nodesWithUpdatedNode = new Map(state.nodes);
+            const nodeToUpdate = nodesWithUpdatedNode.get(nodeId);
+          
+            if (nodeToUpdate) {
+              // Merge the existing node properties with the updated properties
+              const mergedNode = { ...nodeToUpdate, ...updatedNode };
+              nodesWithUpdatedNode.set(nodeId, mergedNode); // Update the Map with the merged node
+            } else {
+              console.error(`Node with ID ${nodeId} not found.`);
+            }
+          
+            return { ...state, nodes: nodesWithUpdatedNode };
+          }
+          
 
     
       default:

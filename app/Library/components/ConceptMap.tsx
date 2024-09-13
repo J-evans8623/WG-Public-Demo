@@ -7,14 +7,11 @@ import ConceptNode from './ConceptNode';
 import { useDocumentContext } from '../Context/DocumentProvider';
 import { CueCard, ConceptNode as ConceptNodeType, colorThemes } from '@/app/Library/Definitions/Definitions'
 import ContextMenu from './ContextMenu';
-//import { drawLines } from './utils/drawLines';
 import { drawTreeLines } from '../utils/drawTreeLines'; //'./utils/drawTreeLines';
-//import { useHVTreeLayout } from '@/app/Library/Component/utils/hvTreeLayout';
 import { useCompositeLayout } from '../utils/compositeLayout';
 import { useResizableMap } from '../hooks/useResizableMap';
-import { useRectangleSelection } from '../hooks/useRectangleSelection';
 import SubtreeVisualizer from './SubtreeVisualizer';
-import { useNewDocumentContext, selectCueCards } from '@/app/Library/Context/newDocumentProvider';
+import { useNewDocumentContext, selectCueCards, updateNode } from '@/app/Library/Context/newDocumentProvider';
 
 
 interface ConceptMapProps {
@@ -25,19 +22,11 @@ interface ConceptMapProps {
 
 function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPaneRef: RefObject<HTMLDivElement> }){
   const { 
-    //nodes, //old import
-    //selectCueCards,
-    updateNode,
-    createSecondaryRootNode,
     zoomLevel,
-    defaultMapWidth,
-    defaultMapHeight,
-    //getLayout,
-    //setGetLayout,
-    //colorTheme,
+
   } = useDocumentContext();
   const { state, dispatch } = useNewDocumentContext();
-  const { nodes, getLayout } = state; // zoomLevel
+  const { nodes, getLayout, defaultMapWidth, defaultMapHeight } = state; // zoomLevel
 
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
@@ -88,7 +77,7 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
     setContextMenuPosition({ x: event.clientX, y: event.clientY });
   };  
 
-  /***/ //Dysfunctional SecondaryMap
+  /* //Dysfunctional SecondaryMap
   const handleContextMenuOption = (option: string) => {
     setContextMenuPosition(null);
     if (option === 'New Map') {
@@ -96,7 +85,7 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
         createSecondaryRootNode('New Root Concept', contextMenuPosition.x, contextMenuPosition.y);
       }
     }
-  };
+  };**/
 
   const handleViewConcept = (cueCards: CueCard[]) => {
     dispatch(selectCueCards(cueCards)); 
@@ -235,14 +224,7 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
       {/* Bottom side handle */}
  
    {/* Main content area of the map */}
-   <div style={{ flexGrow: 1, position: 'relative' }}>
-     {contextMenuPosition && (
-       <ContextMenu
-         position={contextMenuPosition}
-         onSelectOption={handleContextMenuOption}
-       />
-     )}
- 
+   <div style={{ flexGrow: 1, position: 'relative' }}> 
      {/* Render lines between nodes (black lines for the entire tree) */}
      <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
         {/**drawLines(nodes, 'black')*/}
