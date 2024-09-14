@@ -10,16 +10,17 @@ import { drawTreeLines } from '../utils/drawTreeLines'; //'./utils/drawTreeLines
 import { useCompositeLayout } from '../utils/compositeLayout';
 import { useResizableMap } from '../hooks/useResizableMap';
 import SubtreeVisualizer from './SubtreeVisualizer';
-import { useNewDocumentContext, selectCueCards, updateNode } from '@/app/Library/Context/newDocumentProvider';
+import { useNewDocumentContext, updateNode } from '@/app/Library/Context/newDocumentProvider';
 
 
 interface ConceptMapProps {
   groundWidth: number; 
   centerPaneRef: RefObject<HTMLDivElement>; 
+  onOpenCueCardModal: (nodeId: string) => void;
 }
 
 
-function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPaneRef: RefObject<HTMLDivElement> }){
+function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptMapProps & { centerPaneRef: RefObject<HTMLDivElement> }){
   const { state, dispatch } = useNewDocumentContext();
   const { nodes, getLayout, defaultMapWidth, defaultMapHeight, zoomLevel } = state; // zoomLevel
 
@@ -82,9 +83,9 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
     }
   };**/
 
-  const handleViewConcept = (cueCards: CueCard[]) => {
+  /**const handleViewConcept = (cueCards: CueCard[]) => {
     dispatch(selectCueCards(cueCards)); 
-  };
+  }; * */
 
   {/*  Click and Drag Node events    */}
   const handleDragStart = (node: ConceptNodeType) => {
@@ -259,8 +260,8 @@ function ConceptMap({ groundWidth, centerPaneRef }: ConceptMapProps & { centerPa
     <ConceptNode
       key={node.id}
       node={node}
-      onClick={handleViewConcept}
       onDragStart={handleDragStart}
+      onOpenCueCardModal={onOpenCueCardModal}
     />
   );
 })}

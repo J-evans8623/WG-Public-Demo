@@ -24,6 +24,7 @@ export interface CueStackProps {
 export interface ConceptNodeProps {
   node: ConceptNode; // The data representing a Concept-node
   onDragStart: (node: ConceptNode) => void; // Drag start function, kept as it is still needed
+  onOpenCueCardModal: (nodeId: string) => void;
 }
 
 

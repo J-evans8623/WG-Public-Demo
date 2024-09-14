@@ -11,7 +11,7 @@ import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 import ModernModal from '@/app/Library/components/ModernModal';
 
-function ConceptNode({ node, onDragStart }: ConceptNodeProps) {
+function ConceptNode({ node, onDragStart, onOpenCueCardModal  }: ConceptNodeProps) {
   
  // New Document Reducer context
   const { state, dispatch } = useNewDocumentContext(); 
@@ -39,29 +39,13 @@ function ConceptNode({ node, onDragStart }: ConceptNodeProps) {
 
   const handleCueStackClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    setNewCueCard({
-      id: Date.now().toString(),
-      title: '',
-      content: '',
-      bloomLevel: 1, 
-    });
-    setIsAddingCueCard(true);
+    onOpenCueCardModal(node.id);
   };
   const handleTitleSave = () => {
     dispatch(updateNodeTitle(node.id, newTitle)); // Dispatch the action to update the node title
     setIsEditingTitle(false);
   };// setGetlayout(false)
 
-  const handleCueCardSave = (title: string, content: string, bloomLevel: 1 | 2 | 3 | 4 | 5 | 6) => {
-    const newCard: CueCard = {
-      id: Date.now().toString(),
-      title,
-      content,
-      bloomLevel,
-    };
-    addCueCard(node.id, newCard); // Update cue-card map without re-rendering ConceptNode
-    setIsAddingCueCard(false);
-  };
 
   const handleAddChildNode = () => {
     const newChildTitle = `Child of ${node.id}`;
@@ -151,13 +135,6 @@ function ConceptNode({ node, onDragStart }: ConceptNodeProps) {
       </Modal>
 
       {/* Modal for Adding Cue Card */}
-<ModernModal
-  isOpen={isAddingCueCard}
-  onClose={() => setIsAddingCueCard(false)}
-  onCreateCueCard={handleCueCardSave} // Function to save the cue card
->
-  {/* Content of ModernModal will be handled internally */}
-</ModernModal>
 
     </div>
   );

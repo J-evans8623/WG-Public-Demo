@@ -12,10 +12,12 @@ import ConceptMap from '@/app/Library/components/ConceptMap';
 import DocumentCreationModal from '@/app/Library/components/DocumentCreationModal';
 import Modal from '@/app/Library/components/Modal';
 import { NewDocumentProvider, useNewDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument} from '@/app/Library/Context/newDocumentProvider'; // Import the new provider
-import { ColorTheme } from '@/app/Library/Definitions/Definitions';
+import { ColorTheme, CueCard} from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
+import ModernModal from '@/app/Library/components/ModernModal';
+import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 
 
 // Updated component to handle theme selection
@@ -71,7 +73,11 @@ function ClientLayoutContent() {
   const [windowHeight, setWindowHeight] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const {state, dispatch, zoomIn, zoomOut, setColorTheme  } = useNewDocumentContext();
+  const { addCueCard } = useCueCardContext();
   const zoomLevel = state.zoomLevel;
+
+  const [isAddingCueCard, setIsAddingCueCard] = useState(false);
+  const [currentNodeId, setCurrentNodeId] = useState<string | null>(null);
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
@@ -89,24 +95,7 @@ function ClientLayoutContent() {
     window.addEventListener('resize', updateWindowSize);
     return () => window.removeEventListener('resize', updateWindowSize);
   }, []);
-  /** 
-    // Initialize document on first page load
-    useEffect(() => {
-      if (!isInitialized) {
-        initializeNewDocument(6, windowWidth, true); // Set isInitialLoad to true
-        setIsInitialized(true); // Ensure this only runs once
-      }
-    }, [isInitialized, initializeNewDocument, windowWidth]);
 
-
-  const handleCreateNewDocument = useCallback(
-    (selectedDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
-      initializeNewDocument(selectedDepth, windowWidth, false); // Reset and create a new document
-      closeModal();
-    },
-    [initializeNewDocument, windowWidth]
-  );
-*/
 useEffect(() => {
   if (!isInitialized) {
     initializeNewDocument(dispatch, 6, windowWidth, true); // Set isInitialLoad to true
@@ -134,8 +123,37 @@ const handleCreateNewDocument = useCallback(
     console.log("Help clicked");
   };
 
+  const handleOpenCueCardModal = useCallback((nodeId: string) => {
+    setCurrentNodeId(nodeId);
+    setIsAddingCueCard(true);
+  }, []);
+
+  // Function to save the cue card
+  const handleCueCardSave = useCallback(
+    (title: string, content: string, bloomLevel: 1 | 2 | 3 | 4 | 5 | 6, image?: File | null) => {
+      if (currentNodeId) {
+        const newCueCard: CueCard = {
+          id: Date.now().toString(),
+          title,
+          content,
+          bloomLevel,
+          // Handle image if needed
+        };
+        addCueCard(currentNodeId, newCueCard); // Use your context or state management to add the cue card
+      }
+      setIsAddingCueCard(false);
+    },
+    [currentNodeId, addCueCard]
+  );
+
   return (
     <>
+      {/*  ModernModal  */}
+          <ModernModal
+        isOpen={isAddingCueCard}
+        onClose={() => setIsAddingCueCard(false)}
+        onCreateCueCard={handleCueCardSave}
+      />
       {/* Document Creation Modal */}
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <DocumentCreationModal
@@ -194,7 +212,7 @@ const handleCreateNewDocument = useCallback(
       alignItems: 'center', // Center vertically
     }}
   >
-    <ConceptMap groundWidth={windowWidth} centerPaneRef={centerPaneRef} />
+    <ConceptMap groundWidth={windowWidth} centerPaneRef={centerPaneRef} onOpenCueCardModal={handleOpenCueCardModal}/>
   </div>
 
   {/* Right Panel (Tool Interface) */}
