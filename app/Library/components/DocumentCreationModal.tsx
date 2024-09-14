@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useNewDocumentContext, setGetLayout, initializeNewDocumentAction } from '@/app/Library/Context/newDocumentProvider'; // Use the updated newDocumentProvider
+import { useDocumentContext, setGetLayout, initializeNewDocumentAction } from '@/app/Library/Context/DocumentProvider'; // Use the updated DocumentProvider
 
 interface DocumentCreationModalProps {
   isOpen: boolean;
@@ -12,7 +12,7 @@ interface DocumentCreationModalProps {
 }
 
 export default function DocumentCreationModal({ isOpen, onClose, onCreate }: DocumentCreationModalProps) {
-  const { dispatch } = useNewDocumentContext(); // Use the new context
+  const { dispatch } = useDocumentContext(); // Use the new context
   const [selectedDepth, setSelectedDepth] = useState<1 | 2 | 3 | 4 | 5 | 6>(6); // Default bloom depth to 4
 
   const handleDepthChange = (event: React.ChangeEvent<HTMLSelectElement>) => {

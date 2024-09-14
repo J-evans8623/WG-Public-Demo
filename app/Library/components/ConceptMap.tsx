@@ -10,7 +10,7 @@ import { drawTreeLines } from '../utils/drawTreeLines'; //'./utils/drawTreeLines
 import { useCompositeLayout } from '../utils/compositeLayout';
 import { useResizableMap } from '../hooks/useResizableMap';
 import SubtreeVisualizer from './SubtreeVisualizer';
-import { useNewDocumentContext, updateNode } from '@/app/Library/Context/newDocumentProvider';
+import { useDocumentContext, updateNode } from '@/app/Library/Context/DocumentProvider';
 
 
 interface ConceptMapProps {
@@ -21,7 +21,7 @@ interface ConceptMapProps {
 
 
 function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptMapProps & { centerPaneRef: RefObject<HTMLDivElement> }){
-  const { state, dispatch } = useNewDocumentContext();
+  const { state, dispatch } = useDocumentContext();
   const { nodes, getLayout, defaultMapWidth, defaultMapHeight, zoomLevel } = state; // zoomLevel
 
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);

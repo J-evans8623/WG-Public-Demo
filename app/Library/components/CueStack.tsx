@@ -2,11 +2,11 @@
 
 import React from 'react';
 import { CueStackProps, colorThemes } from '@/app/Library/Definitions/Definitions';
-import { useNewDocumentContext } from '@/app/Library/Context/newDocumentProvider'; 
+import { useDocumentContext } from '@/app/Library/Context/DocumentProvider'; 
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext'; // Import CueCardContext
 
 function CueStack({ nodeId, onClick }: CueStackProps & { nodeId: string }) {
-  const { state } = useNewDocumentContext(); // Use the new context to get the state
+  const { state } = useDocumentContext(); // Use the new context to get the state
   const { bloomDepth, colorTheme } = state; // Extract Bloom Depth and Color Theme from state
   const { selectCueCards } = useCueCardContext(); // Use CueCardContext to select cue cards for a specific node
 
@@ -45,3 +45,7 @@ function CueStack({ nodeId, onClick }: CueStackProps & { nodeId: string }) {
 }
 
 export default CueStack;
+/**
+ * We can mitigate against re-rendering but introducing a flag maxlength = true|false
+ * 
+ */

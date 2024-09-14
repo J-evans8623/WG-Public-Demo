@@ -9,6 +9,7 @@ interface CueCardContextType {
   addCueCard: (nodeId: string, cueCard: CueCard) => void;
   removeCueCard: (nodeId: string, cueCardId: string) => void;
   selectCueCards: (nodeId: string) => CueCard[]; // New method to select cue cards for a given nodeId
+  resetCueCards: () => void; 
 }
 
 // Create the CueCard context
@@ -40,12 +41,21 @@ export const CueCardProvider = ({ children }: { children: ReactNode }) => {
     return cueCards.get(nodeId) || [];
   };
 
+  const resetCueCards = () => {
+    setCueCards(new Map());
+  };
+
   return (
-    <CueCardContext.Provider value={{ cueCards, addCueCard, removeCueCard, selectCueCards }}>
+    <CueCardContext.Provider
+    value={{ cueCards, addCueCard, removeCueCard, selectCueCards, resetCueCards }}
+  >
       {children}
     </CueCardContext.Provider>
   );
+
+  
 };
+
 
 // Custom hook to use the CueCardContext
 export const useCueCardContext = () => {

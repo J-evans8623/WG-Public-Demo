@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useNewDocumentContext } from '@/app/Library/Context/newDocumentProvider';
+import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { colorThemes } from '@/app/Library/Definitions/Definitions';
 
 interface ModernModalProps {
@@ -34,7 +34,7 @@ const ModernModal: React.FC<ModernModalProps> = ({ isOpen, onClose, onCreateCueC
   const [image, setImage] = useState<File | null>(null);
 
   // Access the current color theme from context
-  const { state } = useNewDocumentContext();
+  const { state } = useDocumentContext();
   const { colorTheme } = state;
 
   // Refs to handle focus between inputs and radio buttons

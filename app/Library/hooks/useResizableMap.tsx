@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect, RefObject } from 'react';
-import { useNewDocumentContext } from '@/app/Library/Context/newDocumentProvider';
+import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 
 interface UseResizableMapProps {
   mapRef: RefObject<HTMLDivElement>;
 }
 
 export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps & { centerPaneRef: RefObject<HTMLDivElement> }) => {
-  const { state } = useNewDocumentContext(); // Use the new context
+  const { state } = useDocumentContext(); // Use the new context
   const { defaultMapWidth, defaultMapHeight, zoomLevel } = state; // Destructure values from state
 
   const [isResizing, setIsResizing] = useState(false);

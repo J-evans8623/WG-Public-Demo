@@ -6,7 +6,7 @@ import React, { useState, memo } from 'react';
 import CueStack from './CueStack';
 import Modal from './Modal';
 import { CueCard, colorThemes, ConceptNode as ConceptNodeType, ConceptNodeProps} from '@/app/Library/Definitions/Definitions'; 
-import { useNewDocumentContext, updateNodeTitle, setGetLayout, createNewNode} from '@/app/Library/Context/newDocumentProvider';
+import { useDocumentContext, updateNodeTitle, setGetLayout, createNewNode} from '@/app/Library/Context/DocumentProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 import ModernModal from '@/app/Library/components/ModernModal';
@@ -14,7 +14,7 @@ import ModernModal from '@/app/Library/components/ModernModal';
 function ConceptNode({ node, onDragStart, onOpenCueCardModal  }: ConceptNodeProps) {
   
  // New Document Reducer context
-  const { state, dispatch } = useNewDocumentContext(); 
+  const { state, dispatch } = useDocumentContext(); 
   const { colorTheme } = state;
   const { toggleNodeSelection } = useNodeSelection();
   const { addCueCard } = useCueCardContext();

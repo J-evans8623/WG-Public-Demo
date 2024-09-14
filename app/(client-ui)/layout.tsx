@@ -11,7 +11,7 @@ import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Compon
 import ConceptMap from '@/app/Library/components/ConceptMap';
 import DocumentCreationModal from '@/app/Library/components/DocumentCreationModal';
 import Modal from '@/app/Library/components/Modal';
-import { NewDocumentProvider, useNewDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument} from '@/app/Library/Context/newDocumentProvider'; // Import the new provider
+import { DocumentProvider, useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
 import { ColorTheme, CueCard} from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
@@ -22,7 +22,7 @@ import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 
 // Updated component to handle theme selection
 const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) => void }) => {
-  const {dispatch,  } = useNewDocumentContext();  // Use the new context for dispatching the action
+  const {dispatch,  } = useDocumentContext();  // Use the new context for dispatching the action
 const [isOpen, setIsOpen] = useState(false);
 
   // Handler to update both old and new providers
@@ -72,8 +72,8 @@ function ClientLayoutContent() {
   const [windowWidth, setWindowWidth] = useState<number>(0);
   const [windowHeight, setWindowHeight] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
-  const {state, dispatch, zoomIn, zoomOut, setColorTheme  } = useNewDocumentContext();
-  const { addCueCard } = useCueCardContext();
+  const {state, dispatch, zoomIn, zoomOut, setColorTheme  } = useDocumentContext();
+  const { addCueCard, resetCueCards } = useCueCardContext();
   const zoomLevel = state.zoomLevel;
 
   const [isAddingCueCard, setIsAddingCueCard] = useState(false);
@@ -98,14 +98,14 @@ function ClientLayoutContent() {
 
 useEffect(() => {
   if (!isInitialized) {
-    initializeNewDocument(dispatch, 6, windowWidth, true); // Set isInitialLoad to true
+    initializeNewDocument(dispatch, resetCueCards, 6, windowWidth, true); // Set isInitialLoad to true
     setIsInitialized(true); // Ensure this only runs once
   }
 }, [isInitialized, dispatch, windowWidth]);
 
 const handleCreateNewDocument = useCallback(
   (selectedDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
-    initializeNewDocument(dispatch, selectedDepth, windowWidth, false); // Reset and create a new document
+    initializeNewDocument(dispatch,  resetCueCards, selectedDepth, windowWidth, false); // Reset and create a new document
     closeModal();
   },
   [dispatch, windowWidth]
@@ -245,9 +245,9 @@ export default function ClientLayout() {
   return (
     <NodeSelectionProvider>
       <CueCardProvider> {/* Wrap in CueCardProvider */}
-        <NewDocumentProvider>
+        <DocumentProvider>
           <ClientLayoutContent />
-        </NewDocumentProvider>
+        </DocumentProvider>
       </CueCardProvider>
     </NodeSelectionProvider>
   );

@@ -4,14 +4,14 @@ import { useMemo } from 'react'; // Import useMemo from React
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 import { applyHVLayout } from './blendedhvLayout';
 import { applyIndentedLayout } from './indentedLayout';
-import { useNewDocumentContext, setGetLayout } from '@/app/Library/Context/newDocumentProvider';
+import { useDocumentContext, setGetLayout } from '@/app/Library/Context/DocumentProvider';
 
 // Custom hook to integrate both HV and indented layouts with memoization
 export function useCompositeLayout(nodes: Map<string, ConceptNode>): Map<string, ConceptNode> {
     // Use the new document context
-    const { state, dispatch } = useNewDocumentContext();
+    const { state, dispatch } = useDocumentContext();
     
-    // Extract 'getLayout' from the state managed by the newDocumentProvider
+    // Extract 'getLayout' from the state managed by the DocumentProvider
     const { getLayout } = state;
 
     // Memoize the layout computation
