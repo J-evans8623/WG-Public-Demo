@@ -11,14 +11,11 @@ import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Compon
 import ConceptMap from '@/app/Library/components/ConceptMap';
 import DocumentCreationModal from '@/app/Library/components/DocumentCreationModal';
 import Modal from '@/app/Library/components/Modal';
-import DocumentProvider from '@/app/Library/Context/DocumentProvider';
 import { NewDocumentProvider, useNewDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument} from '@/app/Library/Context/newDocumentProvider'; // Import the new provider
-//import { TreeSizeProvider } from //'../Component/context/TreeSizeContext';
-import { PositionProvider } from '@/app/Library/Context/PositionTrackingContext'//'../Component/context/PositionTrackingContext'; // Import PositionProvider
 import { ColorTheme } from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
-//import { useResizableMap } from  '@/app/Library/hooks/useResizableMap'  //'./hooks/useResizableMap';
-
+import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
+import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
 
 
 // Updated component to handle theme selection
@@ -228,14 +225,12 @@ const handleCreateNewDocument = useCallback(
 
 export default function ClientLayout() {
   return (
-    <NewDocumentProvider>
-    <DocumentProvider>
-      {/**<TreeSizeProvider>*/ }{/* Wrap within TreeSizeProvider */}
-      <PositionProvider>
-        <ClientLayoutContent />
-        </PositionProvider> 
-      {/** </TreeSizeProvider>*/}
-    </DocumentProvider>
-    </NewDocumentProvider>
+    <NodeSelectionProvider>
+      <CueCardProvider> {/* Wrap in CueCardProvider */}
+        <NewDocumentProvider>
+          <ClientLayoutContent />
+        </NewDocumentProvider>
+      </CueCardProvider>
+    </NodeSelectionProvider>
   );
 }

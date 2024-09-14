@@ -1,18 +1,23 @@
 'use client';
 
 import React from 'react';
-import { CueStackProps, colorThemes } from '@/app/Library/Definitions/Definitions'
-import { useNewDocumentContext } from '@/app/Library/Context/newDocumentProvider'; // Use the new DocumentProvider context
+import { CueStackProps, colorThemes } from '@/app/Library/Definitions/Definitions';
+import { useNewDocumentContext } from '@/app/Library/Context/newDocumentProvider'; 
+import { useCueCardContext } from '@/app/Library/Context/CueCardContext'; // Import CueCardContext
 
-function CueStack({ cueCardCount, onClick }: CueStackProps) {
+function CueStack({ nodeId, onClick }: CueStackProps & { nodeId: string }) {
   const { state } = useNewDocumentContext(); // Use the new context to get the state
   const { bloomDepth, colorTheme } = state; // Extract Bloom Depth and Color Theme from state
+  const { selectCueCards } = useCueCardContext(); // Use CueCardContext to select cue cards for a specific node
 
   // Get the colors from the selected color theme
   const themeColors = colorThemes[colorTheme];
 
+  // Get the cue cards for the given nodeId
+  const cueCards = selectCueCards(nodeId); // Fetch the cue cards from the context using the node ID
+
   // Limit the stack to the maximum number of cards based on the Bloom Depth
-  const visibleCards = Math.min(cueCardCount, bloomDepth);
+  const visibleCards = Math.min(cueCards.length, bloomDepth);
 
   return (
     <div

@@ -3,7 +3,8 @@
 import React from 'react';
 import CueCard from './CueCard'; // Assuming CueCard component already exists
 import { CueCard as CueCardInterface } from '@/app/Library/Definitions/Definitions';
-import { useNewDocumentContext } from '@/app/Library/Context/newDocumentProvider'; // Use new context
+import { useCueCardContext } from '../Context/CueCardContext'; // Use new context
+import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext'; // Use refined context
 
 // Define a default blank cue card
 const defaultCueCards: CueCardInterface[] = [
@@ -11,21 +12,37 @@ const defaultCueCards: CueCardInterface[] = [
 ];
 
 function CueCardDisplay() {
-  const { state } = useNewDocumentContext(); // Use new context to access state
-  const { selectedCueCards } = state;
-  // Use the context-provided cue cards or fallback to default
-  const cueCards = selectedCueCards.length > 0 ? selectedCueCards : defaultCueCards;
+  const { getSelectedNodeIds } = useNodeSelection(); // Get selected node IDs
+  const { selectCueCards } = useCueCardContext(); // Access cue card data using new context
+
+  // Get the list of selected node IDs
+  const selectedNodeIds = getSelectedNodeIds();
+
+  // Retrieve cue cards associated with the selected node IDs
+  const cueCards = selectedNodeIds.flatMap(nodeId => selectCueCards(nodeId));
 
   return (
     <div className="flex flex-col space-y-2" data-testid="cue-card-display">
-      {cueCards.map((cueCard) => (
-        <CueCard
-          key={cueCard.id}
-          title={cueCard.title}
-          content={cueCard.content}
-          bloomLevel={cueCard.bloomLevel || 1} // Pass bloomLevel to CueCard, default to 1 if not specified
-        />
-      ))}
+      {cueCards.length > 0 ? (
+        cueCards.map((cueCard) => (
+          <CueCard
+            key={cueCard.id}
+            title={cueCard.title}
+            content={cueCard.content}
+            bloomLevel={cueCard.bloomLevel || 1} // Pass bloomLevel to CueCard, default to 1 if not specified
+          />
+        ))
+      ) : (
+        // Display a default message if no cue cards are selected
+        defaultCueCards.map((cueCard) => (
+          <CueCard
+            key={cueCard.id}
+            title={cueCard.title}
+            content={cueCard.content}
+            bloomLevel={cueCard.bloomLevel || 1}
+          />
+        ))
+      )}
     </div>
   );
 }

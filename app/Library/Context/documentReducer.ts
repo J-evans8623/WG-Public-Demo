@@ -6,7 +6,7 @@ const baseZoomLevel = 0.7;
 // Define the initial state for the document
 export const initialDocumentState: DocumentState = {
     nodes: new Map<string, ConceptNode>(),
-    selectedCueCards: [],
+    selectedCueCards: [],// Revisit
     bloomDepth: 6, // Default bloom depth
     colorTheme: 'cool-spring', // Default color theme
     getLayout: false,
@@ -28,14 +28,14 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
     }
   
     switch (action.type) {
-      case DocumentActionType.SELECT_CUE_CARDS:
-        return { ...state, selectedCueCards: action.payload };
+      /**case DocumentActionType.SELECT_CUE_CARDS:
+        return { ...state, selectedCueCards: action.payload }; */
       case DocumentActionType.SET_NODES:
         return { ...state, nodes: action.payload };
       case DocumentActionType.SET_COLOR_THEME:
         return { ...state, colorTheme: action.payload };
       
-        case DocumentActionType.ADD_CUE_CARD_TO_NODE:
+       /**  case DocumentActionType.ADD_CUE_CARD_TO_NODE:
             const { nodeId, cueCard } = action.payload;
             const updatedNodes = new Map(state.nodes);
             const targetNode = updatedNodes.get(nodeId);
@@ -50,7 +50,7 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
               updatedNodes.set(nodeId, updatedNode);
             }
             return { ...state, nodes: updatedNodes };
-      
+        */
         case DocumentActionType.UPDATE_NODE_TITLE:
         const { nodeId: titleNodeId, newTitle } = action.payload;
         const nodesWithUpdatedTitle = new Map(state.nodes);
@@ -81,7 +81,7 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
             const newNode: ConceptNode = {
               id: newNodeId,
               title: title || `Untitled Concept ${state.nodes.size + 1}`,
-              cueCards: [],
+              //cueCards: [],
               parentNodeId: parentNodeId,
               childrenNodeIds: [],
               x: undefined,
@@ -128,7 +128,7 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
         const newRootNode: ConceptNode = {
           id: 'node-1',
           title: 'Root Concept',
-          cueCards: [],
+          //cueCards: [],
           parentNodeId: undefined,
           childrenNodeIds: [],
           x: (action.payload.mapWidth / 2) - 100, // 0.5 * node width = 100

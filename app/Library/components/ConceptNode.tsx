@@ -2,19 +2,24 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import CueStack from './CueStack';
 import Modal from './Modal';
-import { CueCard, ExtendedConceptNodeProps, colorThemes, ConceptNode as ConceptNodeType, } from '@/app/Library/Definitions/Definitions'; 
-import { useNewDocumentContext, addCueCardToNode, updateNodeTitle, setGetLayout, createNewNode, selectCueCards} from '@/app/Library/Context/newDocumentProvider';
+import { CueCard, colorThemes, ConceptNode as ConceptNodeType, ConceptNodeProps} from '@/app/Library/Definitions/Definitions'; 
+import { useNewDocumentContext, updateNodeTitle, setGetLayout, createNewNode} from '@/app/Library/Context/newDocumentProvider';
+import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
+import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
+import ModernModal from '@/app/Library/components/ModernModal';
 
-function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & { onDragStart: (node: ConceptNodeType) => void }) {
+function ConceptNode({ node, onDragStart }: ConceptNodeProps) {
   
  // New Document Reducer context
   const { state, dispatch } = useNewDocumentContext(); 
   const { colorTheme } = state;
+  const { toggleNodeSelection } = useNodeSelection();
+  const { addCueCard } = useCueCardContext();
 
-  const { title, cueCards, x, y, isRoot } = node;
+  const { title, x, y, isRoot } = node;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isAddingCueCard, setIsAddingCueCard] = useState(false);
   const [newTitle, setNewTitle] = useState(title);
@@ -29,7 +34,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
   });
 
   const handleTitleClick = () => {
-    setIsEditingTitle(true);
+    setIsEditingTitle(true);// add setgetlayout(false)
   };
 
   const handleCueStackClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -42,11 +47,10 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
     });
     setIsAddingCueCard(true);
   };
-
   const handleTitleSave = () => {
     dispatch(updateNodeTitle(node.id, newTitle)); // Dispatch the action to update the node title
     setIsEditingTitle(false);
-  };
+  };// setGetlayout(false)
 
   const handleCueCardSave = (title: string, content: string, bloomLevel: 1 | 2 | 3 | 4 | 5 | 6) => {
     const newCard: CueCard = {
@@ -55,15 +59,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
       content,
       bloomLevel,
     };
-  
-    // Check if the cue card already exists in the node to prevent duplication
-    if (node.cueCards.some((card) => card.id === newCard.id)) {
-      
-      return; // Exit the function early to prevent duplication
-    }
-  
-    // Use dispatch to send the action to the reducer
-    dispatch(addCueCardToNode(node.id, newCard));
+    addCueCard(node.id, newCard); // Update cue-card map without re-rendering ConceptNode
     setIsAddingCueCard(false);
   };
 
@@ -73,11 +69,11 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
     dispatch(setGetLayout(true)); // Dispatch action to update layout flag
   };
 
-  const handleNodeClick = () => {
+/**  const handleNodeClick = () => {
     onClick(cueCards);
     dispatch(selectCueCards(node.cueCards));
     
-  };
+  }; */
   {/** More drag logic for concept node  **/}
   // Handle drag start with visual feedback
   const handleDragStartLocal = (event: React.DragEvent) => {
@@ -104,11 +100,11 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
         top: `${y}px`,
         borderColor: colorThemes[colorTheme][5]
       }}
-      onClick={handleNodeClick} 
+      onClick={() => toggleNodeSelection(node.id)} // Toggle node selection on click
+      title="View Concept"
       draggable
       onDragStart={handleDragStartLocal}
       onDragEnd={handleDragEnd} 
-      title="View Concept"
     >
       {/* Title of the Concept-node */}
       <h2
@@ -124,7 +120,7 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
 
       {/* CueStack visualization with updated onClick */}
       <CueStack
-        cueCardCount={cueCards.length}
+        nodeId={node.id} // Pass the nodeId to the CueStack
         colorTheme={colorThemes[colorTheme]} 
         onClick={handleCueStackClick}
       />
@@ -155,47 +151,26 @@ function ConceptNode({ node, onClick, onDragStart }: ExtendedConceptNodeProps & 
       </Modal>
 
       {/* Modal for Adding Cue Card */}
-      <Modal
-        isOpen={isAddingCueCard}
-        onClose={() => setIsAddingCueCard(false)}
-        onCreateCueCard={handleCueCardSave} 
-      >
-        <input
-          type="text"
-          value={newCueCard.title}
-          onChange={(e) => setNewCueCard({ ...newCueCard, title: e.target.value })}
-          placeholder="Cue Card Title"
-          className="border p-2 w-full"
-        />
-        <textarea
-          value={newCueCard.content}
-          onChange={(e) => setNewCueCard({ ...newCueCard, content: e.target.value })}
-          placeholder="Cue Card Content"
-          className="border p-2 w-full mt-2"
-        />
-        {/* Bloom Level Radio Buttons */}
-        <p>Select Bloom Level:</p>
-        <div className="mt-4">
-          {[1, 2, 3, 4, 5, 6].map((level) => (
-            <label key={level} className="flex items-center space-x-2 mb-2">
-              <input
-                type="radio"
-                name="bloomLevel"
-                value={level}
-                checked={newCueCard.bloomLevel === level}
-                onChange={() => setNewCueCard({ ...newCueCard, bloomLevel: level as 1 | 2 | 3 | 4 | 5 | 6 })}
-                className="form-radio text-blue-600"
-              />
-              <span>Bloom Level {level}</span>
-            </label>
-          ))}
-        </div>
-         <button onClick={() => handleCueCardSave(newCueCard.title, newCueCard.content, newCueCard.bloomLevel!)} className="mt-2 bg-green-500 text-white px-4 py-2 rounded">
-          Save Cue Card
-        </button>
-      </Modal>
+<ModernModal
+  isOpen={isAddingCueCard}
+  onClose={() => setIsAddingCueCard(false)}
+  onCreateCueCard={handleCueCardSave} // Function to save the cue card
+>
+  {/* Content of ModernModal will be handled internally */}
+</ModernModal>
+
     </div>
   );
 }
 
-export default ConceptNode;
+// Use a custom comparison function to check if props have actually changed
+export default memo(ConceptNode, (prevProps, nextProps) => {
+  // Only re-render if relevant props change
+  return (
+    prevProps.node.id === nextProps.node.id &&
+    prevProps.node.title === nextProps.node.title &&
+    prevProps.node.x === nextProps.node.x &&
+    prevProps.node.y === nextProps.node.y &&
+    prevProps.node.isRoot === nextProps.node.isRoot
+  );
+});

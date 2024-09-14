@@ -13,37 +13,49 @@ export interface CueCard {
 
   // Interface for CueStackProps
 export interface CueStackProps {
-    cueCardCount: number;
+    nodeId: string;
     colorTheme: string[];
     onClick: (e: React.MouseEvent<HTMLDivElement>) => void;
   }
 
 
 // Interface for ConceptNodeProps
+// Interface for ConceptNodeProps
 export interface ConceptNodeProps {
-    node: ConceptNode; // The data representing a Concept-node, including cue cards
-    onClick: (cueCards: CueCard[]) => void; // Expect a CueCard[] argument for handling clicks
-  }
+  node: ConceptNode; // The data representing a Concept-node
+  onDragStart: (node: ConceptNode) => void; // Drag start function, kept as it is still needed
+}
+
 
 // Extended props for ConceptNode with additional context functions
-export interface ExtendedConceptNodeProps extends ConceptNodeProps {
+/**export interface ExtendedConceptNodeProps extends ConceptNodeProps {
     onClick: (cueCards: CueCard[]) => void;
-  }
+  } */
 
   // Define the Concept-node interface
   export interface ConceptNode {
-    id: string;
-    title: string;
-    description?: string;
-    cueCards: CueCard[];
-    parentNodeId?: string;
-    childrenNodeIds?: string[];
+    id: string; // Unique identifier for the concept node
+    title: string; // Title of the concept node
+    description?: string; // Optional: Description of the concept node
+    parentNodeId?: string; // Optional: ID of the parent node
+    childrenNodeIds?: string[]; // Optional: Array of child node IDs
     x?: number; // Optional: X-coordinate for positioning (initially undefined)
     y?: number; // Optional: Y-coordinate for positioning (initially undefined)
-    mod?: number; // Modification offset for node positioning
     isRoot?: boolean; // Flag to indicate if the node is a root node
     depth: number; // Depth level of the node
-}
+  }
+  
+  // Interface for a map of cue cards associated with concept nodes
+  export type CueCardMap = Map<string, CueCard[]>; // Keyed by ConceptNode ID
+  
+  // Interface for the CueCardContext
+  export interface CueCardContextType {
+    cueCardMap: CueCardMap; // The map storing cue cards keyed by ConceptNode ID
+    addCueCard: (nodeId: string, cueCard: CueCard) => void; // Function to add a cue card
+    removeCueCard: (nodeId: string, cueCardId: string) => void; // Function to remove a cue card
+    updateCueCard: (nodeId: string, cueCard: CueCard) => void; // Function to update a cue card
+    selectCueCards: (nodeId: string) => CueCard[]; // Function to select cue cards for a specific node
+  }
 
   // Color definitions
 export type ColorTheme = 'cool-spring' | 'warm-summer' | 'gray';

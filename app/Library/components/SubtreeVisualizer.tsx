@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { useNewDocumentContext } from '../Context/newDocumentProvider'; // Updated to use newDocumentProvider
 import { ConceptNode, colorThemes } from '../Definitions/Definitions';
-import { drawLines } from '../utils/drawLines';
+import { drawHVStyleLines } from '../utils/drawHVStyleLines';
+import { drawIndentedStyleLines } from '../utils/drawIndentedStyleLines';
 
 interface SubtreeVisualizerProps {
   movingNodeId: string; // The ID of the node being moved
@@ -38,10 +39,26 @@ const SubtreeVisualizer: React.FC<SubtreeVisualizerProps> = ({ movingNodeId }) =
   // Determine the line color based on the global color theme
   const lineColor = colorThemes[colorTheme][5];
 
+  // Draw lines based on the layout type for each node in the subtree
+  const subtreeLines = useMemo(() => {
+    const hvLines: JSX.Element[] = [];
+    const indentedLines: JSX.Element[] = [];
+
+    subtreeNodes.forEach((node) => {
+      if (node.depth <= 1) {
+        hvLines.push(...drawHVStyleLines(subtreeNodes, 2, lineColor)); // Pass color parameter
+      } else {
+        indentedLines.push(...drawIndentedStyleLines(subtreeNodes, 2, lineColor)); // Pass color parameter
+      }
+    });
+
+    return [...hvLines, ...indentedLines];
+  }, [subtreeNodes, lineColor]);
+
   // Draw only the lines for the subtree nodes
   return (
     <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
-      {drawLines(subtreeNodes, lineColor)} {/* Draw highlighted lines for the subtree */}
+      {subtreeLines} {/* Draw highlighted lines for the subtree */}
     </svg>
   );
 };
