@@ -1,31 +1,31 @@
-// bloom-maps/app/Component/ConceptNode.tsx
-
 'use client';
 
-import React, { useState, memo } from 'react';
-import CueStack from './CueStack';
+import React, { useState, memo, useCallback } from 'react';
 import Modal from './Modal';
-import { CueCard, colorThemes, ConceptNode as ConceptNodeType, ConceptNodeProps} from '@/app/Library/Definitions/Definitions'; 
-import { useDocumentContext, updateNodeTitle, setGetLayout, createNewNode} from '@/app/Library/Context/DocumentProvider';
+import { CueCard, colorThemes, ConceptNode as ConceptNodeType, ConceptNodeProps } from '@/app/Library/Definitions/Definitions'; 
+import { useDocumentContext, updateNodeTitle, setGetLayout, createNewNode } from '@/app/Library/Context/DocumentProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 import ModernModal from '@/app/Library/components/ModernModal';
 
-function ConceptNode({ node, onDragStart, onOpenCueCardModal  }: ConceptNodeProps) {
+// Arbitrary default colors
+const DEFAULT_PRIMARY_COLOR = '#D5E6ED'; // Arbitrary default primary color
+const DEFAULT_BACKGROUND_COLOR = '#ECE7D1'; // Arbitrary default background color
+
+function ConceptNode({ node, onDragStart, onOpenCueCardModal }: ConceptNodeProps) {
   
- // New Document Reducer context
   const { state, dispatch } = useDocumentContext(); 
-  const { colorTheme } = state;
+  const { colorTheme, primaryColor = DEFAULT_PRIMARY_COLOR, backgroundColor = DEFAULT_BACKGROUND_COLOR } = state;
   const { toggleNodeSelection } = useNodeSelection();
   const { addCueCard } = useCueCardContext();
 
-  const { title, x, y, isRoot } = node;
+  const { title, x, y, isRoot, depth } = node;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isAddingCueCard, setIsAddingCueCard] = useState(false);
   const [newTitle, setNewTitle] = useState(title);
-  const [isDragging, setIsDragging] = useState(false); // State for drag feedback
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Initialize newCueCard with a unique ID and bloom level
+  // State for new cue card
   const [newCueCard, setNewCueCard] = useState<CueCard>({
     id: Date.now().toString(),
     title: '',
@@ -33,93 +33,154 @@ function ConceptNode({ node, onDragStart, onOpenCueCardModal  }: ConceptNodeProp
     bloomLevel: 1, 
   });
 
-  const handleTitleClick = () => {
-    setIsEditingTitle(true);// add setgetlayout(false)
-  };
+  // Handle title click with Ctrl/Cmd
+  const handleTitleClick = useCallback((e: React.MouseEvent) => {
+    if (e.ctrlKey || e.metaKey) { // Ctrl for Windows, Meta (Cmd) for macOS
+      e.stopPropagation();
+      setIsEditingTitle(true);
+    }
+  }, []);
 
-  const handleCueStackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  // Handle node click
+  const handleNodeClick = useCallback(() => {
+    toggleNodeSelection(node.id); // Execute the single-click action
+  }, [node.id, toggleNodeSelection]);
+
+  const handleAddCueCardClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    onOpenCueCardModal(node.id);
+    onOpenCueCardModal(node.id); // Call the custom modal handler passed as a prop
   };
-  const handleTitleSave = () => {
-    dispatch(updateNodeTitle(node.id, newTitle)); // Dispatch the action to update the node title
-    setIsEditingTitle(false);
-  };// setGetlayout(false)
 
+  const handleCueCardSave = () => {
+    addCueCard(node.id, newCueCard); // Add the cue card to the node
+    setIsAddingCueCard(false); // Close the modal
+    setNewCueCard({
+      id: Date.now().toString(),
+      title: '',
+      content: '',
+      bloomLevel: 1,
+    }); // Reset the cue card state
+  };
+
+  const handleTitleSave = () => {
+    dispatch(updateNodeTitle(node.id, newTitle));
+    setIsEditingTitle(false);
+  };
 
   const handleAddChildNode = () => {
     const newChildTitle = `Child of ${node.id}`;
-    dispatch(createNewNode(newChildTitle, node.id)); // Dispatch action with title and parent node ID
-    dispatch(setGetLayout(true)); // Dispatch action to update layout flag
+    dispatch(createNewNode(newChildTitle, node.id));
+    dispatch(setGetLayout(true));
   };
 
-/**  const handleNodeClick = () => {
-    onClick(cueCards);
-    dispatch(selectCueCards(node.cueCards));
-    
-  }; */
-  {/** More drag logic for concept node  **/}
-  // Handle drag start with visual feedback
   const handleDragStartLocal = (event: React.DragEvent) => {
     event.dataTransfer.setData('text/plain', node.id);
     onDragStart(node); 
-    setIsDragging(true); // is this functional???
+    setIsDragging(true);
   };
 
-  // Handle drag end to reset visual feedback
   const handleDragEnd = () => {
     setIsDragging(false); 
   };
-  {/** End of dragging logic  **/}
+
+  // Determine the color based on the depth of the node
+  const nodeColor = depth === 1 ? primaryColor : backgroundColor;
+
   return (
     <div
       className={`relative flex flex-col items-center cursor-pointer group border rounded-md shadow-md ${
         isDragging ? 'opacity-50 border-dashed border-2 border-blue-500' : ''
       }`}
       style={{
-        width: '325px', //200
-        height: '125px',// 150
-        position: isRoot ? 'relative' : 'absolute', // Use the isRoot field for positioning
+        width: '325px',
+        height: '125px',
+        position: isRoot ? 'relative' : 'absolute',
         left: `${x}px`,
         top: `${y}px`,
-        borderColor: 'white', //colorThemes[colorTheme][5],
-        backgroundColor: colorThemes[colorTheme][2],
+        borderColor: 'white',
+        backgroundColor: nodeColor,
       }}
-      onClick={() => toggleNodeSelection(node.id)} // Toggle node selection on click
+      onClick={handleNodeClick} // Handle single click for node selection
       title="View Concept"
       draggable
       onDragStart={handleDragStartLocal}
       onDragEnd={handleDragEnd} 
     >
-      {/* Title of the Concept-node */}
+      {/* Title of the Concept-node, now centered */}
       <h2
-        onClick={(e) => {
-          e.stopPropagation();
-          handleTitleClick();
-        }}
-        className="mb-1 text-lg font-semibold text-gray-800 group-hover:bg-gray-100 rounded"
-        title="Click to edit title"
+        onClick={handleTitleClick} // Use Ctrl/Cmd + Click to edit title
+        className="absolute inset-0 flex items-center justify-center text-lg font-semibold text-gray-800 rounded"
+        title="Edit title (Ctrl/Cmd + Click)"
       >
         {title}
       </h2>
 
-      {/* CueStack visualization with updated onClick */}
-      <CueStack
-        nodeId={node.id} // Pass the nodeId to the CueStack
-        colorTheme={colorThemes[colorTheme]} 
-        onClick={handleCueStackClick}
-      />
-
-      {/* + Button for adding a new child concept */}
+      {/* Updated Add Concept Node Button with New Design */}
       <button
         onClick={(e) => {
           e.stopPropagation();
           handleAddChildNode();
         }}
-        className="absolute bottom-2 left-2 bg-gray-200 text-black rounded px-2 py-1 flex items-center justify-center hover:bg-gray-300 transition-colors duration-200 text-sm group-hover:flex hidden"
+        className="absolute bottom-2 right-2 text-black rounded-full w-6 h-6 flex items-center justify-center transition-colors duration-200"
         title="Click to add a new child concept"
       >
-        +
+        {/* Icon: Single white card with an arrow */}
+        <div className="relative w-full h-full flex items-center justify-center">
+  {/* Card */}
+  <div
+    className="absolute w-2/3 h-2/3 border border-black"
+    style={{ backgroundColor: nodeColor }} // Set the card background color to match the concept node
+  />
+
+  {/* Plus Sign */}
+  <span className="absolute text-xs font-bold">+</span>
+
+  {/* Downward Arrow */}
+  <svg
+    className="absolute"
+    width="10"
+    height="10"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="black"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ top: '-4px' }} // Adjust the arrow position
+  >
+    <path d="M12 2v14M5 10l7 7 7-7" />
+  </svg>
+</div>
+
+      </button>
+
+      {/* Add Cue Card Button with Stacked Card Icon */}
+      <button
+        onClick={handleAddCueCardClick}
+        className="absolute bottom-2 right-10 text-black rounded-full w-6 h-6 flex items-center justify-center transition-colors duration-200"
+        title="Click to add a new cue card"
+      >
+        {/* Three stacked cards with a plus sign */}
+        <div className="relative w-full h-full flex items-center justify-center">
+  {/* Card 1 */}
+  <div
+    className="absolute w-2/3 h-2/3 border border-black transform -translate-x-1 -translate-y-1"
+    style={{ backgroundColor: nodeColor }} // Set the card background color to match the concept node
+  />
+
+  {/* Card 2 */}
+  <div
+    className="absolute w-2/3 h-2/3 border border-black transform -translate-x-0.5 -translate-y-0.5"
+    style={{ backgroundColor: nodeColor }} // Set the card background color to match the concept node
+  />
+
+  {/* Card 3 */}
+  <div
+    className="absolute w-2/3 h-2/3 border border-black"
+    style={{ backgroundColor: nodeColor }} // Set the card background color to match the concept node
+  />
+          <span className="absolute text-xs font-bold">+</span>
+        </div>
       </button>
 
       {/* Modal for Editing Title */}
@@ -130,20 +191,21 @@ function ConceptNode({ node, onDragStart, onOpenCueCardModal  }: ConceptNodeProp
           onChange={(e) => setNewTitle(e.target.value)}
           className="border p-2 w-full"
         />
-        <button onClick={handleTitleSave} className="mt-2 bg-green-500 text-white px-4 py-2 rounded">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleTitleSave();
+          }}
+          className="mt-2 bg-green-500 text-white px-4 py-2 rounded"
+        >
           Save Title
         </button>
       </Modal>
-
-      {/* Modal for Adding Cue Card */}
-
     </div>
   );
 }
 
-// Use a custom comparison function to check if props have actually changed
 export default memo(ConceptNode, (prevProps, nextProps) => {
-  // Only re-render if relevant props change
   return (
     prevProps.node.id === nextProps.node.id &&
     prevProps.node.title === nextProps.node.title &&

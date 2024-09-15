@@ -32,6 +32,8 @@ const NewDocumentContext = createContext<{
   zoomIn: () => void;
   zoomOut: () => void;
   setColorTheme: (colorTheme: ColorTheme) => void;
+  setPrimaryColor: (color: string) => void; // New function to set primary color
+  setBackgroundColor: (color: string) => void; // New function to set background color
 } | undefined>(undefined);
 
 // Define the provider component
@@ -44,9 +46,24 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   const handleSetColorTheme = (colorTheme: ColorTheme) => {
     dispatch(setColorTheme(colorTheme));
   };
+  const handleSetPrimaryColor = (color: string) => {
+    dispatch(setPrimaryColor(color));
+  };
 
+  const handleSetBackgroundColor = (color: string) => {
+    dispatch(setBackgroundColor(color));
+  };
   return (
-    <NewDocumentContext.Provider value={{ state, dispatch, zoomIn: debouncedZoomIn, zoomOut: debouncedZoomOut, setColorTheme: handleSetColorTheme }}>
+    <NewDocumentContext.Provider 
+    value={{ 
+      state, 
+      dispatch, 
+      zoomIn: debouncedZoomIn, 
+      zoomOut: debouncedZoomOut, 
+      setColorTheme: handleSetColorTheme,
+      setPrimaryColor: handleSetPrimaryColor, // Concept Node colors
+      setBackgroundColor: handleSetBackgroundColor // Cocnept Node colors
+       }}>
       {children}
     </NewDocumentContext.Provider>
   );
@@ -62,6 +79,15 @@ export const useDocumentContext = () => {
   return context;
 };
 
+export const setPrimaryColor = (color: string): DocumentAction => ({
+  type: DocumentActionType.SET_PRIMARY_COLOR, // New action type
+  payload: color,
+});
+
+export const setBackgroundColor = (color: string): DocumentAction => ({
+  type: DocumentActionType.SET_BACKGROUND_COLOR, // New action type
+  payload: color,
+});
 
 export const setNodes = (nodes: Map<string, ConceptNode>): DocumentAction => ({
   type: DocumentActionType.SET_NODES,
@@ -97,6 +123,7 @@ export const setMapSize = (groundWidth: number, mapWidth: number, mapHeight: num
   type: DocumentActionType.SET_MAP_SIZE,
   payload: { groundWidth, mapWidth, mapHeight },
 });
+
 
 export const initializeNewDocumentAction = (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6, mapWidth: number, mapHeight: number): DocumentAction => ({
   type: DocumentActionType.INIT_NEW_DOCUMENT,

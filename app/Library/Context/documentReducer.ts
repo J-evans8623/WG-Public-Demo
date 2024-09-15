@@ -16,6 +16,8 @@ export const initialDocumentState: DocumentState = {
     groundWidth: 0, // Initial ground width ???
     scrollLeft: 0, // Initial scroll position on the x-axis
   scrollTop: 0, // Initial scroll position on the y-axis
+  primaryColor: '#D5E6ED', // Default primary color
+  backgroundColor: '#ECE7D1',
 
   };
 
@@ -35,22 +37,11 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
       case DocumentActionType.SET_COLOR_THEME:
         return { ...state, colorTheme: action.payload };
       
-       /**  case DocumentActionType.ADD_CUE_CARD_TO_NODE:
-            const { nodeId, cueCard } = action.payload;
-            const updatedNodes = new Map(state.nodes);
-            const targetNode = updatedNodes.get(nodeId);
-          
-            if (targetNode) {
-              // Create a shallow copy of the cueCards array and add the new cue card
-              const updatedCueCards = [...targetNode.cueCards, cueCard];
-              
-              // Create a new node object to avoid direct mutation
-              const updatedNode = { ...targetNode, cueCards: updatedCueCards };
-              
-              updatedNodes.set(nodeId, updatedNode);
-            }
-            return { ...state, nodes: updatedNodes };
-        */
+        case DocumentActionType.SET_PRIMARY_COLOR:
+            return { ...state, primaryColor: action.payload };
+      
+          case DocumentActionType.SET_BACKGROUND_COLOR:
+            return { ...state, backgroundColor: action.payload };
         case DocumentActionType.UPDATE_NODE_TITLE:
         const { nodeId: titleNodeId, newTitle } = action.payload;
         const nodesWithUpdatedTitle = new Map(state.nodes);
@@ -136,6 +127,7 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
           isRoot: true,
           depth: 0,
         };
+        
   
         const newNodes = new Map<string, ConceptNode>();
         newNodes.set(newRootNode.id, newRootNode);

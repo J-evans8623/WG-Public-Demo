@@ -1,5 +1,3 @@
-// bloom-maps/ui/Modal.tsx
-
 'use client';
 
 import React, { useState, ReactNode } from 'react';
@@ -26,8 +24,11 @@ const Modal = ({ isOpen, onClose, onCreateCueCard, children }: ModalProps) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50" onClick={onClose}>
+      <div
+        className="bg-white p-6 rounded-lg shadow-lg w-1/3"
+        onClick={(e) => e.stopPropagation()} // Prevent click propagation to the overlay
+      >
         {/* Render children if provided */}
         {children ? (
           children

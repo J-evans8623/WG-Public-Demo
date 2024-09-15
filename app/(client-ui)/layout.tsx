@@ -11,7 +11,7 @@ import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Compon
 import ConceptMap from '@/app/Library/components/ConceptMap';
 import DocumentCreationModal from '@/app/Library/components/DocumentCreationModal';
 import Modal from '@/app/Library/components/Modal';
-import { DocumentProvider, useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
+import { DocumentProvider, useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
 import { ColorTheme, CueCard} from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
@@ -82,6 +82,7 @@ function ClientLayoutContent() {
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
 
+
     // Update ground width once component is mounted on the client side
   // Update window dimensions on resize
   useEffect(() => {
@@ -145,6 +146,21 @@ const handleCreateNewDocument = useCallback(
     },
     [currentNodeId, addCueCard]
   );
+
+    //Tool Pane Layout color;
+    // Predefined color sets
+    const primaryColors = ['#D5E6ED', '#C4ACAA', '#F7CAAB', '#EBD3E0'];
+    const backgroundColors = ['#ECE7D1', '#F7EBD1', '#EEECBC', '#F5F5F5'];
+
+    // Function to handle primary color change
+    const handleSetPrimaryColor = (color: string) => {
+      dispatch(setPrimaryColor(color)); // Use action creator
+    };
+  
+    // Function to handle background color change
+    const handleSetBackgroundColor = (color: string) => {
+      dispatch(setBackgroundColor(color)); // Use action creator
+    };
 
   return (
     <>
@@ -235,6 +251,36 @@ const handleCreateNewDocument = useCallback(
       </button>
     </div>
     {/* Add other tools here */}
+    {/* Color Customization Options */}
+    <div className="mt-16 flex flex-col space-y-4">
+            {/* Primary Color Selector */}
+            <div className="flex flex-col items-start">
+              <label className="text-sm text-gray-700">Primary Color:</label>
+              {primaryColors.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => handleSetPrimaryColor(color)}
+                  className="w-6 h-6 border border-black rounded-full"
+                  style={{ backgroundColor: color }}
+                  title={`Set Primary Color: ${color}`}
+                />
+              ))}
+            </div>
+
+            {/* Background Color Selector */}
+            <div className="flex flex-col items-start">
+              <label className="text-sm text-gray-700">Background Color:</label>
+              {backgroundColors.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => handleSetBackgroundColor(color)}
+                  className="w-6 h-6 border border-black rounded-full"
+                  style={{ backgroundColor: color }}
+                  title={`Set Background Color: ${color}`}
+                />
+              ))}
+            </div>
+          </div>
   </div>
 </Split>
     </>

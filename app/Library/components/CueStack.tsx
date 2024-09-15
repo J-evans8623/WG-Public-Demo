@@ -21,7 +21,7 @@ function CueStack({ nodeId, onClick }: CueStackProps & { nodeId: string }) {
 
   return (
     <div
-      className="relative w-16 h-12 cursor-pointer"
+      className="relative w-12 h-8 cursor-pointer"
       onClick={onClick}
       title="Click to add a new cue card"
       style={{ top: '30px' }} // Lower the entire stack by setting a top margin
@@ -33,10 +33,12 @@ function CueStack({ nodeId, onClick }: CueStackProps & { nodeId: string }) {
           style={{
             width: '100%',
             height: '100%',
-            top: `-${index * 6}px`, // Negative value to stack upwards
-            left: `${index * 6}px`, // Positive value to stack to the right
+            top: `-${index * 5}px`, // Negative value to stack upwards
+            left: `${index * 5}px`, // Positive value to stack to the right
             zIndex: visibleCards - index,
             backgroundColor: themeColors[index], // Use colors from the selected theme
+            borderColor: 'black',
+             borderWidth: '4px'
           }}
         />
       ))}

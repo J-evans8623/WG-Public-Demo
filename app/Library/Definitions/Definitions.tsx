@@ -24,7 +24,7 @@ export interface CueStackProps {
 export interface ConceptNodeProps {
   node: ConceptNode; // The data representing a Concept-node
   onDragStart: (node: ConceptNode) => void; // Drag start function, kept as it is still needed
-  onOpenCueCardModal: (nodeId: string) => void;
+   onOpenCueCardModal: (nodeId: string) => void;
 }
 
 
@@ -143,6 +143,8 @@ export interface DocumentContextType {
     groundWidth: number;
     scrollLeft: number; // Add this line for horizontal scroll position
     scrollTop: number; // Add this line for vertical scroll position
+    primaryColor: string; // New property
+    backgroundColor: string;
     
     // Add other state properties as needed
   }
@@ -160,7 +162,9 @@ export interface DocumentContextType {
   | { type: DocumentActionType.RESET_GLOBAL_DATA }
   | { type: DocumentActionType.SET_ZOOM_LEVEL; payload: number }
   | { type: DocumentActionType.ZOOM_IN }
-  | { type: DocumentActionType.ZOOM_OUT };
+  | { type: DocumentActionType.ZOOM_OUT }
+  | { type: DocumentActionType.SET_PRIMARY_COLOR; payload: string } // New action type
+  | { type: DocumentActionType.SET_BACKGROUND_COLOR; payload: string };
 
 // Action Types
 export enum DocumentActionType {
@@ -178,5 +182,7 @@ export enum DocumentActionType {
   ZOOM_IN = 'ZOOM_IN',
   ZOOM_OUT = 'ZOOM_OUT',
   UPDATE_NODE = 'UPDATE_NODE',
+  SET_PRIMARY_COLOR = 'SET_PRIMARY_COLOR',
+  SET_BACKGROUND_COLOR = 'SET_BACKGROUND_COLOR',
   // Add other action types as needed
 }
