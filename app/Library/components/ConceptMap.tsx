@@ -68,20 +68,12 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
     updateChildPositions(parentNode.id);
   }
   
+  
     const handleRightClick = (event: React.MouseEvent) => {
     event.preventDefault();
     setContextMenuPosition({ x: event.clientX, y: event.clientY });
   };  
 
-  /* //Dysfunctional SecondaryMap
-  const handleContextMenuOption = (option: string) => {
-    setContextMenuPosition(null);
-    if (option === 'New Map') {
-      if (contextMenuPosition) {
-        createSecondaryRootNode('New Root Concept', contextMenuPosition.x, contextMenuPosition.y);
-      }
-    }
-  };**/
 
   /**const handleViewConcept = (cueCards: CueCard[]) => {
     dispatch(selectCueCards(cueCards)); 
@@ -223,7 +215,6 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
    <div style={{ flexGrow: 1, position: 'relative' }}> 
      {/* Render lines between nodes (black lines for the entire tree) */}
      <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
-        {/**drawLines(nodes, 'black')*/}
         {drawTreeLines(laidOutNodes)}
       </svg>
 

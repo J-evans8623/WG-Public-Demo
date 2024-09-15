@@ -1,12 +1,18 @@
+// bloom-maps/app/Library/utils/drawHVStyleLines.tsx
+
 import React from 'react';
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 
 export function drawHVStyleLines(
-  nodes: Map<string, ConceptNode>, 
-  lineWidth: number, 
+  nodes: Map<string, ConceptNode>,
+  lineWidth: number,
   strokeColor: string = '#6e6e6e' // Default gray color
 ): JSX.Element[] {
   const lineElements: JSX.Element[] = [];
+
+  // Define default width and height of nodes
+  const nodeWidth = 325;
+  const nodeHeight = 125;
 
   const depthOneNodes = Array.from(nodes.values()).filter(node => node.depth === 1);
 
@@ -16,13 +22,13 @@ export function drawHVStyleLines(
 
   if (!rootNode || rootNode.x === undefined || rootNode.y === undefined) return lineElements;
 
-  const rootPCP = { x: rootNode.x + 100, y: rootNode.y + 150 }; // Midpoint bottom of the root node
+  const rootPCP = { x: (rootNode.x ?? 0) + nodeWidth / 2, y: (rootNode.y ?? 0) + nodeHeight }; // Midpoint bottom of the root node
 
   if (depthOneNodes.length === 1) {
     const singleChild = depthOneNodes[0];
 
     if (singleChild.x !== undefined && singleChild.y !== undefined) {
-      const childCCP = { x: singleChild.x + 100, y: singleChild.y }; // Midpoint top of the single child node
+      const childCCP = { x: singleChild.x + nodeWidth / 2, y: singleChild.y }; // Midpoint top of the single child node
 
       lineElements.push(
         <path
@@ -47,8 +53,8 @@ export function drawHVStyleLines(
         : maxNode
     );
 
-    const leftmostX = (leftmostNode.x ?? 0) + 100;
-    const rightmostX = (rightmostNode.x ?? 0) + 100;
+    const leftmostX = (leftmostNode.x ?? 0) + nodeWidth / 2;
+    const rightmostX = (rightmostNode.x ?? 0) + nodeWidth / 2;
     const anchorY = rootPCP.y + 50;
 
     lineElements.push(
@@ -73,7 +79,7 @@ export function drawHVStyleLines(
 
     depthOneNodes.forEach(node => {
       if (node.x !== undefined && node.y !== undefined) {
-        const childCCP = { x: node.x + 100, y: node.y };
+        const childCCP = { x: node.x + nodeWidth / 2, y: node.y };
         const controlY = anchorY + 10;
 
         lineElements.push(
@@ -91,3 +97,11 @@ export function drawHVStyleLines(
 
   return lineElements;
 }
+
+
+
+/**
+ * Original Version
+ * 
+ * 
+ */

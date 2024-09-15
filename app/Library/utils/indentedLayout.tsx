@@ -7,8 +7,8 @@ export function applyIndentedLayout(nodes: Map<string, ConceptNode>): Map<string
     const updatedNodes = new Map(nodes);
 
     // Define spacing values
-    const indentationWidth = 50; // Indentation width between levels
-    const verticalSpacing = 225; // Vertical spacing between sibling nodes
+    const indentationWidth = 60; // Indentation width between levels
+    const verticalSpacing = 175; // Vertical spacing between sibling nodes
 
     // Recursive function to position nodes using depth-first traversal
     const positionNodeAndChildren = (node: ConceptNode, currentY: number): number => {

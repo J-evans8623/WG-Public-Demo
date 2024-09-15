@@ -77,12 +77,13 @@ function ConceptNode({ node, onDragStart, onOpenCueCardModal  }: ConceptNodeProp
         isDragging ? 'opacity-50 border-dashed border-2 border-blue-500' : ''
       }`}
       style={{
-        width: '200px',
-        height: '150px',
+        width: '325px', //200
+        height: '125px',// 150
         position: isRoot ? 'relative' : 'absolute', // Use the isRoot field for positioning
         left: `${x}px`,
         top: `${y}px`,
-        borderColor: colorThemes[colorTheme][5]
+        borderColor: 'white', //colorThemes[colorTheme][5],
+        backgroundColor: colorThemes[colorTheme][2],
       }}
       onClick={() => toggleNodeSelection(node.id)} // Toggle node selection on click
       title="View Concept"

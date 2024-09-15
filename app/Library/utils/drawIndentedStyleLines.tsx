@@ -1,12 +1,18 @@
+// bloom-maps/app/Library/utils/drawIndentedStyleLines.tsx
+
 import React from 'react';
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 
 export function drawIndentedStyleLines(
-  nodes: Map<string, ConceptNode>, 
-  lineWidth: number, 
+  nodes: Map<string, ConceptNode>,
+  lineWidth: number,
   strokeColor: string = '#6e6e6e' // Default gray color
 ): JSX.Element[] {
   const lineElements: JSX.Element[] = [];
+
+  // Define default node dimensions
+  const nodeWidth = 325;
+  const nodeHeight = 125;
 
   const depthGreaterThanOneNodes = Array.from(nodes.values()).filter(node => node.depth > 1);
 
@@ -15,9 +21,13 @@ export function drawIndentedStyleLines(
       const parentNode = nodes.get(node.parentNodeId);
 
       if (parentNode && parentNode.x !== undefined && parentNode.y !== undefined) {
-        const parentPCP = { x: parentNode.x + 25, y: parentNode.y + 150 };
-        const childCCP = { x: node.x ?? 0, y: node.y ? node.y + 75 : 75 };
+        // Parent Connection Point (PCP) at the bottom left corner of the parent node, slightly offset to the right
+        const parentPCP = { x: (parentNode.x ?? 0) + nodeWidth / 8, y: (parentNode.y ?? 0) + nodeHeight };
+        
+        // Child Connection Point (CCP) at the midpoint of the left side of the child node
+        const childCCP = { x: node.x ?? 0, y: (node.y ?? 0) + nodeHeight / 2 };
 
+        // Draw the vertical line from the parent node to the anchor point
         lineElements.push(
           <path
             key={`curve-pcp-to-child-${node.id}`}
@@ -28,6 +38,7 @@ export function drawIndentedStyleLines(
           />
         );
 
+        // Draw the horizontal line from the anchor point to the child node
         lineElements.push(
           <path
             key={`curve-ccp-to-anchor-${node.id}`}
