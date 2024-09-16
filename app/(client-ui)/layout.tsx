@@ -8,7 +8,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
 import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Component/CueCardDisplay';
-import ConceptMap from '@/app/Library/Tests/ConceptMap';
+import ConceptMap from '@/app/Library/components/ConceptMap';
 import DocumentCreationModal from '@/app/Library/components/DocumentCreationModal';
 import Modal from '@/app/Library/components/Modal';
 import { DocumentProvider, useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor} from '@/app/Library/Context/DocumentProvider'; // Import the new provider

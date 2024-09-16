@@ -6,7 +6,6 @@ import { CueCard, colorThemes, ConceptNode as ConceptNodeType, ConceptNodeProps 
 import { useDocumentContext, updateNodeTitle, setGetLayout, createNewNode } from '@/app/Library/Context/DocumentProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
-import ModernModal from '@/app/Library/components/ModernModal';
 
 // Arbitrary default colors
 const DEFAULT_PRIMARY_COLOR = '#D5E6ED'; // Arbitrary default primary color
@@ -73,16 +72,6 @@ function ConceptNode({ node, onDragStart, onOpenCueCardModal }: ConceptNodeProps
     dispatch(setGetLayout(true));
   };
 
-  const handleDragStartLocal = (event: React.DragEvent) => {
-    event.dataTransfer.setData('text/plain', node.id);
-    onDragStart(node); 
-    setIsDragging(true);
-  };
-
-  const handleDragEnd = () => {
-    setIsDragging(false); 
-  };
-
   // Determine the color based on the depth of the node
   const nodeColor = depth === 1 ? primaryColor : backgroundColor;
 
@@ -104,8 +93,8 @@ function ConceptNode({ node, onDragStart, onOpenCueCardModal }: ConceptNodeProps
       onClick={handleNodeClick} // Handle single click for node selection
       title="View Concept"
       draggable
-      onDragStart={handleDragStartLocal}
-      onDragEnd={handleDragEnd} 
+      //onDragStart={handleDragStartLocal}
+      //onDragEnd={handleDragEnd} 
     >
       {/* Title of the Concept-node, now centered */}
       <h2

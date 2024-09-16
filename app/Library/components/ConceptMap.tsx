@@ -3,13 +3,13 @@
 'use client';
 
 import React, { useState, useRef, useEffect,  RefObject } from 'react';
-import ConceptNode from './ConceptNode';
+import ConceptNode from '@/app/Library/components/ConceptNode' //'./ConceptNode';
 import { CueCard, ConceptNode as ConceptNodeType, colorThemes } from '@/app/Library/Definitions/Definitions'
-import ContextMenu from './ContextMenu';
+import ContextMenu from '@/app/Library/components/ContextMenu'; // ./ContextMenu
 import { drawTreeLines } from '../utils/drawTreeLines'; //'./utils/drawTreeLines';
 import { useCompositeLayout } from '../utils/compositeLayout';
 import { useResizableMap } from '../hooks/useResizableMap';//hooks
-import SubtreeVisualizer from './SubtreeVisualizer';
+import SubtreeVisualizer from '@/app/Library/components/SubtreeVisualizer';   //  './SubtreeVisualizer';
 import { useDocumentContext, updateNode } from '@/app/Library/Context/DocumentProvider';
 import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
 import { useAutoMapResize } from '@/app/Library/hooks/useAutoMapResize';
@@ -31,7 +31,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
   const [isDraggingSubtree, setIsDraggingSubtree] = useState<boolean>(false); // State for subtree dragging
   const [boundingBox, setBoundingBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null); // State for bounding box
 
-  const { width, height, handleMouseDown} = useResizableMap({ mapRef, centerPaneRef });
+  const { width, height} = useResizableMap({ mapRef, centerPaneRef }); //handleMouseDown
   
   // Initialize offset state
 
@@ -52,34 +52,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
    
    // Check if map needs to resize
    useAutoMapResize(mapRef);
-
-  
-  /**Helper function for subtree operations */
-  function updateSubtreePositions(parentNode: ConceptNodeType, deltaX: number, deltaY: number) {
-    const updateChildPositions = (nodeId: string) => {
-      const currentNode = nodes.get(nodeId); // Retrieve the current node from the Map
-      if (!currentNode) return;
-
-      const newX = (currentNode.x ?? 0) + deltaX;
-      const newY = parentNode.isRoot ? (currentNode.y ?? 0) + deltaY : (currentNode.y ?? 0);
-
-      dispatch(updateNode(currentNode.id, { x: newX, y: newY })); // Update node positions via dispatch
-
-      if (currentNode.childrenNodeIds && currentNode.childrenNodeIds.length === 1) {
-        const childNodeId = currentNode.childrenNodeIds[0];
-        const childNode = nodes.get(childNodeId); // Retrieve the child node from the Map
-
-        if (childNode) {
-          dispatch(updateNode(childNode.id, { x: newX })); // Align child node x with parent
-        }
-      }
-
-      currentNode.childrenNodeIds?.forEach(updateChildPositions);
-    };
-
-    updateChildPositions(parentNode.id);
-  }
-  
+ 
   
     const handleRightClick = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -128,146 +101,63 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
     return subtree;
   };
 
-  const handleDragOver = (event: React.DragEvent) => {
-    if (!draggedNode) return;
-  
-    event.preventDefault();
-  
-    const mapRect = mapRef.current?.getBoundingClientRect();
-    const offsetX = (event.clientX - (mapRect?.left ?? 0)) / zoomLevel; // Adjust for zoom level
-    const offsetY = (event.clientY - (mapRect?.top ?? 0)) / zoomLevel; // Adjust for zoom level
-  
-    if (boundingBox) {
-      // Update bounding box position dynamically during drag
-      setBoundingBox({
-        ...boundingBox,
-        x: offsetX - boundingBox.width / 2,
-        y: offsetY - 75, // vertical offset  
-      });
-    }
-  };
-  
-
-    {/** Dragged node control with incoporated zoom level scale */}
-    const handleDrop = (event: React.DragEvent) => {
-      event.preventDefault();
-  
-      if (!draggedNode) return;
-  
-      const mapRect = mapRef.current?.getBoundingClientRect();
-      const offsetX = (event.clientX - (mapRect?.left ?? 0)) / zoomLevel; // Adjust for zoom level
-      const offsetY = (event.clientY - (mapRect?.top ?? 0)) / zoomLevel; // Adjust for zoom level
-  
-      // Calculate adjusted positions
-      const adjustedX = offsetX - 100; 
-      const adjustedY = draggedNode.isRoot ? (offsetY - 75) : (draggedNode.y ?? 0); // Default to 0 if undefined
-  
-      // Calculate deltas with defaults for undefined positions
-      const deltaX = adjustedX - (draggedNode.x ?? 0); // Default to 0 if undefined
-      const deltaY = adjustedY - (draggedNode.y ?? 0); // Default to 0 if undefined
-  
-      // Update the subtree positions and use updateNode for each
-      updateSubtreePositions(draggedNode, deltaX, draggedNode.isRoot ? deltaY : 0);
-      setDraggedNode(null);
-      setIsDraggingSubtree(false);
-      setBoundingBox(null);
-  };
-  
-
-    // Determine line color based on dragging state
-   // const lineColor = isDraggingSubtree ? colorThemes[colorTheme][5] : 'black';
-  {/** End of click and drag events */}
-  
-
-  return (
-   <div
-   ref={mapRef}
-   className="relative bg-white overflow-hidden w-full h-full scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200"
-   style={{
-     transform: `scale(${zoomLevel})`,
-     transformOrigin: 'top left',
-     minWidth: `${width}px`, // Minimum height for resizing
-     minHeight: `${height}px`, // Minimum width for resizing
-     transition: 'transform 0.3s ease, min-height 0.3s ease, min-width 0.3s ease',
-     position: 'relative',
-     display: 'flex', // Flex for content alignment
-     
-   }}
-   onContextMenu={handleRightClick}
-   onDragOver={handleDragOver}
-   onDrop={handleDrop}
- >
-
-  {/* Render the Subtree Visualizer when dragging */}
-  {isDraggingSubtree && draggedNode && <SubtreeVisualizer movingNodeId={draggedNode.id} />}
-
-{/* Resizable Handles */}
-<div
-        className="absolute w-6 h-6 bg-gray-800 cursor-se-resize"
-        style={{ bottom: 0, right: 0, zIndex: 10 }}
-        onMouseDown={handleMouseDown('both')}
-      />
-      <div
-        className="absolute w-6 h-6 bg-gray-800 cursor-ew-resize"
-        style={{ bottom: '50%', right: 0, transform: 'translateY(50%)', zIndex: 10 }}
-        onMouseDown={handleMouseDown('horizontal')}
-      />
-      <div
-        className="absolute w-6 h-6 bg-gray-800 cursor-ns-resize"
-        style={{ bottom: 0, left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}
-        onMouseDown={handleMouseDown('vertical')}
-      />
-      {/* Bottom side handle */}
  
-   {/* Main content area of the map */}
-   <div style={{ flexGrow: 1, position: 'relative' }}> 
-     {/* Render lines between nodes (black lines for the entire tree) */}
-     <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
-        {drawTreeLines(laidOutNodes)}
-      </svg>
-
-
-       { isDraggingSubtree && draggedNode && <SubtreeVisualizer movingNodeId={draggedNode.id} /> }
-
-            {/* Render the dashed bounding box for the subtree */}
-            {isDraggingSubtree && boundingBox && (
-         <div
-         style={{
-          position: 'absolute',
-          left: `${boundingBox.x}px`,
-          top: `${boundingBox.y}px`,
-          width: `${boundingBox.width}px`,
-          height: `${boundingBox.height}px`,
-          border: '2px dashed #1E90FF', // Use a brighter color
-          borderWidth: '3px', // Increase stroke width for better visibility
-          borderStyle: 'dashed', // Ensure the border is dashed
-          borderColor: '#1E90FF', // Set a more contrasting color
-          pointerEvents: 'none',
-          opacity: 1, // Ensure full opacity
-          zIndex: 10, // Ensure the box is above other elements
-         }}
-       />
-      )}
-
-      {/* Render the Subtree Visualizer when dragging (highlighted lines for the subtree) */}
-     
- 
-
-      {Array.from(nodes.values()).map((node) => {
-  if (!node) return null;
   return (
-    <ConceptNode
-      key={node.id}
-      node={node}
-      onDragStart={handleDragStart}
-      onOpenCueCardModal={onOpenCueCardModal}
-    />
-  );
-})}
+    <div
+      ref={mapRef}
+      className="relative bg-white overflow-hidden w-full h-full scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200"
+      style={{
+        transform: `scale(${zoomLevel})`,
+        transformOrigin: 'top left',
+        minWidth: `${width}px`, // Minimum width for resizing
+        minHeight: `${height}px`, // Minimum height for resizing
+        transition: 'transform 0.3s ease, min-height 0.3s ease, min-width 0.3s ease',
+        position: 'relative',
+        display: 'flex', // Flex for content alignment
+      }}
+      onContextMenu={handleRightClick}
+      //onDragOver={handleDragOver}
+      //onDrop={handleDrop}
+    >
 
-  </div>
-</div>
-  );
+      {/* Main content area of the map */}
+      <div style={{ flexGrow: 1, position: 'relative' }}>
+        {/* TreeContainer Div */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '200px', // Adjust positioning as needed
+            left: '50%',
+            pointerEvents: 'auto', // Allows pointer events on children
+            width: '100%', // Ensure the TreeContainer takes up space
+            height: '100%', // Ensure the TreeContainer takes up space
+          }}
+        >
+          {/* Render lines between nodes (black lines for the entire tree) */}
+          <svg
+            className="absolute top-0 left-0 w-full h-full pointer-events-none"
+            style={{
+              overflow: 'visible', // Ensure overflow is visible for lines
+            }}
+          >
+            {drawTreeLines(laidOutNodes)}
+          </svg>
+  
+          {/* Render all nodes relative to the TreeContainer */}
+          {Array.from(nodes.values()).map((node) => {
+            if (!node) return null;
+            return (
+              <ConceptNode
+                key={node.id}
+                node={node}
+                onDragStart={handleDragStart}
+                onOpenCueCardModal={onOpenCueCardModal}
+              />
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );  
 }
-
-export default ConceptMap;
+  export default ConceptMap;

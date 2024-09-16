@@ -9,29 +9,27 @@ export function useAutoMapResize(mapRef: React.RefObject<HTMLDivElement>) {
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Get the current map dimensions
     const currentMapWidth = parseInt(mapRef.current.style.width, 10) || 0;
     const currentMapHeight = parseInt(mapRef.current.style.height, 10) || 0;
 
-    // Calculate the tree dimensions with padding
-    const treeWidth = maxX - minX + 200; // 
-    const treeHeight = maxY - minY + 200; // Add padding 
+    const treeWidth = maxX - minX + 375; // Add padding
+    const treeHeight = maxY - minY + 200; // Add padding
 
-    // Determine the threshold for resizing
-    const resizeThreshold = 0.9; // 90% of current map size
-    const shouldResizeWidth = treeWidth > resizeThreshold * currentMapWidth;
+    const resizeThreshold = 0.8; // 90% of current map size
+
+    // Update resizing logic to keep the TreeContainer centered at the top
+    const shouldResizeWidth = (treeWidth / 2) > (resizeThreshold * currentMapWidth / 2);
     const shouldResizeHeight = treeHeight > resizeThreshold * currentMapHeight;
 
-    // Resize the map if necessary
     if (shouldResizeWidth || shouldResizeHeight) {
+        const updateWidth: number = Math.max(currentMapWidth, treeWidth) ; //Math.max(maxX, node.x);
+        const updateHeight:number = Math.max(currentMapHeight, treeHeight);
       if (shouldResizeWidth) {
-        mapRef.current.style.width = `${treeWidth + 200}px`; // Update the map's width
+        mapRef.current.style.width = `${updateWidth+ 400}px`;
       }
       if (shouldResizeHeight) {
-        mapRef.current.style.height = `${treeHeight+ 200}px`; // Update the map's height
+        mapRef.current.style.height = `${updateHeight+ 200}px`;
       }
     }
   }, [minX, maxX, minY, maxY, mapRef]);
 }
-
-//use less arbitrary padding here
