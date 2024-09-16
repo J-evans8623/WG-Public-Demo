@@ -12,6 +12,7 @@ import { useResizableMap } from '../hooks/useResizableMap';//hooks
 import SubtreeVisualizer from './SubtreeVisualizer';
 import { useDocumentContext, updateNode } from '@/app/Library/Context/DocumentProvider';
 import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
+import { useAutoMapResize } from '@/app/Library/Tests/useAutoMapResize';
 
 interface ConceptMapProps {
   groundWidth: number; 
@@ -48,7 +49,9 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
    //const laidOutNodes = useHVTreeLayout(nodes, firstNodeId);
   const laidOutNodes = useCompositeLayout(nodes);
   const [mapWidth ] = useState<number>(defaultMapWidth); // Set to default width
-   // Use the rectangle selection hook
+   
+   // Check if map needs to resize
+   useAutoMapResize(mapRef);
 
   
   /**Helper function for subtree operations */

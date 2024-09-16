@@ -18,6 +18,8 @@ import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContex
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
 import ModernModal from '@/app/Library/components/ModernModal';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
+import { TreeDimensionsProvider } from '@/app/Library/Tests/TreeDimensionsProvider';
+
 
 
 // Updated component to handle theme selection
@@ -67,7 +69,6 @@ const [isOpen, setIsOpen] = useState(false);
 function ClientLayoutContent() {
  
   const [isModalOpen, setIsModalOpen] = useState(false);
-  //const [groundWidth, setGroundWidth] = useState<number>(0); // Initialize to 0
   const centerPaneRef = useRef<HTMLDivElement>(null); // Ref to center pane
   const [windowWidth, setWindowWidth] = useState<number>(0);
   const [windowHeight, setWindowHeight] = useState<number>(0);
@@ -286,12 +287,14 @@ const handleCreateNewDocument = useCallback(
 
 export default function ClientLayout() {
   return (
-    <NodeSelectionProvider>
-      <CueCardProvider> {/* Wrap in CueCardProvider */}
-        <DocumentProvider>
-          <ClientLayoutContent />
-        </DocumentProvider>
-      </CueCardProvider>
-    </NodeSelectionProvider>
+    <TreeDimensionsProvider> {/* Add TreeDimensionsProvider here */}
+      <NodeSelectionProvider>
+        <CueCardProvider> {/* Wrap in CueCardProvider */}
+          <DocumentProvider>
+            <ClientLayoutContent />
+          </DocumentProvider>
+        </CueCardProvider>
+      </NodeSelectionProvider>
+    </TreeDimensionsProvider>
   );
 }
