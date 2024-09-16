@@ -218,14 +218,11 @@ const handleCreateNewDocument = useCallback(
   {/* Center Pane (Map Canvas) */}
   <div
     ref={centerPaneRef}
-    className="flex-1 bg-gray-200 p-4 shadow-lg rounded-lg flex justify-center items-center scrollbar-thin"
+    className="flex-1 bg-gray-200 p-4 shadow-lg rounded-lg overflow-auto scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200"
     style={{
       position: 'relative',
       overflowX: 'auto', // Enables horizontal scrolling
       overflowY: 'auto', // Enables vertical scrolling
-      display: 'flex',
-      justifyContent: 'center', // Center horizontally
-      alignItems: 'center', // Center vertically
     }}
   >
     <ConceptMap groundWidth={windowWidth} centerPaneRef={centerPaneRef} onOpenCueCardModal={handleOpenCueCardModal}/>

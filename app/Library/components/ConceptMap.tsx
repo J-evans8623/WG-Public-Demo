@@ -8,10 +8,10 @@ import { CueCard, ConceptNode as ConceptNodeType, colorThemes } from '@/app/Libr
 import ContextMenu from './ContextMenu';
 import { drawTreeLines } from '../utils/drawTreeLines'; //'./utils/drawTreeLines';
 import { useCompositeLayout } from '../utils/compositeLayout';
-import { useResizableMap } from '../hooks/useResizableMap';
+import { useResizableMap } from '../hooks/useResizableMap';//hooks
 import SubtreeVisualizer from './SubtreeVisualizer';
 import { useDocumentContext, updateNode } from '@/app/Library/Context/DocumentProvider';
-
+import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
 
 interface ConceptMapProps {
   groundWidth: number; 
@@ -30,11 +30,20 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
   const [isDraggingSubtree, setIsDraggingSubtree] = useState<boolean>(false); // State for subtree dragging
   const [boundingBox, setBoundingBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null); // State for bounding box
 
-  const { width, height, handleMouseDown, offset, } = useResizableMap({ mapRef, centerPaneRef });
+  const { width, height, handleMouseDown} = useResizableMap({ mapRef, centerPaneRef });
+  
+  // Initialize offset state
 
+  // Use the custom hook to keep the map in view
+  useKeepMapInView({ 
+    mapRef, 
+    centerPaneRef, 
+    zoomLevel, 
+    width, 
+    height 
+  });
   // Define the state variable at the top of your component
      
-   // Calculate node positions using the Reingold-Tilford layout
   const firstNodeId = nodes.size > 0 ? nodes.values().next().value.id : 'node-1';
    //const laidOutNodes = useHVTreeLayout(nodes, firstNodeId);
   const laidOutNodes = useCompositeLayout(nodes);
@@ -73,11 +82,6 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
     event.preventDefault();
     setContextMenuPosition({ x: event.clientX, y: event.clientY });
   };  
-
-
-  /**const handleViewConcept = (cueCards: CueCard[]) => {
-    dispatch(selectCueCards(cueCards)); 
-  }; * */
 
   {/*  Click and Drag Node events    */}
   const handleDragStart = (node: ConceptNodeType) => {
@@ -177,7 +181,8 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
    ref={mapRef}
    className="relative bg-white overflow-hidden w-full h-full scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200"
    style={{
-     transform: `scale(${zoomLevel}) translate(${offset.x}px, ${offset.y}px)`,
+     transform: `scale(${zoomLevel})`,
+     transformOrigin: 'top left',
      minWidth: `${width}px`, // Minimum height for resizing
      minHeight: `${height}px`, // Minimum width for resizing
      transition: 'transform 0.3s ease, min-height 0.3s ease, min-width 0.3s ease',

@@ -1,13 +1,16 @@
+// bloom-maps/app/Library/hooks/useResizableMap.tsx
+
 import { useState, useCallback, useEffect, RefObject } from 'react';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 
 interface UseResizableMapProps {
   mapRef: RefObject<HTMLDivElement>;
+  centerPaneRef: RefObject<HTMLDivElement>;
 }
 
-export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps & { centerPaneRef: RefObject<HTMLDivElement> }) => {
-  const { state } = useDocumentContext(); // Use the new context
-  const { defaultMapWidth, defaultMapHeight, zoomLevel } = state; // Destructure values from state
+export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps) => {
+  const { state } = useDocumentContext();
+  const { defaultMapWidth, defaultMapHeight, zoomLevel } = state;
 
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState<'both' | 'horizontal' | 'vertical' | null>(null);
@@ -15,21 +18,6 @@ export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps 
   const [currentMousePosition, setCurrentMousePosition] = useState<{ x: number; y: number } | null>(null);
   const [width, setWidth] = useState(defaultMapWidth);
   const [height, setHeight] = useState(defaultMapHeight);
-  const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  // Calculate initial offsets
-  useEffect(() => {
-    if (centerPaneRef.current && mapRef.current) {
-      const centerPaneWidth = centerPaneRef.current.offsetWidth;
-      const centerPaneHeight = centerPaneRef.current.offsetHeight;
-
-      // Calculate initial offsets based on zoom level
-      const initialOffsetX = (width * zoomLevel - centerPaneWidth) / 2;
-      const initialOffsetY = (height * zoomLevel - centerPaneHeight) / 2;
-
-      setOffset({ x: initialOffsetX, y: initialOffsetY });
-    }
-  }, [centerPaneRef, mapRef, width, height, zoomLevel]);
 
   const handleMouseDown = useCallback(
     (direction: 'both' | 'horizontal' | 'vertical') => (e: React.MouseEvent<HTMLDivElement>) => {
@@ -46,7 +34,6 @@ export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps 
     (e: MouseEvent) => {
       if (!isResizing || !resizeDirection || !initialMousePosition) return;
 
-      // Update the current mouse position to draw the dashed outline
       setCurrentMousePosition({ x: e.clientX, y: e.clientY });
     },
     [isResizing, resizeDirection, initialMousePosition]
@@ -55,33 +42,22 @@ export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps 
   const handleMouseUp = useCallback(() => {
     if (!isResizing || !initialMousePosition || !currentMousePosition) return;
 
-    // Calculate the delta changes
-    const deltaX = (currentMousePosition.x - initialMousePosition.x) * (1 + (1 - zoomLevel)) * 2; // Scaled adjustment
-    const deltaY = (currentMousePosition.y - initialMousePosition.y) * (1 + (1 - zoomLevel)) * 2; 
+    const deltaX = (currentMousePosition.x - initialMousePosition.x) * (1 + (1 - zoomLevel)) * 2;
+    const deltaY = (currentMousePosition.y - initialMousePosition.y) * (1 + (1 - zoomLevel)) * 2;
 
-    // Apply new dimensions
     if (resizeDirection === 'horizontal' || resizeDirection === 'both') {
-      setWidth((prevWidth) => Math.max(prevWidth + deltaX, 500)); // Update width
+      setWidth((prevWidth) => Math.max(prevWidth + deltaX, 500));
     }
 
     if (resizeDirection === 'vertical' || resizeDirection === 'both') {
-      setHeight((prevHeight) => Math.max(prevHeight + deltaY, 400)); // Update height
+      setHeight((prevHeight) => Math.max(prevHeight + deltaY, 400));
     }
 
-    // Adjust offsets to keep the map centered within the viewport
-    if (centerPaneRef.current) {
-      const offsetX = (width * zoomLevel - centerPaneRef.current.offsetWidth) / 2;
-      const offsetY = (height * zoomLevel - centerPaneRef.current.offsetHeight) / 2;
-
-      setOffset({ x: offsetX, y: offsetY });
-    }
-
-    // Reset state after resizing
     setIsResizing(false);
     setResizeDirection(null);
     setInitialMousePosition(null);
     setCurrentMousePosition(null);
-  }, [isResizing, initialMousePosition, currentMousePosition, zoomLevel, resizeDirection, centerPaneRef, width, height]);
+  }, [isResizing, initialMousePosition, currentMousePosition, zoomLevel, resizeDirection]);
 
   useEffect(() => {
     if (isResizing) {
@@ -98,5 +74,13 @@ export const useResizableMap = ({ mapRef, centerPaneRef }: UseResizableMapProps 
     };
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
-  return { width, height, handleMouseDown, offset, isResizing };
+  // Update the map's size based on width and height
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.style.width = `${width}px`;
+      mapRef.current.style.height = `${height}px`;
+    }
+  }, [width, height, mapRef]);
+
+  return { width, height, handleMouseDown };
 };
