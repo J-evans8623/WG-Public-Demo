@@ -94,7 +94,7 @@ function ConceptNode({ node, onDragStart, onOpenCueCardModal }: ConceptNodeProps
       style={{
         width: '325px',
         height: '125px',
-        position: isRoot ? 'relative' : 'absolute',
+        position: 'absolute', //isRoot ? 'relative' : 'absolute',
         left: `${x}px`,
         top: `${y}px`,
         borderColor: 'white',
