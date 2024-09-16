@@ -12,7 +12,7 @@ import { useResizableMap } from '../hooks/useResizableMap';//hooks
 import SubtreeVisualizer from './SubtreeVisualizer';
 import { useDocumentContext, updateNode } from '@/app/Library/Context/DocumentProvider';
 import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
-import { useAutoMapResize } from '@/app/Library/Tests/useAutoMapResize';
+import { useAutoMapResize } from '@/app/Library/hooks/useAutoMapResize';
 
 interface ConceptMapProps {
   groundWidth: number; 

@@ -1,8 +1,8 @@
-//bloom-maps\app\Library\utils\blendedhvLayout.tsx
+// bloom-maps/app/Library/utils/blendedhvLayout.tsx
 
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+import { useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 
-// Function to apply HV layout logic for nodes at depth 1 while preserving user adjustments
 export function applyHVLayout(nodes: Map<string, ConceptNode>): Map<string, ConceptNode> {
     const updatedNodes = new Map(nodes);
 
@@ -10,13 +10,16 @@ export function applyHVLayout(nodes: Map<string, ConceptNode>): Map<string, Conc
     const verticalOffset = 225; // Vertical space between depth levels
     const minHorizontalSpacing = 600; // Minimum horizontal space between child nodes
 
+    // Initialize min/max values for x-coordinates
+    let minX = Number.MAX_SAFE_INTEGER;
+    let maxX = Number.MIN_SAFE_INTEGER;
+
     // Iterate through all nodes and apply HV layout only for depth 1 nodes with undefined positions
     nodes.forEach((node) => {
         if (node.depth === 1 && (node.x === undefined || node.y === undefined)) {
             // Get parent node
             const parentNode = node.parentNodeId ? nodes.get(node.parentNodeId) : undefined;
 
-            // Use a type guard to ensure parentNode is defined
             if (parentNode) {
                 const parentY = parentNode.y ?? 0;
                 const parentX = parentNode.x ?? 0;
@@ -25,22 +28,18 @@ export function applyHVLayout(nodes: Map<string, ConceptNode>): Map<string, Conc
                 const siblings = Array.from(nodes.values()).filter(n => n.depth === 1 && n.parentNodeId === node.parentNodeId);
                 const nodeIndex = siblings.findIndex(n => n.id === node.id);
 
-                // Position the first child directly below the parent
                 if (nodeIndex === 0) {
-                    node.x = parentX; // Directly below the parent node's x
-                    node.y = parentY + verticalOffset; // Vertical offset from the parent
+                    node.x = parentX;
+                    node.y = parentY + verticalOffset;
                 } else {
-                    // Calculate the position for subsequent children moving outward alternately
-                    const direction = nodeIndex % 2 === 0 ? 1 : -1; // Alternate left/right
-                    const distance = Math.ceil(nodeIndex / 2) * minHorizontalSpacing; // Incremental distance
+                    const direction = nodeIndex % 2 === 0 ? 1 : -1;
+                    const distance = Math.ceil(nodeIndex / 2) * minHorizontalSpacing;
 
-                    // Determine the new x position based on direction and distance from the parent
                     node.x = parentX + direction * distance;
-                    node.y = parentY + verticalOffset; // Keep y consistent for all depth 1 nodes
+                    node.y = parentY + verticalOffset;
 
-                    // Ensure that the node does not overlap its sibling
                     const previousSibling = siblings[nodeIndex - 1];
-                    const previousSiblingX = previousSibling.x ?? 0; // Use default value if x is undefined
+                    const previousSiblingX = previousSibling.x ?? 0;
 
                     if (Math.abs(node.x - previousSiblingX) < minHorizontalSpacing) {
                         node.x = direction > 0 
@@ -49,10 +48,23 @@ export function applyHVLayout(nodes: Map<string, ConceptNode>): Map<string, Conc
                     }
                 }
 
-                updatedNodes.set(node.id, node); // Update node position
+                // Update the min/max x-coordinates
+                if (node.x !== undefined) {
+                    minX = Math.min(minX, node.x);
+                    maxX = Math.max(maxX, node.x);
+                }
+
+                updatedNodes.set(node.id, node);
             }
         }
     });
+
+    // Access the TreeDimensionsContext to update min and max values
+    const { minX: oldMinX, maxX: oldMaxX, setMinX, setMaxX } = useTreeDimensions();
+
+    // Update the context if new min/max values are found
+    if (minX < oldMinX) setMinX(minX);
+    if (maxX > oldMaxX) setMaxX(maxX);
 
     return updatedNodes;
 }

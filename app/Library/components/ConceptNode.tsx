@@ -91,9 +91,10 @@ function ConceptNode({ node, onDragStart, onOpenCueCardModal }: ConceptNodeProps
       className={`relative flex flex-col items-center cursor-pointer group border rounded-md shadow-md ${
         isDragging ? 'opacity-50 border-dashed border-2 border-blue-500' : ''
       }`}
+      // Width : Height -> 2.6 : 1
       style={{
-        width: '325px',
-        height: '125px',
+        width: '325px', // min horizontal space is 600px at a width of 325 roughly 2x
+        height: '125px', // min vertical offset is 225 at a height of 125 roughly 2x
         position: 'absolute', //isRoot ? 'relative' : 'absolute',
         left: `${x}px`,
         top: `${y}px`,

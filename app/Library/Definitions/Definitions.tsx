@@ -1,3 +1,4 @@
+//bloom-maps\app\Library\Definitions\Definitions.tsx
 export interface CueCard {
     id: string; // Unique identifier for the cue card
     title: string; // Title of the cue card
@@ -138,6 +139,7 @@ export interface DocumentContextType {
     colorTheme: ColorTheme; // The current color theme
     getLayout: boolean; // Flag to trigger layout computation
     zoomLevel: number; // Add this line
+    baseZoomLevel: number;
     defaultMapWidth: number;
     defaultMapHeight: number;
     groundWidth: number;

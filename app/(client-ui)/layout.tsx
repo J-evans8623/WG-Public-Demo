@@ -8,7 +8,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
 import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Component/CueCardDisplay';
-import ConceptMap from '@/app/Library/components/ConceptMap';
+import ConceptMap from '@/app/Library/Tests/ConceptMap';
 import DocumentCreationModal from '@/app/Library/components/DocumentCreationModal';
 import Modal from '@/app/Library/components/Modal';
 import { DocumentProvider, useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
@@ -18,7 +18,7 @@ import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContex
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
 import ModernModal from '@/app/Library/components/ModernModal';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
-import { TreeDimensionsProvider } from '@/app/Library/Tests/TreeDimensionsProvider';
+import { TreeDimensionsProvider } from '@/app/Library/Context/TreeDimensionsProvider';
 
 
 
@@ -75,7 +75,7 @@ function ClientLayoutContent() {
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const {state, dispatch, zoomIn, zoomOut, setColorTheme  } = useDocumentContext();
   const { addCueCard, resetCueCards } = useCueCardContext();
-  const zoomLevel = state.zoomLevel;
+  const {zoomLevel, baseZoomLevel} = state;
 
   const [isAddingCueCard, setIsAddingCueCard] = useState(false);
   const [currentNodeId, setCurrentNodeId] = useState<string | null>(null);
@@ -234,14 +234,14 @@ const handleCreateNewDocument = useCallback(
     {/* Zoom Buttons */}
     <div className="absolute top-2 left-2 flex space-x-2 bg-gray-300 p-2 rounded shadow">
       <button
-        title={`Zoom In (${Math.ceil((zoomLevel / 0.7) * 100)}%)`} // Normalizing zoom to 100% at baseline
+        title={`Zoom In (${Math.ceil((zoomLevel / baseZoomLevel) * 100)}%)`} // Normalizing zoom to 100% at baseline
         onClick={zoomIn}
         className="p-1 rounded hover:bg-gray-400"
       >
         <RiZoomInLine />
       </button>
       <button
-        title={`Zoom Out (${Math.ceil((zoomLevel / 0.7) * 100)}%)`} // Normalizing zoom to 100% at baseline
+        title={`Zoom Out (${Math.ceil((zoomLevel / baseZoomLevel) * 100)}%)`} // Normalizing zoom to 100% at baseline
         onClick={zoomOut}
         className="p-1 rounded hover:bg-gray-400"
       >

@@ -2,7 +2,7 @@
 import { ConceptNode, CueCard, DocumentState, DocumentAction, DocumentActionType } from '@/app/Library/Definitions/Definitions';
 
 
-const baseZoomLevel = 0.7;
+const baseZoomLvl = 0.7;//0.7
 // Define the initial state for the document
 export const initialDocumentState: DocumentState = {
     nodes: new Map<string, ConceptNode>(),
@@ -10,7 +10,8 @@ export const initialDocumentState: DocumentState = {
     bloomDepth: 6, // Default bloom depth
     colorTheme: 'cool-spring', // Default color theme
     getLayout: false,
-    zoomLevel: baseZoomLevel, // Default zoom level
+    zoomLevel: baseZoomLvl, // Default zoom level
+    baseZoomLevel: baseZoomLvl,
     defaultMapWidth: 1800, // Default map width
     defaultMapHeight: 1800, // Default map height
     groundWidth: 0, // Initial ground width ???
@@ -105,7 +106,7 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
               ...state,
               nodes: new Map<string, ConceptNode>(), // Reset nodes
               selectedCueCards: [], // Reset selected cue cards
-              zoomLevel: 0.7, // Reset zoom level
+              zoomLevel: baseZoomLvl, // Reset zoom level 0.7
             };
         case DocumentActionType.SET_MAP_SIZE:
       return {
@@ -122,8 +123,8 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
           //cueCards: [],
           parentNodeId: undefined,
           childrenNodeIds: [],
-          x: (action.payload.mapWidth / 2) - 100, // 0.5 * node width = 100
-          y: 200,
+          x: 0,//(action.payload.mapWidth / 2) - 100, // 0.5 * node width = 100
+          y: 200,//200,
           isRoot: true,
           depth: 0,
         };
@@ -140,7 +141,7 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
         };
 
         case DocumentActionType.ZOOM_IN: {
-            const newZoom = Math.min(state.zoomLevel + 0.1 * baseZoomLevel, 2 * baseZoomLevel);
+            const newZoom = Math.min(state.zoomLevel + 0.1 * baseZoomLvl, 2 * baseZoomLvl);
             
             // Adjust scroll positions to maintain the center
             const adjustedScrollLeft = state.scrollLeft * (newZoom / state.zoomLevel);
@@ -155,7 +156,7 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
         }
       
         case DocumentActionType.ZOOM_OUT: {
-            const newZoom = Math.max(state.zoomLevel - 0.1 * baseZoomLevel, 0.1 * baseZoomLevel);
+            const newZoom = Math.max(state.zoomLevel - 0.1 * baseZoomLvl, 0.1 * baseZoomLvl);
             
             // Adjust scroll positions to maintain the center
             const adjustedScrollLeft = state.scrollLeft * (newZoom / state.zoomLevel);

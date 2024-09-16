@@ -2,8 +2,8 @@
 
 import { useMemo } from 'react'; // Import useMemo from React
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
-import { applyHVLayout } from '../Tests/blendedhvLayout';
-import { applyIndentedLayout } from '../Tests/indentedLayout';
+import { applyHVLayout } from '../utils/blendedhvLayout';
+import { applyIndentedLayout } from '../utils/indentedLayout';
 import { useDocumentContext, setGetLayout } from '@/app/Library/Context/DocumentProvider';
 
 // Custom hook to integrate both HV and indented layouts with memoization

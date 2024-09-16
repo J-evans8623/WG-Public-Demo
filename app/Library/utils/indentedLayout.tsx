@@ -1,61 +1,55 @@
-// bloom-maps/app/Library/Component/utils/indentedLayout.tsx
+// bloom-maps/app/Library/utils/indentedLayout.tsx
 
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+import { useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 
-// Function to apply indented layout logic for nodes beyond depth 1 using a refined depth-first approach
 export function applyIndentedLayout(nodes: Map<string, ConceptNode>): Map<string, ConceptNode> {
     const updatedNodes = new Map(nodes);
 
-    // Define spacing values
     const indentationWidth = 60; // Indentation width between levels
     const verticalSpacing = 175; // Vertical spacing between sibling nodes
 
-    // Recursive function to position nodes using depth-first traversal
+    // Initialize max Y value
+    let maxY = Number.MIN_SAFE_INTEGER;
+
     const positionNodeAndChildren = (node: ConceptNode, currentY: number): number => {
         if (node.depth > 1) {
-            // Get the parent node to determine indentation
             const parentNode = node.parentNodeId ? nodes.get(node.parentNodeId) : undefined;
 
             if (parentNode) {
-                // Set the x position based on the parent's x position and indentation
-                node.x = parentNode.x? parentNode.x + indentationWidth : 0;
+                node.x = parentNode.x ? parentNode.x + indentationWidth : 0;
+                node.y = currentY;
+                updatedNodes.set(node.id, node);
 
-                // Assign the current node's y position, ensuring it's below the parent
-                node.y = currentY; 
-                updatedNodes.set(node.id, node); // Update node position
+                maxY = Math.max(maxY, node.y ?? 0);
 
-                // Start positioning children from this y-coordinate
                 let nextY = currentY + verticalSpacing;
-                
-                // Recursively position children nodes
+
                 const children = node.childrenNodeIds?.map(id => nodes.get(id)).filter(Boolean) as ConceptNode[];
                 children.forEach((child) => {
-                    nextY = positionNodeAndChildren(child, nextY); // Depth-first recursion for children
+                    nextY = positionNodeAndChildren(child, nextY);
                 });
 
-                // Return the y-coordinate after all children have been placed
                 return nextY;
             }
         }
-
-        // If no parent or children, just return the current y position incremented
         return currentY + verticalSpacing;
     };
 
-    // Find all nodes at depth 1 (direct children of the root) and apply depth-first positioning
     const depthOneNodes = Array.from(nodes.values()).filter((node) => node.depth === 1);
     depthOneNodes.forEach((depthOneNode) => {
-        // Reset currentY for each new subtree rooted at depth 1
-        let currentY = depthOneNode.y? depthOneNode.y + verticalSpacing : 0; // Start y-coordinate below the depth 1 node
-
-        // Retrieve all depth 2 children of this depth 1 node
+        let currentY = depthOneNode.y ? depthOneNode.y + verticalSpacing : 0;
         const depthTwoNodes = depthOneNode.childrenNodeIds?.map(id => nodes.get(id)).filter(Boolean) as ConceptNode[];
-
-        // Position each depth 2 node and its descendants
         depthTwoNodes.forEach((depthTwoNode) => {
-            currentY = positionNodeAndChildren(depthTwoNode, currentY); // Properly increment the y-coordinate for each depth 2 node
+            currentY = positionNodeAndChildren(depthTwoNode, currentY);
         });
     });
+
+    // Access the TreeDimensionsContext to update maxY value
+    const { maxY: oldMaxY, setMaxY } = useTreeDimensions();
+
+    // Update the context if new maxY is found
+    if (maxY > oldMaxY) setMaxY(maxY);
 
     return updatedNodes;
 }
