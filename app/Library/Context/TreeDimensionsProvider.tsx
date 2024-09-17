@@ -10,12 +10,16 @@ interface TreeDimensionsContextType {
   maxY: number;
   treeWidth: number;
   treeHeight: number;
+  treeMaxDepth: number; // Context value for maximum depth
+  currentHorizontalSpacing: number; // New context value for horizontal spacing
   setMinX: (value: number) => void;
   setMaxX: (value: number) => void;
   setMinY: (value: number) => void;
   setMaxY: (value: number) => void;
   setTreeWidth: (value: number) => void;
   setTreeHeight: (value: number) => void;
+  setTreeMaxDepth: (value: number) => void;
+  setCurrentHorizontalSpacing: (value: number) => void; // New setter function for horizontal spacing
 }
 
 // Create context
@@ -28,6 +32,8 @@ export const TreeDimensionsProvider = ({ children }: { children: ReactNode }) =>
   const [maxY, setMaxY] = useState<number>(0);
   const [treeWidth, setTreeWidth] = useState<number>(1800); // Default map width
   const [treeHeight, setTreeHeight] = useState<number>(1800); // Default map height
+  const [treeMaxDepth, setTreeMaxDepth] = useState<number>(1); // State for maximum depth
+  const [currentHorizontalSpacing, setCurrentHorizontalSpacing] = useState<number>(600); // State for horizontal spacing
 
   return (
     <TreeDimensionsContext.Provider
@@ -38,12 +44,16 @@ export const TreeDimensionsProvider = ({ children }: { children: ReactNode }) =>
         maxY,
         treeWidth,
         treeHeight,
+        treeMaxDepth,
+        currentHorizontalSpacing,
         setMinX,
         setMaxX,
         setMinY,
         setMaxY,
         setTreeWidth,
         setTreeHeight,
+        setTreeMaxDepth,
+        setCurrentHorizontalSpacing, // Provide setter function for horizontal spacing
       }}
     >
       {children}

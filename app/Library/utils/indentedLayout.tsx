@@ -13,6 +13,7 @@ export function applyIndentedLayout(nodes: Map<string, ConceptNode>): Map<string
     let minX = Number.MAX_SAFE_INTEGER;
     let maxX = Number.MIN_SAFE_INTEGER;
     let maxY = Number.MIN_SAFE_INTEGER;
+    let MxDepth = 0; // Local variable to track maximum depth
 
     const positionNodeAndChildren = (node: ConceptNode, currentY: number): number => {
         if (node.depth > 1) {
@@ -32,6 +33,9 @@ export function applyIndentedLayout(nodes: Map<string, ConceptNode>): Map<string
 
                 // Update the max y-coordinate
                 maxY = Math.max(maxY, node.y ?? 0);
+
+                // Update the local maximum depth
+                MxDepth = Math.max(MxDepth, node.depth ?? 0);
 
                 let nextY = currentY + verticalSpacing;
 
@@ -55,13 +59,16 @@ export function applyIndentedLayout(nodes: Map<string, ConceptNode>): Map<string
         });
     });
 
-    // Access the TreeDimensionsContext to update min/max values
-    const { minX: oldMinX, maxX: oldMaxX, maxY: oldMaxY, setMinX, setMaxX, setMaxY } = useTreeDimensions();
+    // Access the TreeDimensionsContext to update min/max values and max depth
+    const { minX: oldMinX, maxX: oldMaxX, maxY: oldMaxY, treeMaxDepth, setMinX, setMaxX, setMaxY, setTreeMaxDepth } = useTreeDimensions();
 
     // Update the context if new min/max values are found
     if (minX < oldMinX) setMinX(minX);
     if (maxX > oldMaxX) setMaxX(maxX);
     if (maxY > oldMaxY) setMaxY(maxY);
+
+    // Update the maximum depth if the local MxDepth exceeds the current context value
+    if (MxDepth > treeMaxDepth) setTreeMaxDepth(MxDepth);
 
     return updatedNodes;
 }
