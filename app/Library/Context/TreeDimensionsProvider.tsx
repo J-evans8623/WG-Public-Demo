@@ -8,18 +8,15 @@ interface TreeDimensionsContextType {
   maxX: number;
   minY: number;
   maxY: number;
-  treeWidth: number;
-  treeHeight: number;
   treeMaxDepth: number; // Context value for maximum depth
-  currentHorizontalSpacing: number; // New context value for horizontal spacing
+  currentHorizontalSpacing: number; // Context value for horizontal spacing
   setMinX: (value: number) => void;
   setMaxX: (value: number) => void;
   setMinY: (value: number) => void;
   setMaxY: (value: number) => void;
-  setTreeWidth: (value: number) => void;
-  setTreeHeight: (value: number) => void;
   setTreeMaxDepth: (value: number) => void;
-  setCurrentHorizontalSpacing: (value: number) => void; // New setter function for horizontal spacing
+  setCurrentHorizontalSpacing: (value: number) => void;
+  resetTreeDimensions: () => void; // Function to reset context values
 }
 
 // Create context
@@ -30,10 +27,18 @@ export const TreeDimensionsProvider = ({ children }: { children: ReactNode }) =>
   const [maxX, setMaxX] = useState<number>(0);
   const [minY, setMinY] = useState<number>(0);
   const [maxY, setMaxY] = useState<number>(0);
-  const [treeWidth, setTreeWidth] = useState<number>(1800); // Default map width
-  const [treeHeight, setTreeHeight] = useState<number>(1800); // Default map height
   const [treeMaxDepth, setTreeMaxDepth] = useState<number>(1); // State for maximum depth
   const [currentHorizontalSpacing, setCurrentHorizontalSpacing] = useState<number>(600); // State for horizontal spacing
+
+  // Function to reset all context values to their defaults
+  const resetTreeDimensions = () => {
+    setMinX(0);
+    setMaxX(0);
+    setMinY(0);
+    setMaxY(0);
+    setTreeMaxDepth(1);
+    setCurrentHorizontalSpacing(600);
+  };
 
   return (
     <TreeDimensionsContext.Provider
@@ -42,18 +47,15 @@ export const TreeDimensionsProvider = ({ children }: { children: ReactNode }) =>
         maxX,
         minY,
         maxY,
-        treeWidth,
-        treeHeight,
         treeMaxDepth,
         currentHorizontalSpacing,
         setMinX,
         setMaxX,
         setMinY,
         setMaxY,
-        setTreeWidth,
-        setTreeHeight,
         setTreeMaxDepth,
-        setCurrentHorizontalSpacing, // Provide setter function for horizontal spacing
+        setCurrentHorizontalSpacing,
+        resetTreeDimensions, // Provide reset function
       }}
     >
       {children}

@@ -18,8 +18,7 @@ import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContex
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
 import ModernModal from '@/app/Library/components/ModernModal';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
-import { TreeDimensionsProvider } from '@/app/Library/Context/TreeDimensionsProvider';
-
+import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 
 
 // Updated component to handle theme selection
@@ -74,6 +73,7 @@ function ClientLayoutContent() {
   const [windowHeight, setWindowHeight] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const {state, dispatch, zoomIn, zoomOut, setColorTheme  } = useDocumentContext();
+  const { resetTreeDimensions} = useTreeDimensions();
   const { addCueCard, resetCueCards } = useCueCardContext();
   const {zoomLevel, baseZoomLevel} = state;
 
@@ -100,14 +100,19 @@ function ClientLayoutContent() {
 
 useEffect(() => {
   if (!isInitialized) {
-    initializeNewDocument(dispatch, resetCueCards, 6, windowWidth, true); // Set isInitialLoad to true
+    initializeNewDocument(dispatch, resetCueCards,resetTreeDimensions, 6, windowWidth, true); // Set isInitialLoad to true
     setIsInitialized(true); // Ensure this only runs once
   }
 }, [isInitialized, dispatch, windowWidth]);
+/**
+ * NOTICE Page size is not resetted back to default when a new document is created. 
+ * TreeContext Needs to be Resetted as well
+ * 
+ */
 
 const handleCreateNewDocument = useCallback(
   (selectedDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
-    initializeNewDocument(dispatch,  resetCueCards, selectedDepth, windowWidth, false); // Reset and create a new document
+    initializeNewDocument(dispatch,  resetCueCards,resetTreeDimensions, selectedDepth, windowWidth, false); // Reset and create a new document
     closeModal();
   },
   [dispatch, windowWidth]

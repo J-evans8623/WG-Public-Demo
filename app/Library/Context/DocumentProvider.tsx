@@ -1,3 +1,4 @@
+//bloom-maps\app\Library\Context\DocumentProvider.tsx
 'use client';
 
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
@@ -147,6 +148,7 @@ export const updateNode = (nodeId: string, updatedNode: Partial<ConceptNode>): D
   export const initializeNewDocument = (
     dispatch: React.Dispatch<DocumentAction>,
     resetCueCards: () => void, // Add this parameter
+    resetTreeDimensions: () => void,
     bloomDepth: 1 | 2 | 3 | 4 | 5 | 6 = 6,
     groundWidth: number,
     isInitialLoad: boolean,
@@ -156,6 +158,7 @@ export const updateNode = (nodeId: string, updatedNode: Partial<ConceptNode>): D
     if (!isInitialLoad) {
       dispatch(resetGlobalData()); // Reset global state
       resetCueCards(); // Reset cue cards
+      resetTreeDimensions();
     }
   
     // Dispatch action to set the map size
