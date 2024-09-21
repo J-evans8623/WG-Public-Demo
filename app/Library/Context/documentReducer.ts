@@ -55,7 +55,7 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
       case DocumentActionType.SET_GET_LAYOUT:
         return { ...state, getLayout: action.payload };
 
-        case DocumentActionType.CREATE_NEW_NODE: {
+       /**  case DocumentActionType.CREATE_NEW_NODE: {
             const { title, parentNodeId } = action.payload;
           
             // Validate that parentNode exists
@@ -99,7 +99,45 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
               ...state,
               nodes: updatedNodes,
             };
-          }
+          }*/
+            case DocumentActionType.CREATE_NEW_NODE: {
+              const { title, parentNodeId } = action.payload;
+              const parentNode = state.nodes.get(parentNodeId);
+              if (!parentNode) {
+                console.error(`Parent node with ID ${parentNodeId} not found.`);
+                return state;
+              }
+        
+              const newNodeId = `node-${state.nodes.size + 1}`;
+              const newDepth = (parentNode.depth || 0) + 1;
+        
+              const newNode: ConceptNode = {
+                id: newNodeId,
+                title: title || `Untitled Concept ${state.nodes.size + 1}`,
+                parentNodeId: parentNodeId,
+                childrenNodeIds: [],
+                x: undefined,
+                y: undefined,
+                isRoot: false,
+                depth: newDepth,
+                subtreeID: parentNode.subtreeID || parentNodeId, // Assign subtreeID
+              };
+        
+              const updatedNodes = new Map(state.nodes);
+              const updatedParentNode = {
+                ...parentNode,
+                childrenNodeIds: [...(parentNode.childrenNodeIds || []), newNodeId],
+              };
+        
+              updatedNodes.set(parentNodeId, updatedParentNode);
+              updatedNodes.set(newNode.id, newNode);
+        
+              return {
+                ...state,
+                nodes: updatedNodes,
+                getLayout: true, // Trigger layout computation
+              };
+            }
         
           case DocumentActionType.RESET_GLOBAL_DATA:
             return {
@@ -124,7 +162,7 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
           parentNodeId: undefined,
           childrenNodeIds: [],
           x: 0,//(action.payload.mapWidth / 2) - 100, // 0.5 * node width = 100
-          y: 200,//200,
+          y: 0,//200,
           isRoot: true,
           depth: 0,
         };

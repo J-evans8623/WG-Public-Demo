@@ -24,7 +24,7 @@ export interface CueStackProps {
 // Interface for ConceptNodeProps
 export interface ConceptNodeProps {
   node: ConceptNode; // The data representing a Concept-node
-  onDragStart: (node: ConceptNode) => void; // Drag start function, kept as it is still needed
+  //onDragStart: (node: ConceptNode) => void; // Drag start function, kept as it is still needed
    onOpenCueCardModal: (nodeId: string) => void;
 }
 
@@ -45,6 +45,7 @@ export interface ConceptNodeProps {
     y?: number; // Optional: Y-coordinate for positioning (initially undefined)
     isRoot?: boolean; // Flag to indicate if the node is a root node
     depth: number; // Depth level of the node
+    subtreeID?: string;
   }
   
   // Interface for a map of cue cards associated with concept nodes

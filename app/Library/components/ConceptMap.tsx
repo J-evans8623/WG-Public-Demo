@@ -5,11 +5,9 @@
 import React, { useState, useRef, useEffect,  RefObject } from 'react';
 import ConceptNode from '@/app/Library/components/ConceptNode' //'./ConceptNode';
 import { CueCard, ConceptNode as ConceptNodeType, colorThemes } from '@/app/Library/Definitions/Definitions'
-import ContextMenu from '@/app/Library/components/ContextMenu'; // ./ContextMenu
 import { drawTreeLines } from '../utils/drawTreeLines'; //'./utils/drawTreeLines';
 import { useCompositeLayout } from '../utils/compositeLayout';
 import { useResizableMap } from '../hooks/useResizableMap';//hooks
-import SubtreeVisualizer from '@/app/Library/components/SubtreeVisualizer';   //  './SubtreeVisualizer';
 import { useDocumentContext, updateNode } from '@/app/Library/Context/DocumentProvider';
 import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
 import { useAutoMapResize } from '@/app/Library/hooks/useAutoMapResize';
@@ -22,8 +20,8 @@ interface ConceptMapProps {
 
 
 function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptMapProps & { centerPaneRef: RefObject<HTMLDivElement> }){
-  const { state, dispatch } = useDocumentContext();
-  const { nodes, getLayout, defaultMapWidth, defaultMapHeight, zoomLevel } = state; // zoomLevel
+  const { state} = useDocumentContext();
+  const { nodes, defaultMapWidth, zoomLevel } = state; // zoomLevel
 
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);

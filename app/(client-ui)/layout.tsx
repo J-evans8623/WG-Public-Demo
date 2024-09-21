@@ -8,7 +8,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
 import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Component/CueCardDisplay';
-import ConceptMap from '@/app/Library/components/ConceptMap';
+import ConceptMap from '@/app/Library/Tests/ConceptMap';
 import DocumentCreationModal from '@/app/Library/components/DocumentCreationModal';
 import Modal from '@/app/Library/components/Modal';
 import { DocumentProvider, useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
@@ -19,6 +19,7 @@ import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
 import ModernModal from '@/app/Library/components/ModernModal';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
+import { useSubTreeContext, SubTreeProvider } from '../Library/Tests/SubTreeProvider';
 
 
 // Updated component to handle theme selection
@@ -74,6 +75,7 @@ function ClientLayoutContent() {
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const {state, dispatch, zoomIn, zoomOut, setColorTheme  } = useDocumentContext();
   const { resetTreeDimensions} = useTreeDimensions();
+  const { resetSubtrees } = useSubTreeContext();
   const { addCueCard, resetCueCards } = useCueCardContext();
   const {zoomLevel, baseZoomLevel} = state;
 
@@ -100,7 +102,7 @@ function ClientLayoutContent() {
 
 useEffect(() => {
   if (!isInitialized) {
-    initializeNewDocument(dispatch, resetCueCards,resetTreeDimensions, 6, windowWidth, true); // Set isInitialLoad to true
+    initializeNewDocument(dispatch, resetCueCards,resetTreeDimensions,resetSubtrees, 6, windowWidth, true); // Set isInitialLoad to true
     setIsInitialized(true); // Ensure this only runs once
   }
 }, [isInitialized, dispatch, windowWidth]);
@@ -112,7 +114,7 @@ useEffect(() => {
 
 const handleCreateNewDocument = useCallback(
   (selectedDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
-    initializeNewDocument(dispatch,  resetCueCards,resetTreeDimensions, selectedDepth, windowWidth, false); // Reset and create a new document
+    initializeNewDocument(dispatch,  resetCueCards,resetTreeDimensions,resetSubtrees, selectedDepth, windowWidth, false); // Reset and create a new document
     closeModal();
   },
   [dispatch, windowWidth]
@@ -296,7 +298,9 @@ export default function ClientLayout() {
       <NodeSelectionProvider>
         <CueCardProvider> {/* Wrap in CueCardProvider */}
           <DocumentProvider>
+          <SubTreeProvider>
             <ClientLayoutContent />
+            </SubTreeProvider>
           </DocumentProvider>
         </CueCardProvider>
       </NodeSelectionProvider>

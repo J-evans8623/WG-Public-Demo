@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import { documentReducer, initialDocumentState } from './documentReducer';
 
+
 import { 
   ColorTheme, 
   ConceptNode, 
@@ -145,7 +146,8 @@ export const updateNode = (nodeId: string, updatedNode: Partial<ConceptNode>): D
     payload: { nodeId, updatedNode },
   });
   
-  export const initializeNewDocument = (
+  /**export const initializeNewDocument = (
+   
     dispatch: React.Dispatch<DocumentAction>,
     resetCueCards: () => void, // Add this parameter
     resetTreeDimensions: () => void,
@@ -166,4 +168,29 @@ export const updateNode = (nodeId: string, updatedNode: Partial<ConceptNode>): D
   
     // Dispatch action to initialize the new document
     dispatch(initializeNewDocumentAction(bloomDepth, mapWidth, mapHeight));
+  }; */
+  export const initializeNewDocument = (
+    dispatch: React.Dispatch<DocumentAction>,
+    resetCueCards: () => void,
+    resetTreeDimensions: () => void,
+    resetSubtrees: () => void, // Add this parameter
+    bloomDepth: 1 | 2 | 3 | 4 | 5 | 6 = 6,
+    groundWidth: number,
+    isInitialLoad: boolean,
+    mapWidth: number = 1800,
+    mapHeight: number = 1800
+  ) => {
+    if (!isInitialLoad) {
+      dispatch(resetGlobalData());
+      resetCueCards();
+      resetTreeDimensions();
+      resetSubtrees(); // Reset subtrees
+    }
+  
+    dispatch(setMapSize(groundWidth, mapWidth, mapHeight));
+    dispatch(initializeNewDocumentAction(bloomDepth, mapWidth, mapHeight));
   };
+  /**
+   * 
+   * Where is the implementation of resetSubtree?
+   */
