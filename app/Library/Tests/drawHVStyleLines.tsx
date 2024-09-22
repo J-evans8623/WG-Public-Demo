@@ -1,12 +1,12 @@
-// bloom-maps/app/Library/utils/drawHVStyleLines.tsx
-
 import React from 'react';
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+import { SubtreeData } from '@/app/Library/Tests/SubTreeProvider';
 
 export function drawHVStyleLines(
   nodes: Map<string, ConceptNode>,
+  subtrees: Map<string, SubtreeData>,
   lineWidth: number,
-  strokeColor: string = '#6e6e6e'
+  strokeColor: string = '#6e6e6e' // Default gray color
 ): JSX.Element[] {
   const lineElements: JSX.Element[] = [];
 
@@ -14,32 +14,87 @@ export function drawHVStyleLines(
   const nodeWidth = 325;
   const nodeHeight = 125;
 
-  const rootNode = Array.from(nodes.values()).find((node) => node.isRoot);
+  // Get the root node
+  const rootNode = Array.from(nodes.values()).find(node => node.isRoot);
+
   if (!rootNode || rootNode.x === undefined || rootNode.y === undefined) return lineElements;
 
-  const depthOneNodes = Array.from(nodes.values()).filter((node) => node.depth === 1);
+  // Calculate the center bottom point of the root node
+  const rootPCP = { x: rootNode.x + nodeWidth / 2, y: rootNode.y + nodeHeight };
 
-  depthOneNodes.forEach((node) => {
-    if (node.x !== undefined && node.y !== undefined) {
-      const startX = (rootNode.x ?? 0) + nodeWidth / 2;
-      const startY = (rootNode.y ?? 0) + nodeHeight;
+  // If there are no subtrees, return
+  if (subtrees.size === 0) return lineElements;
 
-      const endX = node.x + nodeWidth / 2;
-      const endY = node.y;
+  if (subtrees.size === 1) {
+    // Only one subtree
+    const [nodeId, subtreeData] = subtrees.entries().next().value;
+
+    const childCCP = {
+      x: subtreeData.position.x + nodeWidth / 2,
+      y: subtreeData.position.y,
+    };
+
+    lineElements.push(
+      <path
+        key={`curve-root-to-single-child`}
+        d={`M ${rootPCP.x},${rootPCP.y} Q ${rootPCP.x},${(rootPCP.y + childCCP.y) / 2} ${childCCP.x},${childCCP.y}`}
+        stroke={strokeColor}
+        strokeWidth={lineWidth}
+        fill="none"
+      />
+    );
+  } else {
+    // Multiple subtrees
+    let leftmostX = Infinity;
+    let rightmostX = -Infinity;
+
+    subtrees.forEach((subtreeData) => {
+      const x = subtreeData.position.x + nodeWidth / 2;
+      if (x < leftmostX) leftmostX = x;
+      if (x > rightmostX) rightmostX = x;
+    });
+
+    const anchorY = rootPCP.y + 50;
+
+    // Draw horizontal anchor line
+    lineElements.push(
+      <path
+        key="curved-anchor-line-depth1"
+        d={`M ${leftmostX},${anchorY} L ${rightmostX},${anchorY}`}
+        stroke={strokeColor}
+        strokeWidth={lineWidth}
+        fill="none"
+      />
+    );
+
+    // Draw path from root to anchor
+    lineElements.push(
+      <path
+        key={`curve-root-to-anchor`}
+        d={`M ${rootPCP.x},${rootPCP.y} Q ${rootPCP.x},${anchorY - 25} ${rootPCP.x},${anchorY}`}
+        stroke={strokeColor}
+        strokeWidth={lineWidth}
+        fill="none"
+      />
+    );
+
+    // Draw paths from anchor to each subtree
+    subtrees.forEach((subtreeData, nodeId) => {
+      const x = subtreeData.position.x + nodeWidth / 2;
+      const y = subtreeData.position.y;
+      const controlY = anchorY + 10;
 
       lineElements.push(
-        <line
-          key={`line-root-to-subtree-${node.id}`}
-          x1={startX}
-          y1={startY}
-          x2={endX}
-          y2={endY}
+        <path
+          key={`curve-anchor-to-ccp-${nodeId}`}
+          d={`M ${x},${anchorY} Q ${x},${controlY} ${x},${y}`}
           stroke={strokeColor}
           strokeWidth={lineWidth}
+          fill="none"
         />
       );
-    }
-  });
+    });
+  }
 
   return lineElements;
 }

@@ -7,12 +7,16 @@ import { drawIndentedStyleLines } from '@/app/Library/utils/drawIndentedStyleLin
 interface SubtreeProps {
   rootNodeId: string;
   position: { x: number; y: number };
+  width: number;
+  height: number;
   onOpenCueCardModal: (nodeId: string) => void;
 }
 
 const Subtree: React.FC<SubtreeProps> = ({
   rootNodeId,
   position,
+  width,
+  height,
   onOpenCueCardModal,
 }) => {
   const { state } = useDocumentContext();
@@ -38,10 +42,17 @@ const Subtree: React.FC<SubtreeProps> = ({
         position: 'absolute',
         left: position.x,
         top: position.y,
+        width: `${width}px`,
+        height: `${height}px`,
       }}
     >
       {/* Draw lines within the subtree */}
-      <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
+      <svg
+        className="absolute top-0 left-0"
+        width={width}
+        height={height}
+        style={{ overflow: 'visible', pointerEvents: 'none' }}
+      >
         {drawIndentedStyleLines(subtreeNodes, 5)}
       </svg>
       {/* Render nodes within the subtree */}

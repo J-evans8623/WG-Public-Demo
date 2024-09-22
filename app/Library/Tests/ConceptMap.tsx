@@ -6,7 +6,8 @@ import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
 import { useCompositeLayout } from '@/app/Library/Tests/compositeLayout';
 import ConceptNode from './ConceptNode';
 import Subtree from './Subtree';
-import { drawTreeLines } from '@/app/Library/utils/drawTreeLines';
+import { drawHVStyleLines } from '@/app/Library/Tests/drawHVStyleLines';
+import { useAutoMapResize } from '@/app/Library/Tests/useAutoMapResize';
 
 interface ConceptMapProps {
   groundWidth: number;
@@ -21,6 +22,8 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
 
   const mapRef = useRef<HTMLDivElement>(null);
 
+  useAutoMapResize(mapRef);
+
   const { width, height } = useResizableMap({ mapRef, centerPaneRef });
 
   useKeepMapInView({
@@ -31,7 +34,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
     height,
   });
 
-  useCompositeLayout(nodes);
+  const laidOutNodes= useCompositeLayout(nodes);
 
   const rootNode = Array.from(nodes.values()).find((node) => node.isRoot);
 
@@ -55,7 +58,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
           style={{
             position: 'absolute',
             top: '200px',
-            left: '50%',
+            left: '50%', // 163 offset?
             pointerEvents: 'auto',
             width: '100%',
             height: '100%',
@@ -76,17 +79,19 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
               overflow: 'visible',
             }}
           >
-            {drawTreeLines(nodes)}
+            {drawHVStyleLines (laidOutNodes, subtrees, 5)}
           </svg>
 
           {/* Render Subtree components */}
           {Array.from(subtrees.entries()).map(([nodeId, subtreeData]) => (
-            <Subtree
-              key={nodeId}
-              rootNodeId={nodeId}
-              position={subtreeData.position}
-              onOpenCueCardModal={onOpenCueCardModal}
-            />
+          <Subtree
+          key={nodeId}
+          rootNodeId={nodeId}
+          position={subtreeData.position}
+          width={subtreeData.width}
+          height={subtreeData.height}
+          onOpenCueCardModal={onOpenCueCardModal}
+        />
           ))}
         </div>
       </div>
