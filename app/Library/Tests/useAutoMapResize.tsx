@@ -10,61 +10,53 @@ export function useAutoMapResize(mapRef: React.RefObject<HTMLDivElement>) {
   useEffect(() => {
     if (!mapRef.current) return;
 
-    const currentMapWidth = parseInt(mapRef.current.style.width, 10) || 0;
-    const currentMapHeight = parseInt(mapRef.current.style.height, 10) || 0;
-
-    // Get root node dimensions and position
-    const nodeWidth = 325; // Adjust as per your actual node width
-    const nodeHeight = 125; // Adjust as per your actual node height
+    const nodeWidth = 325; // Adjust according to actual node width
+    const nodeHeight = 125; // Adjust according to actual node height
 
     const rootNode = Array.from(nodes.values()).find(node => node.isRoot);
+    if (!rootNode || rootNode.x === undefined || rootNode.y === undefined) return;
 
-    let minLeft = Infinity;
-    let maxRight = -Infinity;
-    let maxSubtreeHeight = 0;
+    let minLeft = rootNode.x;
+    let maxRight = rootNode.x + nodeWidth;
+    let maxSubtreeHeight = rootNode.y + nodeHeight;
 
-    // Include root node in calculations
-    if (rootNode && rootNode.x !== undefined && rootNode.y !== undefined) {
-      const rootLeft = rootNode.x;
-      const rootRight = rootNode.x + nodeWidth;
-
-      minLeft = Math.min(minLeft, rootLeft);
-      maxRight = Math.max(maxRight, rootRight);
-    }
-
-    // Iterate over subtrees
-    subtrees.forEach(subtree => {
+    // Include subtrees in calculations
+    subtrees.forEach((subtree) => {
       const leftEdge = subtree.position.x;
-      const rightEdge = subtree.position.x + subtree.width + nodeWidth;
-
+      const rightEdge = subtree.position.x + subtree.width;
       minLeft = Math.min(minLeft, leftEdge);
       maxRight = Math.max(maxRight, rightEdge);
 
-      // Update max subtree height
-      if (subtree.height + subtree.position.y > maxSubtreeHeight) {
-        maxSubtreeHeight = subtree.height + subtree.position.y;
+      // Update max height
+      const subtreeBottom = subtree.position.y + subtree.height;
+      if (subtreeBottom > maxSubtreeHeight) {
+        maxSubtreeHeight = subtreeBottom;
       }
     });
 
+    // Desired paddings
+    const desiredLeftPadding = 400; // Should match the padding in useTreePositioning
+    const desiredRightPadding = 400; // Adjust as needed
+    const desiredTopPadding = 200; // Existing top padding
+    const desiredBottomPadding = 200; // Adjust as needed
+
     // Calculate total width and height
-    const totalWidthSpan = maxRight - minLeft;
-    const totalHeight = maxSubtreeHeight + nodeHeight; // Include root node height
+    const totalTreeWidth = maxRight - minLeft;
+    const treeWidth = desiredLeftPadding + totalTreeWidth + desiredRightPadding;
+    const treeHeight = desiredTopPadding + maxSubtreeHeight + desiredBottomPadding;
 
-    // Add padding
-    const paddingWidth = 875; // Adjust as needed
-    const paddingHeight = 875; // Adjust as needed
-
-    const treeWidth = totalWidthSpan// + paddingWidth;
-    const treeHeight = totalHeight// + paddingHeight;
+    // Get current map dimensions
+    const currentMapWidth = mapRef.current.offsetWidth;
+    const currentMapHeight = mapRef.current.offsetHeight;
 
     const resizeThreshold = 0.8; // 80% of current map size
 
-    const shouldResizeWidth = treeWidth  > (currentMapWidth * resizeThreshold ) ;
-    const shouldResizeHeight = treeHeight > (currentMapHeight * resizeThreshold);
+    const shouldResizeWidth = treeWidth > resizeThreshold * currentMapWidth;
+    const shouldResizeHeight = treeHeight > resizeThreshold * currentMapHeight;
 
     if (shouldResizeWidth || shouldResizeHeight) {
-      const updateWidth = Math.max(currentMapWidth, treeWidth) + paddingWidth;
-      const updateHeight = Math.max(currentMapHeight, treeHeight) + paddingHeight;
+      const updateWidth = Math.max(currentMapWidth, treeWidth);
+      const updateHeight = Math.max(currentMapHeight, treeHeight);
 
       if (shouldResizeWidth) {
         mapRef.current.style.width = `${updateWidth}px`;

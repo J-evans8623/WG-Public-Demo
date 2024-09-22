@@ -28,11 +28,11 @@ export function useTreePositioning(mapRef: React.RefObject<HTMLDivElement>) {
 
     const totalTreeWidth = maxRight - minLeft;
 
-    // Get map dimensions
-    const mapWidth = mapRef.current.offsetWidth;
+    // Desired padding from the left edge
+    const desiredLeftPadding = 400; // Adjust as needed
 
-    // Calculate offset to center the tree within the map
-    const offsetX = (mapWidth - totalTreeWidth) / 2 - minLeft;
+    // Calculate offset to position the tree with the leftmost edge at desired padding
+    const offsetX = desiredLeftPadding - minLeft;
 
     setOffset(offsetX);
   }, [subtrees, nodes, mapRef]);
