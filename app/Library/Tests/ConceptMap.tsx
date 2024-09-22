@@ -8,6 +8,7 @@ import ConceptNode from './ConceptNode';
 import Subtree from './Subtree';
 import { drawHVStyleLines } from '@/app/Library/Tests/drawHVStyleLines';
 import { useAutoMapResize } from '@/app/Library/Tests/useAutoMapResize';
+import { useTreePositioning } from '@/app/Library/Tests/useTreePositioning';
 
 interface ConceptMapProps {
   groundWidth: number;
@@ -25,6 +26,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
   useAutoMapResize(mapRef);
 
   const { width, height } = useResizableMap({ mapRef, centerPaneRef });
+  const { offset } = useTreePositioning(mapRef);
 
   useKeepMapInView({
     mapRef,
@@ -53,12 +55,13 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
       }}
     >
       <div style={{ flexGrow: 1, position: 'relative' }}>
-        {/* TreeContainer */}
+        {/* TreeContainer */} 
         <div
           style={{
             position: 'absolute',
             top: '200px',
-            left: '50%', // 163 offset?
+            left: '0', // This section is now our area of interest
+            transform: `translateX(${offset}px)`, // Apply dynamic offset
             pointerEvents: 'auto',
             width: '100%',
             height: '100%',
@@ -100,3 +103,8 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
 }
 
 export default ConceptMap;
+/**
+ * 
+ * Original
+ * We need to explicitly set the size of the map on mount
+ */
