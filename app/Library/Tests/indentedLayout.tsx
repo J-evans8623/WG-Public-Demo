@@ -15,7 +15,7 @@ export function applyIndentedLayout(
 ): { updatedNodes: Map<string, ConceptNode>; subtreeDimension: SubtreeDimension } {
   const updatedNodes = new Map(nodes);
 
-  const indentationWidth = 60;
+  const indentationWidth = 90;
   const verticalSpacing = 175;
 
   let minX = 0;
@@ -67,8 +67,8 @@ export function applyIndentedLayout(
       ?.map((id) => nodes.get(id))
       .filter(Boolean) as ConceptNode[];
 
-    children.forEach((child) => {
-      currentY = positionNodeAndChildren(child, rootNode.x ?? 0, currentY + verticalSpacing);
+      children.forEach((child, index) => {
+        currentY = positionNodeAndChildren(child, rootNode.x ?? 0, currentY + (index === 0 ? verticalSpacing : 0));// here
     });
   }
 

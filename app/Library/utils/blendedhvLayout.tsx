@@ -87,6 +87,7 @@ export function applyHVLayout(nodes: Map<string, ConceptNode>): Map<string, Conc
                 const nodeIndex = siblings.findIndex(n => n.id === node.id);
 
                 if (nodeIndex === 0) {
+                    // First child at depth 1 placed directly below root node
                     node.x = parentX;
                     node.y = parentY + verticalOffset;
                 } else {

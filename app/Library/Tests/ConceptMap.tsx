@@ -60,8 +60,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
           style={{
             position: 'absolute',
             top: '200px',
-            left: '0', // This section is now our area of interest
-            transform: `translateX(${offset}px)`, // Apply dynamic offset
+            left: offset === null ? '50%' : `${offset}px`, // Adjusted here
             pointerEvents: 'auto',
             width: '100%',
             height: '100%',
@@ -82,7 +81,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
               overflow: 'visible',
             }}
           >
-            {drawHVStyleLines (laidOutNodes, subtrees, 5)}
+            {drawHVStyleLines (laidOutNodes, subtrees, 8)}
           </svg>
 
           {/* Render Subtree components */}

@@ -44,7 +44,6 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
   // Define the state variable at the top of your component
      
   const firstNodeId = nodes.size > 0 ? nodes.values().next().value.id : 'node-1';
-   //const laidOutNodes = useHVTreeLayout(nodes, firstNodeId);
   const laidOutNodes = useCompositeLayout(nodes);
   const [mapWidth ] = useState<number>(defaultMapWidth); // Set to default width
    
@@ -129,6 +128,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
             pointerEvents: 'auto', // Allows pointer events on children
             width: '100%', // Ensure the TreeContainer takes up space
             height: '100%', // Ensure the TreeContainer takes up space
+            transition: 'transform 0.3s ease',
           }}
         >
           {/* Render lines between nodes (black lines for the entire tree) */}
@@ -148,7 +148,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
               <ConceptNode
                 key={node.id}
                 node={node}
-                onDragStart={handleDragStart}
+                //onDragStart={handleDragStart}
                 onOpenCueCardModal={onOpenCueCardModal}
               />
             );

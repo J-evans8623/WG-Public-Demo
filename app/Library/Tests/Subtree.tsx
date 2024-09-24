@@ -53,7 +53,7 @@ const Subtree: React.FC<SubtreeProps> = ({
         height={height}
         style={{ overflow: 'visible', pointerEvents: 'none' }}
       >
-        {drawIndentedStyleLines(subtreeNodes, 5)}
+        {drawIndentedStyleLines(subtreeNodes, 8)}
       </svg>
       {/* Render nodes within the subtree */}
       {Array.from(subtreeNodes.values()).map((node) => (
