@@ -6,22 +6,20 @@ interface UseKeepMapInViewProps {
   mapRef: React.RefObject<HTMLDivElement>;
   centerPaneRef: React.RefObject<HTMLDivElement>;
   zoomLevel: number;
-  width: number;
-  height: number;
 }
 
 const useKeepMapInView = ({
   mapRef,
   centerPaneRef,
   zoomLevel,
-  width,
-  height,
 }: UseKeepMapInViewProps) => {
   useEffect(() => {
     if (!mapRef.current || !centerPaneRef.current) return;
 
     const centerPane = centerPaneRef.current;
     const map = mapRef.current;
+    const width: number = map.offsetWidth;
+    const height: number = map.offsetHeight;
 
     const adjustScroll = () => {
       const centerRect = centerPane.getBoundingClientRect();
@@ -63,7 +61,11 @@ const useKeepMapInView = ({
     return () => {
       window.removeEventListener('resize', adjustScroll);
     };
-  }, [mapRef, centerPaneRef, zoomLevel, width, height]);
+  }, [mapRef, centerPaneRef, zoomLevel]);
 };
 
 export default useKeepMapInView;
+/**
+ * Original
+ * 
+ */

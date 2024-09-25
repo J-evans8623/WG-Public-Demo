@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { ConceptNode as ConceptNodeType } from '@/app/Library/Definitions/Definitions';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import ConceptNode from './ConceptNode';
-import { drawIndentedStyleLines } from '@/app/Library/utils/drawIndentedStyleLines';
+import { drawIndentedStyleLines } from '@/app/Library/Tests/drawIndentedStyleLines';
 
 interface SubtreeProps {
   rootNodeId: string;
@@ -53,7 +53,7 @@ const Subtree: React.FC<SubtreeProps> = ({
         height={height}
         style={{ overflow: 'visible', pointerEvents: 'none' }}
       >
-        {drawIndentedStyleLines(subtreeNodes, 8)}
+        {drawIndentedStyleLines(subtreeNodes, 4)}
       </svg>
       {/* Render nodes within the subtree */}
       {Array.from(subtreeNodes.values()).map((node) => (

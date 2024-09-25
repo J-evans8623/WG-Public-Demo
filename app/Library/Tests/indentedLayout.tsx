@@ -52,7 +52,7 @@ export function applyIndentedLayout(
 
   const rootNode = nodes.get(rootNodeId);
   if (rootNode) {
-    rootNode.x = 0;
+    rootNode.x = 0; // root debug root
     rootNode.y = 0;
     updatedNodes.set(rootNode.id, rootNode);
 

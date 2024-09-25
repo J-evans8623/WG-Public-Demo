@@ -110,6 +110,7 @@ export interface DocumentContextType {
     defaultMapHeight: number;
     getLayout: boolean;
     setGetLayout: (bool: boolean) => void;
+    toggleResetMapSize: () => void;
     //updateDefaultMapSize: (width: number, height: number) => void;
     //scrollLeft: number; // Added scrollLeft to track horizontal scroll position
     //scrollTop: number; // Added scrollTop to track vertical scroll position
@@ -144,6 +145,7 @@ export interface DocumentContextType {
     defaultMapWidth: number;
     defaultMapHeight: number;
     groundWidth: number;
+    resetMapSize: boolean;
     scrollLeft: number; // Add this line for horizontal scroll position
     scrollTop: number; // Add this line for vertical scroll position
     primaryColor: string; // New property
@@ -167,7 +169,8 @@ export interface DocumentContextType {
   | { type: DocumentActionType.ZOOM_IN }
   | { type: DocumentActionType.ZOOM_OUT }
   | { type: DocumentActionType.SET_PRIMARY_COLOR; payload: string } // New action type
-  | { type: DocumentActionType.SET_BACKGROUND_COLOR; payload: string };
+  | { type: DocumentActionType.SET_BACKGROUND_COLOR; payload: string }
+  | { type: DocumentActionType.TOGGLE_RESET_MAP_SIZE };
 
 // Action Types
 export enum DocumentActionType {
@@ -187,5 +190,6 @@ export enum DocumentActionType {
   UPDATE_NODE = 'UPDATE_NODE',
   SET_PRIMARY_COLOR = 'SET_PRIMARY_COLOR',
   SET_BACKGROUND_COLOR = 'SET_BACKGROUND_COLOR',
+  TOGGLE_RESET_MAP_SIZE = 'TOGGLE_RESET_MAP_SIZE', 
   // Add other action types as needed
 }

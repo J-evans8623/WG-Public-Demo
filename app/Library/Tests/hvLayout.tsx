@@ -19,11 +19,11 @@ export function applyHVLayout(
     let x = 0;
     if (direction > 0) {
       // Right side
-      x = cumulativeRightWidth + (index > 0 ? minHorizontalGap : 0);
+      x = cumulativeRightWidth + (index > 0 ? minHorizontalGap : 0);// root debug root
       cumulativeRightWidth += subtree.width + minHorizontalGap;
     } else {
       // Left side
-      x = - (cumulativeLeftWidth + subtree.width + (index > 0 ? minHorizontalGap : 0));
+      x = - (cumulativeLeftWidth + subtree.width + (index > 0 ? minHorizontalGap : 0)); // debug root
       cumulativeLeftWidth += subtree.width + minHorizontalGap;
     }
 

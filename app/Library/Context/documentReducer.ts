@@ -1,7 +1,6 @@
 // bloom-maps\app\Library\Context\documentReducer.ts
 import { ConceptNode, CueCard, DocumentState, DocumentAction, DocumentActionType } from '@/app/Library/Definitions/Definitions';
 
-
 const baseZoomLvl = 0.7;//0.7
 // Define the initial state for the document
 export const initialDocumentState: DocumentState = {
@@ -15,6 +14,7 @@ export const initialDocumentState: DocumentState = {
     defaultMapWidth: 1800, // Default map width
     defaultMapHeight: 1800, // Default map height
     groundWidth: 0, // Initial ground width ???
+    resetMapSize: false, // Test
     scrollLeft: 0, // Initial scroll position on the x-axis
   scrollTop: 0, // Initial scroll position on the y-axis
   primaryColor: '#D5E6ED', // Default primary color
@@ -154,6 +154,12 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
         defaultMapHeight: action.payload.mapHeight,
       };
 
+      case DocumentActionType.TOGGLE_RESET_MAP_SIZE:
+      return {
+        ...state,
+        resetMapSize: !state.resetMapSize, // Toggle the resetMapSize flag
+      };
+
       case DocumentActionType.INIT_NEW_DOCUMENT:
         const newRootNode: ConceptNode = {
           id: 'node-1',
@@ -161,7 +167,7 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
           //cueCards: [],
           parentNodeId: undefined,
           childrenNodeIds: [],
-          x: 0,//(action.payload.mapWidth / 2) - 100, // 0.5 * node width = 100
+          x: 0, // initially 0 root debug
           y: 0,//200,
           isRoot: true,
           depth: 0,

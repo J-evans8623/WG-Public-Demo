@@ -11,7 +11,7 @@ import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Compon
 import ConceptMap from '@/app/Library/Tests/ConceptMap';
 import DocumentCreationModal from '@/app/Library/components/DocumentCreationModal';
 import Modal from '@/app/Library/components/Modal';
-import { DocumentProvider, useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
+import { DocumentProvider, useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
 import { ColorTheme, CueCard} from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
@@ -73,17 +73,15 @@ function ClientLayoutContent() {
   const [windowWidth, setWindowWidth] = useState<number>(0);
   const [windowHeight, setWindowHeight] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
-  const {state, dispatch, zoomIn, zoomOut, setColorTheme  } = useDocumentContext();
+  const {state, dispatch, zoomIn, zoomOut, setColorTheme } = useDocumentContext();
   const { resetTreeDimensions} = useTreeDimensions();
   const { resetSubtrees } = useSubTreeContext();
   const { addCueCard, resetCueCards } = useCueCardContext();
   const {zoomLevel, baseZoomLevel} = state;
-
   const [isAddingCueCard, setIsAddingCueCard] = useState(false);
   const [currentNodeId, setCurrentNodeId] = useState<string | null>(null);
+  
 
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
 
 
     // Update ground width once component is mounted on the client side
@@ -112,13 +110,10 @@ useEffect(() => {
  * 
  */
 
-const handleCreateNewDocument = useCallback(
-  (selectedDepth: 1 | 2 | 3 | 4 | 5 | 6) => {
-    initializeNewDocument(dispatch,  resetCueCards,resetTreeDimensions,resetSubtrees, selectedDepth, windowWidth, false); // Reset and create a new document
-    closeModal();
-  },
-  [dispatch, windowWidth]
-);
+const handleCreateNewDocument = useCallback(() => {
+  initializeNewDocument(dispatch, resetCueCards, resetTreeDimensions, resetSubtrees, 6, windowWidth, false); // Always use depth 6
+  dispatch(toggleResetMapSize());
+}, [dispatch, windowWidth, resetCueCards, resetTreeDimensions, resetSubtrees]);
 
   const handleOpenDocument = () => {
     console.log("Open Document clicked");
@@ -178,20 +173,12 @@ const handleCreateNewDocument = useCallback(
         onClose={() => setIsAddingCueCard(false)}
         onCreateCueCard={handleCueCardSave}
       />
-      {/* Document Creation Modal */}
-      <Modal isOpen={isModalOpen} onClose={closeModal}>
-        <DocumentCreationModal
-          isOpen={isModalOpen}
-          onClose={closeModal}
-          onCreate={handleCreateNewDocument} // Pass the function directly
-        />
-      </Modal>
 
       {/* Main UI Layout */}
       <div className="flex items-center justify-between bg-gray-50 p-2 shadow-md">
         {/* Dynamic Menu Options */}
         <div className="flex items-center space-x-4">
-          <button onClick={openModal} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+          <button onClick={handleCreateNewDocument} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
             New Doc
           </button>
           <button onClick={handleOpenDocument} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">

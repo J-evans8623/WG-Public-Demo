@@ -20,7 +20,7 @@ export function applyHVLayout(
   const rootNode = Array.from(updatedNodes.values()).find((node) => node.isRoot);
   if (rootNode) {
     rootNode.x = 0;
-    rootNode.y = 0;
+    rootNode.y = 0; // root debug initially 0
     updatedNodes.set(rootNode.id, rootNode);
   } else {
     return updatedNodes;

@@ -1,7 +1,7 @@
-import React, { useRef } from 'react';
+//bloom-maps\app\Library\Tests\ConceptMap.tsx
+import React, { useRef, useEffect } from 'react';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { useSubTreeContext } from '@/app/Library/Tests/SubTreeProvider';
-import { useResizableMap } from '@/app/Library/hooks/useResizableMap';
 import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
 import { useCompositeLayout } from '@/app/Library/Tests/compositeLayout';
 import ConceptNode from './ConceptNode';
@@ -16,25 +16,23 @@ interface ConceptMapProps {
   onOpenCueCardModal: (nodeId: string) => void;
 }
 
-function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptMapProps) {
+function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal}: ConceptMapProps) {
   const { state } = useDocumentContext();
-  const { nodes, zoomLevel } = state;
+  const { nodes, zoomLevel, resetMapSize } = state; 
   const { subtrees } = useSubTreeContext();
 
   const mapRef = useRef<HTMLDivElement>(null);
 
   useAutoMapResize(mapRef);
 
-  const { width, height } = useResizableMap({ mapRef, centerPaneRef });
   const { offset } = useTreePositioning(mapRef);
 
   useKeepMapInView({
     mapRef,
     centerPaneRef,
     zoomLevel,
-    width,
-    height,
   });
+
 
   const laidOutNodes= useCompositeLayout(nodes);
 
@@ -47,8 +45,6 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
       style={{
         transform: `scale(${zoomLevel})`,
         transformOrigin: 'top left',
-        minWidth: `${width}px`,
-        minHeight: `${height}px`,
         transition: 'transform 0.3s ease, min-height 0.3s ease, min-width 0.3s ease',
         position: 'relative',
         display: 'flex',
@@ -60,7 +56,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
           style={{
             position: 'absolute',
             top: '200px',
-            left: offset === null ? '50%' : `${offset}px`, // Adjusted here
+            left: `${offset}px`, // Adjusted here
             pointerEvents: 'auto',
             width: '100%',
             height: '100%',
@@ -81,7 +77,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
               overflow: 'visible',
             }}
           >
-            {drawHVStyleLines (laidOutNodes, subtrees, 8)}
+            {drawHVStyleLines (laidOutNodes, subtrees, 4)}
           </svg>
 
           {/* Render Subtree components */}
@@ -102,8 +98,3 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
 }
 
 export default ConceptMap;
-/**
- * 
- * Original
- * We need to explicitly set the size of the map on mount
- */

@@ -90,6 +90,9 @@ export const setBackgroundColor = (color: string): DocumentAction => ({
   type: DocumentActionType.SET_BACKGROUND_COLOR, // New action type
   payload: color,
 });
+export const toggleResetMapSize = (): DocumentAction => ({
+  type: DocumentActionType.TOGGLE_RESET_MAP_SIZE,
+});
 
 export const setNodes = (nodes: Map<string, ConceptNode>): DocumentAction => ({
   type: DocumentActionType.SET_NODES,
