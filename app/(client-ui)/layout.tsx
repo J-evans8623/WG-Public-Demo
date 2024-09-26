@@ -9,20 +9,20 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Split from 'react-split';
 import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Component/CueCardDisplay';
 import ConceptMap from '@/app/Library/components/ConceptMap';
-import { DocumentProvider, useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
+import { DocumentProvider, useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize, updateNodeTitle, createNewNode, setGetLayout} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
 import { ColorTheme, CueCard} from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
-import ModernModal from '@/app/Library/components/ModernModal';
+import ModernModal from '@/app/Library/Tests/ModernModal';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
-import { useSubTreeContext, SubTreeProvider } from '../Library/Context/SubTreeProvider'   //'../Library/Context/SubTreeProvider.Tsx';
-
+import { useSubTreeContext, SubTreeProvider} from '../Library/Context/SubTreeProvider'  
+import { v4 as uuidv4 } from 'uuid';
 
 // Updated component to handle theme selection
 const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) => void }) => {
-  const {dispatch,  } = useDocumentContext();  // Use the new context for dispatching the action
+  const {dispatch} = useDocumentContext();  // Use the new context for dispatching the action
 const [isOpen, setIsOpen] = useState(false);
 
   // Handler to update both old and new providers
@@ -66,7 +66,7 @@ const [isOpen, setIsOpen] = useState(false);
 
 function ClientLayoutContent() {
  
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  
   const centerPaneRef = useRef<HTMLDivElement>(null); // Ref to center pane
   const [windowWidth, setWindowWidth] = useState<number>(0);
   const [windowHeight, setWindowHeight] = useState<number>(0);
@@ -76,8 +76,11 @@ function ClientLayoutContent() {
   const { resetSubtrees } = useSubTreeContext();
   const { addCueCard, resetCueCards } = useCueCardContext();
   const {zoomLevel, baseZoomLevel} = state;
-  const [isAddingCueCard, setIsAddingCueCard] = useState(false);
-  const [currentNodeId, setCurrentNodeId] = useState<string | null>(null);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalNodeId, setModalNodeId] = useState<string | null>(null);
+  const [modalMode, setModalMode] = useState<'addChild' | 'addCueCard'>('addCueCard');
+  const { nodes } = state;
   
 
 
@@ -125,29 +128,73 @@ const handleCreateNewDocument = useCallback(() => {
     console.log("Help clicked");
   };
 
+ // Handler for opening the modal
+  // Handler to open modal for adding a cue card
   const handleOpenCueCardModal = useCallback((nodeId: string) => {
-    setCurrentNodeId(nodeId);
-    setIsAddingCueCard(true);
+    setModalNodeId(nodeId);
+    setModalMode('addCueCard');
+    setIsModalOpen(true);
   }, []);
 
-  // Function to save the cue card
-  const handleCueCardSave = useCallback(
-    (title: string, content: string, bloomLevel: 1 | 2 | 3 | 4 | 5 | 6, image?: File | null) => {
-      if (currentNodeId) {
-        const newCueCard: CueCard = {
-          id: Date.now().toString(),
-          title,
-          content,
-          bloomLevel,
-          // Handle image if needed
-        };
-        addCueCard(currentNodeId, newCueCard); // Use your context or state management to add the cue card
-      }
-      setIsAddingCueCard(false);
-    },
-    [currentNodeId, addCueCard]
-  );
 
+  // Handler to open modal for adding a child node or editing node
+  const handleOpenAddChildModal = useCallback((parentNodeId: string) => {
+    setModalNodeId(parentNodeId);
+    setModalMode('addChild');
+    setIsModalOpen(true);
+  }, []);
+  // Handler for saving data from the modal
+  const initialNodeTitle =
+    modalMode === 'addChild'
+      ? 'New Concept'
+      : modalNodeId
+      ? nodes.get(modalNodeId)?.title || ''
+      : '';
+
+  // Handler for saving data from the modal
+  const handleModalSave = (
+    nodeTitle: string,
+    cueCardTitle: string,
+    cueCardContent: string,
+    bloomLevel: 1 | 2 | 3 | 4 | 5 | 6,
+    image?: File | null
+  ) => {
+    if (modalNodeId) {
+      if (modalMode === 'addChild') {
+        // Generate newNodeId
+        const newNodeId = uuidv4();
+        // Create new child node
+        dispatch(createNewNode(nodeTitle || 'New Concept', modalNodeId, newNodeId));
+        dispatch(setGetLayout(true));
+
+        // Add cue card if applicable
+        if (cueCardTitle.trim() !== '' && cueCardContent.trim() !== '') {
+          const newCueCard: CueCard = {
+            id: Date.now().toString(),
+            title: cueCardTitle,
+            content: cueCardContent,
+            bloomLevel,
+          };
+          addCueCard(newNodeId, newCueCard);
+        }
+      } else if (modalMode === 'addCueCard') {
+        // Update node title if it was edited
+        dispatch(updateNodeTitle(modalNodeId, nodeTitle));
+
+        // Add cue card to existing node
+        if (cueCardTitle.trim() !== '' && cueCardContent.trim() !== '') {
+          const newCueCard: CueCard = {
+            id: Date.now().toString(),
+            title: cueCardTitle,
+            content: cueCardContent,
+            bloomLevel,
+          };
+          addCueCard(modalNodeId, newCueCard);
+        }
+      }
+    }
+    setIsModalOpen(false);
+  };
     //Tool Pane Layout color;
     // Predefined color sets
     const primaryColors = ['#D5E6ED', '#C4ACAA', '#F7CAAB', '#EBD3E0'];
@@ -165,11 +212,13 @@ const handleCreateNewDocument = useCallback(() => {
 
   return (
     <>
-      {/*  ModernModal  */}
-          <ModernModal
-        isOpen={isAddingCueCard}
-        onClose={() => setIsAddingCueCard(false)}
-        onCreateCueCard={handleCueCardSave}
+      {/* ModernModal */}
+      <ModernModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleModalSave}
+        initialNodeTitle={initialNodeTitle}
+        mode={modalMode}
       />
 
       {/* Main UI Layout */}
@@ -218,7 +267,11 @@ const handleCreateNewDocument = useCallback(() => {
       overflowY: 'auto', // Enables vertical scrolling
     }}
   >
-    <ConceptMap groundWidth={windowWidth} centerPaneRef={centerPaneRef} onOpenCueCardModal={handleOpenCueCardModal}/>
+    <ConceptMap 
+    groundWidth={windowWidth} 
+    centerPaneRef={centerPaneRef} 
+    onOpenCueCardModal={handleOpenCueCardModal} 
+    onOpenAddChildModal={handleOpenAddChildModal}/>
   </div>
 
   {/* Right Panel (Tool Interface) */}

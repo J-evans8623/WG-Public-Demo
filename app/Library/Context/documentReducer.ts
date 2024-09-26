@@ -101,14 +101,13 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
             };
           }*/
             case DocumentActionType.CREATE_NEW_NODE: {
-              const { title, parentNodeId } = action.payload;
+              const {newNodeId, title, parentNodeId } = action.payload;
               const parentNode = state.nodes.get(parentNodeId);
               if (!parentNode) {
                 console.error(`Parent node with ID ${parentNodeId} not found.`);
                 return state;
               }
         
-              const newNodeId = `node-${state.nodes.size + 1}`;
               const newDepth = (parentNode.depth || 0) + 1;
         
               const newNode: ConceptNode = {

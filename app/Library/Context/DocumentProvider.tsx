@@ -115,9 +115,13 @@ export const setGetLayout = (getLayout: boolean): DocumentAction => ({
     payload: getLayout,
   });
 
-export const createNewNode = (title: string, parentNodeId: string): DocumentAction => ({
+export const createNewNode = 
+(title: string, 
+parentNodeId: string,
+newNodeId: string
+): DocumentAction => ({
   type: DocumentActionType.CREATE_NEW_NODE,
-  payload: { title, parentNodeId },
+  payload: {newNodeId, title, parentNodeId },
 });
 
 export const resetGlobalData = (): DocumentAction => ({

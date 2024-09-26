@@ -26,6 +26,7 @@ export interface ConceptNodeProps {
   node: ConceptNode; // The data representing a Concept-node
   //onDragStart: (node: ConceptNode) => void; // Drag start function, kept as it is still needed
    onOpenCueCardModal: (nodeId: string) => void;
+   onOpenAddChildModal: (parentNodeId: string) => void;
 }
 
 
@@ -161,7 +162,7 @@ export interface DocumentContextType {
   | { type: DocumentActionType.ADD_CUE_CARD_TO_NODE; payload: { nodeId: string; cueCard: CueCard } }
   | { type: DocumentActionType.UPDATE_NODE_TITLE; payload: { nodeId: string; newTitle: string } }
   | { type: DocumentActionType.SET_GET_LAYOUT; payload: boolean }
-  | { type: DocumentActionType.CREATE_NEW_NODE; payload: { title: string; parentNodeId: string } }
+  | { type: DocumentActionType.CREATE_NEW_NODE; payload: { title: string; parentNodeId: string; newNodeId: string } }
   | { type: DocumentActionType.INIT_NEW_DOCUMENT; payload: { bloomDepth: 1 | 2 | 3 | 4 | 5 | 6; mapWidth: number; mapHeight: number } }
   | { type: DocumentActionType.SET_MAP_SIZE; payload: { groundWidth: number; mapWidth: number; mapHeight: number } }
   | { type: DocumentActionType.RESET_GLOBAL_DATA }

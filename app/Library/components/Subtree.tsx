@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { ConceptNode as ConceptNodeType } from '@/app/Library/Definitions/Definitions';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
-import ConceptNode from '../components/ConceptNode';
+import ConceptNode from '../Tests/ConceptNode';
 import { drawIndentedStyleLines } from '@/app/Library/utils/drawIndentedStyleLines';
 
 interface SubtreeProps {
@@ -12,6 +12,7 @@ interface SubtreeProps {
   width: number;
   height: number;
   onOpenCueCardModal: (nodeId: string) => void;
+  onOpenAddChildModal: (parentNodeId: string) => void;
 }
 
 const Subtree: React.FC<SubtreeProps> = ({
@@ -20,6 +21,7 @@ const Subtree: React.FC<SubtreeProps> = ({
   width,
   height,
   onOpenCueCardModal,
+  onOpenAddChildModal,
 }) => {
   const { state } = useDocumentContext();
   const { nodes } = state;
@@ -63,6 +65,7 @@ const Subtree: React.FC<SubtreeProps> = ({
           key={node.id}
           node={node}
           onOpenCueCardModal={onOpenCueCardModal}
+          onOpenAddChildModal={onOpenAddChildModal}
         />
       ))}
     </div>

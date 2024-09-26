@@ -1,10 +1,10 @@
-//bloom-maps\app\Library\Tests\ConceptMap.tsx
+//bloom-maps\app\Library\Components\ConceptMap.tsx
 import React, { useRef, useEffect } from 'react';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
 import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
-import ConceptNode from './ConceptNode';
+import ConceptNode from '@/app/Library/Tests/ConceptNode';
 import Subtree from './Subtree';
 import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
 import { useAutoMapResize } from '@/app/Library/hooks/useAutoMapResize';
@@ -14,9 +14,10 @@ interface ConceptMapProps {
   groundWidth: number;
   centerPaneRef: React.RefObject<HTMLDivElement>;
   onOpenCueCardModal: (nodeId: string) => void;
+  onOpenAddChildModal: (parentNodeId: string) => void;
 }
 
-function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal}: ConceptMapProps) {
+function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal, onOpenAddChildModal}: ConceptMapProps) {
   const { state } = useDocumentContext();
   const { nodes, zoomLevel, resetMapSize } = state; 
   const { subtrees } = useSubTreeContext();
@@ -67,6 +68,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal}: ConceptMa
               key={rootNode.id}
               node={rootNode}
               onOpenCueCardModal={onOpenCueCardModal}
+              onOpenAddChildModal={onOpenAddChildModal}
             />
           )}
 
@@ -89,6 +91,7 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal}: ConceptMa
           width={subtreeData.width}
           height={subtreeData.height}
           onOpenCueCardModal={onOpenCueCardModal}
+          onOpenAddChildModal={onOpenAddChildModal}
         />
           ))}
         </div>
