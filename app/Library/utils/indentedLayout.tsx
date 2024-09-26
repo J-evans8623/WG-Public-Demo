@@ -1,74 +1,88 @@
-// bloom-maps/app/Library/utils/indentedLayout.tsx
-
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
-import { useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 
-export function applyIndentedLayout(nodes: Map<string, ConceptNode>): Map<string, ConceptNode> {
-    const updatedNodes = new Map(nodes);
+interface SubtreeDimension {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  width: number;
+  height: number;
+}
 
-    const indentationWidth = 60; // Indentation width between levels
-    const verticalSpacing = 175; // Vertical spacing between sibling nodes
+export function applyIndentedLayout(
+  nodes: Map<string, ConceptNode>,
+  rootNodeId: string
+): { updatedNodes: Map<string, ConceptNode>; subtreeDimension: SubtreeDimension } {
+  const updatedNodes = new Map(nodes);
 
-    // Initialize min/max values for x and y coordinates
-    let minX = Number.MAX_SAFE_INTEGER;
-    let maxX = Number.MIN_SAFE_INTEGER;
-    let maxY = Number.MIN_SAFE_INTEGER;
-    let MxDepth = 0; // Local variable to track maximum depth
+  const indentationWidth = 90;
+  const verticalSpacing = 175;
 
-    const positionNodeAndChildren = (node: ConceptNode, currentY: number): number => {
-        if (node.depth > 1) {
-            const parentNode = node.parentNodeId ? nodes.get(node.parentNodeId) : undefined;
+  let minX = 0;
+  let maxX = 0;
+  let minY = 0;
+  let maxY = 0;
 
-            if (parentNode) {
-                node.x = parentNode.x !== undefined ? parentNode.x + indentationWidth : 0; // strict test for undefined x value, 0 is a valid number
+  const positionNodeAndChildren = (
+    node: ConceptNode,
+    parentX: number,
+    currentY: number
+  ): number => {
+    node.x = parentX + indentationWidth;
+    node.y = currentY;
+    updatedNodes.set(node.id, node);
 
-                node.y = currentY;
-                updatedNodes.set(node.id, node);
+    minX = Math.min(minX, node.x);
+    maxX = Math.max(maxX, node.x);
+    minY = Math.min(minY, node.y);
+    maxY = Math.max(maxY, node.y);
 
-                // Update the min/max x-coordinates
-                if (node.x !== undefined) {
-                    minX = Math.min(minX, node.x);
-                    maxX = Math.max(maxX, node.x);
-                }
+    let nextY = currentY + verticalSpacing;
 
-                // Update the max y-coordinate
-                maxY = Math.max(maxY, node.y ?? 0);
+    const children = node.childrenNodeIds
+      ?.map((id) => nodes.get(id))
+      .filter(Boolean) as ConceptNode[];
 
-                // Update the local maximum depth
-                MxDepth = Math.max(MxDepth, node.depth ?? 0);
-
-                let nextY = currentY + verticalSpacing;
-
-                const children = node.childrenNodeIds?.map(id => nodes.get(id)).filter(Boolean) as ConceptNode[];
-                children.forEach((child) => {
-                    nextY = positionNodeAndChildren(child, nextY);
-                });
-
-                return nextY;
-            }
-        }
-        return currentY + verticalSpacing;
-    };
-
-    const depthOneNodes = Array.from(nodes.values()).filter((node) => node.depth === 1);
-    depthOneNodes.forEach((depthOneNode) => {
-        let currentY = depthOneNode.y !== undefined  ? depthOneNode.y + verticalSpacing : 0;  // strict test for undefined x value, 0 is a valid number
-        const depthTwoNodes = depthOneNode.childrenNodeIds?.map(id => nodes.get(id)).filter(Boolean) as ConceptNode[];
-        depthTwoNodes.forEach((depthTwoNode) => {
-            currentY = positionNodeAndChildren(depthTwoNode, currentY);
-        });
+    children.forEach((child) => {
+      nextY = positionNodeAndChildren(child, node.x ?? 0, nextY);
     });
 
-    // Access the TreeDimensionsContext to update min/max values and max depth
-    const { minX: oldMinX, maxX: oldMaxX, maxY: oldMaxY, treeMaxDepth, setMinX, setMaxX, setMaxY, setTreeMaxDepth } = useTreeDimensions();
+    return nextY;
+  };
 
-    // Update the context if new min/max values are found
-    if (minX < oldMinX) setMinX(minX);
-    if (maxX > oldMaxX) setMaxX(maxX);
-    if (maxY > oldMaxY) setMaxY(maxY);
+  const rootNode = nodes.get(rootNodeId);
+  if (rootNode) {
+    rootNode.x = 0; // root debug root
+    rootNode.y = 0;
+    updatedNodes.set(rootNode.id, rootNode);
 
-    // Update the maximum depth if the local MxDepth exceeds the current context value
-    if (MxDepth > treeMaxDepth) setTreeMaxDepth(MxDepth);
+    minX = 0;
+    maxX = 0;
+    minY = 0;
+    maxY = 0;
 
-    return updatedNodes;
+    let currentY = 0;
+
+    const children = rootNode.childrenNodeIds
+      ?.map((id) => nodes.get(id))
+      .filter(Boolean) as ConceptNode[];
+
+      children.forEach((child, index) => {
+        currentY = positionNodeAndChildren(child, rootNode.x ?? 0, currentY + (index === 0 ? verticalSpacing : 0));// here
+    });
+  }
+
+  const subtreeWidth = maxX - minX + 325;
+  const subtreeHeight = maxY - minY + 125;
+
+  const subtreeDimension: SubtreeDimension = {
+    minX,
+    maxX,
+    minY,
+    maxY,
+    width: subtreeWidth,
+    height: subtreeHeight,
+  };
+
+  return { updatedNodes, subtreeDimension };
 }

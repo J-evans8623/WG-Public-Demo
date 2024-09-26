@@ -8,9 +8,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
 import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Component/CueCardDisplay';
-import ConceptMap from '@/app/Library/Tests/ConceptMap';
-import DocumentCreationModal from '@/app/Library/components/DocumentCreationModal';
-import Modal from '@/app/Library/components/Modal';
+import ConceptMap from '@/app/Library/components/ConceptMap';
 import { DocumentProvider, useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
 import { ColorTheme, CueCard} from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
@@ -19,7 +17,7 @@ import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
 import ModernModal from '@/app/Library/components/ModernModal';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
-import { useSubTreeContext, SubTreeProvider } from '../Library/Tests/SubTreeProvider';
+import { useSubTreeContext, SubTreeProvider } from '../Library/Context/SubTreeProvider'   //'../Library/Context/SubTreeProvider.Tsx';
 
 
 // Updated component to handle theme selection

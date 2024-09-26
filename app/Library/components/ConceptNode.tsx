@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, memo, useCallback } from 'react';
-import Modal from './Modal';
+import Modal from '../components/Modal';
 import { CueCard, colorThemes, ConceptNode as ConceptNodeType, ConceptNodeProps } from '@/app/Library/Definitions/Definitions'; 
 import { useDocumentContext, updateNodeTitle, setGetLayout, createNewNode } from '@/app/Library/Context/DocumentProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
@@ -11,7 +11,7 @@ import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 const DEFAULT_PRIMARY_COLOR = '#D5E6ED'; // Arbitrary default primary color
 const DEFAULT_BACKGROUND_COLOR = '#ECE7D1'; // Arbitrary default background color
 
-function ConceptNode({ node,  onOpenCueCardModal }: ConceptNodeProps) {
+function ConceptNode({ node, onOpenCueCardModal }: ConceptNodeProps) {
   
   const { state, dispatch } = useDocumentContext(); 
   const { colorTheme, primaryColor = DEFAULT_PRIMARY_COLOR, backgroundColor = DEFAULT_BACKGROUND_COLOR } = state;

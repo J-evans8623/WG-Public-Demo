@@ -1,10 +1,10 @@
-// bloom-maps/app/Library/utils/drawHVStyleLines.tsx
-
 import React from 'react';
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+import { SubtreeData } from '@/app/Library/Context/SubTreeProvider';
 
 export function drawHVStyleLines(
   nodes: Map<string, ConceptNode>,
+  subtrees: Map<string, SubtreeData>,
   lineWidth: number,
   strokeColor: string = '#6e6e6e' // Default gray color
 ): JSX.Element[] {
@@ -14,49 +14,49 @@ export function drawHVStyleLines(
   const nodeWidth = 325;
   const nodeHeight = 125;
 
-  const depthOneNodes = Array.from(nodes.values()).filter(node => node.depth === 1);
-
-  if (depthOneNodes.length === 0) return lineElements;
-
+  // Get the root node
   const rootNode = Array.from(nodes.values()).find(node => node.isRoot);
 
   if (!rootNode || rootNode.x === undefined || rootNode.y === undefined) return lineElements;
 
-  const rootPCP = { x: (rootNode.x ?? 0) + nodeWidth / 2, y: (rootNode.y ?? 0) + nodeHeight }; // Midpoint bottom of the root node
+  // Calculate the center bottom point of the root node
+  const rootPCP = { x: rootNode.x + nodeWidth / 2, y: rootNode.y + nodeHeight };
 
-  if (depthOneNodes.length === 1) {
-    const singleChild = depthOneNodes[0];
+  // If there are no subtrees, return
+  if (subtrees.size === 0) return lineElements;
 
-    if (singleChild.x !== undefined && singleChild.y !== undefined) {
-      const childCCP = { x: singleChild.x + nodeWidth / 2, y: singleChild.y }; // Midpoint top of the single child node
+  if (subtrees.size === 1) {
+    // Only one subtree
+    const [nodeId, subtreeData] = subtrees.entries().next().value;
 
-      lineElements.push(
-        <path
-          key={`curve-root-to-single-child`}
-          d={`M ${rootPCP.x},${rootPCP.y} Q ${rootPCP.x},${(rootPCP.y + childCCP.y) / 2} ${childCCP.x},${childCCP.y}`}
-          stroke={strokeColor}
-          strokeWidth={lineWidth}
-          fill="none"
-        />
-      );
-    }
+    const childCCP = {
+      x: subtreeData.position.x + nodeWidth / 2,
+      y: subtreeData.position.y,
+    };
+
+    lineElements.push(
+      <path
+        key={`curve-root-to-single-child`}
+        d={`M ${rootPCP.x},${rootPCP.y} Q ${rootPCP.x},${(rootPCP.y + childCCP.y) / 2} ${childCCP.x},${childCCP.y}`}
+        stroke={strokeColor}
+        strokeWidth={lineWidth}
+        fill="none"
+      />
+    );
   } else {
-    const leftmostNode = depthOneNodes.reduce((minNode, currentNode) =>
-      currentNode.x !== undefined && (minNode.x === undefined || currentNode.x < minNode.x)
-        ? currentNode
-        : minNode
-    );
+    // Multiple subtrees
+    let leftmostX = Infinity;
+    let rightmostX = -Infinity;
 
-    const rightmostNode = depthOneNodes.reduce((maxNode, currentNode) =>
-      currentNode.x !== undefined && (maxNode.x === undefined || currentNode.x > maxNode.x)
-        ? currentNode
-        : maxNode
-    );
+    subtrees.forEach((subtreeData) => {
+      const x = subtreeData.position.x + nodeWidth / 2;
+      if (x < leftmostX) leftmostX = x;
+      if (x > rightmostX) rightmostX = x;
+    });
 
-    const leftmostX = (leftmostNode.x ?? 0) + nodeWidth / 2;
-    const rightmostX = (rightmostNode.x ?? 0) + nodeWidth / 2;
     const anchorY = rootPCP.y + 50;
 
+    // Draw horizontal anchor line
     lineElements.push(
       <path
         key="curved-anchor-line-depth1"
@@ -67,6 +67,7 @@ export function drawHVStyleLines(
       />
     );
 
+    // Draw path from root to anchor
     lineElements.push(
       <path
         key={`curve-root-to-anchor`}
@@ -77,31 +78,23 @@ export function drawHVStyleLines(
       />
     );
 
-    depthOneNodes.forEach(node => {
-      if (node.x !== undefined && node.y !== undefined) {
-        const childCCP = { x: node.x + nodeWidth / 2, y: node.y };
-        const controlY = anchorY + 10;
+    // Draw paths from anchor to each subtree
+    subtrees.forEach((subtreeData, nodeId) => {
+      const x = subtreeData.position.x + nodeWidth / 2;
+      const y = subtreeData.position.y;
+      const controlY = anchorY + 10;
 
-        lineElements.push(
-          <path
-            key={`curve-anchor-to-ccp-${node.id}`}
-            d={`M ${childCCP.x},${anchorY} Q ${childCCP.x},${controlY} ${childCCP.x},${childCCP.y}`}
-            stroke={strokeColor}
-            strokeWidth={lineWidth}
-            fill="none"
-          />
-        );
-      }
+      lineElements.push(
+        <path
+          key={`curve-anchor-to-ccp-${nodeId}`}
+          d={`M ${x},${anchorY} Q ${x},${controlY} ${x},${y}`}
+          stroke={strokeColor}
+          strokeWidth={lineWidth}
+          fill="none"
+        />
+      );
     });
   }
 
   return lineElements;
 }
-
-
-
-/**
- * Original Version
- * 
- * 
- */

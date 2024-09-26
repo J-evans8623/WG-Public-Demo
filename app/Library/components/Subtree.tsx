@@ -1,8 +1,10 @@
+
+// bloom-maps\app\Library\components\Subtree.tsx
 import React, { useMemo } from 'react';
 import { ConceptNode as ConceptNodeType } from '@/app/Library/Definitions/Definitions';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
-import ConceptNode from './ConceptNode';
-import { drawIndentedStyleLines } from '@/app/Library/Tests/drawIndentedStyleLines';
+import ConceptNode from '../components/ConceptNode';
+import { drawIndentedStyleLines } from '@/app/Library/utils/drawIndentedStyleLines';
 
 interface SubtreeProps {
   rootNodeId: string;

@@ -1,104 +1,43 @@
-// bloom-maps/app/Component/ConceptMap.tsx
-
-'use client';
-
-import React, { useState, useRef, useEffect,  RefObject } from 'react';
-import ConceptNode from '@/app/Library/components/ConceptNode' //'./ConceptNode';
-import { CueCard, ConceptNode as ConceptNodeType, colorThemes } from '@/app/Library/Definitions/Definitions'
-import { drawTreeLines } from '../utils/drawTreeLines'; //'./utils/drawTreeLines';
-import { useCompositeLayout } from '../utils/compositeLayout';
-import { useResizableMap } from '../hooks/useResizableMap';//hooks
-import { useDocumentContext, updateNode } from '@/app/Library/Context/DocumentProvider';
+//bloom-maps\app\Library\Tests\ConceptMap.tsx
+import React, { useRef, useEffect } from 'react';
+import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
+import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
+import ConceptNode from './ConceptNode';
+import Subtree from './Subtree';
+import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
 import { useAutoMapResize } from '@/app/Library/hooks/useAutoMapResize';
+import { useTreePositioning } from '@/app/Library/hooks/useTreePositioning';
 
 interface ConceptMapProps {
-  groundWidth: number; 
-  centerPaneRef: RefObject<HTMLDivElement>; 
+  groundWidth: number;
+  centerPaneRef: React.RefObject<HTMLDivElement>;
   onOpenCueCardModal: (nodeId: string) => void;
 }
 
+function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal}: ConceptMapProps) {
+  const { state } = useDocumentContext();
+  const { nodes, zoomLevel, resetMapSize } = state; 
+  const { subtrees } = useSubTreeContext();
 
-function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptMapProps & { centerPaneRef: RefObject<HTMLDivElement> }){
-  const { state} = useDocumentContext();
-  const { nodes, defaultMapWidth, zoomLevel } = state; // zoomLevel
-
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
-  const [draggedNode, setDraggedNode] = useState<ConceptNodeType | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
-  const [isDraggingSubtree, setIsDraggingSubtree] = useState<boolean>(false); // State for subtree dragging
-  const [boundingBox, setBoundingBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null); // State for bounding box
 
-  const { width, height} = useResizableMap({ mapRef, centerPaneRef }); //handleMouseDown
-  
-  // Initialize offset state
+  useAutoMapResize(mapRef);
 
-  // Use the custom hook to keep the map in view
-  useKeepMapInView({ 
-    mapRef, 
-    centerPaneRef, 
-    zoomLevel, 
-    width, 
-    height 
+  const { offset } = useTreePositioning(mapRef);
+
+  useKeepMapInView({
+    mapRef,
+    centerPaneRef,
+    zoomLevel,
   });
-  // Define the state variable at the top of your component
-     
-  const firstNodeId = nodes.size > 0 ? nodes.values().next().value.id : 'node-1';
-  const laidOutNodes = useCompositeLayout(nodes);
-  const [mapWidth ] = useState<number>(defaultMapWidth); // Set to default width
-   
-   // Check if map needs to resize
-   useAutoMapResize(mapRef);
- 
-  
-    const handleRightClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    setContextMenuPosition({ x: event.clientX, y: event.clientY });
-  };  
 
-  {/*  Click and Drag Node events    */}
-  const handleDragStart = (node: ConceptNodeType) => {
-    setDraggedNode(node);
-    setIsDraggingSubtree(true);
 
-    // Calculate bounding box for the subtree
-    const subtreeNodes = getSubtreeNodes(node.id);
+  const laidOutNodes= useCompositeLayout(nodes);
 
-    // Handle undefined positions by using 0 as the default
-    const xPositions = subtreeNodes.map((n) => n.x ?? 0);
-    const yPositions = subtreeNodes.map((n) => n.y ?? 0);
+  const rootNode = Array.from(nodes.values()).find((node) => node.isRoot);
 
-    const minX = Math.min(...xPositions);
-    const minY = Math.min(...yPositions);
-    const maxX = Math.max(...xPositions) + 200; // Node width
-    const maxY = Math.max(...yPositions) + 150; // Node height
-
-    setBoundingBox({
-        x: minX,
-        y: minY,
-        width: maxX - minX,
-        height: maxY - minY,
-    });
-};
-
-  
-
-  const getSubtreeNodes = (nodeId: string): ConceptNodeType[] => {
-    const rootNode = nodes.get(nodeId); // Retrieve the node from the Map
-    if (!rootNode) return []; // Return an empty array if the node does not exist
-  
-    const subtree: ConceptNodeType[] = [rootNode];
-  
-    if (rootNode.childrenNodeIds) {
-      rootNode.childrenNodeIds.forEach((childId) => {
-        subtree.push(...getSubtreeNodes(childId)); // Recursively get subtree nodes
-      });
-    }
-  
-    return subtree;
-  };
-
- 
   return (
     <div
       ref={mapRef}
@@ -106,56 +45,56 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal }: ConceptM
       style={{
         transform: `scale(${zoomLevel})`,
         transformOrigin: 'top left',
-        minWidth: `${width}px`, // Minimum width for resizing
-        minHeight: `${height}px`, // Minimum height for resizing
         transition: 'transform 0.3s ease, min-height 0.3s ease, min-width 0.3s ease',
         position: 'relative',
-        display: 'flex', // Flex for content alignment
+        display: 'flex',
       }}
-      onContextMenu={handleRightClick}
-      //onDragOver={handleDragOver}
-      //onDrop={handleDrop}
     >
-
-      {/* Main content area of the map */}
       <div style={{ flexGrow: 1, position: 'relative' }}>
-        {/* TreeContainer Div */}
+        {/* TreeContainer */} 
         <div
           style={{
             position: 'absolute',
-            top: '200px', // Adjust positioning as needed
-            left: '50%',
-            pointerEvents: 'auto', // Allows pointer events on children
-            width: '100%', // Ensure the TreeContainer takes up space
-            height: '100%', // Ensure the TreeContainer takes up space
-            transition: 'transform 0.3s ease',
+            top: '200px',
+            left: `${offset}px`, // Adjusted here
+            pointerEvents: 'auto',
+            width: '100%',
+            height: '100%',
           }}
         >
-          {/* Render lines between nodes (black lines for the entire tree) */}
+          {rootNode && (
+            <ConceptNode
+              key={rootNode.id}
+              node={rootNode}
+              onOpenCueCardModal={onOpenCueCardModal}
+            />
+          )}
+
+          {/* Draw lines between the root node and subtrees */}
           <svg
             className="absolute top-0 left-0 w-full h-full pointer-events-none"
             style={{
-              overflow: 'visible', // Ensure overflow is visible for lines
+              overflow: 'visible',
             }}
           >
-            {drawTreeLines(laidOutNodes)}
+            {drawHVStyleLines (laidOutNodes, subtrees, 4)}
           </svg>
-  
-          {/* Render all nodes relative to the TreeContainer */}
-          {Array.from(nodes.values()).map((node) => {
-            if (!node) return null;
-            return (
-              <ConceptNode
-                key={node.id}
-                node={node}
-                //onDragStart={handleDragStart}
-                onOpenCueCardModal={onOpenCueCardModal}
-              />
-            );
-          })}
+
+          {/* Render Subtree components */}
+          {Array.from(subtrees.entries()).map(([nodeId, subtreeData]) => (
+          <Subtree
+          key={nodeId}
+          rootNodeId={nodeId}
+          position={subtreeData.position}
+          width={subtreeData.width}
+          height={subtreeData.height}
+          onOpenCueCardModal={onOpenCueCardModal}
+        />
+          ))}
         </div>
       </div>
     </div>
-  );  
+  );
 }
-  export default ConceptMap;
+
+export default ConceptMap;

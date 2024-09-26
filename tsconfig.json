@@ -32,7 +32,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-, "../Archived/drawLines.tsx", "../Archived/DrawConnections.tsx"  ],
+, "../Archived/drawLines.tsx", "../Archived/DrawConnections.tsx", "../Archived/utils/drawTreeLines.tsx", "../Archived/utils/blendedhvLayout.tsx"  ],
   "exclude": [
     "node_modules"
   ]
