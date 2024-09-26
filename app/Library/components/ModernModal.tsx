@@ -1,20 +1,21 @@
-// bloom-maps/ui/ModernModal.tsx
-
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
-import { colorThemes } from '@/app/Library/Definitions/Definitions';
+import { FaPencilAlt } from 'react-icons/fa';
 
 interface ModernModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateCueCard: (
-    title: string,
-    content: string,
+  onSave: (
+    nodeTitle: string,
+    cueCardTitle: string,
+    cueCardContent: string,
     bloomLevel: 1 | 2 | 3 | 4 | 5 | 6,
     image?: File | null
   ) => void;
+  initialNodeTitle: string;
+  mode: 'addChild' | 'addCueCard';
 }
 
 const bloomLevelLabels = [
@@ -26,10 +27,19 @@ const bloomLevelLabels = [
   { level: 6, label: 'Create' },
 ];
 
-const ModernModal: React.FC<ModernModalProps> = ({ isOpen, onClose, onCreateCueCard }) => {
+const ModernModal: React.FC<ModernModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialNodeTitle,
+  mode,
+}) => {
   // State variables for user input and selections
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const [nodeTitle, setNodeTitle] = useState(initialNodeTitle || 'New Concept');
+  const [isEditingTitle, setIsEditingTitle] = useState(mode === 'addChild'); // Editable from start in 'addChild' mode
+
+  const [cueCardTitle, setCueCardTitle] = useState('');
+  const [cueCardContent, setCueCardContent] = useState('');
   const [bloomLevel, setBloomLevel] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [image, setImage] = useState<File | null>(null);
 
@@ -39,50 +49,63 @@ const ModernModal: React.FC<ModernModalProps> = ({ isOpen, onClose, onCreateCueC
 
   // Refs to handle focus between inputs and radio buttons
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const contentInputRef = useRef<HTMLTextAreaElement>(null);
+  const cueCardTitleRef = useRef<HTMLInputElement>(null);
+  const cueCardContentRef = useRef<HTMLTextAreaElement>(null);
   const bloomLevelRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Focus index to keep track of current focus state
-  // 0: Title input, 1: Content textarea, 2: Bloom level radio buttons
   const [focusIndex, setFocusIndex] = useState(0);
 
-  // Focus on the title input when the modal opens
+  // **Updated useEffect to reset state when modal opens or mode changes**
   useEffect(() => {
     if (isOpen) {
+      setNodeTitle(initialNodeTitle || 'New Concept');
+      setIsEditingTitle(mode === 'addChild');
+      setCueCardTitle('');
+      setCueCardContent('');
+      setBloomLevel(1);
+      setImage(null);
       setFocusIndex(0);
-      if (titleInputRef.current) {
-        titleInputRef.current.focus();
+
+      if (mode === 'addChild') {
+        // Focus on the title input
+        titleInputRef.current?.focus();
+      } else {
+        // Focus on the cue card title input
+        cueCardTitleRef.current?.focus();
       }
     }
-  }, [isOpen]);
+  }, [isOpen, initialNodeTitle, mode]);
 
-  // Handle keyboard events for Enter key and up/down arrows
+  // Handle keyboard events
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle Enter key navigation
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (focusIndex === 0) {
-        // Move focus from title to content input
+      if (focusIndex === 0 && isEditingTitle) {
+        // Move focus to Cue Card Title
         setFocusIndex(1);
-        contentInputRef.current?.focus();
+        cueCardTitleRef.current?.focus();
       } else if (focusIndex === 1) {
-        // Move focus from content input to Bloom level radio buttons
+        // Move focus to Cue Card Content
         setFocusIndex(2);
-        // Focus the currently selected Bloom level radio button
+        cueCardContentRef.current?.focus();
+      } else if (focusIndex === 2) {
+        // Move focus to Bloom level radio buttons
+        setFocusIndex(3);
         const currentRadioRef = bloomLevelRefs.current[bloomLevel - 1];
         currentRadioRef?.focus();
-      } else if (focusIndex === 2) {
+      } else if (focusIndex === 3) {
         // Trigger the save action
-        handleCreate();
+        handleSave();
       }
     }
-
-    // Handle up and down arrow keys when focus is on Bloom level radio buttons
-    if (focusIndex === 2) {
+    // Handle up and down arrow keys for Bloom level selection
+    if (focusIndex === 3) {
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         setBloomLevel((prevLevel) => {
-          const newLevel = prevLevel > 1 ? (prevLevel - 1) as 1 | 2 | 3 | 4 | 5 | 6 : 1;
-          // Focus the new Bloom level radio button
+          const newLevel = prevLevel > 1 ? (prevLevel - 1) as typeof bloomLevel : 1;
           const newRadioRef = bloomLevelRefs.current[newLevel - 1];
           newRadioRef?.focus();
           return newLevel;
@@ -90,41 +113,37 @@ const ModernModal: React.FC<ModernModalProps> = ({ isOpen, onClose, onCreateCueC
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         setBloomLevel((prevLevel) => {
-          const newLevel = prevLevel < 6 ? (prevLevel + 1) as 1 | 2 | 3 | 4 | 5 | 6 : 6;
-          // Focus the new Bloom level radio button
+          const newLevel = prevLevel < 6 ? (prevLevel + 1) as typeof bloomLevel : 6;
           const newRadioRef = bloomLevelRefs.current[newLevel - 1];
           newRadioRef?.focus();
           return newLevel;
         });
-      }
-    } else if (focusIndex === 0 || focusIndex === 1) {
-      // Use up and down arrow keys to adjust Bloom level when not focusing on radio buttons
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setBloomLevel((prevLevel) =>
-          prevLevel > 1 ? (prevLevel - 1) as 1 | 2 | 3 | 4 | 5 | 6 : 1
-        );
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setBloomLevel((prevLevel) =>
-          prevLevel < 6 ? (prevLevel + 1) as 1 | 2 | 3 | 4 | 5 | 6 : 6
-        );
       }
     }
   };
 
-  // Handle creating the cue card
-  const handleCreate = () => {
-    onCreateCueCard(title, content, bloomLevel, image);
+  // Handle saving the data
+  const handleSave = () => {
+    // Check if cue card fields are both filled or both empty
+    const isCueCardTitleEmpty = cueCardTitle.trim() === '';
+    const isCueCardContentEmpty = cueCardContent.trim() === '';
+
+    if (
+      (!isCueCardTitleEmpty && isCueCardContentEmpty) ||
+      (isCueCardTitleEmpty && !isCueCardContentEmpty)
+    ) {
+      // One of the fields is filled, but not the other
+      alert('Please fill in both the Cue Card Title and Content, or leave both empty.');
+      return;
+    }
+
+    // Call the onSave function with the data
+    onSave(nodeTitle, cueCardTitle, cueCardContent, bloomLevel, image);
     handleClose();
   };
 
   // Reset state and close the modal
   const handleClose = () => {
-    setTitle('');
-    setContent('');
-    setBloomLevel(1);
-    setImage(null);
     onClose();
   };
 
@@ -146,33 +165,41 @@ const ModernModal: React.FC<ModernModalProps> = ({ isOpen, onClose, onCreateCueC
       : 'bg-white';
 
   return (
-    // Modal container fixed at the bottom center of the viewport
     <div
       className="fixed bottom-[150px] left-1/2 transform -translate-x-1/2 z-50"
-      style={{
-        // Adjust 'bottom-[150px]' to change vertical offset from the bottom
-      }}
+      onKeyDown={handleKeyDown}
     >
-      {/* Modal content area */}
       <div
         className={`relative ${modalBackgroundColor} shadow-lg rounded-lg p-6 w-[600px] border border-black`}
-        style={{
-          // Adjust 'w-[600px]' to change modal width
-          // Adjust 'rounded-lg' to change corner rounding
-        }}
-        tabIndex={-1}
-        onKeyDown={handleKeyDown}
       >
-        {/* Title input field */}
-        <input
-          ref={titleInputRef}
-          type="text"
-          placeholder="Cue Card Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="w-full text-lg font-semibold p-2 focus:outline-none bg-transparent"
-          onFocus={() => setFocusIndex(0)}
-        />
+        {/* Title Field with Edit Icon */}
+        <div className="flex items-center">
+          {isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={nodeTitle}
+              onChange={(e) => setNodeTitle(e.target.value)}
+              className="w-full text-lg font-semibold p-2 focus:outline-none bg-transparent"
+              onFocus={() => setFocusIndex(0)}
+            />
+          ) : (
+            <h2 className="w-full text-lg font-semibold p-2">{nodeTitle}</h2>
+          )}
+          {mode === 'addCueCard' && (
+            <button
+              onClick={() => {
+                setIsEditingTitle(true);
+                setFocusIndex(0);
+                titleInputRef.current?.focus();
+              }}
+              className="ml-2 text-gray-600 hover:text-gray-800"
+              title="Edit Title"
+            >
+              <FaPencilAlt />
+            </button>
+          )}
+        </div>
 
         {/* Horizontal separator line */}
         <hr className="my-2 border-gray-300" />
@@ -180,17 +207,48 @@ const ModernModal: React.FC<ModernModalProps> = ({ isOpen, onClose, onCreateCueC
         {/* Container for body input and Bloom level selection */}
         <div className="flex">
           {/* Content text area */}
-          <textarea
-            ref={contentInputRef}
-            placeholder="Cue Card Content"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full p-2 h-[150px] resize-none focus:outline-none bg-transparent"
-            style={{
-              // Adjust 'h-[150px]' to change height before scrollbar appears
-            }}
-            onFocus={() => setFocusIndex(1)}
-          />
+          <div className="flex-1">
+            {/* Cue Card Title */}
+            <input
+              ref={cueCardTitleRef}
+              type="text"
+              placeholder="Cue Card Title"
+              value={cueCardTitle}
+              onChange={(e) => setCueCardTitle(e.target.value)}
+              className="w-full p-2 border rounded focus:outline-none bg-transparent"
+              onFocus={() => setFocusIndex(1)}
+            />
+
+            {/* Cue Card Content */}
+            <textarea
+              ref={cueCardContentRef}
+              placeholder="Cue Card Content"
+              value={cueCardContent}
+              onChange={(e) => setCueCardContent(e.target.value)}
+              className="w-full mt-2 p-2 h-[150px] resize-none border rounded focus:outline-none bg-transparent"
+              onFocus={() => setFocusIndex(2)}
+            />
+
+            {/* Image/GIF attachment option */}
+            <div className="mt-2">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*,image/gif"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+                <span className="text-gray-600 hover:text-gray-800">Attach Image/GIF</span>
+              </label>
+
+              {/* Display selected image name */}
+              {image && (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-600">Selected file: {image.name}</p>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Bloom Level selection */}
           <div className="ml-4">
@@ -199,17 +257,16 @@ const ModernModal: React.FC<ModernModalProps> = ({ isOpen, onClose, onCreateCueC
               {bloomLevelLabels.map(({ level, label }, index) => (
                 <label key={level} className="flex items-center space-x-2">
                   <input
-                    ref={(el) => { bloomLevelRefs.current[index] = el; }}
+                    ref={(el) => {
+                      bloomLevelRefs.current[index] = el;
+                    }}
                     type="radio"
                     name="bloomLevel"
                     value={level}
                     checked={bloomLevel === level}
                     onChange={() => setBloomLevel(level as 1 | 2 | 3 | 4 | 5 | 6)}
                     className="form-radio h-4 w-4 text-gray-600 border-gray-400 rounded-none"
-                    style={{
-                      // 'rounded-none' makes the radio buttons square-shaped
-                    }}
-                    onFocus={() => setFocusIndex(2)}
+                    onFocus={() => setFocusIndex(3)}
                   />
                   <span className="text-gray-600">{label}</span>
                 </label>
@@ -218,37 +275,16 @@ const ModernModal: React.FC<ModernModalProps> = ({ isOpen, onClose, onCreateCueC
           </div>
         </div>
 
-        {/* Image/GIF attachment option */}
-        <div className="mt-2">
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="file"
-              accept="image/*,image/gif"
-              onChange={handleImageChange}
-              className="hidden"
-            />
-            <span className="text-gray-600 hover:text-gray-800">Attach Image/GIF</span>
-          </label>
-
-          {/* Display selected image name */}
-          {image && (
-            <div className="mt-2">
-              <p className="text-sm text-gray-600">Selected file: {image.name}</p>
-              {/* Optionally, display a thumbnail preview here */}
-            </div>
-          )}
-        </div>
-
-        {/* Action buttons */}
+        {/* Action Buttons */}
         <div className="mt-4 flex justify-end space-x-2">
-                      {/* Save button */}
+          {/* Save Button */}
           <button
-            onClick={handleCreate}
+            onClick={handleSave}
             className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 focus:outline-none"
           >
             Save
           </button>
-          {/* Cancel button */}
+          {/* Cancel Button */}
           <button
             onClick={handleClose}
             className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 focus:outline-none"

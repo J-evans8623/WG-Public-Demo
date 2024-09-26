@@ -14,55 +14,12 @@ import { ColorTheme, CueCard} from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
-import ModernModal from '@/app/Library/Tests/ModernModal';
+import ModernModal from '@/app/Library/components/ModernModal';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 import { useSubTreeContext, SubTreeProvider} from '../Library/Context/SubTreeProvider'  
 import { v4 as uuidv4 } from 'uuid';
 
-// Updated component to handle theme selection
-const ThemeDropdown = ({ setColorTheme }: { setColorTheme: (theme: ColorTheme) => void }) => {
-  const {dispatch} = useDocumentContext();  // Use the new context for dispatching the action
-const [isOpen, setIsOpen] = useState(false);
-
-  // Handler to update both old and new providers
-  const handleSetColorTheme = (theme: ColorTheme) => {
-    //setColorTheme(theme); // Old provider function call (to be removed)
-    dispatch(setNewColorTheme(theme)); // New provider function call
-    setIsOpen(false); // Close the dropdown menu
-  };
-
-
-  return (
-    <div className="relative inline-block">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-      >
-        Customize
-      </button>
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20">
-          <div className="py-1">
-            <div className="px-4 py-2 text-sm text-gray-700">Color Theme</div>
-            <button
-              onClick={() => handleSetColorTheme('cool-spring')}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-            >
-              Cool Spring
-            </button>
-            <button
-              onClick={() => handleSetColorTheme('warm-summer')}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-            >
-              Warm Summer
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 function ClientLayoutContent() {
  
@@ -234,7 +191,6 @@ const handleCreateNewDocument = useCallback(() => {
           <button onClick={handleSaveDocument} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
             Save
           </button>
-          <ThemeDropdown setColorTheme={setColorTheme} />
         </div>
         <div className="flex items-center space-x-4">
           <button onClick={handleHelp} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">

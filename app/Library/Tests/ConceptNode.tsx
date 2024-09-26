@@ -1,4 +1,4 @@
-//bloom-maps\app\Library\Tests\ConceptNode.tsx
+//bloom-maps\app\Library\components\ConceptNode.tsx
 'use client';
 
 import React, { useState, memo, useCallback } from 'react';
