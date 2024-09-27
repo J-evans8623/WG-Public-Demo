@@ -10,16 +10,21 @@ interface CueCardContextType {
   removeCueCard: (nodeId: string, cueCardId: string) => void;
   selectCueCards: (nodeId: string) => CueCard[]; // New method to select cue cards for a given nodeId
   resetCueCards: () => void; 
+  setCueCards : (newCueCards: Map<string, CueCard[]>) => void; 
 }
 
 // Create the CueCard context
 const CueCardContext = createContext<CueCardContextType | undefined>(undefined);
 
+export const serializeCueCards = (cueCards: Map<string, CueCard[]>): [string, CueCard[]][] => {
+  return Array.from(cueCards.entries());
+};
+
 export const CueCardProvider = ({ children }: { children: ReactNode }) => {
-  const [cueCards, setCueCards] = useState<Map<string, CueCard[]>>(new Map());
+  const [cueCards, setCueCardsState] = useState<Map<string, CueCard[]>>(new Map());
 
   const addCueCard = (nodeId: string, cueCard: CueCard) => {
-    setCueCards((prev) => {
+    setCueCardsState((prev) => {
       const updatedCueCards = new Map(prev);
       const nodeCueCards = updatedCueCards.get(nodeId) || [];
       updatedCueCards.set(nodeId, [...nodeCueCards, cueCard]);
@@ -28,7 +33,7 @@ export const CueCardProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeCueCard = (nodeId: string, cueCardId: string) => {
-    setCueCards((prev) => {
+    setCueCardsState((prev) => {
       const updatedCueCards = new Map(prev);
       const nodeCueCards = updatedCueCards.get(nodeId) || [];
       updatedCueCards.set(nodeId, nodeCueCards.filter((card) => card.id !== cueCardId));
@@ -42,12 +47,16 @@ export const CueCardProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const resetCueCards = () => {
-    setCueCards(new Map());
+    setCueCardsState(new Map());
+  };
+
+  const setCueCards = (newCueCards: Map<string, CueCard[]>) => {
+    setCueCardsState(newCueCards);
   };
 
   return (
     <CueCardContext.Provider
-    value={{ cueCards, addCueCard, removeCueCard, selectCueCards, resetCueCards }}
+    value={{ cueCards, addCueCard, removeCueCard, selectCueCards, resetCueCards, setCueCards }}
   >
       {children}
     </CueCardContext.Provider>

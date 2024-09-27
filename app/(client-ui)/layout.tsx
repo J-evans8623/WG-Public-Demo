@@ -9,16 +9,18 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Split from 'react-split';
 import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Component/CueCardDisplay';
 import ConceptMap from '@/app/Library/components/ConceptMap';
-import { DocumentProvider, useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize, updateNodeTitle, createNewNode, setGetLayout} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
-import { ColorTheme, CueCard} from '@/app/Library/Definitions/Definitions';
+import { DocumentProvider, serializeDocument , useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize, updateNodeTitle, createNewNode, setGetLayout, setNodes} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
+import { ColorTheme, CueCard, ConceptNode, SerializedDocument} from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
 import ModernModal from '@/app/Library/components/ModernModal';
-import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
+import { useCueCardContext, serializeCueCards } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
-import { useSubTreeContext, SubTreeProvider} from '../Library/Context/SubTreeProvider'  
+import { useSubTreeContext, SubTreeProvider, serializeSubtrees, SubtreeData} from '../Library/Context/SubTreeProvider'  
 import { v4 as uuidv4 } from 'uuid';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 
 function ClientLayoutContent() {
@@ -30,19 +32,18 @@ function ClientLayoutContent() {
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const {state, dispatch, zoomIn, zoomOut, setColorTheme } = useDocumentContext();
   const { resetTreeDimensions} = useTreeDimensions();
-  const { resetSubtrees } = useSubTreeContext();
-  const { addCueCard, resetCueCards } = useCueCardContext();
+  const { resetSubtrees, setSubtrees } = useSubTreeContext();
+  const { addCueCard, resetCueCards, setCueCards } = useCueCardContext();
   const {zoomLevel, baseZoomLevel} = state;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalNodeId, setModalNodeId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'addChild' | 'addCueCard'>('addCueCard');
   const { nodes } = state;
-  
+  const { cueCards } = useCueCardContext();
+  const { subtrees } = useSubTreeContext();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-
-
-    // Update ground width once component is mounted on the client side
   // Update window dimensions on resize
   useEffect(() => {
     const updateWindowSize = () => {
@@ -73,17 +74,130 @@ const handleCreateNewDocument = useCallback(() => {
   dispatch(toggleResetMapSize());
 }, [dispatch, windowWidth, resetCueCards, resetTreeDimensions, resetSubtrees]);
 
-  const handleOpenDocument = () => {
-    console.log("Open Document clicked");
-  };
+// Inside ClientLayoutContent component
+const handleSaveDocument = async () => {
+  const zip = new JSZip();
 
-  const handleSaveDocument = () => {
-    console.log("Save Document clicked");
-  };
+  // Serialize document data
+  const serializedDocument = serializeDocument(state);
+  const documentJson = JSON.stringify(serializedDocument);
+
+// Serialize cue cards
+const serializedCueCards = serializeCueCards(cueCards);
+const cueCardsJson = JSON.stringify(serializedCueCards);
+zip.file('document/cuecards.json', cueCardsJson);
+
+// Serialize subtrees
+const serializedSubtrees = serializeSubtrees(subtrees); 
+const subtreesJson = JSON.stringify(serializedSubtrees);
+zip.file('document/subtrees.json', subtreesJson);
+
+// Serialize styles
+const styles = {
+  primaryColor: state.primaryColor,
+  backgroundColor: state.backgroundColor,
+  colorTheme: state.colorTheme,
+};
+const stylesJson = JSON.stringify(styles);
+zip.file('document/styles.json', stylesJson);
+
+// Serialize settings
+/** const settings = {
+  zoomLevel: state.zoomLevel,
+};
+const settingsJson = JSON.stringify(settings);
+zip.file('document/settings.json', settingsJson);*/
+
+
+
+  // Add document.json to the zip
+  zip.file('document/document.json', documentJson);
+
+  // Generate ZIP and trigger download
+  const content = await zip.generateAsync({ type: 'blob' });
+  saveAs(content, 'my_document.bloomdocx');
+};
+
+const handleOpenDocument = () => {
+  console.log("handleOpenDocument called");
+  console.log("fileInputRef.current:", fileInputRef.current);
+  fileInputRef.current?.click();
+};
+
+const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  console.log("handleFileChange called");
+  const file = event.target.files?.[0];
+  if (file) {
+    await handleLoadDocument(file);
+  }
+};
+const handleLoadDocument = async (file: File) => {
+  console.log("handleLoadDocument called with file:", file.name);
+  const zip = new JSZip();
+  const content = await zip.loadAsync(file);
+
+  // Load document.json
+  const documentFile = content.file('document/document.json');
+  if (documentFile) {
+    const documentJson = await documentFile.async('string');
+    const parsedDocument = JSON.parse(documentJson) as SerializedDocument;
+
+    // Reconstruct nodes Map
+    const nodes = new Map<string, ConceptNode>(parsedDocument.nodes);
+
+    // Update DocumentProvider state
+    dispatch(setNodes(nodes));
+    //dispatch(setColorTheme(parsedDocument.colorTheme));
+    //dispatch(setZoomLevel(parsedDocument.zoomLevel));
+    dispatch(setPrimaryColor(parsedDocument.primaryColor));
+    dispatch(setBackgroundColor(parsedDocument.backgroundColor));
+  }
+
+  // Load cuecards.json
+  const cueCardsFile = content.file('document/cuecards.json');
+  if (cueCardsFile) {
+    const cueCardsJson = await cueCardsFile.async('string');
+    const parsedCueCards = JSON.parse(cueCardsJson) as [string, CueCard[]][];
+    const cueCardsMap = new Map<string, CueCard[]>(parsedCueCards);
+    setCueCards(cueCardsMap);
+  }
+
+  // Load subtrees.json
+  const subtreesFile = content.file('document/subtrees.json');
+  if (subtreesFile) {
+    const subtreesJson = await subtreesFile.async('string');
+    const parsedSubtrees = JSON.parse(subtreesJson) as [string, SubtreeData][];
+    const subtreesMap = new Map<string, SubtreeData>(parsedSubtrees);
+    setSubtrees(subtreesMap);
+  }
+
+  // Load styles.json
+  const stylesFile = content.file('document/styles.json');
+  if (stylesFile) {
+    const stylesJson = await stylesFile.async('string');
+    const styles = JSON.parse(stylesJson);
+    dispatch(setPrimaryColor(styles.primaryColor));
+    dispatch(setBackgroundColor(styles.backgroundColor));
+    //dispatch(setColorTheme(styles.colorTheme));
+  }
+
+  // Load settings.json
+/**  const settingsFile = content.file('document/settings.json');
+  if (settingsFile) {
+    const settingsJson = await settingsFile.async('string');
+    const settings = JSON.parse(settingsJson);
+    //dispatch(setZoomLevel(settings.zoomLevel));
+  } */
+
+  // Trigger layout computation if necessary
+  dispatch(setGetLayout(true));
+};
+
 
   const handleHelp = () => {
     console.log("Help clicked");
   };
+  
 
  // Handler for opening the modal
   // Handler to open modal for adding a cue card
@@ -169,6 +283,14 @@ const handleCreateNewDocument = useCallback(() => {
 
   return (
     <>
+        {/* Hidden File Input for "Open" */}
+        <input
+      type="file"
+      accept=".bloomdocx"
+      ref={fileInputRef}
+      style={{ display: 'none' }}
+      onChange={handleFileChange}
+    />
       {/* ModernModal */}
       <ModernModal
         isOpen={isModalOpen}

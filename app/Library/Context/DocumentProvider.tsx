@@ -10,7 +10,8 @@ import {
   ConceptNode, 
   DocumentState, 
   DocumentAction, 
-  DocumentActionType 
+  DocumentActionType,
+  SerializedDocument,
 } from '@/app/Library/Definitions/Definitions';
 
 
@@ -70,6 +71,21 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
     </NewDocumentContext.Provider>
   );
 };
+
+export const serializeDocument = (state: DocumentState): SerializedDocument => {
+  const { nodes, colorTheme, zoomLevel, primaryColor, backgroundColor } = state;
+  // Convert Map to an array for serialization
+  const nodesArray = Array.from(nodes.entries());
+
+  return {
+    nodes: nodesArray,
+    colorTheme,
+    zoomLevel,
+    primaryColor,
+    backgroundColor,
+  };
+};
+
 
 // Custom hook to use the NewDocumentContext
 export const useDocumentContext = () => {
@@ -197,7 +213,5 @@ export const updateNode = (nodeId: string, updatedNode: Partial<ConceptNode>): D
     dispatch(setMapSize(groundWidth, mapWidth, mapHeight));
     dispatch(initializeNewDocumentAction(bloomDepth, mapWidth, mapHeight));
   };
-  /**
-   * 
-   * Where is the implementation of resetSubtree?
-   */
+
+

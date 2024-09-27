@@ -194,3 +194,11 @@ export enum DocumentActionType {
   TOGGLE_RESET_MAP_SIZE = 'TOGGLE_RESET_MAP_SIZE', 
   // Add other action types as needed
 }
+
+
+export interface SerializedDocument {
+  nodes: [string, ConceptNode][];
+  colorTheme: ColorTheme;
+  primaryColor: string;
+  backgroundColor: string;
+}
