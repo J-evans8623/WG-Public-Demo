@@ -36,7 +36,7 @@ function CueCard({ title, content, bloomLevel }: CueCardPropsWithBloom) {
 
   return (
     <div
-      className="bg-white p-4 border rounded shadow-sm min-w-[150px] h-60 flex flex-col justify-center items-center cursor-pointer relative"
+      className="bg-white p-4 border rounded shadow-sm min-w-[150px] h-60 flex flex-col cursor-pointer relative"
       onClick={handleClick}
     >
       {/* Colored dot representing bloom level */}
@@ -46,15 +46,18 @@ function CueCard({ title, content, bloomLevel }: CueCardPropsWithBloom) {
         title={`Bloom Level: ${bloomLevelNames[bloomLevel]}`} // Use the mapped hierarchy name
       ></div>
 
-      {showTitle ? (
-        <h3 className="font-bold text-xl text-gray-800 text-center leading-tight font-sans">
-          {title}
-        </h3>
-      ) : (
-        <p className="text-xl text-gray-600 text-center leading-relaxed font-sans">
-          {content}
-        </p>
-      )}
+      {/* Scrollable content area */}
+      <div className="mt-4 flex-grow overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 px-2">
+        {showTitle ? (
+          <h3 className="font-bold text-xl text-gray-800 text-center leading-tight font-sans break-words">
+            {title}
+          </h3>
+        ) : (
+          <p className="text-xl text-gray-600 text-center leading-relaxed font-sans break-words">
+            {content}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
