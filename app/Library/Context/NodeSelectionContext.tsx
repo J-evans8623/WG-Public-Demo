@@ -8,6 +8,8 @@ type NodeSelectionContextType = {
   isSelected: (nodeId: string) => boolean;  // Function to check if a node is selected
   clearSelection: () => void;  // Function to clear all selections
   getSelectedNodeIds: () => string[];  // Function to retrieve all selected node IDs
+  deselectNode: (nodeId: string) => void; // New function
+  selectNode: (nodeId: string) => void; 
 };
 
 const NodeSelectionContext = createContext<NodeSelectionContextType | undefined>(undefined);
@@ -33,6 +35,17 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
   // Retrieve all selected node IDs
   const getSelectedNodeIds = () => selectedIDs;
 
+
+
+const deselectNode = (nodeId: string) => {
+  setSelectedIDs((prevSelected) => prevSelected.filter((id) => id !== nodeId));
+};
+
+const selectNode = (nodeId: string) => {
+  setSelectedIDs((prevSelected) =>
+    prevSelected.includes(nodeId) ? prevSelected : [...prevSelected, nodeId]
+  );
+};
   // Memoize the context value to avoid unnecessary re-renders
   const contextValue = useMemo(
     () => ({
@@ -40,6 +53,8 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
       isSelected,
       clearSelection,
       getSelectedNodeIds,
+      deselectNode,
+      selectNode
     }),
     [selectedIDs]  // Dependencies for memoization
   );

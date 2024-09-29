@@ -7,14 +7,14 @@
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
-import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Component/CueCardDisplay';
+import CueCardDisplay from '@/app/Library/Tests/CueCardDisplay'//'../Component/CueCardDisplay';
 import ConceptMap from '@/app/Library/components/ConceptMap';
 import { DocumentProvider, serializeDocument , useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize, updateNodeTitle, createNewNode, setGetLayout, setNodes} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
 import { ColorTheme, CueCard, ConceptNode, SerializedDocument} from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
-import ModernModal from '@/app/Library/components/ModernModal';
+import ModernModal from '@/app/Library/Tests/ModernModal';
 import { useCueCardContext, serializeCueCards } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 import { useSubTreeContext, SubTreeProvider, serializeSubtrees, SubtreeData} from '../Library/Context/SubTreeProvider'  
@@ -34,6 +34,7 @@ function ClientLayoutContent() {
   const { resetTreeDimensions} = useTreeDimensions();
   const { resetSubtrees, setSubtrees } = useSubTreeContext();
   const { addCueCard, resetCueCards, setCueCards } = useCueCardContext();
+  const [paneSizes, setPaneSizes] = useState<number[]>([20, 60, 20]);
   const {zoomLevel, baseZoomLevel} = state;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -100,15 +101,6 @@ const styles = {
 };
 const stylesJson = JSON.stringify(styles);
 zip.file('document/styles.json', stylesJson);
-
-// Serialize settings
-/** const settings = {
-  zoomLevel: state.zoomLevel,
-};
-const settingsJson = JSON.stringify(settings);
-zip.file('document/settings.json', settingsJson);*/
-
-
 
   // Add document.json to the zip
   zip.file('document/document.json', documentJson);
@@ -222,50 +214,52 @@ const handleLoadDocument = async (file: File) => {
       ? nodes.get(modalNodeId)?.title || ''
       : '';
 
-  // Handler for saving data from the modal
-  const handleModalSave = (
-    nodeTitle: string,
-    cueCardTitle: string,
-    cueCardContent: string,
-    bloomLevel: 1 | 2 | 3 | 4 | 5 | 6,
-    image?: File | null
-  ) => {
-    if (modalNodeId) {
-      if (modalMode === 'addChild') {
-        // Generate newNodeId
-        const newNodeId = uuidv4();
-        // Create new child node
-        dispatch(createNewNode(nodeTitle || 'New Concept', modalNodeId, newNodeId));
-        dispatch(setGetLayout(true));
-
-        // Add cue card if applicable
-        if (cueCardTitle.trim() !== '' && cueCardContent.trim() !== '') {
-          const newCueCard: CueCard = {
-            id: Date.now().toString(),
-            title: cueCardTitle,
-            content: cueCardContent,
-            bloomLevel,
-          };
-          addCueCard(newNodeId, newCueCard);
+      const handleModalSave = (
+        nodeTitle: string,
+        cueCardTitle: string,
+        cueCardContent: string,
+        bloomLevel: 1 | 2 | 3 | 4 | 5 | 6,
+        image?: File | null,
+        source?: string
+      ) => {
+        if (modalNodeId) {
+          if (modalMode === 'addChild') {
+            // Generate newNodeId
+            const newNodeId = uuidv4();
+            // Create new child node
+            dispatch(createNewNode(nodeTitle || 'New Concept', modalNodeId, newNodeId));
+            dispatch(setGetLayout(true));
+      
+            // Add cue card if applicable
+            if (cueCardTitle.trim() !== '' && cueCardContent.trim() !== '') {
+              const newCueCard: CueCard = {
+                id: Date.now().toString(),
+                title: cueCardTitle,
+                content: cueCardContent,
+                bloomLevel,
+                source, // Include source here
+              };
+              addCueCard(newNodeId, newCueCard);
+            }
+          } else if (modalMode === 'addCueCard') {
+            // Update node title if it was edited
+            dispatch(updateNodeTitle(modalNodeId, nodeTitle));
+      
+            // Add cue card to existing node
+            if (cueCardTitle.trim() !== '' && cueCardContent.trim() !== '') {
+              const newCueCard: CueCard = {
+                id: Date.now().toString(),
+                title: cueCardTitle,
+                content: cueCardContent,
+                bloomLevel,
+                source, // Include source here
+              };
+              addCueCard(modalNodeId, newCueCard);
+            }
+          }
         }
-      } else if (modalMode === 'addCueCard') {
-        // Update node title if it was edited
-        dispatch(updateNodeTitle(modalNodeId, nodeTitle));
-
-        // Add cue card to existing node
-        if (cueCardTitle.trim() !== '' && cueCardContent.trim() !== '') {
-          const newCueCard: CueCard = {
-            id: Date.now().toString(),
-            title: cueCardTitle,
-            content: cueCardContent,
-            bloomLevel,
-          };
-          addCueCard(modalNodeId, newCueCard);
-        }
-      }
-    }
-    setIsModalOpen(false);
-  };
+        setIsModalOpen(false);
+      };
     //Tool Pane Layout color;
     // Predefined color sets
     const primaryColors = ['#D5E6ED', '#C4ACAA', '#F7CAAB', '#EBD3E0'];
@@ -322,14 +316,17 @@ const handleLoadDocument = async (file: File) => {
       </div>
 
       <Split
-  className="flex h-[calc(100vh-50px)]"
-  sizes={[20, 60, 20]}    // sizes={[20, 60, 20]} 
-  minSize={[200, 400, 200]}  // minSize={[200, 600, 200]} 
-  maxSize={[500, Infinity, 400]} 
-  gutterSize={8}
-  direction="horizontal"
-  cursor="col-resize"
->
+    className="flex h-[calc(100vh-50px)]"
+    sizes={paneSizes}
+    minSize={[200, 400, 200]}
+    maxSize={[500, Infinity, 400]}
+    gutterSize={8}
+    direction="horizontal"
+    cursor="col-resize"
+    onDragEnd={(sizes) => {
+      setPaneSizes(sizes);
+    }}
+  >
   {/* Left Panel (Cue Card Viewer) */}
   <div className="flex flex-col space-y-2 bg-gray-200 p-4 shadow-lg rounded-lg overflow-y-auto">
     <CueCardDisplay />

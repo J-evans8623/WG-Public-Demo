@@ -11,6 +11,8 @@ interface CueCardContextType {
   selectCueCards: (nodeId: string) => CueCard[]; // New method to select cue cards for a given nodeId
   resetCueCards: () => void; 
   setCueCards : (newCueCards: Map<string, CueCard[]>) => void; 
+  editCueCard: (nodeId: string, updatedCueCard: CueCard) => void; // New function
+  transferCueCard: (sourceNodeId: string, targetNodeId: string, cueCardId: string) => void;
 }
 
 // Create the CueCard context
@@ -54,9 +56,50 @@ export const CueCardProvider = ({ children }: { children: ReactNode }) => {
     setCueCardsState(newCueCards);
   };
 
+  const editCueCard = (nodeId: string, updatedCueCard: CueCard) => {
+    setCueCardsState((prev) => {
+      const updatedCueCards = new Map(prev);
+      const nodeCueCards = updatedCueCards.get(nodeId) || [];
+      updatedCueCards.set(
+        nodeId,
+        nodeCueCards.map((card) => (card.id === updatedCueCard.id ? updatedCueCard : card))
+      );
+      return updatedCueCards;
+    });
+  };
+  
+  const transferCueCard = (sourceNodeId: string, targetNodeId: string, cueCardId: string) => {
+    setCueCardsState((prev) => {
+      const updatedCueCards = new Map(prev);
+      const sourceCueCards = updatedCueCards.get(sourceNodeId) || [];
+      const cueCard = sourceCueCards.find((card) => card.id === cueCardId);
+      if (!cueCard) return prev;
+  
+      // Remove from source
+      updatedCueCards.set(
+        sourceNodeId,
+        sourceCueCards.filter((card) => card.id !== cueCardId)
+      );
+  
+      // Add to target
+      const targetCueCards = updatedCueCards.get(targetNodeId) || [];
+      updatedCueCards.set(targetNodeId, [...targetCueCards, cueCard]);
+  
+      return updatedCueCards;
+    });
+  };
+
   return (
     <CueCardContext.Provider
-    value={{ cueCards, addCueCard, removeCueCard, selectCueCards, resetCueCards, setCueCards }}
+    value={{ cueCards, 
+      addCueCard, 
+      removeCueCard,
+      selectCueCards, 
+      resetCueCards, 
+      setCueCards,
+      editCueCard, 
+      transferCueCard,
+     }}
   >
       {children}
     </CueCardContext.Provider>

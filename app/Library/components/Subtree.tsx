@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { ConceptNode as ConceptNodeType } from '@/app/Library/Definitions/Definitions';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
-import ConceptNode from '../components/ConceptNode';
+import ConceptNode from '../Tests/ConceptNode';
 import { drawIndentedStyleLines } from '@/app/Library/utils/drawIndentedStyleLines';
 
 interface SubtreeProps {
