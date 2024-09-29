@@ -83,7 +83,7 @@ const CueCardDisplay = React.memo(() => {
   );
 
   return (
-    <div className="flex flex-col space-y-2" data-testid="cue-card-display">
+    <div className="flex flex-col space-y-2 pb-8" data-testid="cue-card-display">
       {/* Clear All Button */}
       <div className="flex justify-end">
         <button
