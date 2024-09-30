@@ -1,10 +1,11 @@
-
-// bloom-maps\app\Library\components\Subtree.tsx
-import React, { useMemo } from 'react';
-import { ConceptNode as ConceptNodeType } from '@/app/Library/Definitions/Definitions';
+import React, { useMemo, useCallback } from 'react';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
-import ConceptNode from '../Tests/ConceptNode';
+import ConceptNode from './ConceptNode';
+import { ConceptNode as ConceptNodeType } from '@/app/Library/Definitions/Definitions';
 import { drawIndentedStyleLines } from '@/app/Library/utils/drawIndentedStyleLines';
+import { useDrag, useDrop } from 'react-dnd';
+import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider'; // Corrected import path
+import DashedRing from './DashedRing';
 
 interface SubtreeProps {
   rootNodeId: string;
@@ -25,6 +26,49 @@ const Subtree: React.FC<SubtreeProps> = ({
 }) => {
   const { state } = useDocumentContext();
   const { nodes } = state;
+  const {
+    draggingSubtreeId,
+    targetSubtreeId,
+    setDraggingSubtreeId,
+    setTargetSubtreeId,
+    commitSwap,
+  } = useSubTreeContext();
+
+  const [{ isDragging }, dragRef] = useDrag<
+    { id: string },    // DragObject
+    void,              // DropResult
+    { isDragging: boolean }  // CollectedProps
+  >({
+    type: 'SUBTREE',
+    item: () => {
+      setDraggingSubtreeId(rootNodeId);
+      return { id: rootNodeId };
+    },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+    end: () => {
+      commitSwap();
+      setDraggingSubtreeId(null);
+      setTargetSubtreeId(null);
+    },
+  });
+
+  const [, dropRef] = useDrop<
+    { id: string },  // DragObject
+    void,            // DropResult
+    unknown          // CollectedProps
+  >({
+    accept: 'SUBTREE',
+    hover: (draggedItem: { id: string }) => {
+      if (
+        draggedItem.id !== rootNodeId &&
+        targetSubtreeId !== rootNodeId
+      ) {
+        setTargetSubtreeId(rootNodeId);
+      }
+    },
+  });
 
   // Extract subtree nodes
   const subtreeNodes = useMemo(() => {
@@ -33,21 +77,35 @@ const Subtree: React.FC<SubtreeProps> = ({
       const node = nodes.get(nodeId);
       if (node) {
         extractedNodes.set(nodeId, { ...node });
-        node.childrenNodeIds?.forEach((childId) => extractSubtree(childId));
+        node.childrenNodeIds?.forEach((childId) =>
+          extractSubtree(childId)
+        );
       }
     };
     extractSubtree(rootNodeId);
     return extractedNodes;
   }, [nodes, rootNodeId]);
 
+  const dragDropRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node) {
+        dragRef(node);
+        dropRef(node);
+      }
+    },
+    [dragRef, dropRef]
+  );
+
   return (
     <div
+      ref={dragDropRef}
       style={{
         position: 'absolute',
         left: position.x,
         top: position.y,
         width: `${width}px`,
         height: `${height}px`,
+        opacity: isDragging ? 0.5 : 1,
       }}
     >
       {/* Draw lines within the subtree */}
@@ -68,8 +126,20 @@ const Subtree: React.FC<SubtreeProps> = ({
           onOpenAddChildModal={onOpenAddChildModal}
         />
       ))}
+      {/* Render DashedRing when dragging over */}
+      {draggingSubtreeId && targetSubtreeId === rootNodeId && (
+        <DashedRing
+          width={width}
+          height={height}
+          position={{ x: 0, y: 0 }}
+        />
+      )}
     </div>
   );
 };
 
 export default Subtree;
+/**
+ * Original
+ * 
+ */

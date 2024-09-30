@@ -7,20 +7,21 @@
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
-import CueCardDisplay from '@/app/Library/Tests/CueCardDisplay'//'../Component/CueCardDisplay';
+import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Component/CueCardDisplay';
 import ConceptMap from '@/app/Library/components/ConceptMap';
 import { DocumentProvider, serializeDocument , useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize, updateNodeTitle, createNewNode, setGetLayout, setNodes} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
 import { ColorTheme, CueCard, ConceptNode, SerializedDocument} from '@/app/Library/Definitions/Definitions';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
-import ModernModal from '@/app/Library/Tests/ModernModal';
+import ModernModal from '@/app/Library/components/ModernModal';
 import { useCueCardContext, serializeCueCards } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 import { useSubTreeContext, SubTreeProvider, serializeSubtrees, SubtreeData} from '../Library/Context/SubTreeProvider'  
 import { v4 as uuidv4 } from 'uuid';
 import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
+import { saveAs } from 'file-saver';import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 
 
 function ClientLayoutContent() {
@@ -407,16 +408,18 @@ const handleLoadDocument = async (file: File) => {
 
 export default function ClientLayout() {
   return (
-    <TreeDimensionsProvider> {/* Add TreeDimensionsProvider here */}
-      <NodeSelectionProvider>
-        <CueCardProvider> {/* Wrap in CueCardProvider */}
-          <DocumentProvider>
-          <SubTreeProvider>
-            <ClientLayoutContent />
-            </SubTreeProvider>
-          </DocumentProvider>
-        </CueCardProvider>
-      </NodeSelectionProvider>
-    </TreeDimensionsProvider>
+    <DndProvider backend={HTML5Backend}>
+      <TreeDimensionsProvider> {/* Add TreeDimensionsProvider here */}
+        <NodeSelectionProvider>
+          <CueCardProvider> {/* Wrap in CueCardProvider */}
+            <DocumentProvider>
+            <SubTreeProvider>
+              <ClientLayoutContent />
+              </SubTreeProvider>
+            </DocumentProvider>
+          </CueCardProvider>
+        </NodeSelectionProvider>
+      </TreeDimensionsProvider>
+    </DndProvider>
   );
 }

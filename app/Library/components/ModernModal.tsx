@@ -12,7 +12,8 @@ interface ModernModalProps {
     cueCardTitle: string,
     cueCardContent: string,
     bloomLevel: 1 | 2 | 3 | 4 | 5 | 6,
-    image?: File | null
+    image?: File | null,
+    source?: string
   ) => void;
   initialNodeTitle: string;
   mode: 'addChild' | 'addCueCard';
@@ -42,6 +43,23 @@ const ModernModal: React.FC<ModernModalProps> = ({
   const [cueCardContent, setCueCardContent] = useState('');
   const [bloomLevel, setBloomLevel] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [image, setImage] = useState<File | null>(null);
+  const [source, setSource] = useState('');
+
+
+
+  // In useEffect, reset the source when modal opens
+useEffect(() => {
+    if (isOpen) {
+        setNodeTitle(initialNodeTitle || 'New Concept');
+        setIsEditingTitle(mode === 'addChild');
+        setCueCardTitle('');
+        setCueCardContent('');
+        setBloomLevel(1);
+        setImage(null);
+        setFocusIndex(0);
+        setSource('');
+    }
+  }, [isOpen, initialNodeTitle, mode]);
 
   // Access the current color theme from context
   const { state } = useDocumentContext();
@@ -138,7 +156,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
     }
 
     // Call the onSave function with the data
-    onSave(nodeTitle, cueCardTitle, cueCardContent, bloomLevel, image);
+    onSave(nodeTitle, cueCardTitle, cueCardContent, bloomLevel, image, source);
     handleClose();
   };
 
@@ -274,6 +292,16 @@ const ModernModal: React.FC<ModernModalProps> = ({
             </div>
           </div>
         </div>
+
+        <div className="mt-2">
+  <input
+    type="text"
+    placeholder="Source (optional)"
+    value={source}
+    onChange={(e) => setSource(e.target.value)}
+    className="w-full p-2 border rounded focus:outline-none bg-transparent"
+  />
+</div>;
 
         {/* Action Buttons */}
         <div className="mt-4 flex justify-end space-x-2">
