@@ -23,8 +23,8 @@ export function useTreePositioning(mapRef: React.RefObject<HTMLDivElement>) {
 
     // Include subtrees in calculations
     subtrees.forEach((subtree) => {
-      const leftEdge = subtree.position.x;
-      const rightEdge = subtree.position.x + subtree.width;
+      const leftEdge = subtree.position?.x ?? 0; 
+      const rightEdge =(subtree.position?.x ?? 0) + subtree.width;
       minLeft = Math.min(minLeft, leftEdge);
       maxRight = Math.max(maxRight, rightEdge);
     });

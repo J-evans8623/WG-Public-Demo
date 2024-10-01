@@ -1,12 +1,12 @@
-//bloom-maps\app\Library\hooks\useAutoMapResize.tsx
+// bloom-maps\app\Library\hooks\useAutoMapResize.tsx
 import { useEffect, useCallback, useState } from 'react';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 import { useDocumentContext, toggleResetMapSize } from '@/app/Library/Context/DocumentProvider';
 
 export function useAutoMapResize(mapRef: React.RefObject<HTMLDivElement>) {
   const { subtrees } = useSubTreeContext();
-  const { state, dispatch} = useDocumentContext();
-  const { nodes, defaultMapWidth, defaultMapHeight,  resetMapSize  } = state;
+  const { state, dispatch } = useDocumentContext();
+  const { nodes, defaultMapWidth, defaultMapHeight, resetMapSize } = state;
 
   const [mapSize, setMapSize] = useState({ width: defaultMapWidth, height: defaultMapHeight });
 
@@ -23,7 +23,7 @@ export function useAutoMapResize(mapRef: React.RefObject<HTMLDivElement>) {
       console.log(`${defaultMapWidth} by ${defaultMapHeight}`);
     }
     dispatch(toggleResetMapSize());
-  }, [defaultMapWidth, defaultMapHeight, mapRef]);
+  }, [defaultMapWidth, defaultMapHeight, mapRef, dispatch]);
 
   // Automatically resize map based on content (nodes and subtrees)
   useEffect(() => {
@@ -41,12 +41,12 @@ export function useAutoMapResize(mapRef: React.RefObject<HTMLDivElement>) {
 
     // Include subtrees in calculations
     subtrees.forEach((subtree) => {
-      const leftEdge = subtree.position.x;
-      const rightEdge = subtree.position.x + subtree.width;
+      const leftEdge = subtree.position?.x ?? 0;  // Fallback to 0 if position is undefined
+      const rightEdge = (subtree.position?.x ?? 0) + subtree.width;  // Fallback to 0 if position is undefined
       minLeft = Math.min(minLeft, leftEdge);
       maxRight = Math.max(maxRight, rightEdge);
 
-      const subtreeBottom = subtree.position.y + subtree.height;
+      const subtreeBottom = (subtree.position?.y ?? 0) + subtree.height;  // Fallback to 0 if position is undefined
       if (subtreeBottom > maxSubtreeHeight) {
         maxSubtreeHeight = subtreeBottom;
       }
@@ -104,5 +104,5 @@ export function useAutoMapResize(mapRef: React.RefObject<HTMLDivElement>) {
     }
   }, [mapRef, defaultMapWidth, defaultMapHeight]);
 
-  return {resetMapSize: resetMapSizeFn} ;
+  return { resetMapSize: resetMapSizeFn };
 }

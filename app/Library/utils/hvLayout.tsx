@@ -15,28 +15,32 @@ export function applyHVLayout(
   let index = 0;
 
   subtrees.forEach((subtree, nodeId) => {
-    const direction = index % 2 === 0 ? 1 : -1;
 
-    let x = 0;
-    if (direction > 0) {
-      // Right side
-      x = cumulativeRightWidth + (index > 0 ? minHorizontalGap : 0);// root debug root
-      cumulativeRightWidth += subtree.width + minHorizontalGap;
-    } else {
-      // Left side
-      x = - (cumulativeLeftWidth + subtree.width + (index > 0 ? minHorizontalGap : 0)); // debug root
-      cumulativeLeftWidth += subtree.width + minHorizontalGap;
+    const existingPosition = subtree.position;
+
+    if (existingPosition) {
+      // If the position exists, use it as is
+      positions.set(nodeId, existingPosition);
+    }else {
+      const direction = index % 2 === 0 ? 1 : -1;
+
+      let x = 0;
+      if (direction > 0) {
+        // Right side
+        x = cumulativeRightWidth + (index > 0 ? minHorizontalGap : 0);// root debug root
+        cumulativeRightWidth += subtree.width + minHorizontalGap;
+      } else {
+        // Left side
+        x = - (cumulativeLeftWidth + subtree.width + (index > 0 ? minHorizontalGap : 0)); // debug root
+        cumulativeLeftWidth += subtree.width + minHorizontalGap;
+      }
+      const y = verticalOffset;
+
+      positions.set(nodeId, { x, y }); 
     }
 
-    const y = verticalOffset;
-
-    positions.set(nodeId, { x, y });
     index++;
   });
 
   return positions;
 }
-/**
- * Original
- * 
- */

@@ -29,9 +29,10 @@ export function drawHVStyleLines(
     // Only one subtree
     const [nodeId, subtreeData] = subtrees.entries().next().value;
 
+    // Fallback to 0 if position is undefined
     const childCCP = {
-      x: subtreeData.position.x + nodeWidth / 2,
-      y: subtreeData.position.y,
+      x: (subtreeData.position?.x ?? 0) + nodeWidth / 2,
+      y: subtreeData.position?.y ?? 0,
     };
 
     lineElements.push(
@@ -49,7 +50,7 @@ export function drawHVStyleLines(
     let rightmostX = -Infinity;
 
     subtrees.forEach((subtreeData) => {
-      const x = subtreeData.position.x + nodeWidth / 2;
+      const x = (subtreeData.position?.x ?? 0) + nodeWidth / 2;
       if (x < leftmostX) leftmostX = x;
       if (x > rightmostX) rightmostX = x;
     });
@@ -80,8 +81,8 @@ export function drawHVStyleLines(
 
     // Draw paths from anchor to each subtree
     subtrees.forEach((subtreeData, nodeId) => {
-      const x = subtreeData.position.x + nodeWidth / 2;
-      const y = subtreeData.position.y;
+      const x = (subtreeData.position?.x ?? 0) + nodeWidth / 2;
+      const y = subtreeData.position?.y ?? 0;
       const controlY = anchorY + 10;
 
       lineElements.push(

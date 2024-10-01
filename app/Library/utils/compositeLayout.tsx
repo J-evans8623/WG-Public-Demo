@@ -10,7 +10,7 @@ export function useCompositeLayout(
 ): Map<string, ConceptNode> {
   const { state, dispatch } = useDocumentContext();
   const { getLayout } = state;
-  const { calculateSubtreeDimensions, setSubtreePosition } = useSubTreeContext();
+  const { calculateSubtreeDimensions, setSubtreePosition, subtrees } = useSubTreeContext();
 
   useEffect(() => {
     if (!getLayout) {
@@ -18,7 +18,7 @@ export function useCompositeLayout(
     }
 
     const updatedNodes = new Map(nodes);
-    const localSubtrees = new Map<string, SubtreeData>();
+    const localSubtrees = new Map<string, SubtreeData>(subtrees);
 
     const rootNode = Array.from(updatedNodes.values()).find((node) => node.isRoot);
     if (!rootNode) {
@@ -49,7 +49,8 @@ export function useCompositeLayout(
         updatedNodes.set(id, node);
       });
 
-      // Create SubtreeData
+      // Create SubtreeData to access the width, height and position of each subtree
+      const existingPosition = localSubtrees.get(childId)?.position;
       const subtreeData: SubtreeData = {
         minX: subtreeDimension.minX,
         maxX: subtreeDimension.maxX,
@@ -57,8 +58,9 @@ export function useCompositeLayout(
         maxY: subtreeDimension.maxY,
         width: subtreeDimension.width,
         height: subtreeDimension.height,
-        position: { x: 0, y: 0 }, // Will be updated
-      };
+        position: existingPosition ? existingPosition : undefined, // Will be updated <- subtree positions initialized to 0 each time -> State 2
+
+      };// We need means to conditionally check if a position already exist, and then persist that position, if it doesnt exist, we can use 0
 
       localSubtrees.set(childId, subtreeData);
 
@@ -70,9 +72,10 @@ export function useCompositeLayout(
     const subtreePositions = applyHVLayout(localSubtrees);
 
     subtreePositions.forEach((position, nodeId) => {
-      setSubtreePosition(nodeId, position);
+      setSubtreePosition(nodeId, position); // <- Overwritten Subtree positions  State 4
+      // The swap positions are lost here
 
-      // Update the position of the depth one node in updatedNodes
+      // Update the position of the depth one node in updatedNodes // 
       const node = updatedNodes.get(nodeId);
       if (node) {
         node.x = 0;//position.x;

@@ -9,7 +9,7 @@ export interface SubtreeData {
   maxY: number;
   width: number;
   height: number;
-  position: { x: number; y: number };
+  position?: { x: number; y: number };
 }
 
 interface SubTreeContextType {
@@ -42,11 +42,12 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (draggingSubtreeId && targetSubtreeId) {
       setTempSubtrees((prevSubtrees) => {
-        const updatedSubtrees = new Map(subtrees);
+        const updatedSubtrees = new Map(subtrees); // Reads updated subtrees
         const draggingSubtree = updatedSubtrees.get(draggingSubtreeId);
         const targetSubtree = updatedSubtrees.get(targetSubtreeId);
         if (draggingSubtree && targetSubtree) {
           const tempPosition = draggingSubtree.position;
+          // Position Swap
           updatedSubtrees.set(draggingSubtreeId, {
             ...draggingSubtree,
             position: targetSubtree.position,
@@ -59,7 +60,8 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
         return updatedSubtrees;
       });
     } else {
-      setTempSubtrees(new Map(subtrees));
+      //
+      setTempSubtrees(() => new Map(subtrees));
     }
   }, [draggingSubtreeId, targetSubtreeId, subtrees]);
 
@@ -78,6 +80,8 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
         const draggingSubtree = updatedSubtrees.get(draggingSubtreeId);
         const targetSubtree = updatedSubtrees.get(targetSubtreeId);
         if (draggingSubtree && targetSubtree) {
+
+          //console.log(`Before Swap: Dragging subtree: ${draggingSubtree.position.x? :0} \n Target Subtree: ${targetSubtree.position.x}  `);
           const tempPosition = draggingSubtree.position;
           updatedSubtrees.set(draggingSubtreeId, {
             ...draggingSubtree,
@@ -88,7 +92,9 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
             position: tempPosition,
           });
         }
-        return updatedSubtrees;
+        //console.log(`After Swap: Dragging subtree: ${updatedSubtrees.get(draggingSubtreeId)?.position.x} \n Target Subtree: ${updatedSubtrees.get(targetSubtreeId)?.position.x}  `);
+        //console.log(Array.from( updatedSubtrees.entries()));
+        return updatedSubtrees; // Subtree Positions are correctly swapped and updated. State 1
       });
     }
     setDraggingSubtreeId(null);

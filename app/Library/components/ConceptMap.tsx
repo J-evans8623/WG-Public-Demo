@@ -84,16 +84,18 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal, onOpenAddC
 
           {/* Render Subtree components */}
           {Array.from(subtrees.entries()).map(([nodeId, subtreeData]) => (
-          <Subtree
-          key={nodeId}
-          rootNodeId={nodeId}
-          position={subtreeData.position}
-          width={subtreeData.width}
-          height={subtreeData.height}
-          onOpenCueCardModal={onOpenCueCardModal}
-          onOpenAddChildModal={onOpenAddChildModal}
-        />
-          ))}
+  subtreeData.position && ( // Only render Subtree if position is not null or undefined
+    <Subtree
+      key={nodeId}
+      rootNodeId={nodeId}
+      position={subtreeData.position}
+      width={subtreeData.width}
+      height={subtreeData.height}
+      onOpenCueCardModal={onOpenCueCardModal}
+      onOpenAddChildModal={onOpenAddChildModal}
+    />
+  )
+))}
         </div>
       </div>
     </div>
