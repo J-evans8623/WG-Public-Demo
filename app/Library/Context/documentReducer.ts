@@ -146,7 +146,7 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
             
             return { 
                 ...state, 
-                zoomLevel: newZoom,
+                zoomLevel: Math.round(newZoom * 100) / 100 ,
                 scrollLeft: adjustedScrollLeft,
                 scrollTop: adjustedScrollTop,
             };
@@ -161,16 +161,13 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
             
             return { 
                 ...state, 
-                zoomLevel: newZoom,
+                zoomLevel: Math.round(newZoom * 100) / 100,
                 scrollLeft: adjustedScrollLeft,
                 scrollTop: adjustedScrollTop,
             };
         }
         case DocumentActionType.SET_ZOOM_LEVEL: {
-          const desiredZoom = action.payload;
-          const minZoom = 0.1 * state.baseZoomLevel; // Minimum zoom level (10% of base)
-          const maxZoom = 2 * state.baseZoomLevel;   // Maximum zoom level (200% of base)
-          const newZoom = Math.max(minZoom, Math.min(desiredZoom, maxZoom)); // Ensure zoom is within bounds
+          const newZoom = Math.max(0.1 * state.baseZoomLevel, Math.min(action.payload, 2 * state.baseZoomLevel));
     
           // Adjust scroll positions to maintain the center
           const adjustedScrollLeft = state.scrollLeft * (newZoom / state.zoomLevel);
@@ -178,7 +175,7 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
     
           return {
             ...state,
-            zoomLevel: newZoom,
+            zoomLevel: Math.round(newZoom * 100) / 100,
             scrollLeft: adjustedScrollLeft,
             scrollTop: adjustedScrollTop,
           };

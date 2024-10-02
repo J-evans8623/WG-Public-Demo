@@ -1,10 +1,8 @@
 // bloom-maps/app/Library/ui/MapCustomizationPane.tsx
-
 import React from 'react';
 import { Select, Tooltip, Divider } from 'antd';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
-import { calculateZoomLevel, calculateZoomPercentage } from '@/app/Library/utils/zoomUtils';
 
 const { Option } = Select;
 
@@ -28,12 +26,12 @@ const MapCustomizationPane: React.FC = () => {
 
   // Define all Zoom Levels grounded at baseZoomLevel (0.7)
   const zoomLevels = [
-    { label: '25%', value: calculateZoomLevel(25, baseZoomLevel) },  // 0.175
-    { label: '50%', value: calculateZoomLevel(50, baseZoomLevel) },  // 0.35
-    { label: '75%', value: calculateZoomLevel(75, baseZoomLevel) },  // 0.525
-    { label: '100%', value: calculateZoomLevel(100, baseZoomLevel) }, // 0.7
-    { label: '150%', value: calculateZoomLevel(150, baseZoomLevel) }, // 1.05
-    { label: '200%', value: calculateZoomLevel(200, baseZoomLevel) }, // 1.4
+    { label: '25%', value: 0.175 },  // Fixed zoom levels instead of using calculateZoomLevel
+    { label: '50%', value: 0.35 },
+    { label: '75%', value: 0.525 },
+    { label: '100%', value: 0.7 },
+    { label: '150%', value: 1.05 },
+    { label: '200%', value: 1.4 }
   ];
 
   const handleSetPrimaryColor = (value: string) => {
@@ -48,6 +46,8 @@ const MapCustomizationPane: React.FC = () => {
     setZoomLevel(value);
   };
 
+  const currentZoomPercentage = Math.round((zoomLevel / baseZoomLevel) * 100);
+
   return (
     <div className="p-4">
       {/* Color Theme Selection */}
@@ -60,11 +60,7 @@ const MapCustomizationPane: React.FC = () => {
           onChange={handleSetPrimaryColor}
           style={{ width: '100%' }}
           size="small"
-          dropdownRender={menu => (
-            <div>
-              {menu}
-            </div>
-          )}
+          dropdownRender={menu => <div>{menu}</div>}
         >
           {primaryColors.map(color => (
             <Option key={color.color} value={color.color}>
@@ -93,11 +89,7 @@ const MapCustomizationPane: React.FC = () => {
           onChange={handleSetBackgroundColor}
           style={{ width: '100%' }}
           size="small"
-          dropdownRender={menu => (
-            <div>
-              {menu}
-            </div>
-          )}
+          dropdownRender={menu => <div>{menu}</div>}
         >
           {backgroundColors.map(color => (
             <Option key={color.color} value={color.color}>
@@ -125,7 +117,7 @@ const MapCustomizationPane: React.FC = () => {
       <Divider>Zoom Level</Divider>
       <div className="flex items-center space-x-2">
         {/* Zoom In Button */}
-        <Tooltip title={`Zoom In (${calculateZoomPercentage(zoomLevel, baseZoomLevel)}%)`}>
+        <Tooltip title={`Zoom In (${currentZoomPercentage}%)`}>
           <button
             className="p-2 bg-gray-300 rounded hover:bg-gray-400 flex items-center justify-center"
             onClick={zoomIn}
@@ -136,18 +128,26 @@ const MapCustomizationPane: React.FC = () => {
           </button>
         </Tooltip>
 
+        {/* Zoom Out Button */}
+        <Tooltip title={`Zoom Out (${currentZoomPercentage}%)`}>
+          <button
+            className="p-2 bg-gray-300 rounded hover:bg-gray-400 flex items-center justify-center"
+            onClick={zoomOut}
+            style={{ fontSize: '20px', width: '40px', height: '40px' }}
+            aria-label="Zoom Out"
+          >
+            <RiZoomOutLine />
+          </button>
+        </Tooltip>
+
         {/* Dropdown Menu for Zoom Levels */}
-        <Tooltip title={`Current Zoom: ${calculateZoomPercentage(zoomLevel, baseZoomLevel)}%`}>
+        <Tooltip title={`Current Zoom: ${currentZoomPercentage}%`}>
           <Select
-            value={zoomLevel}
+            value={currentZoomPercentage}
             onChange={handleZoomChange}
             style={{ width: '150px' }}
             size="small"
-            dropdownRender={menu => (
-              <div>
-                {menu}
-              </div>
-            )}
+            dropdownRender={menu => <div>{menu}</div>}
           >
             {zoomLevels.map((zoom) => (
               <Option key={zoom.value} value={zoom.value}>
@@ -159,18 +159,6 @@ const MapCustomizationPane: React.FC = () => {
               </Option>
             ))}
           </Select>
-        </Tooltip>
-
-        {/* Zoom Out Button */}
-        <Tooltip title={`Zoom Out (${calculateZoomPercentage(zoomLevel, baseZoomLevel)}%)`}>
-          <button
-            className="p-2 bg-gray-300 rounded hover:bg-gray-400 flex items-center justify-center"
-            onClick={zoomOut}
-            style={{ fontSize: '20px', width: '40px', height: '40px' }}
-            aria-label="Zoom Out"
-          >
-            <RiZoomOutLine />
-          </button>
         </Tooltip>
       </div>
     </div>
