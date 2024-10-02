@@ -1,11 +1,12 @@
 import React, { useMemo, useCallback } from 'react';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import { useDocumentContext, setGetLayout } from '@/app/Library/Context/DocumentProvider';
 import ConceptNode from './ConceptNode';
 import { ConceptNode as ConceptNodeType } from '@/app/Library/Definitions/Definitions';
 import { drawIndentedStyleLines } from '@/app/Library/utils/drawIndentedStyleLines';
 import { useDrag, useDrop } from 'react-dnd';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider'; // Corrected import path
 import DashedRing from './DashedRing';
+
 
 interface SubtreeProps {
   rootNodeId: string;
@@ -24,7 +25,7 @@ const Subtree: React.FC<SubtreeProps> = ({
   onOpenCueCardModal,
   onOpenAddChildModal,
 }) => {
-  const { state } = useDocumentContext();
+  const { state, dispatch } = useDocumentContext();
   const { nodes } = state;
   const {
     draggingSubtreeId,
@@ -51,6 +52,7 @@ const Subtree: React.FC<SubtreeProps> = ({
       commitSwap();
       setDraggingSubtreeId(null);
       setTargetSubtreeId(null);
+      dispatch(setGetLayout(true));
     },
   });
 

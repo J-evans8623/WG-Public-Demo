@@ -22,7 +22,7 @@ import { v4 as uuidv4 } from 'uuid';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-
+import ToolPane from '@/app/Library/ui/ToolPane';
 
 function ClientLayoutContent() {
  
@@ -352,54 +352,7 @@ const handleLoadDocument = async (file: File) => {
 
   {/* Right Panel (Tool Interface) */}
   <div className="relative bg-gray-200 p-4 shadow-lg rounded-lg overflow-auto">
-    {/* Zoom Buttons */}
-    <div className="absolute top-2 left-2 flex space-x-2 bg-gray-300 p-2 rounded shadow">
-      <button
-        title={`Zoom In (${Math.ceil((zoomLevel / baseZoomLevel) * 100)}%)`} // Normalizing zoom to 100% at baseline
-        onClick={zoomIn}
-        className="p-1 rounded hover:bg-gray-400"
-      >
-        <RiZoomInLine />
-      </button>
-      <button
-        title={`Zoom Out (${Math.ceil((zoomLevel / baseZoomLevel) * 100)}%)`} // Normalizing zoom to 100% at baseline
-        onClick={zoomOut}
-        className="p-1 rounded hover:bg-gray-400"
-      >
-        <RiZoomOutLine />
-      </button>
-    </div>
-    {/* Add other tools here */}
-    {/* Color Customization Options */}
-    <div className="mt-16 flex flex-col space-y-4">
-            {/* Primary Color Selector */}
-            <div className="flex flex-col items-start">
-              <label className="text-sm text-gray-700">Primary Color:</label>
-              {primaryColors.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => handleSetPrimaryColor(color)}
-                  className="w-6 h-6 border border-black rounded-full"
-                  style={{ backgroundColor: color }}
-                  title={`Set Primary Color: ${color}`}
-                />
-              ))}
-            </div>
-
-            {/* Background Color Selector */}
-            <div className="flex flex-col items-start">
-              <label className="text-sm text-gray-700">Background Color:</label>
-              {backgroundColors.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => handleSetBackgroundColor(color)}
-                  className="w-6 h-6 border border-black rounded-full"
-                  style={{ backgroundColor: color }}
-                  title={`Set Background Color: ${color}`}
-                />
-              ))}
-            </div>
-          </div>
+  <ToolPane />
   </div>
 </Split>
     </>
