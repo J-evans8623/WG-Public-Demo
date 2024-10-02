@@ -1,6 +1,7 @@
 import React from 'react';
 import { Layout, Card } from 'antd';
 import ConceptBank from './ConceptBank';
+import MapCustomizationPane from '@/app/Library/ui/MapCustomizationPane';
 
 const { Sider } = Layout;
 
@@ -46,7 +47,7 @@ const ToolPane: React.FC = () => {
         </div>
       </Card>
 
-      {/* Additional Components */}
+      {/* Map Customization Pane */}
       <div
         style={{
           marginTop: '20px',
@@ -56,7 +57,7 @@ const ToolPane: React.FC = () => {
         }}
       >
         <Card
-          title="Other Tools"
+          title="Map Customization"
           styles={{
             body: {
               padding: '10px',
@@ -72,8 +73,8 @@ const ToolPane: React.FC = () => {
             overflow: 'hidden',
           }}
         >
-          {/* Additional ToolPane components go here */}
-          <p>Other tools will be displayed here.</p>
+          {/* MapCustomizationPane component */}
+          <MapCustomizationPane />
         </Card>
       </div>
     </Sider>
