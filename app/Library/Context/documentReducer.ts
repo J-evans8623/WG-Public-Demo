@@ -54,52 +54,6 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
         return { ...state, nodes: nodesWithUpdatedTitle };
       case DocumentActionType.SET_GET_LAYOUT:
         return { ...state, getLayout: action.payload };
-
-       /**  case DocumentActionType.CREATE_NEW_NODE: {
-            const { title, parentNodeId } = action.payload;
-          
-            // Validate that parentNode exists
-            const parentNode = state.nodes.get(parentNodeId);
-            if (!parentNode) {
-              console.error(`Parent node with ID ${parentNodeId} not found.`);
-              return state; // Return unchanged state if parent not found
-            }
-          
-            // Determine the new node ID and depth
-            const newNodeId = `node-${state.nodes.size + 1}`;
-            const newDepth = (parentNode.depth || 0) + 1;
-          
-            // Create new node safely
-            const newNode: ConceptNode = {
-              id: newNodeId,
-              title: title || `Untitled Concept ${state.nodes.size + 1}`,
-              //cueCards: [],
-              parentNodeId: parentNodeId,
-              childrenNodeIds: [],
-              x: undefined,
-              y: undefined,
-              isRoot: false,
-              depth: newDepth,
-            };
-          
-            // Create a new map of nodes to update the state
-            const updatedNodes = new Map(state.nodes);
-          
-            // Ensure parentNode is updated correctly with children
-            const updatedParentNode = {
-              ...parentNode,
-              childrenNodeIds: [...(parentNode.childrenNodeIds || []), newNodeId],
-            };
-          
-            // Add the new node and the updated parent node to the nodes map
-            updatedNodes.set(parentNodeId, updatedParentNode);
-            updatedNodes.set(newNode.id, newNode);
-          
-            return {
-              ...state,
-              nodes: updatedNodes,
-            };
-          }*/
             case DocumentActionType.CREATE_NEW_NODE: {
               const {newNodeId, title, parentNodeId } = action.payload;
               const parentNode = state.nodes.get(parentNodeId);
@@ -211,6 +165,23 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
                 scrollLeft: adjustedScrollLeft,
                 scrollTop: adjustedScrollTop,
             };
+        }
+        case DocumentActionType.SET_ZOOM_LEVEL: {
+          const desiredZoom = action.payload;
+          const minZoom = 0.1 * state.baseZoomLevel; // Minimum zoom level (10% of base)
+          const maxZoom = 2 * state.baseZoomLevel;   // Maximum zoom level (200% of base)
+          const newZoom = Math.max(minZoom, Math.min(desiredZoom, maxZoom)); // Ensure zoom is within bounds
+    
+          // Adjust scroll positions to maintain the center
+          const adjustedScrollLeft = state.scrollLeft * (newZoom / state.zoomLevel);
+          const adjustedScrollTop = state.scrollTop * (newZoom / state.zoomLevel);
+    
+          return {
+            ...state,
+            zoomLevel: newZoom,
+            scrollLeft: adjustedScrollLeft,
+            scrollTop: adjustedScrollTop,
+          };
         }
           case DocumentActionType.UPDATE_NODE: {
             const { nodeId, updatedNode } = action.payload;

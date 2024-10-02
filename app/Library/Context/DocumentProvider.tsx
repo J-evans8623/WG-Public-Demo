@@ -34,6 +34,7 @@ const NewDocumentContext = createContext<{
   dispatch: React.Dispatch<DocumentAction>;
   zoomIn: () => void;
   zoomOut: () => void;
+  setZoomLevel: (zoomLevel: number) => void;
   setColorTheme: (colorTheme: ColorTheme) => void;
   setPrimaryColor: (color: string) => void; // New function to set primary color
   setBackgroundColor: (color: string) => void; // New function to set background color
@@ -46,6 +47,7 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   // Debounced zoom functions
   const debouncedZoomIn = debounce(() => dispatch(zoomIn()), 100);
   const debouncedZoomOut = debounce(() => dispatch(zoomOut()), 100);
+  const debouncedSetZoomLevel = debounce((zoomLevel: number) => dispatch(setZoomLevel(zoomLevel)), 100);
   const handleSetColorTheme = (colorTheme: ColorTheme) => {
     dispatch(setColorTheme(colorTheme));
   };
@@ -62,7 +64,8 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
       state, 
       dispatch, 
       zoomIn: debouncedZoomIn, 
-      zoomOut: debouncedZoomOut, 
+      zoomOut: debouncedZoomOut,
+      setZoomLevel: debouncedSetZoomLevel,
       setColorTheme: handleSetColorTheme,
       setPrimaryColor: handleSetPrimaryColor, // Concept Node colors
       setBackgroundColor: handleSetBackgroundColor // Cocnept Node colors
@@ -73,14 +76,13 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const serializeDocument = (state: DocumentState): SerializedDocument => {
-  const { nodes, colorTheme, zoomLevel, primaryColor, backgroundColor } = state;
+  const { nodes, colorTheme, primaryColor, backgroundColor } = state;
   // Convert Map to an array for serialization
   const nodesArray = Array.from(nodes.entries());
 
   return {
     nodes: nodesArray,
     colorTheme,
-    zoomLevel,
     primaryColor,
     backgroundColor,
   };
@@ -129,6 +131,11 @@ export const updateNodeTitle = (nodeId: string, newTitle: string): DocumentActio
 export const setGetLayout = (getLayout: boolean): DocumentAction => ({
     type: DocumentActionType.SET_GET_LAYOUT,
     payload: getLayout,
+  });
+
+export const setZoomLevel = (zoomLevel: number): DocumentAction => ({
+    type: DocumentActionType.SET_ZOOM_LEVEL,
+    payload: zoomLevel,
   });
 
 export const createNewNode = 
