@@ -234,7 +234,7 @@ const handleLoadDocument = async (file: File) => {
             // Add cue card if applicable
             if (cueCardTitle.trim() !== '' && cueCardContent.trim() !== '') {
               const newCueCard: CueCard = {
-                id: Date.now().toString(),
+                id: Date.now().toString(),// Needs to be updated
                 title: cueCardTitle,
                 content: cueCardContent,
                 bloomLevel,

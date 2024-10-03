@@ -10,6 +10,9 @@
     "test": "jest"
   },
   "dependencies": {
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "@mui/material": "^6.1.2",
     "antd": "^5.21.2",
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",

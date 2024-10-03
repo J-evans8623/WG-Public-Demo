@@ -1,3 +1,4 @@
+/* bloom-maps\app\globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -26,11 +27,24 @@ body {
     rgb(var(--background-start-rgb));
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* Highlight only the tile (row) where the ConceptNodeDisplay resides */
+.selected-node-tile {
+  background-color: #D5E6ED; /* Light blue background for selected node */
+  border-left: 4px solid #3B82F6; /* Blue border on the left */
+  padding: 8px 0;
 }
+
+/* Ensure child nodes are visually distinct */
+.child-node-container {
+  padding-left: 20px; /* Indent for child nodes */
+  margin-top: 10px;
+}
+
+/* Prevent the child node from inheriting tile highlight */
+.child-node-container .selected-node-tile {
+  background-color: transparent; /* No highlight for child node container */
+}
+
 /* Custom scrollbar styles for Webkit browsers (Chrome, Safari) */
 .scrollbar-thin::-webkit-scrollbar {
   width: 8px;

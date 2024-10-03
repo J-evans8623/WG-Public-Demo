@@ -16,8 +16,13 @@ interface ModernModalProps {
     source?: string
   ) => void;
   initialNodeTitle: string;
-  mode: 'addChild' | 'addCueCard';
+  mode: 'addChild' | 'addCueCard' | 'editCueCard';  // Extend to include editCueCard
+  initialCueCardTitle?: string;   // Optional initial title for editing
+  initialCueCardContent?: string; // Optional initial content for editing
+  initialBloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;  // Optional initial Bloom level for editing
+  initialSource?: string; // Optional initial source for editing
 }
+
 
 const bloomLevelLabels = [
   { level: 1, label: 'Remember' },
@@ -34,6 +39,10 @@ const ModernModal: React.FC<ModernModalProps> = ({
   onSave,
   initialNodeTitle,
   mode,
+  initialCueCardTitle,
+  initialCueCardContent,
+  initialBloomLevel,
+  initialSource,
 }) => {
   // State variables for user input and selections
   const [nodeTitle, setNodeTitle] = useState(initialNodeTitle || 'New Concept');
@@ -48,18 +57,25 @@ const ModernModal: React.FC<ModernModalProps> = ({
 
 
   // In useEffect, reset the source when modal opens
-useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
-        setNodeTitle(initialNodeTitle || 'New Concept');
-        setIsEditingTitle(mode === 'addChild');
-        setCueCardTitle('');
-        setCueCardContent('');
-        setBloomLevel(1);
-        setImage(null);
-        setFocusIndex(0);
-        setSource('');
+      setNodeTitle(initialNodeTitle || 'New Concept');
+      setIsEditingTitle(mode === 'addChild');
+      setCueCardTitle(mode === 'editCueCard' ? initialCueCardTitle || '' : '');
+      setCueCardContent(mode === 'editCueCard' ? initialCueCardContent || '' : '');
+      setBloomLevel(mode === 'editCueCard' ? initialBloomLevel || 1 : 1);
+      setImage(null);
+      setSource(mode === 'editCueCard' ? initialSource || '' : '');
+      setFocusIndex(0);
+  
+      if (mode === 'addChild') {
+        titleInputRef.current?.focus();
+      } else {
+        cueCardTitleRef.current?.focus();
+      }
     }
-  }, [isOpen, initialNodeTitle, mode]);
+  }, [isOpen, initialNodeTitle, mode, initialCueCardTitle, initialCueCardContent, initialBloomLevel, initialSource]);
+  
 
   // Access the current color theme from context
   const { state } = useDocumentContext();
