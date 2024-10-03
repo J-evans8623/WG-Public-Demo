@@ -1,3 +1,5 @@
+// bloom-maps/app/Library/components/ConceptBank.tsx
+
 import React, { useState } from 'react';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
@@ -5,7 +7,7 @@ import ConceptNodeDisplay from './ConceptNodeDisplay';
 import { Fab, Menu, MenuItem } from '@mui/material';
 import { FaPencilAlt, FaEllipsisV, FaCut, FaPaste, FaTrashAlt, FaPlus } from 'react-icons/fa';
 import ModernModal from '@/app/Library/components/ModernModal'; // Modal for Add and Edit
-import CueCardEntry from './CueCardEntry'; 
+import CueCardEntry from './CueCardEntry';
 
 const ConceptBank: React.FC = () => {
   const { state } = useDocumentContext(); // Fetch concept nodes from state
@@ -22,7 +24,15 @@ const ConceptBank: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false); // State for Modal open/close
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add'); // Determine if Add or Edit action
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null); // Track selected node
-  
+
+  // State to hold initial data for editing
+  const [initialCueCardData, setInitialCueCardData] = useState<{
+    title: string;
+    content: string;
+    bloomLevel: 1 | 2 | 3 | 4 | 5 | 6;
+    source: string;
+  } | null>(null);
+
   // Filter top-level nodes (nodes without a parent)
   const topLevelNodes = Array.from(nodes.values()).filter((node) => !node.parentNodeId);
 
@@ -51,23 +61,44 @@ const ConceptBank: React.FC = () => {
   // Modal Handlers for Adding/Editing
   const handleOpenAddModal = () => {
     setModalMode('add');
+    setInitialCueCardData(null); // Clear any previous data
     setIsModalOpen(true);
     handleCloseMenu();
   };
 
   const handleOpenEditModal = () => {
-    if (selectedNodeId) {
-      setModalMode('edit');
-      setIsModalOpen(true);
+    if (selectedCueCardId && selectedNodeId) {
+      // Fetch the selected cue card's data
+      const selectedNodeCueCards = selectCueCards(selectedNodeId);
+      const selectedCueCard = selectedNodeCueCards.find(card => card.id === selectedCueCardId);
+      
+      if (selectedCueCard) {
+        setModalMode('edit');
+        setInitialCueCardData({
+          title: selectedCueCard.title,
+          content: selectedCueCard.content,
+          bloomLevel:  selectedCueCard.bloomLevel ?? 1,
+          source: selectedCueCard.source || '',
+        });
+        setIsModalOpen(true);
+      }
     }
     handleCloseMenu();
   };
 
-  const handleModalSave = (cueCardTitle: string, cueCardContent: string) => {
+  const handleModalSave = (
+    nodeTitle: string,
+    cueCardTitle: string,
+    cueCardContent: string,
+    bloomLevel: 1 | 2 | 3 | 4 | 5 | 6,
+    image?: File | null,
+    source?: string
+  ) => {
     if (modalMode === 'add' && selectedNodeId) {
-      addCueCard(selectedNodeId, { id: Date.now().toString(), title: cueCardTitle, content: cueCardContent });
-    } else if (modalMode === 'edit' && selectedNodeId) {
-      editCueCard(selectedNodeId, { id: selectedNodeId, title: cueCardTitle, content: cueCardContent });
+      addCueCard(selectedNodeId, { id: Date.now().toString(), title: cueCardTitle, content: cueCardContent, bloomLevel, source });
+    } else if (modalMode === 'edit' && selectedCueCardId && selectedNodeId && initialCueCardData) {
+      // Correctly set the id to selectedCueCardId
+      editCueCard(selectedNodeId, { id: selectedCueCardId, title: cueCardTitle, content: cueCardContent, bloomLevel, source });
     }
     setIsModalOpen(false);
   };
@@ -80,14 +111,12 @@ const ConceptBank: React.FC = () => {
   };
 
   // Cut, Paste, and Delete operations
-  const handleCutCueCard = () => {
+  const handleCutCueCardAction = () => {
     if (selectedCueCardId && selectedNodeId) {
       handleCueCardCut(selectedCueCardId, selectedNodeId); // Capture cue card and its parent node ID
     }
     handleCloseMenu();
   };
-
-  
 
   const handlePasteCueCard = () => {
     if (cutCueCardId && selectedNodeId && cutSourceNodeId) {
@@ -134,7 +163,7 @@ const ConceptBank: React.FC = () => {
             <FaEllipsisV />
           </Fab>
 
-          {/* Menu for Add, Move, Cut, Paste, and Delete */}
+          {/* Menu for Add, Cut, Paste, and Delete */}
           <Menu
             anchorEl={anchorEl}
             keepMounted
@@ -142,8 +171,8 @@ const ConceptBank: React.FC = () => {
             onClose={handleCloseMenu}
           >
             <MenuItem onClick={handleOpenAddModal}>Add</MenuItem>
-            <MenuItem onClick={handleCutCueCard} disabled={!selectedCueCardId}>Cut</MenuItem> {/* Enable Cut based on cue card selection */}
-            <MenuItem onClick={handlePasteCueCard} disabled={!cutCueCardId || !selectedNodeId}>Paste</MenuItem> {/* Enable Paste only when cut and node selected */}
+            <MenuItem onClick={handleCutCueCardAction} disabled={!selectedCueCardId}>Cut</MenuItem> {/* Enable Cut based on cue card selection */}
+            <MenuItem onClick={handlePasteCueCard} disabled={!cutCueCardId || !selectedNodeId || !cutSourceNodeId}>Paste</MenuItem> {/* Enable Paste only when cut and node selected */}
             <MenuItem onClick={handleDeleteCueCard} disabled={!selectedCueCardId}>Delete</MenuItem>
           </Menu>
         </div>
@@ -169,6 +198,10 @@ const ConceptBank: React.FC = () => {
         onSave={handleModalSave}
         initialNodeTitle={modalMode === 'edit' && selectedNodeId ? nodes.get(selectedNodeId)?.title || '' : 'New Cue Card'}
         mode={modalMode === 'add' ? 'addCueCard' : 'editCueCard'}
+        initialCueCardTitle={modalMode === 'edit' && initialCueCardData ? initialCueCardData.title : undefined}
+        initialCueCardContent={modalMode === 'edit' && initialCueCardData ? initialCueCardData.content : undefined}
+        initialBloomLevel={modalMode === 'edit' && initialCueCardData ? initialCueCardData.bloomLevel : undefined}
+        initialSource={modalMode === 'edit' && initialCueCardData ? initialCueCardData.source : undefined}
       />
     </div>
   );

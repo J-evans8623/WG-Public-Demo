@@ -90,7 +90,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
   // Focus index to keep track of current focus state
   const [focusIndex, setFocusIndex] = useState(0);
 
-  // **Updated useEffect to reset state when modal opens or mode changes**
+ /** // **Updated useEffect to reset state when modal opens or mode changes**
   useEffect(() => {
     if (isOpen) {
       setNodeTitle(initialNodeTitle || 'New Concept');
@@ -109,7 +109,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
         cueCardTitleRef.current?.focus();
       }
     }
-  }, [isOpen, initialNodeTitle, mode]);
+  }, [isOpen, initialNodeTitle, mode]); */
 
   // Handle keyboard events
   const handleKeyDown = (e: React.KeyboardEvent) => {
