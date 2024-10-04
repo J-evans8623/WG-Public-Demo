@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import { Tabs, Input,InputRef, Radio, Upload, Button } from 'antd';
 import { FaPencilAlt } from 'react-icons/fa';
-/**
- * Original implementation
- * //bloom-maps\app\Library\components\ModernModal.tsx
- */
+import { UploadFile } from 'antd/lib/upload/interface';  // Ensure this import is included
+const { TabPane } = Tabs;
+
 interface ModernModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -19,13 +18,12 @@ interface ModernModalProps {
     source?: string
   ) => void;
   initialNodeTitle: string;
-  mode: 'addChild' | 'addCueCard' | 'editCueCard';  // Extend to include editCueCard
-  initialCueCardTitle?: string;   // Optional initial title for editing
-  initialCueCardContent?: string; // Optional initial content for editing
-  initialBloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;  // Optional initial Bloom level for editing
-  initialSource?: string; // Optional initial source for editing
+  mode: 'addChild' | 'addCueCard' | 'editCueCard';  // Ensure editCueCard is included
+  initialCueCardTitle?: string;
+  initialCueCardContent?: string;
+  initialBloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
+  initialSource?: string;
 }
-
 
 const bloomLevelLabels = [
   { level: 1, label: 'Remember' },
@@ -47,19 +45,26 @@ const ModernModal: React.FC<ModernModalProps> = ({
   initialBloomLevel,
   initialSource,
 }) => {
-  // State variables for user input and selections
   const [nodeTitle, setNodeTitle] = useState(initialNodeTitle || 'New Concept');
-  const [isEditingTitle, setIsEditingTitle] = useState(mode === 'addChild'); // Editable from start in 'addChild' mode
-
+  const [isEditingTitle, setIsEditingTitle] = useState(mode === 'addChild');
   const [cueCardTitle, setCueCardTitle] = useState('');
   const [cueCardContent, setCueCardContent] = useState('');
   const [bloomLevel, setBloomLevel] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [image, setImage] = useState<File | null>(null);
   const [source, setSource] = useState('');
 
+  // New states for Picture and Practice Sheet are kept intact
+  const [pictureTitle, setPictureTitle] = useState('');
+  const [uploadedPicture, setUploadedPicture] = useState<File | null>(null);
+  const [pictureDescription, setPictureDescription] = useState('');
 
+  const [practiceSheetTitle, setPracticeSheetTitle] = useState('');
+  const [practiceContent, setPracticeContent] = useState('');
 
-  // In useEffect, reset the source when modal opens
+  const titleInputRef = useRef<InputRef>(null);
+  const cueCardTitleRef = useRef<InputRef>(null);
+  const cueCardContentRef = useRef<InputRef>(null);
+
   useEffect(() => {
     if (isOpen) {
       setNodeTitle(initialNodeTitle || 'New Concept');
@@ -67,10 +72,9 @@ const ModernModal: React.FC<ModernModalProps> = ({
       setCueCardTitle(mode === 'editCueCard' ? initialCueCardTitle || '' : '');
       setCueCardContent(mode === 'editCueCard' ? initialCueCardContent || '' : '');
       setBloomLevel(mode === 'editCueCard' ? initialBloomLevel || 1 : 1);
-      setImage(null);
       setSource(mode === 'editCueCard' ? initialSource || '' : '');
-      setFocusIndex(0);
-  
+      setImage(null);
+
       if (mode === 'addChild') {
         titleInputRef.current?.focus();
       } else {
@@ -78,248 +82,191 @@ const ModernModal: React.FC<ModernModalProps> = ({
       }
     }
   }, [isOpen, initialNodeTitle, mode, initialCueCardTitle, initialCueCardContent, initialBloomLevel, initialSource]);
-  
 
-  // Access the current color theme from context
-  const { state } = useDocumentContext();
-  const { colorTheme } = state;
-
-  // Refs to handle focus between inputs and radio buttons
-  const titleInputRef = useRef<HTMLInputElement>(null);
-  const cueCardTitleRef = useRef<HTMLInputElement>(null);
-  const cueCardContentRef = useRef<HTMLTextAreaElement>(null);
-  const bloomLevelRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  // Focus index to keep track of current focus state
-  const [focusIndex, setFocusIndex] = useState(0);
-
-  // Handle keyboard events
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Handle Enter key navigation
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (focusIndex === 0 && isEditingTitle) {
-        // Move focus to Cue Card Title
-        setFocusIndex(1);
-        cueCardTitleRef.current?.focus();
-      } else if (focusIndex === 1) {
-        // Move focus to Cue Card Content
-        setFocusIndex(2);
-        cueCardContentRef.current?.focus();
-      } else if (focusIndex === 2) {
-        // Move focus to Bloom level radio buttons
-        setFocusIndex(3);
-        const currentRadioRef = bloomLevelRefs.current[bloomLevel - 1];
-        currentRadioRef?.focus();
-      } else if (focusIndex === 3) {
-        // Trigger the save action
-        handleSave();
-      }
-    }
-    // Handle up and down arrow keys for Bloom level selection
-    if (focusIndex === 3) {
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setBloomLevel((prevLevel) => {
-          const newLevel = prevLevel > 1 ? (prevLevel - 1) as typeof bloomLevel : 1;
-          const newRadioRef = bloomLevelRefs.current[newLevel - 1];
-          newRadioRef?.focus();
-          return newLevel;
-        });
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setBloomLevel((prevLevel) => {
-          const newLevel = prevLevel < 6 ? (prevLevel + 1) as typeof bloomLevel : 6;
-          const newRadioRef = bloomLevelRefs.current[newLevel - 1];
-          newRadioRef?.focus();
-          return newLevel;
-        });
-      }
+  // Handle image or GIF attachment
+  const handleImageChange = (info: any) => {
+    if (info.file.status === 'done') {
+      setImage(info.file.originFileObj);
     }
   };
 
-  // Handle saving the data
+  const handlePictureUpload = (info: { file: UploadFile<any> }) => {
+    if (info.file.status === 'done' && info.file.originFileObj) {
+      setUploadedPicture(info.file.originFileObj);
+    } else {
+      setUploadedPicture(null);
+    }
+  };
+
   const handleSave = () => {
-    // Check if cue card fields are both filled or both empty
     const isCueCardTitleEmpty = cueCardTitle.trim() === '';
     const isCueCardContentEmpty = cueCardContent.trim() === '';
 
-    if (
-      (!isCueCardTitleEmpty && isCueCardContentEmpty) ||
-      (isCueCardTitleEmpty && !isCueCardContentEmpty)
-    ) {
-      // One of the fields is filled, but not the other
-      alert('Please fill in both the Cue Card Title and Content, or leave both empty.');
+    if (mode === 'addChild') {
+      if (!isCueCardTitleEmpty && !isCueCardContentEmpty) {
+        onSave(nodeTitle, cueCardTitle, cueCardContent, bloomLevel, image, source);
+      } else {
+        onSave(nodeTitle, '', '', bloomLevel, null, '');
+      }
+      onClose();
       return;
     }
 
-    // Call the onSave function with the data
-    onSave(nodeTitle, cueCardTitle, cueCardContent, bloomLevel, image, source);
-    handleClose();
-  };
+    if (mode === 'addCueCard' || mode === 'editCueCard') {
+      if (
+        (!isCueCardTitleEmpty && isCueCardContentEmpty) ||
+        (isCueCardTitleEmpty && !isCueCardContentEmpty)
+      ) {
+        alert('Please fill in both the Cue Card Title and Content, or leave both empty.');
+        return;
+      }
 
-  // Reset state and close the modal
-  const handleClose = () => {
-    onClose();
-  };
-
-  // Handle image or GIF attachment
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setImage(e.target.files[0]);
+      onSave(nodeTitle, cueCardTitle, cueCardContent, bloomLevel, image, source);
+      onClose();
+      return;
     }
   };
 
-  if (!isOpen) return null;
-
-  // Determine modal background color based on the current color theme
-  const modalBackgroundColor =
-    colorTheme === 'cool-spring'
-      ? 'bg-gray-100'
-      : colorTheme === 'warm-summer'
-      ? 'bg-gray-100'
-      : 'bg-white';
-
-  return (
-    <div
-      className="fixed bottom-[150px] left-1/2 transform -translate-x-1/2 z-50"
-      onKeyDown={handleKeyDown}
-    >
-      <div
-        className={`relative ${modalBackgroundColor} shadow-lg rounded-lg p-6 w-[600px] border border-black`}
-      >
-        {/* Title Field with Edit Icon */}
-        <div className="flex items-center">
-          {isEditingTitle ? (
-            <input
+  const getTabContent = (key: string) => {
+    switch (key) {
+      case 'cueCard':
+        return (
+          <>
+            <Input
               ref={titleInputRef}
-              type="text"
-              value={nodeTitle}
-              onChange={(e) => setNodeTitle(e.target.value)}
-              className="w-full text-lg font-semibold p-2 focus:outline-none bg-transparent"
-              onFocus={() => setFocusIndex(0)}
-            />
-          ) : (
-            <h2 className="w-full text-lg font-semibold p-2">{nodeTitle}</h2>
-          )}
-          {mode === 'addCueCard' && (
-            <button
-              onClick={() => {
-                setIsEditingTitle(true);
-                setFocusIndex(0);
-                titleInputRef.current?.focus();
-              }}
-              className="ml-2 text-gray-600 hover:text-gray-800"
-              title="Edit Title"
-            >
-              <FaPencilAlt />
-            </button>
-          )}
-        </div>
-
-        {/* Horizontal separator line */}
-        <hr className="my-2 border-gray-300" />
-
-        {/* Container for body input and Bloom level selection */}
-        <div className="flex">
-          {/* Content text area */}
-          <div className="flex-1">
-            {/* Cue Card Title */}
-            <input
-              ref={cueCardTitleRef}
-              type="text"
               placeholder="Cue Card Title"
               value={cueCardTitle}
               onChange={(e) => setCueCardTitle(e.target.value)}
-              className="w-full p-2 border rounded focus:outline-none bg-transparent"
-              onFocus={() => setFocusIndex(1)}
+              style={{ backgroundColor: '#f5f5f5', borderRadius: '4px' }}
             />
-
-            {/* Cue Card Content */}
-            <textarea
+            <Input.TextArea
               ref={cueCardContentRef}
               placeholder="Cue Card Content"
               value={cueCardContent}
               onChange={(e) => setCueCardContent(e.target.value)}
-              className="w-full mt-2 p-2 h-[150px] resize-none border rounded focus:outline-none bg-transparent"
-              onFocus={() => setFocusIndex(2)}
+              rows={4}
+              style={{ backgroundColor: '#f5f5f5', borderRadius: '4px', marginTop: '10px' }}
             />
-
-            {/* Image/GIF attachment option */}
-            <div className="mt-2">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*,image/gif"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-                <span className="text-gray-600 hover:text-gray-800">Attach Image/GIF</span>
-              </label>
-
-              {/* Display selected image name */}
-              {image && (
-                <div className="mt-2">
-                  <p className="text-sm text-gray-600">Selected file: {image.name}</p>
-                </div>
-              )}
+            <div style={{ marginTop: '10px' }}>
+              <label>Bloom’s Taxonomy Level:</label>
+              <Radio.Group
+                onChange={(e) => setBloomLevel(e.target.value)}
+                value={bloomLevel}
+                style={{ marginTop: '10px' }}
+              >
+                {bloomLevelLabels.map(({ level, label }) => (
+                  <Radio key={level} value={level}>
+                    {label}
+                  </Radio>
+                ))}
+              </Radio.Group>
             </div>
+            <Upload beforeUpload={() => false} onChange={handleImageChange}>
+              <Button style={{ marginTop: '10px' }}>Upload Image/GIF</Button>
+            </Upload>
+          </>
+        );
+      case 'picture':
+        return (
+          <>
+            <Input
+              placeholder="Picture Title"
+              value={pictureTitle}
+              onChange={(e) => setPictureTitle(e.target.value)}
+            />
+            <Upload beforeUpload={() => false} onChange={handlePictureUpload}>
+              <Button>Upload Picture</Button>
+            </Upload>
+            {uploadedPicture && <p>Selected File: {uploadedPicture.name}</p>}
+            <Input.TextArea
+              placeholder="Optional Description"
+              value={pictureDescription}
+              onChange={(e) => setPictureDescription(e.target.value)}
+              rows={4}
+            />
+          </>
+        );
+      case 'practiceSheet':
+        return (
+          <>
+            <Input
+              placeholder="Practice Sheet Title"
+              value={practiceSheetTitle}
+              onChange={(e) => setPracticeSheetTitle(e.target.value)}
+            />
+            <Input.TextArea
+              placeholder="Practice Sheet Content"
+              value={practiceContent}
+              onChange={(e) => setPracticeContent(e.target.value)}
+              rows={6}
+            />
+          </>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    isOpen && (
+      <div
+        className="fixed bottom-[150px] left-1/2 transform -translate-x-1/2 z-50"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            onClose();
+          }
+        }}
+      >
+        <div className="relative bg-gray-100 p-6 rounded shadow-lg w-[600px] border border-gray-300">
+          <div className="flex items-center">
+            {isEditingTitle ? (
+              <Input
+                ref={titleInputRef}
+                placeholder="Node Title"
+                value={nodeTitle}
+                onChange={(e) => setNodeTitle(e.target.value)}
+                className="w-full text-lg font-semibold p-2 focus:outline-none bg-gray-200 border border-gray-300 rounded"
+              />
+            ) : (
+              <h2 className="w-full text-lg font-semibold p-2">{nodeTitle}</h2>
+            )}
+            {mode === 'addCueCard' && (
+              <button
+                onClick={() => {
+                  setIsEditingTitle(true);
+                  titleInputRef.current?.focus();
+                }}
+                className="ml-2 text-gray-600 hover:text-gray-800"
+                title="Edit Title"
+              >
+                <FaPencilAlt />
+              </button>
+            )}
           </div>
 
-          {/* Bloom Level selection */}
-          <div className="ml-4">
-            {/* Vertical column of square radio buttons */}
-            <div className="flex flex-col space-y-2">
-              {bloomLevelLabels.map(({ level, label }, index) => (
-                <label key={level} className="flex items-center space-x-2">
-                  <input
-                    ref={(el) => {
-                      bloomLevelRefs.current[index] = el;
-                    }}
-                    type="radio"
-                    name="bloomLevel"
-                    value={level}
-                    checked={bloomLevel === level}
-                    onChange={() => setBloomLevel(level as 1 | 2 | 3 | 4 | 5 | 6)}
-                    className="form-radio h-4 w-4 text-gray-600 border-gray-400 rounded-none"
-                    onFocus={() => setFocusIndex(3)}
-                  />
-                  <span className="text-gray-600">{label}</span>
-                </label>
-              ))}
-            </div>
+          {/* Tabbed Interface for Different Resources */}
+          <Tabs defaultActiveKey="cueCard">
+            <TabPane tab="Cue Card" key="cueCard">
+              {getTabContent('cueCard')}
+            </TabPane>
+            <TabPane tab="Picture" key="picture">
+              {getTabContent('picture')}
+            </TabPane>
+            <TabPane tab="Practice Sheet" key="practiceSheet">
+              {getTabContent('practiceSheet')}
+            </TabPane>
+          </Tabs>
+
+          {/* Action Buttons */}
+          <div className="mt-4 flex justify-end space-x-2">
+            <Button type="primary" onClick={handleSave}>
+              Save
+            </Button>
+            <Button onClick={onClose}>Cancel</Button>
           </div>
-        </div>
-
-        <div className="mt-2">
-  <input
-    type="text"
-    placeholder="Source (optional)"
-    value={source}
-    onChange={(e) => setSource(e.target.value)}
-    className="w-full p-2 border rounded focus:outline-none bg-transparent"
-  />
-</div>;
-
-        {/* Action Buttons */}
-        <div className="mt-4 flex justify-end space-x-2">
-          {/* Save Button */}
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 focus:outline-none"
-          >
-            Save
-          </button>
-          {/* Cancel Button */}
-          <button
-            onClick={handleClose}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 focus:outline-none"
-          >
-            Cancel
-          </button>
         </div>
       </div>
-    </div>
+    )
   );
 };
 

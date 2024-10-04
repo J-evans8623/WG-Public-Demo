@@ -7,7 +7,7 @@
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
-import CueCardDisplay from '@/app/Library/Tests/CueCardDisplay'// Tests
+import CueCardDisplay from '@/app/Library/components/CueCardDisplay'// Tests
 import ConceptMap from '@/app/Library/components/ConceptMap';
 import { DocumentProvider, serializeDocument , useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize, updateNodeTitle, createNewNode, setGetLayout, setNodes} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
 import { ColorTheme, CueCard, ConceptNode, SerializedDocument} from '@/app/Library/Definitions/Definitions';
@@ -176,14 +176,6 @@ const handleLoadDocument = async (file: File) => {
     //dispatch(setColorTheme(styles.colorTheme));
   }
 
-  // Load settings.json
-/**  const settingsFile = content.file('document/settings.json');
-  if (settingsFile) {
-    const settingsJson = await settingsFile.async('string');
-    const settings = JSON.parse(settingsJson);
-    //dispatch(setZoomLevel(settings.zoomLevel));
-  } */
-
   // Trigger layout computation if necessary
   dispatch(setGetLayout(true));
 };
@@ -263,20 +255,6 @@ const handleLoadDocument = async (file: File) => {
         }
         setIsModalOpen(false);
       };
-    //Tool Pane Layout color;
-    // Predefined color sets
-    const primaryColors = ['#D5E6ED', '#C4ACAA', '#F7CAAB', '#EBD3E0'];
-    const backgroundColors = ['#ECE7D1', '#F7EBD1', '#EEECBC', '#F5F5F5'];
-
-    // Function to handle primary color change
-    const handleSetPrimaryColor = (color: string) => {
-      dispatch(setPrimaryColor(color)); // Use action creator
-    };
-  
-    // Function to handle background color change
-    const handleSetBackgroundColor = (color: string) => {
-      dispatch(setBackgroundColor(color)); // Use action creator
-    };
 
   return (
     <>

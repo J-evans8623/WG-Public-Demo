@@ -99,7 +99,6 @@ export interface DocumentContextType {
     //resetDocument: () => void;
     createNewNode: (title: string, parentNodeId: string) => void;
     createSecondaryRootNode: (title: string, x: number, y: number) => void;
-    addCueCardToNode: (nodeId: string, cueCard: CueCard) => void;
     updateNodeTitle: (nodeId: string, newTitle: string) => void;
     updateNode: (nodeId: string, updatedNode: Partial<ConceptNode>) => void;
     initializeNewDocument: (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6, groundWidth: number, isInitialLoad: boolean) => void;

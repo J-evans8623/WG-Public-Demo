@@ -53,7 +53,7 @@ const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
               }}
               title="Dismiss"
             >
-              <FiX size={18} />
+              <FiX size={16} />
             </button>
           )}
   
