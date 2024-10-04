@@ -14,7 +14,7 @@ import { ColorTheme, CueCard, ConceptNode, SerializedDocument} from '@/app/Libra
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
-import ModernModal from '@/app/Library/components/ModernModal';
+import ModernModal from '@/app/Library/Tests/ModernModal';
 import { useCueCardContext, serializeCueCards } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 import { useSubTreeContext, SubTreeProvider, serializeSubtrees, SubtreeData} from '../Library/Context/SubTreeProvider'  
@@ -23,6 +23,8 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import ToolPane from '@/app/Library/ui/ToolPane';
+import { PictureProvider } from '@/app/Library/Context/PictureContext'; // Import PictureProvider
+import { PracticeSheetProvider } from '@/app/Library/Context/PracticeSheetContext'; // Import PracticeSheetProvider
 
 function ClientLayoutContent() {
  
@@ -367,7 +369,11 @@ export default function ClientLayout() {
           <CueCardProvider> {/* Wrap in CueCardProvider */}
             <DocumentProvider>
             <SubTreeProvider>
-              <ClientLayoutContent />
+            <PictureProvider> {/* Wrap ClientLayoutContent in PictureProvider */}
+                  <PracticeSheetProvider> {/* Wrap ClientLayoutContent in PracticeSheetProvider */}
+                    <ClientLayoutContent />
+                  </PracticeSheetProvider>
+                </PictureProvider>
               </SubTreeProvider>
             </DocumentProvider>
           </CueCardProvider>

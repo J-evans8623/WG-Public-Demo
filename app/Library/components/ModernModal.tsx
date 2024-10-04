@@ -3,7 +3,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { FaPencilAlt } from 'react-icons/fa';
-
+/**
+ * Original implementation
+ * //bloom-maps\app\Library\components\ModernModal.tsx
+ */
 interface ModernModalProps {
   isOpen: boolean;
   onClose: () => void;

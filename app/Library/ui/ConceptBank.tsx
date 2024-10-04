@@ -4,13 +4,11 @@ import React, { useState } from 'react';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 import ConceptNodeDisplay from './ConceptNodeDisplay';
-import { Fab, Menu, MenuItem } from '@mui/material';
-import { FaPencilAlt, FaEllipsisV } from 'react-icons/fa';
-import ModernModal from '@/app/Library/components/ModernModal'; // Modal for Add and Edit
+import { Fab } from '@mui/material';
+import ModernModal from '@/app/Library/Tests/ModernModal'; // Modal for Add and Edit
 import ContentCutOutlinedIcon from '@mui/icons-material/ContentCutOutlined';
 import ContentPasteIcon from '@mui/icons-material/ContentPaste';
 import EditIcon from '@mui/icons-material/Edit';
-import AddIcon from '@mui/icons-material/Add';//import AddCircleIcon from '@mui/icons-material/AddCircle';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 
@@ -18,7 +16,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 const ConceptBank: React.FC = () => {
   const { state } = useDocumentContext(); // Fetch concept nodes from state
   const { nodes } = state; // Assuming nodes are stored in the state as a Map
-  const { addCueCard, removeCueCard, editCueCard, transferCueCard, selectCueCards } = useCueCardContext();
+  const {removeCueCard, editCueCard, transferCueCard, selectCueCards } = useCueCardContext();
 
   // State for managing cue card selection and cut
   const [selectedCueCardId, setSelectedCueCardId] = useState<string | null>(null);
@@ -64,13 +62,6 @@ const ConceptBank: React.FC = () => {
     setAnchorEl(null);
   };
 
-  // Modal Handlers for Adding/Editing
-  const handleOpenAddModal = () => {
-    setModalMode('add');
-    setInitialCueCardData(null); // Clear any previous data
-    setIsModalOpen(true);
-    handleCloseMenu();
-  };
 
   const handleOpenEditModal = () => {
     if (selectedCueCardId && selectedNodeId) {
@@ -100,10 +91,8 @@ const ConceptBank: React.FC = () => {
     image?: File | null,
     source?: string
   ) => {
-    if (modalMode === 'add' && selectedNodeId) {
-      addCueCard(selectedNodeId, { id: Date.now().toString(), title: cueCardTitle, content: cueCardContent, bloomLevel, source });
-    } else if (modalMode === 'edit' && selectedCueCardId && selectedNodeId && initialCueCardData) {
-      // Correctly set the id to selectedCueCardId
+    if (modalMode === 'edit' && selectedCueCardId && selectedNodeId && initialCueCardData) {
+      // Correctly set the id to selectedCueCardId for editing
       editCueCard(selectedNodeId, { id: selectedCueCardId, title: cueCardTitle, content: cueCardContent, bloomLevel, source });
     }
     setIsModalOpen(false);
@@ -142,34 +131,18 @@ const ConceptBank: React.FC = () => {
   };
 
   return (
-    <div style={{ width: '100%', padding: '10px', position: 'relative' }}>
+    <div style={{ width: '100%', padding: '20px', position: 'relative' }}>
       {/* FAB Buttons Container - Positioned Sticky at Top */}
       <div
         className="flex justify-center items-center mb-4"
         style={{
           position: 'sticky',
-          top: 0,
+          top: 2,
           background: 'white',
           padding: '10px 0',
           zIndex: 10,
         }}
       >
-        {/* Add Button */}
-        <Fab
-          size="small"
-          sx={{
-            backgroundColor: 'white',
-            '&:hover': { backgroundColor: '#D3E3FD' },
-            '&:disabled': { backgroundColor: '#f5f5f5' },
-            boxShadow: 'none',
-          }}
-          onClick={handleOpenAddModal}
-          title="Add"
-          style={{ marginRight: '8px' }}
-        >
-          <AddIcon />
-        </Fab>
-  
         {/* Cut Button */}
         <Fab
           size="small"
