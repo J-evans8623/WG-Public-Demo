@@ -1,3 +1,5 @@
+// bloom-maps/app/Library/components/CueCardEntry.tsx
+
 import React, { useCallback } from 'react';
 
 interface CueCardEntryProps {
@@ -11,6 +13,11 @@ interface CueCardEntryProps {
   onCut: (cueCardId: string) => void; // New cut handler prop
 }
 
+/**
+ * Original
+ * 
+ * 
+ */
 const CueCardEntry: React.FC<CueCardEntryProps> = ({ cueCard, isSelected, isCut, onSelect, onCut }) => {
   // Handle cue card click for selection
   const handleCueCardClick = useCallback(
@@ -36,12 +43,14 @@ const CueCardEntry: React.FC<CueCardEntryProps> = ({ cueCard, isSelected, isCut,
     textDecoration: isCut ? 'line-through' : 'none', // Indicate cut by strikethrough
     padding: '8px',
     cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
   };
 
   return (
     <div style={cueCardStyle} onClick={handleCueCardClick}>
-      {cueCard.title}
-      <button onClick={handleCueCardCut} style={{ marginLeft: '10px' }}>
+      <span>{cueCard.title}</span>
+      <button onClick={handleCueCardCut} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer' }}>
         Cut
       </button> {/* Button to trigger cut operation */}
     </div>

@@ -1,3 +1,5 @@
+// bloom-maps/app/Library/components/ConceptNodeDisplay.tsx
+
 import React, { useState, useCallback } from 'react';
 import { Button, Dropdown, Menu } from 'antd';
 import { DownOutlined, RightOutlined } from '@ant-design/icons';
@@ -6,6 +8,11 @@ import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 import CueCardEntry from './CueCardEntry';
 
+/**
+ * Original
+ * 
+ * 
+ */
 interface ConceptNodeDisplayProps {
   node: {
     id: string;
@@ -76,7 +83,7 @@ export const ConceptNodeDisplay: React.FC<ConceptNodeDisplayProps> = ({
   );
 
   return (
-    <div className="node-container">
+    <div className="node-container mb-4">
       {/* Apply selected-node-tile only to the node's "tile" row */}
       <div
         className={`flex items-center node-tile ${selected ? 'selected-node-tile' : ''}`}
@@ -100,6 +107,21 @@ export const ConceptNodeDisplay: React.FC<ConceptNodeDisplayProps> = ({
         </Dropdown>
       </div>
 
+      {/* Step B: Reintroduce 'Cue Cards' Header */}
+      {expanded && cueCards.length > 0 && (
+        <div
+          style={{
+            textAlign: 'center',
+            fontWeight: 'normal',
+            marginTop: '10px',
+            marginBottom: '5px',
+            color: '#555',
+          }}
+        >
+          Cue Cards
+        </div>
+      )}
+
       {/* Render CueCardEntry for each cue card */}
       {expanded && cueCards.length > 0 && (
         <div className="pl-5">
@@ -116,10 +138,18 @@ export const ConceptNodeDisplay: React.FC<ConceptNodeDisplayProps> = ({
         </div>
       )}
 
-      {/* Supporting Concepts Header */}
+      {/* Step C: Center the 'Supporting Concepts' Header */}
       {expanded && childNodes.length > 0 && (
-        <div className="child-node-container">
-          <strong>Supporting Concepts</strong>
+        <div
+          style={{
+            textAlign: 'center',
+            fontWeight: 'normal',
+            marginTop: '15px',
+            marginBottom: '5px',
+            color: '#555',
+          }}
+        >
+          Supporting Concepts
         </div>
       )}
 

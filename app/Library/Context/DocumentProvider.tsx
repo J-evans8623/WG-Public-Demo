@@ -3,8 +3,6 @@
 
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import { documentReducer, initialDocumentState } from './documentReducer';
-
-
 import { 
   ColorTheme, 
   ConceptNode, 
