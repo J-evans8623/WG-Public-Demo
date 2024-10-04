@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { CueCardProps, colorThemes } from '@/app/Library/Definitions/Definitions';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider'; // Use the new DocumentProvider context
+import { FiX } from 'react-icons/fi'; 
 
 interface CueCardPropsWithBloom extends CueCardProps {
   bloomLevel: 1 | 2 | 3 | 4 | 5 | 6;
@@ -52,7 +53,7 @@ const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
               }}
               title="Dismiss"
             >
-              ×
+              <FiX size={18} />
             </button>
           )}
   

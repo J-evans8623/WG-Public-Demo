@@ -1,12 +1,20 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import CueCard from '@/app/Library/components/CueCard';
+import CueCard from './CueCard';
+import PictureCard from './PictureCard'; 
+import PracticeSheetCard from './PracticeSheetCard'; 
 import { CueCard as CueCardInterface } from '@/app/Library/Definitions/Definitions';
 import { useCueCardContext } from '../Context/CueCardContext';
-import { usePictureContext } from '../Context/PictureContext'; // Import PictureContext
-import { usePracticeSheetContext } from '../Context/PracticeSheetContext'; // Import PracticeSheetContext
+import { usePictureContext } from '../Context/PictureContext'; 
+import { usePracticeSheetContext } from '../Context/PracticeSheetContext'; 
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import { Layout } from 'antd';  // Importing the Layout component from antd
 
+const { Sider } = Layout;  // Using Sider for the fixed background layout
+
+/**
+ * Default cue card in case no resources are present.
+ */
 const defaultCueCards: CueCardInterface[] = [
   {
     id: 'default',
@@ -19,23 +27,20 @@ const defaultCueCards: CueCardInterface[] = [
 const CueCardDisplay = React.memo(() => {
   const { getSelectedNodeIds, clearSelection, deselectNode } = useNodeSelection();
   const { selectCueCards } = useCueCardContext();
-  const { selectPictures } = usePictureContext(); // Retrieve pictures
-  const { selectPracticeSheets } = usePracticeSheetContext(); // Retrieve practice sheets
-  const [dismissedCueCardIds, setDismissedCueCardIds] = useState<Map<string, string[]>>(new Map());
-  const [overlayContent, setOverlayContent] = useState<React.ReactNode | null>(null); // New state for displaying the overlay
+  const { selectPictures } = usePictureContext();
+  const { selectPracticeSheets } = usePracticeSheetContext();
+  const [dismissedResourceIds, setDismissedResourceIds] = useState<Map<string, string[]>>(new Map());
+  const [overlayContent, setOverlayContent] = useState<React.ReactNode | null>(null); 
   const { state } = useDocumentContext();
   const { nodes } = state;
 
   const selectedNodeIds = getSelectedNodeIds();
 
-  // Clean up dismissed resources for nodes that are no longer selected
+  // Clean up dismissed resources for nodes no longer selected
   useEffect(() => {
-    setDismissedCueCardIds((prev) => {
+    setDismissedResourceIds((prev) => {
       const newMap = new Map(prev);
-  
-      // Convert prev.keys() to an array to avoid iteration issues
       const prevKeysArray = Array.from(prev.keys());
-  
       for (const nodeId of prevKeysArray) {
         if (!selectedNodeIds.includes(nodeId)) {
           newMap.delete(nodeId);
@@ -45,7 +50,7 @@ const CueCardDisplay = React.memo(() => {
     });
   }, [selectedNodeIds]);
 
-  // Retrieve cue cards, pictures, and practice sheets associated with the selected node IDs
+  // Retrieve cue cards, pictures, and practice sheets associated with selected nodes
   const cueCards = selectedNodeIds.flatMap((nodeId) =>
     selectCueCards(nodeId).map((cueCard) => ({
       ...cueCard,
@@ -70,30 +75,34 @@ const CueCardDisplay = React.memo(() => {
     }))
   );
 
-  // Filter out dismissed resources (cue cards, pictures, practice sheets)
-  const visibleResources = [
-    ...cueCards,
-    ...pictures,
-    ...practiceSheets,
-  ].filter(
-    (resource) => !dismissedCueCardIds.get(resource.nodeId)?.includes(resource.id)
+  // Filter out dismissed resources
+  const visibleCueCards = cueCards.filter(
+    (cueCard) => !dismissedResourceIds.get(cueCard.nodeId)?.includes(cueCard.id)
   );
 
-  // Handle dismissing a card
+  const visiblePictures = pictures.filter(
+    (picture) => !dismissedResourceIds.get(picture.nodeId)?.includes(picture.id)
+  );
+
+  const visiblePracticeSheets = practiceSheets.filter(
+    (practiceSheet) => !dismissedResourceIds.get(practiceSheet.nodeId)?.includes(practiceSheet.id)
+  );
+
+  // Handle dismissing a resource
   const handleDismissResource = useCallback(
     (resourceId: string, nodeId: string) => {
-      setDismissedCueCardIds((prev) => {
+      setDismissedResourceIds((prev) => {
         const newMap = new Map(prev);
         const dismissedForNode = newMap.get(nodeId) || [];
         newMap.set(nodeId, [...dismissedForNode, resourceId]);
 
-        const allResourcesForNode = [
+        const allResourceIdsForNode = [
           ...selectCueCards(nodeId).map((card) => card.id),
           ...selectPictures(nodeId).map((pic) => pic.id),
           ...selectPracticeSheets(nodeId).map((sheet) => sheet.id),
         ];
 
-        const allDismissedForNode = allResourcesForNode.every((id) =>
+        const allDismissedForNode = allResourceIdsForNode.every((id) =>
           newMap.get(nodeId)?.includes(id)
         );
 
@@ -108,107 +117,116 @@ const CueCardDisplay = React.memo(() => {
     [selectCueCards, selectPictures, selectPracticeSheets, deselectNode]
   );
 
-  // Handle opening the overlay window for pictures and practice sheets
+  // Handle opening the overlay for full-size view
   const handleOpenOverlay = (content: React.ReactNode) => {
     setOverlayContent(content);
   };
 
-  // Handle closing the overlay window
+  // Handle closing the overlay
   const handleCloseOverlay = () => {
     setOverlayContent(null);
   };
 
   return (
-    <div className="flex flex-col space-y-2 pb-8" data-testid="cue-card-display">
-      {/* Clear All Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => {
-            clearSelection();
-            setDismissedCueCardIds(new Map());
-          }}
-          className="px-2 py-1 bg-gray-300 rounded hover:bg-gray-400 text-sm"
-        >
-          Clear All
-        </button>
-      </div>
+    <Sider
+      width="100%"  // Full width
+      style={{
+        backgroundColor: '#f5f5f5',  // Background color
+        padding: '16px',  // Padding around the content
+        overflowY: 'auto',  // Enable scrolling for long content
+        height: '100%',  // Full height to ensure fixed size
+        minHeight: '400px',  // Ensure the CueCardDisplay always has a minimum height
+      }}
+    >
+      <div className="flex flex-col space-y-2 pb-8" data-testid="cue-card-display">
+        {/* Clear All Button */}
+        <div className="flex justify-end">
+          <button
+            onClick={() => {
+              clearSelection();
+              setDismissedResourceIds(new Map());
+            }}
+            className="px-2 py-1 bg-gray-300 rounded hover:bg-gray-400 text-sm"
+          >
+            Clear All
+          </button>
+        </div>
 
-      {visibleResources.length > 0 ? (
-        visibleResources.map((resource) => {
-          if ('content' in resource) {
-            // This is a CueCard
-            return (
-              <CueCard
-                key={resource.id}
-                title={resource.title}
-                content={resource.content}
-                bloomLevel={resource.bloomLevel || 1}
-                conceptNodeTitle={resource.conceptNodeTitle}
-                onDismiss={() => handleDismissResource(resource.id, resource.nodeId)}
-                source={resource.source}
-              />
-            );
-          } else if ('image' in resource) {
-            // This is a Picture
-            return (
-              <div
-                key={resource.id}
-                className="bg-gray-200 p-4 border rounded shadow-sm cursor-pointer"
-                onClick={() =>
-                  handleOpenOverlay(
-                    <div>
-                      <h2>{resource.title}</h2>
-                      <img src={URL.createObjectURL(resource.image)} alt={resource.title} />
-                      <p>{resource.description}</p>
-                      <button onClick={handleCloseOverlay}>Close</button>
-                    </div>
-                  )
-                }
-              >
-                <p>{resource.title}</p>
-              </div>
-            );
-          } else {
-            // This is a PracticeSheet
-            return (
-              <div
-                key={resource.id}
-                className="bg-gray-200 p-4 border rounded shadow-sm cursor-pointer"
-                onClick={() =>
-                  handleOpenOverlay(
-                    <div>
-                      <h2>{resource.title}</h2>
-                      <p>{resource.content}</p>
-                      <button onClick={handleCloseOverlay}>Close</button>
-                    </div>
-                  )
-                }
-              >
-                <p>{resource.title}</p>
-              </div>
-            );
-          }
-        })
-      ) : (
-        // Display a default message if no resources are selected
-        defaultCueCards.map((cueCard) => (
+        {/* Render Cue Cards */}
+        {visibleCueCards.map((cueCard) => (
           <CueCard
             key={cueCard.id}
             title={cueCard.title}
             content={cueCard.content}
             bloomLevel={cueCard.bloomLevel || 1}
-            conceptNodeTitle="Welcome"
+            conceptNodeTitle={cueCard.conceptNodeTitle}
+            onDismiss={() => handleDismissResource(cueCard.id, cueCard.nodeId)}
           />
-        ))
-      )}
+        ))}
 
-      {/* Overlay Window */}
-      {overlayContent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-4 rounded shadow-lg">{overlayContent}</div>
-        </div>
-      )}
-    </div>
+        {/* Render Picture Cards */}
+        {visiblePictures.map((picture) => (
+          <PictureCard
+            key={picture.id}
+            id={picture.id}
+            title={picture.title}
+            description={picture.description}
+            image={picture.image}
+            onOpenFullSize={() =>
+              handleOpenOverlay(
+                <div>
+                  <h2>{picture.title}</h2>
+                  {picture.image && <img src={URL.createObjectURL(picture.image)} alt={picture.title} />}
+                  <p>{picture.description}</p>
+                  <button onClick={handleCloseOverlay}>Close</button>
+                </div>
+              )
+            }
+            onDismiss={() => handleDismissResource(picture.id, picture.nodeId)}
+          />
+        ))}
+
+        {/* Render Practice Sheet Cards */}
+        {visiblePracticeSheets.map((practiceSheet) => (
+          <PracticeSheetCard
+            key={practiceSheet.id}
+            id={practiceSheet.id}
+            title={practiceSheet.title}
+            content={practiceSheet.content}
+            onOpenFullSize={() =>
+              handleOpenOverlay(
+                <div>
+                  <h2>{practiceSheet.title}</h2>
+                  <p>{practiceSheet.content}</p>
+                  <button onClick={handleCloseOverlay}>Close</button>
+                </div>
+              )
+            }
+            onDismiss={() => handleDismissResource(practiceSheet.id, practiceSheet.nodeId)}
+          />
+        ))}
+
+        {/* Render Default Cue Card if No Resources are Visible */}
+        {visibleCueCards.length === 0 && visiblePictures.length === 0 && visiblePracticeSheets.length === 0 && (
+          defaultCueCards.map((cueCard) => (
+            <CueCard
+              key={cueCard.id}
+              title={cueCard.title}
+              content={cueCard.content}
+              bloomLevel={cueCard.bloomLevel || 1}
+              conceptNodeTitle="Welcome"
+            />
+          ))
+        )}
+
+        {/* Overlay Window */}
+        {overlayContent && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-white p-4 rounded shadow-lg">{overlayContent}</div>
+          </div>
+        )}
+      </div>
+    </Sider>
   );
 });
 

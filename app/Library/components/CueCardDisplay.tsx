@@ -4,7 +4,11 @@ import { CueCard as CueCardInterface } from '@/app/Library/Definitions/Definitio
 import { useCueCardContext } from '../Context/CueCardContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
-
+/**
+ * Original Implementation
+ * // bloom-maps\app\Library\components\CueCardDisplay.tsx
+ * 
+ */
 const defaultCueCards: CueCardInterface[] = [
   {
     id: 'default',
