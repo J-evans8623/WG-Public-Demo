@@ -174,34 +174,13 @@ export const updateNode = (nodeId: string, updatedNode: Partial<ConceptNode>): D
     payload: { nodeId, updatedNode },
   });
   
-  /**export const initializeNewDocument = (
-   
-    dispatch: React.Dispatch<DocumentAction>,
-    resetCueCards: () => void, // Add this parameter
-    resetTreeDimensions: () => void,
-    bloomDepth: 1 | 2 | 3 | 4 | 5 | 6 = 6,
-    groundWidth: number,
-    isInitialLoad: boolean,
-    mapWidth: number = 1800,
-    mapHeight: number = 1800
-  ) => {
-    if (!isInitialLoad) {
-      dispatch(resetGlobalData()); // Reset global state
-      resetCueCards(); // Reset cue cards
-      resetTreeDimensions();
-    }
-  
-    // Dispatch action to set the map size
-    dispatch(setMapSize(groundWidth, mapWidth, mapHeight));
-  
-    // Dispatch action to initialize the new document
-    dispatch(initializeNewDocumentAction(bloomDepth, mapWidth, mapHeight));
-  }; */
   export const initializeNewDocument = (
     dispatch: React.Dispatch<DocumentAction>,
     resetCueCards: () => void,
     resetTreeDimensions: () => void,
-    resetSubtrees: () => void, // Add this parameter
+    resetSubtrees: () => void, 
+    resetPictures: () => void, // New reset function for pictures
+    resetPracticeSheets: () => void, // New reset function for practice sheets
     bloomDepth: 1 | 2 | 3 | 4 | 5 | 6 = 6,
     groundWidth: number,
     isInitialLoad: boolean,
@@ -212,11 +191,13 @@ export const updateNode = (nodeId: string, updatedNode: Partial<ConceptNode>): D
       dispatch(resetGlobalData());
       resetCueCards();
       resetTreeDimensions();
-      resetSubtrees(); // Reset subtrees
+      resetSubtrees();
+      resetPictures(); // Reset pictures
+      resetPracticeSheets(); // Reset practice sheets
     }
   
     dispatch(setMapSize(groundWidth, mapWidth, mapHeight));
     dispatch(initializeNewDocumentAction(bloomDepth, mapWidth, mapHeight));
   };
-
+  
 

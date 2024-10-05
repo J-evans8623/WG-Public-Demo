@@ -35,10 +35,10 @@ function ClientLayoutContent() {
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const {state, dispatch, zoomIn, zoomOut, setColorTheme } = useDocumentContext();
   const { resetTreeDimensions} = useTreeDimensions();
-  const { resetSubtrees, setSubtrees } = useSubTreeContext();
-  const { addCueCard, resetCueCards, setCueCards } = useCueCardContext();
-  const { addPicture, pictures, setPictures } = usePictureContext();
-  const { addPracticeSheet, practiceSheets, setPracticeSheets } = usePracticeSheetContext();
+  const { resetSubtrees, setSubtrees,subtrees  } = useSubTreeContext();
+  const { addCueCard, resetCueCards, setCueCards,cueCards  } = useCueCardContext();
+  const { addPicture, pictures, setPictures, resetPictures } = usePictureContext();
+  const { addPracticeSheet, practiceSheets, setPracticeSheets, resetPracticeSheets } = usePracticeSheetContext();
   const [paneSizes, setPaneSizes] = useState<number[]>([20, 60, 20]);
   const {zoomLevel, baseZoomLevel} = state;
 
@@ -46,8 +46,6 @@ function ClientLayoutContent() {
   const [modalNodeId, setModalNodeId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'addChild' | 'addResource'>('addResource');
   const { nodes } = state;
-  const { cueCards } = useCueCardContext();
-  const { subtrees } = useSubTreeContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Update window dimensions on resize
@@ -65,20 +63,37 @@ function ClientLayoutContent() {
 
 useEffect(() => {
   if (!isInitialized) {
-    initializeNewDocument(dispatch, resetCueCards,resetTreeDimensions,resetSubtrees, 6, windowWidth, true); // Set isInitialLoad to true
+    initializeNewDocument(
+      dispatch,
+      resetCueCards,
+      resetTreeDimensions,
+      resetSubtrees,
+      resetPictures, // Pass resetPictures
+      resetPracticeSheets, // Pass resetPracticeSheets
+      6, 
+      windowWidth, 
+      false
+    ); // Set isInitialLoad to true
     setIsInitialized(true); // Ensure this only runs once
   }
 }, [isInitialized, dispatch, windowWidth]);
-/**
- * NOTICE Page size is not resetted back to default when a new document is created. 
- * TreeContext Needs to be Resetted as well
- * 
- */
+
 
 const handleCreateNewDocument = useCallback(() => {
-  initializeNewDocument(dispatch, resetCueCards, resetTreeDimensions, resetSubtrees, 6, windowWidth, false); // Always use depth 6
+  initializeNewDocument(
+    dispatch,
+    resetCueCards,
+    resetTreeDimensions,
+    resetSubtrees,
+    resetPictures, // Pass resetPictures
+    resetPracticeSheets, // Pass resetPracticeSheets
+    6, 
+    windowWidth, 
+    false
+  );
   dispatch(toggleResetMapSize());
-}, [dispatch, windowWidth, resetCueCards, resetTreeDimensions, resetSubtrees]);
+}, [dispatch, windowWidth, resetCueCards, resetTreeDimensions, resetSubtrees, resetPictures, resetPracticeSheets]);
+
 
 
 const handleSaveDocument = async () => {

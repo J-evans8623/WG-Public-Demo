@@ -10,20 +10,21 @@ import Split from 'react-split';
 import CueCardDisplay from '@/app/Library/components/CueCardDisplay'// Tests
 import ConceptMap from '@/app/Library/components/ConceptMap';
 import { DocumentProvider, serializeDocument , useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize, updateNodeTitle, createNewNode, setGetLayout, setNodes} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
-import { CueCard, ConceptNode, SerializedDocument} from '@/app/Library/Definitions/Definitions';
+import { CueCard, ConceptNode, SerializedDocument, Picture,PracticeSheet} from '@/app/Library/Definitions/Definitions';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
-import ModernModal from '@/app/Library/components/ModernModal';
+import ModernModal from '@/app/Library/components/ModernModal';//Tests
 import { useCueCardContext, serializeCueCards } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
-import { useSubTreeContext, SubTreeProvider, serializeSubtrees, SubtreeData} from '../Library/Context/SubTreeProvider'  
+import { useSubTreeContext, SubTreeProvider, serializeSubtrees, SubtreeData} from '@/app/Library/Context/SubTreeProvider'//'../Library/Context/SubTreeProvider'  
 import { v4 as uuidv4 } from 'uuid';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import ToolPane from '@/app/Library/ui/ToolPane';
-import { PictureProvider } from '@/app/Library/Context/PictureContext'; // Import PictureProvider
-import { PracticeSheetProvider } from '@/app/Library/Context/PracticeSheetContext'; // Import PracticeSheetProvider
+import { PictureProvider, usePictureContext, serializePictures } from '@/app/Library/Context/PictureContext'; // Import PictureProvider
+import { PracticeSheetProvider,usePracticeSheetContext, serializePracticeSheets } from '@/app/Library/Context/PracticeSheetContext'; // Import PracticeSheetProvider
+import { saveResource, ResourceType } from '@/app/Library/utils/ResourceSave/saveResource'; // Import helper function
 
 function ClientLayoutContent() {
  
@@ -34,19 +35,18 @@ function ClientLayoutContent() {
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const {state, dispatch, zoomIn, zoomOut, setColorTheme } = useDocumentContext();
   const { resetTreeDimensions} = useTreeDimensions();
-  const { resetSubtrees, setSubtrees } = useSubTreeContext();
-  const { addCueCard, resetCueCards, setCueCards } = useCueCardContext();
+  const { resetSubtrees, setSubtrees,subtrees  } = useSubTreeContext();
+  const { addCueCard, resetCueCards, setCueCards,cueCards  } = useCueCardContext();
+  const { addPicture, pictures, setPictures, resetPictures } = usePictureContext();
+  const { addPracticeSheet, practiceSheets, setPracticeSheets, resetPracticeSheets } = usePracticeSheetContext();
   const [paneSizes, setPaneSizes] = useState<number[]>([20, 60, 20]);
   const {zoomLevel, baseZoomLevel} = state;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalNodeId, setModalNodeId] = useState<string | null>(null);
-  const [modalMode, setModalMode] = useState<'addChild' | 'addCueCard'>('addCueCard');
+  const [modalMode, setModalMode] = useState<'addChild' | 'addResource'>('addResource');
   const { nodes } = state;
-  const { cueCards } = useCueCardContext();
-  const { subtrees } = useSubTreeContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
 
   // Update window dimensions on resize
   useEffect(() => {
@@ -63,54 +63,97 @@ function ClientLayoutContent() {
 
 useEffect(() => {
   if (!isInitialized) {
-    initializeNewDocument(dispatch, resetCueCards,resetTreeDimensions,resetSubtrees, 6, windowWidth, true); // Set isInitialLoad to true
+    initializeNewDocument(
+      dispatch,
+      resetCueCards,
+      resetTreeDimensions,
+      resetSubtrees,
+      resetPictures, // Pass resetPictures
+      resetPracticeSheets, // Pass resetPracticeSheets
+      6, 
+      windowWidth, 
+      false
+    ); // Set isInitialLoad to true
     setIsInitialized(true); // Ensure this only runs once
   }
 }, [isInitialized, dispatch, windowWidth]);
-/**
- * NOTICE Page size is not resetted back to default when a new document is created. 
- * TreeContext Needs to be Resetted as well
- * 
- */
+
 
 const handleCreateNewDocument = useCallback(() => {
-  initializeNewDocument(dispatch, resetCueCards, resetTreeDimensions, resetSubtrees, 6, windowWidth, false); // Always use depth 6
+  initializeNewDocument(
+    dispatch,
+    resetCueCards,
+    resetTreeDimensions,
+    resetSubtrees,
+    resetPictures, // Pass resetPictures
+    resetPracticeSheets, // Pass resetPracticeSheets
+    6, 
+    windowWidth, 
+    false
+  );
   dispatch(toggleResetMapSize());
-}, [dispatch, windowWidth, resetCueCards, resetTreeDimensions, resetSubtrees]);
+}, [dispatch, windowWidth, resetCueCards, resetTreeDimensions, resetSubtrees, resetPictures, resetPracticeSheets]);
 
-// Inside ClientLayoutContent component
+
+
 const handleSaveDocument = async () => {
   const zip = new JSZip();
 
   // Serialize document data
   const serializedDocument = serializeDocument(state);
   const documentJson = JSON.stringify(serializedDocument);
-
-// Serialize cue cards
-const serializedCueCards = serializeCueCards(cueCards);
-const cueCardsJson = JSON.stringify(serializedCueCards);
-zip.file('document/cuecards.json', cueCardsJson);
-
-// Serialize subtrees
-const serializedSubtrees = serializeSubtrees(subtrees); 
-const subtreesJson = JSON.stringify(serializedSubtrees);
-zip.file('document/subtrees.json', subtreesJson);
-
-// Serialize styles
-const styles = {
-  primaryColor: state.primaryColor,
-  backgroundColor: state.backgroundColor,
-  colorTheme: state.colorTheme,
-};
-const stylesJson = JSON.stringify(styles);
-zip.file('document/styles.json', stylesJson);
-
-  // Add document.json to the zip
   zip.file('document/document.json', documentJson);
 
+  // Serialize cue cards
+  const serializedCueCards = serializeCueCards(cueCards);
+  const cueCardsJson = JSON.stringify(serializedCueCards);
+  zip.file('document/cuecards.json', cueCardsJson);
+
+  // Serialize subtrees
+  const serializedSubtrees = serializeSubtrees(subtrees); 
+  const subtreesJson = JSON.stringify(serializedSubtrees);
+  zip.file('document/subtrees.json', subtreesJson);
+
+  // Serialize pictures metadata
+  const serializedPictures = serializePictures(pictures);
+  const picturesJson = JSON.stringify(serializedPictures);
+  zip.file('document/pictures.json', picturesJson);
+
+  // Serialize practice sheets
+  const serializedPracticeSheets = serializePracticeSheets(practiceSheets);
+  const practiceSheetsJson = JSON.stringify(serializedPracticeSheets);
+  zip.file('document/practiceSheets.json', practiceSheetsJson);
+
+  // Serialize styles
+  const styles = {
+    primaryColor: state.primaryColor,
+    backgroundColor: state.backgroundColor,
+    colorTheme: state.colorTheme,
+  };
+  const stylesJson = JSON.stringify(styles);
+  zip.file('document/styles.json', stylesJson);
+
+  // Add images to the ZIP under 'document/images/'
+  for (const [nodeId, pictureArray] of pictures.entries()) {
+    for (const picture of pictureArray) {
+      if (picture.image) {
+        try {
+          const imageData = await picture.image.arrayBuffer();
+          zip.file(`document/images/${picture.id}_${picture.image.name}`, imageData);
+        } catch (error) {
+          console.error(`Error saving image ${picture.id}:`, error);
+        }
+      }
+    }
+  }
+
   // Generate ZIP and trigger download
-  const content = await zip.generateAsync({ type: 'blob' });
-  saveAs(content, 'my_document.bloomdocx');
+  try {
+    const content = await zip.generateAsync({ type: 'blob' });
+    saveAs(content, 'my_document.bloomdocx');
+  } catch (error) {
+    console.error('Error generating ZIP:', error);
+  }
 };
 
 const handleOpenDocument = () => {
@@ -126,6 +169,8 @@ const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     await handleLoadDocument(file);
   }
 };
+
+
 const handleLoadDocument = async (file: File) => {
   console.log("handleLoadDocument called with file:", file.name);
   const zip = new JSZip();
@@ -139,11 +184,7 @@ const handleLoadDocument = async (file: File) => {
 
     // Reconstruct nodes Map
     const nodes = new Map<string, ConceptNode>(parsedDocument.nodes);
-
-    // Update DocumentProvider state
     dispatch(setNodes(nodes));
-    //dispatch(setColorTheme(parsedDocument.colorTheme));
-    //dispatch(setZoomLevel(parsedDocument.zoomLevel));
     dispatch(setPrimaryColor(parsedDocument.primaryColor));
     dispatch(setBackgroundColor(parsedDocument.backgroundColor));
   }
@@ -166,6 +207,48 @@ const handleLoadDocument = async (file: File) => {
     setSubtrees(subtreesMap);
   }
 
+  // Load pictures.json and images
+  const picturesFile = content.file('document/pictures.json');
+  if (picturesFile) {
+    const picturesJson = await picturesFile.async('string');
+    const parsedPictures = JSON.parse(picturesJson) as [string, { id: string; title: string; imagePath: string }[]][];
+    const picturesMap = new Map<string, Picture[]>();
+
+    for (const [nodeId, pictureArray] of parsedPictures) {
+      const reconstructedPictures: Picture[] = [];
+      for (const pic of pictureArray) {
+        const imageFile = content.file(pic.imagePath);
+        if (imageFile) {
+          try {
+            const imageBlob = await imageFile.async('blob');
+            const imageURL = URL.createObjectURL(imageBlob);
+            const imageFileObject = new File([imageBlob], pic.imagePath.split('/').pop() || 'image', { type: imageBlob.type });
+            reconstructedPictures.push({
+              id: pic.id,
+              title: pic.title,
+              image: imageFileObject,
+            });
+          } catch (error) {
+            console.error(`Error loading image ${pic.id}:`, error);
+          }
+        } else {
+          console.warn(`Image file not found: ${pic.imagePath}`);
+        }
+      }
+      picturesMap.set(nodeId, reconstructedPictures);
+    }
+    setPictures(picturesMap);
+  }
+
+  // Load practiceSheets.json
+  const practiceSheetsFile = content.file('document/practiceSheets.json');
+  if (practiceSheetsFile) {
+    const practiceSheetsJson = await practiceSheetsFile.async('string');
+    const parsedPracticeSheets = JSON.parse(practiceSheetsJson) as [string, PracticeSheet[]][];
+    const practiceSheetsMap = new Map<string, PracticeSheet[]>(parsedPracticeSheets);
+    setPracticeSheets(practiceSheetsMap);
+  }
+
   // Load styles.json
   const stylesFile = content.file('document/styles.json');
   if (stylesFile) {
@@ -173,7 +256,6 @@ const handleLoadDocument = async (file: File) => {
     const styles = JSON.parse(stylesJson);
     dispatch(setPrimaryColor(styles.primaryColor));
     dispatch(setBackgroundColor(styles.backgroundColor));
-    //dispatch(setColorTheme(styles.colorTheme));
   }
 
   // Trigger layout computation if necessary
@@ -190,7 +272,7 @@ const handleLoadDocument = async (file: File) => {
   // Handler to open modal for adding a cue card
   const handleOpenCueCardModal = useCallback((nodeId: string) => {
     setModalNodeId(nodeId);
-    setModalMode('addCueCard');
+    setModalMode('addResource');
     setIsModalOpen(true);
   }, []);
 
@@ -210,50 +292,59 @@ const handleLoadDocument = async (file: File) => {
       : '';
 
       const handleModalSave = (
+        resourceType: ResourceType,
         nodeTitle: string,
-        cueCardTitle: string,
-        cueCardContent: string,
-        bloomLevel: 1 | 2 | 3 | 4 | 5 | 6,
+        cueCardTitle?: string,
+        cueCardContent?: string,
+        bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6,
         image?: File | null,
-        source?: string
+        pictureDescription?: string,
+        practiceSheetContent?: string
       ) => {
         if (modalNodeId) {
+          // Logic for adding a child node or updating an existing node
           if (modalMode === 'addChild') {
-            // Generate newNodeId
-            const newNodeId = uuidv4();
-            // Create new child node
+            const newNodeId = uuidv4(); // Generate a unique ID for the new child node
             dispatch(createNewNode(nodeTitle || 'New Concept', modalNodeId, newNodeId));
             dispatch(setGetLayout(true));
-      
-            // Add cue card if applicable
-            if (cueCardTitle.trim() !== '' && cueCardContent.trim() !== '') {
-              const newCueCard: CueCard = {
-                id: Date.now().toString(),// Needs to be updated
-                title: cueCardTitle,
-                content: cueCardContent,
+    
+            // Save resource (cue card, picture, or practice sheet) to the new child node
+            if (cueCardTitle || cueCardContent || image || practiceSheetContent) {
+              saveResource({
+                resourceType,
+                nodeId: newNodeId, // Use the new node ID
+                addCueCard,
+                addPicture,
+                addPracticeSheet,
+                cueCardTitle,
+                cueCardContent,
                 bloomLevel,
-                source, // Include source here
-              };
-              addCueCard(newNodeId, newCueCard);
+                image,
+                practiceSheetContent,
+              });
             }
-          } else if (modalMode === 'addCueCard') {
-            // Update node title if it was edited
+          } else if (modalMode === 'addResource') {
+            // Update node title if it was changed
             dispatch(updateNodeTitle(modalNodeId, nodeTitle));
-      
-            // Add cue card to existing node
-            if (cueCardTitle.trim() !== '' && cueCardContent.trim() !== '') {
-              const newCueCard: CueCard = {
-                id: Date.now().toString(),
-                title: cueCardTitle,
-                content: cueCardContent,
+    
+            // Save resource (cue card, picture, or practice sheet) to the existing node
+            if (cueCardTitle || cueCardContent || image || practiceSheetContent) {
+              saveResource({
+                resourceType,
+                nodeId: modalNodeId, // Use the existing node ID
+                addCueCard,
+                addPicture,
+                addPracticeSheet,
+                cueCardTitle,
+                cueCardContent,
                 bloomLevel,
-                source, // Include source here
-              };
-              addCueCard(modalNodeId, newCueCard);
+                image,
+                practiceSheetContent,
+              });
             }
           }
         }
-        setIsModalOpen(false);
+        setIsModalOpen(false); // Close the modal after saving
       };
 
   return (
