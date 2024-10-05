@@ -6,7 +6,6 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 export interface Picture {
   id: string;
   title: string;
-  description?: string;
   image: File | null;
 }
 

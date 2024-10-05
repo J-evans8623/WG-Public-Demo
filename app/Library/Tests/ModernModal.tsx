@@ -1,24 +1,28 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Tabs, Input,InputRef, Radio, Upload, Button } from 'antd';
+import { Tabs, Input, InputRef, Radio, Upload, Button } from 'antd';
 import { FaPencilAlt } from 'react-icons/fa';
-import { UploadFile } from 'antd/lib/upload/interface';  // Ensure this import is included
+import { UploadFile } from 'antd/lib/upload/interface'; 
+
 const { TabPane } = Tabs;
 
 interface ModernModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (
+    resourceType: 'cueCard' | 'picture' | 'practiceSheet',  // Updated to include resource type
     nodeTitle: string,
-    cueCardTitle: string,
-    cueCardContent: string,
-    bloomLevel: 1 | 2 | 3 | 4 | 5 | 6,
+    cueCardTitle?: string,
+    cueCardContent?: string,
+    bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6,
     image?: File | null,
-    source?: string
+    source?: string,
+    pictureDescription?: string,
+    practiceSheetContent?: string
   ) => void;
   initialNodeTitle: string;
-  mode: 'addChild' | 'addCueCard' | 'editCueCard';  // Ensure editCueCard is included
+  mode: 'addChild' | 'addResource' | 'editCueCard'; 
   initialCueCardTitle?: string;
   initialCueCardContent?: string;
   initialBloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
@@ -53,13 +57,15 @@ const ModernModal: React.FC<ModernModalProps> = ({
   const [image, setImage] = useState<File | null>(null);
   const [source, setSource] = useState('');
 
-  // New states for Picture and Practice Sheet are kept intact
+  // New states for Picture and Practice Sheet
   const [pictureTitle, setPictureTitle] = useState('');
   const [uploadedPicture, setUploadedPicture] = useState<File | null>(null);
   const [pictureDescription, setPictureDescription] = useState('');
 
   const [practiceSheetTitle, setPracticeSheetTitle] = useState('');
   const [practiceContent, setPracticeContent] = useState('');
+
+  const [activeTabKey, setActiveTabKey] = useState<'cueCard' | 'picture' | 'practiceSheet'>('cueCard'); // Track active tab
 
   const titleInputRef = useRef<InputRef>(null);
   const cueCardTitleRef = useRef<InputRef>(null);
@@ -85,45 +91,81 @@ const ModernModal: React.FC<ModernModalProps> = ({
 
   // Handle image or GIF attachment
   const handleImageChange = (info: any) => {
-    if (info.file.status === 'done') {
+    if (info.file.originFileObj) {
       setImage(info.file.originFileObj);
     }
   };
-
-  const handlePictureUpload = (info: { file: UploadFile<any> }) => {
-    if (info.file.status === 'done' && info.file.originFileObj) {
-      setUploadedPicture(info.file.originFileObj);
+// Handle Picture Upload (for picture tab)
+// Handle Picture Upload (for picture tab)
+// Handle Picture Upload (for picture tab)
+const handlePictureUpload = (file: File) => {
+    // List of allowed image MIME types, including more common image formats
+    const validImageTypes = [
+      'image/jpeg',  // JPEG
+      'image/png',   // PNG
+      'image/gif',   // GIF
+      'image/webp',  // WebP
+      'image/svg+xml', // SVG
+      'image/bmp',   // BMP
+      'image/tiff'   // TIFF
+    ];
+  
+    // Check if the uploaded file is an image based on its MIME type
+    if (validImageTypes.includes(file.type)) {
+      // Set the uploaded picture since the MIME type matches
+      setUploadedPicture(file);
     } else {
-      setUploadedPicture(null);
+      // Notify the user that the file is not a valid image
+      alert('Please upload a valid image file (JPEG, PNG, GIF, WebP, SVG, BMP, or TIFF).');
     }
+  
+    // Prevent automatic upload by returning false
+    return false;
   };
+  
+  
 
+  // Updated handleSave function to use the activeTabKey state
   const handleSave = () => {
     const isCueCardTitleEmpty = cueCardTitle.trim() === '';
     const isCueCardContentEmpty = cueCardContent.trim() === '';
-
+  
+    // Handle 'addChild' mode - create a new concept node without requiring cue cards
     if (mode === 'addChild') {
-      if (!isCueCardTitleEmpty && !isCueCardContentEmpty) {
-        onSave(nodeTitle, cueCardTitle, cueCardContent, bloomLevel, image, source);
-      } else {
-        onSave(nodeTitle, '', '', bloomLevel, null, '');
-      }
+      onSave('cueCard', nodeTitle); // Pass only the nodeTitle for creating a new concept
       onClose();
       return;
     }
-
-    if (mode === 'addCueCard' || mode === 'editCueCard') {
-      if (
-        (!isCueCardTitleEmpty && isCueCardContentEmpty) ||
-        (isCueCardTitleEmpty && !isCueCardContentEmpty)
-      ) {
-        alert('Please fill in both the Cue Card Title and Content, or leave both empty.');
-        return;
+  
+    // Generalized logic for adding or editing cue cards, pictures, or practice sheets
+    if (mode === 'addResource' || mode === 'editCueCard') {
+      // Only validate for cue card titles and content if the cue card tab is active
+      if (activeTabKey === 'cueCard') {
+        if (isCueCardTitleEmpty && isCueCardContentEmpty) {
+          alert('Please fill in both the Cue Card Title and Content, or leave both empty.');
+          return;
+        }
       }
-
-      onSave(nodeTitle, cueCardTitle, cueCardContent, bloomLevel, image, source);
+  
+      // Use the tracked active tab key to pass the correct resource type to onSave
+      switch (activeTabKey) {
+        case 'cueCard':
+          onSave('cueCard', nodeTitle, cueCardTitle, cueCardContent, bloomLevel, image, source);
+          break;
+        case 'picture':
+          if (uploadedPicture) {
+            onSave('picture', nodeTitle, pictureTitle, '', 1, uploadedPicture, '', pictureDescription);
+          } else {
+            alert('Please upload a picture.');
+          }
+          break;
+        case 'practiceSheet':
+          onSave('practiceSheet', nodeTitle, practiceSheetTitle, practiceContent);
+          break;
+        default:
+          break;
+      }
       onClose();
-      return;
     }
   };
 
@@ -161,9 +203,10 @@ const ModernModal: React.FC<ModernModalProps> = ({
                 ))}
               </Radio.Group>
             </div>
-            <Upload beforeUpload={() => false} onChange={handleImageChange}>
-              <Button style={{ marginTop: '10px' }}>Upload Image/GIF</Button>
-            </Upload>
+            <Upload beforeUpload={handlePictureUpload} showUploadList={false}>
+  <Button>Upload Picture</Button>
+</Upload>
+
           </>
         );
       case 'picture':
@@ -174,9 +217,9 @@ const ModernModal: React.FC<ModernModalProps> = ({
               value={pictureTitle}
               onChange={(e) => setPictureTitle(e.target.value)}
             />
-            <Upload beforeUpload={() => false} onChange={handlePictureUpload}>
-              <Button>Upload Picture</Button>
-            </Upload>
+<Upload beforeUpload={handlePictureUpload} showUploadList={false}>
+  <Button>Upload Picture</Button>
+</Upload>
             {uploadedPicture && <p>Selected File: {uploadedPicture.name}</p>}
             <Input.TextArea
               placeholder="Optional Description"
@@ -230,7 +273,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
             ) : (
               <h2 className="w-full text-lg font-semibold p-2">{nodeTitle}</h2>
             )}
-            {mode === 'addCueCard' && (
+            {mode === 'addResource' && (
               <button
                 onClick={() => {
                   setIsEditingTitle(true);
@@ -244,8 +287,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
             )}
           </div>
 
-          {/* Tabbed Interface for Different Resources */}
-          <Tabs defaultActiveKey="cueCard">
+          <Tabs activeKey={activeTabKey} onChange={(key) => setActiveTabKey(key as 'cueCard' | 'picture' | 'practiceSheet')}>
             <TabPane tab="Cue Card" key="cueCard">
               {getTabContent('cueCard')}
             </TabPane>
@@ -257,7 +299,6 @@ const ModernModal: React.FC<ModernModalProps> = ({
             </TabPane>
           </Tabs>
 
-          {/* Action Buttons */}
           <div className="mt-4 flex justify-end space-x-2">
             <Button type="primary" onClick={handleSave}>
               Save

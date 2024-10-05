@@ -1,3 +1,4 @@
+// CueCardDisplay.tsx
 import React, { useState, useCallback, useEffect } from 'react';
 import CueCard from './CueCard';
 import PictureCard from './PictureCard'; 
@@ -171,15 +172,24 @@ const CueCardDisplay = React.memo(() => {
             key={picture.id}
             id={picture.id}
             title={picture.title}
-            description={picture.description}
             image={picture.image}
             onOpenFullSize={() =>
               handleOpenOverlay(
                 <div>
-                  <h2>{picture.title}</h2>
-                  {picture.image && <img src={URL.createObjectURL(picture.image)} alt={picture.title} />}
-                  <p>{picture.description}</p>
-                  <button onClick={handleCloseOverlay}>Close</button>
+                  <h2 className="text-xl font-bold mb-2">{picture.title}</h2>
+                  {picture.image && (
+                    <img
+                      src={URL.createObjectURL(picture.image)}
+                      alt={picture.title}
+                      className="max-w-full h-auto mb-4"
+                    />
+                  )}
+                  <button
+                    onClick={handleCloseOverlay}
+                    className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    Close
+                  </button>
                 </div>
               )
             }
@@ -197,9 +207,14 @@ const CueCardDisplay = React.memo(() => {
             onOpenFullSize={() =>
               handleOpenOverlay(
                 <div>
-                  <h2>{practiceSheet.title}</h2>
-                  <p>{practiceSheet.content}</p>
-                  <button onClick={handleCloseOverlay}>Close</button>
+                  <h2 className="text-xl font-bold mb-2">{practiceSheet.title}</h2>
+                  <p className="mb-4">{practiceSheet.content}</p>
+                  <button
+                    onClick={handleCloseOverlay}
+                    className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    Close
+                  </button>
                 </div>
               )
             }
@@ -222,8 +237,10 @@ const CueCardDisplay = React.memo(() => {
 
         {/* Overlay Window */}
         {overlayContent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white p-4 rounded shadow-lg">{overlayContent}</div>
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none">
+            <div className="bg-white p-6 rounded shadow-lg pointer-events-auto max-w-lg w-full">
+              {overlayContent}
+            </div>
           </div>
         )}
       </div>

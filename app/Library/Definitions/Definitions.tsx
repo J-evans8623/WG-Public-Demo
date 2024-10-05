@@ -202,3 +202,18 @@ export interface SerializedDocument {
   primaryColor: string;
   backgroundColor: string;
 }
+
+// Picture Definition
+export interface Picture {
+  id: string;
+  title: string;
+  description?: string;
+  image: File | null; // The image file, if provided
+}
+
+// PracticeSheet Definition
+export interface PracticeSheet {
+  id: string;
+  title: string;
+  content: string;
+}

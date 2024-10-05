@@ -7,22 +7,24 @@
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
-import CueCardDisplay from '@/app/Library/components/CueCardDisplay'//'../Component/CueCardDisplay';
+import CueCardDisplay from '@/app/Library/components/CueCardDisplay'// Tests
 import ConceptMap from '@/app/Library/components/ConceptMap';
 import { DocumentProvider, serializeDocument , useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize, updateNodeTitle, createNewNode, setGetLayout, setNodes} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
-import { ColorTheme, CueCard, ConceptNode, SerializedDocument} from '@/app/Library/Definitions/Definitions';
-import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
+import { CueCard, ConceptNode, SerializedDocument} from '@/app/Library/Definitions/Definitions';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
-import ModernModal from '@/app/Library/components/ModernModal';
+import ModernModal from '@/app/Library/Tests/ModernModal';//Tests
 import { useCueCardContext, serializeCueCards } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
-import { useSubTreeContext, SubTreeProvider, serializeSubtrees, SubtreeData} from '../Library/Context/SubTreeProvider'  
+import { useSubTreeContext, SubTreeProvider, serializeSubtrees, SubtreeData} from '@/app/Library/Context/SubTreeProvider'//'../Library/Context/SubTreeProvider'  
 import { v4 as uuidv4 } from 'uuid';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-
+import ToolPane from '@/app/Library/ui/ToolPane';
+import { PictureProvider, usePictureContext } from '@/app/Library/Context/PictureContext'; // Import PictureProvider
+import { PracticeSheetProvider,usePracticeSheetContext } from '@/app/Library/Context/PracticeSheetContext'; // Import PracticeSheetProvider
+import { saveResource, ResourceType } from '@/app/Library/utils/ResourceSave/saveResource'; // Import helper function
 
 function ClientLayoutContent() {
  
@@ -35,12 +37,14 @@ function ClientLayoutContent() {
   const { resetTreeDimensions} = useTreeDimensions();
   const { resetSubtrees, setSubtrees } = useSubTreeContext();
   const { addCueCard, resetCueCards, setCueCards } = useCueCardContext();
+  const { addPicture } = usePictureContext();
+  const { addPracticeSheet } = usePracticeSheetContext();
   const [paneSizes, setPaneSizes] = useState<number[]>([20, 60, 20]);
   const {zoomLevel, baseZoomLevel} = state;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalNodeId, setModalNodeId] = useState<string | null>(null);
-  const [modalMode, setModalMode] = useState<'addChild' | 'addCueCard'>('addCueCard');
+  const [modalMode, setModalMode] = useState<'addChild' | 'addResource'>('addResource');
   const { nodes } = state;
   const { cueCards } = useCueCardContext();
   const { subtrees } = useSubTreeContext();
@@ -174,14 +178,6 @@ const handleLoadDocument = async (file: File) => {
     //dispatch(setColorTheme(styles.colorTheme));
   }
 
-  // Load settings.json
-/**  const settingsFile = content.file('document/settings.json');
-  if (settingsFile) {
-    const settingsJson = await settingsFile.async('string');
-    const settings = JSON.parse(settingsJson);
-    //dispatch(setZoomLevel(settings.zoomLevel));
-  } */
-
   // Trigger layout computation if necessary
   dispatch(setGetLayout(true));
 };
@@ -196,7 +192,7 @@ const handleLoadDocument = async (file: File) => {
   // Handler to open modal for adding a cue card
   const handleOpenCueCardModal = useCallback((nodeId: string) => {
     setModalNodeId(nodeId);
-    setModalMode('addCueCard');
+    setModalMode('addResource');
     setIsModalOpen(true);
   }, []);
 
@@ -216,65 +212,60 @@ const handleLoadDocument = async (file: File) => {
       : '';
 
       const handleModalSave = (
+        resourceType: ResourceType,
         nodeTitle: string,
-        cueCardTitle: string,
-        cueCardContent: string,
-        bloomLevel: 1 | 2 | 3 | 4 | 5 | 6,
+        cueCardTitle?: string,
+        cueCardContent?: string,
+        bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6,
         image?: File | null,
-        source?: string
+        pictureDescription?: string,
+        practiceSheetContent?: string
       ) => {
         if (modalNodeId) {
+          // Logic for adding a child node or updating an existing node
           if (modalMode === 'addChild') {
-            // Generate newNodeId
-            const newNodeId = uuidv4();
-            // Create new child node
+            const newNodeId = uuidv4(); // Generate a unique ID for the new child node
             dispatch(createNewNode(nodeTitle || 'New Concept', modalNodeId, newNodeId));
             dispatch(setGetLayout(true));
-      
-            // Add cue card if applicable
-            if (cueCardTitle.trim() !== '' && cueCardContent.trim() !== '') {
-              const newCueCard: CueCard = {
-                id: Date.now().toString(),
-                title: cueCardTitle,
-                content: cueCardContent,
+    
+            // Save resource (cue card, picture, or practice sheet) to the new child node
+            if (cueCardTitle || cueCardContent || image || practiceSheetContent) {
+              saveResource({
+                resourceType,
+                nodeId: newNodeId, // Use the new node ID
+                addCueCard,
+                addPicture,
+                addPracticeSheet,
+                cueCardTitle,
+                cueCardContent,
                 bloomLevel,
-                source, // Include source here
-              };
-              addCueCard(newNodeId, newCueCard);
+                image,
+                practiceSheetContent,
+              });
             }
-          } else if (modalMode === 'addCueCard') {
-            // Update node title if it was edited
+          } else if (modalMode === 'addResource') {
+            // Update node title if it was changed
             dispatch(updateNodeTitle(modalNodeId, nodeTitle));
-      
-            // Add cue card to existing node
-            if (cueCardTitle.trim() !== '' && cueCardContent.trim() !== '') {
-              const newCueCard: CueCard = {
-                id: Date.now().toString(),
-                title: cueCardTitle,
-                content: cueCardContent,
+    
+            // Save resource (cue card, picture, or practice sheet) to the existing node
+            if (cueCardTitle || cueCardContent || image || practiceSheetContent) {
+              saveResource({
+                resourceType,
+                nodeId: modalNodeId, // Use the existing node ID
+                addCueCard,
+                addPicture,
+                addPracticeSheet,
+                cueCardTitle,
+                cueCardContent,
                 bloomLevel,
-                source, // Include source here
-              };
-              addCueCard(modalNodeId, newCueCard);
+                image,
+                practiceSheetContent,
+              });
             }
           }
         }
-        setIsModalOpen(false);
+        setIsModalOpen(false); // Close the modal after saving
       };
-    //Tool Pane Layout color;
-    // Predefined color sets
-    const primaryColors = ['#D5E6ED', '#C4ACAA', '#F7CAAB', '#EBD3E0'];
-    const backgroundColors = ['#ECE7D1', '#F7EBD1', '#EEECBC', '#F5F5F5'];
-
-    // Function to handle primary color change
-    const handleSetPrimaryColor = (color: string) => {
-      dispatch(setPrimaryColor(color)); // Use action creator
-    };
-  
-    // Function to handle background color change
-    const handleSetBackgroundColor = (color: string) => {
-      dispatch(setBackgroundColor(color)); // Use action creator
-    };
 
   return (
     <>
@@ -352,54 +343,7 @@ const handleLoadDocument = async (file: File) => {
 
   {/* Right Panel (Tool Interface) */}
   <div className="relative bg-gray-200 p-4 shadow-lg rounded-lg overflow-auto">
-    {/* Zoom Buttons */}
-    <div className="absolute top-2 left-2 flex space-x-2 bg-gray-300 p-2 rounded shadow">
-      <button
-        title={`Zoom In (${Math.ceil((zoomLevel / baseZoomLevel) * 100)}%)`} // Normalizing zoom to 100% at baseline
-        onClick={zoomIn}
-        className="p-1 rounded hover:bg-gray-400"
-      >
-        <RiZoomInLine />
-      </button>
-      <button
-        title={`Zoom Out (${Math.ceil((zoomLevel / baseZoomLevel) * 100)}%)`} // Normalizing zoom to 100% at baseline
-        onClick={zoomOut}
-        className="p-1 rounded hover:bg-gray-400"
-      >
-        <RiZoomOutLine />
-      </button>
-    </div>
-    {/* Add other tools here */}
-    {/* Color Customization Options */}
-    <div className="mt-16 flex flex-col space-y-4">
-            {/* Primary Color Selector */}
-            <div className="flex flex-col items-start">
-              <label className="text-sm text-gray-700">Primary Color:</label>
-              {primaryColors.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => handleSetPrimaryColor(color)}
-                  className="w-6 h-6 border border-black rounded-full"
-                  style={{ backgroundColor: color }}
-                  title={`Set Primary Color: ${color}`}
-                />
-              ))}
-            </div>
-
-            {/* Background Color Selector */}
-            <div className="flex flex-col items-start">
-              <label className="text-sm text-gray-700">Background Color:</label>
-              {backgroundColors.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => handleSetBackgroundColor(color)}
-                  className="w-6 h-6 border border-black rounded-full"
-                  style={{ backgroundColor: color }}
-                  title={`Set Background Color: ${color}`}
-                />
-              ))}
-            </div>
-          </div>
+  <ToolPane />
   </div>
 </Split>
     </>
@@ -414,7 +358,11 @@ export default function ClientLayout() {
           <CueCardProvider> {/* Wrap in CueCardProvider */}
             <DocumentProvider>
             <SubTreeProvider>
-              <ClientLayoutContent />
+            <PictureProvider> {/* Wrap ClientLayoutContent in PictureProvider */}
+                  <PracticeSheetProvider> {/* Wrap ClientLayoutContent in PracticeSheetProvider */}
+                    <ClientLayoutContent />
+                  </PracticeSheetProvider>
+                </PictureProvider>
               </SubTreeProvider>
             </DocumentProvider>
           </CueCardProvider>
