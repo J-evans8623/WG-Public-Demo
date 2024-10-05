@@ -23,6 +23,9 @@ interface PracticeSheetContextType {
 // Create the PracticeSheet context
 const PracticeSheetContext = createContext<PracticeSheetContextType | undefined>(undefined);
 
+export const serializePracticeSheets = (practiceSheets: Map<string, PracticeSheet[]>): [string, PracticeSheet[]][] => {
+    return Array.from(practiceSheets.entries());
+  };
 export const PracticeSheetProvider = ({ children }: { children: ReactNode }) => {
   const [practiceSheets, setPracticeSheetsState] = useState<Map<string, PracticeSheet[]>>(new Map());
 

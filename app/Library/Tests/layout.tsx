@@ -10,7 +10,7 @@ import Split from 'react-split';
 import CueCardDisplay from '@/app/Library/components/CueCardDisplay'// Tests
 import ConceptMap from '@/app/Library/components/ConceptMap';
 import { DocumentProvider, serializeDocument , useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize, updateNodeTitle, createNewNode, setGetLayout, setNodes} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
-import { CueCard, ConceptNode, SerializedDocument} from '@/app/Library/Definitions/Definitions';
+import { CueCard, ConceptNode, SerializedDocument, Picture,PracticeSheet} from '@/app/Library/Definitions/Definitions';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
 import ModernModal from '@/app/Library/Tests/ModernModal';//Tests
@@ -22,8 +22,8 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import ToolPane from '@/app/Library/ui/ToolPane';
-import { PictureProvider, usePictureContext } from '@/app/Library/Context/PictureContext'; // Import PictureProvider
-import { PracticeSheetProvider,usePracticeSheetContext } from '@/app/Library/Context/PracticeSheetContext'; // Import PracticeSheetProvider
+import { PictureProvider, usePictureContext, serializePictures } from '@/app/Library/Context/PictureContext'; // Import PictureProvider
+import { PracticeSheetProvider,usePracticeSheetContext, serializePracticeSheets } from '@/app/Library/Context/PracticeSheetContext'; // Import PracticeSheetProvider
 import { saveResource, ResourceType } from '@/app/Library/utils/ResourceSave/saveResource'; // Import helper function
 
 function ClientLayoutContent() {
@@ -37,8 +37,8 @@ function ClientLayoutContent() {
   const { resetTreeDimensions} = useTreeDimensions();
   const { resetSubtrees, setSubtrees } = useSubTreeContext();
   const { addCueCard, resetCueCards, setCueCards } = useCueCardContext();
-  const { addPicture } = usePictureContext();
-  const { addPracticeSheet } = usePracticeSheetContext();
+  const { addPicture, pictures, setPictures } = usePictureContext();
+  const { addPracticeSheet, practiceSheets, setPracticeSheets } = usePracticeSheetContext();
   const [paneSizes, setPaneSizes] = useState<number[]>([20, 60, 20]);
   const {zoomLevel, baseZoomLevel} = state;
 
@@ -80,39 +80,65 @@ const handleCreateNewDocument = useCallback(() => {
   dispatch(toggleResetMapSize());
 }, [dispatch, windowWidth, resetCueCards, resetTreeDimensions, resetSubtrees]);
 
-// Inside ClientLayoutContent component
+
 const handleSaveDocument = async () => {
   const zip = new JSZip();
 
   // Serialize document data
   const serializedDocument = serializeDocument(state);
   const documentJson = JSON.stringify(serializedDocument);
-
-// Serialize cue cards
-const serializedCueCards = serializeCueCards(cueCards);
-const cueCardsJson = JSON.stringify(serializedCueCards);
-zip.file('document/cuecards.json', cueCardsJson);
-
-// Serialize subtrees
-const serializedSubtrees = serializeSubtrees(subtrees); 
-const subtreesJson = JSON.stringify(serializedSubtrees);
-zip.file('document/subtrees.json', subtreesJson);
-
-// Serialize styles
-const styles = {
-  primaryColor: state.primaryColor,
-  backgroundColor: state.backgroundColor,
-  colorTheme: state.colorTheme,
-};
-const stylesJson = JSON.stringify(styles);
-zip.file('document/styles.json', stylesJson);
-
-  // Add document.json to the zip
   zip.file('document/document.json', documentJson);
 
+  // Serialize cue cards
+  const serializedCueCards = serializeCueCards(cueCards);
+  const cueCardsJson = JSON.stringify(serializedCueCards);
+  zip.file('document/cuecards.json', cueCardsJson);
+
+  // Serialize subtrees
+  const serializedSubtrees = serializeSubtrees(subtrees); 
+  const subtreesJson = JSON.stringify(serializedSubtrees);
+  zip.file('document/subtrees.json', subtreesJson);
+
+  // Serialize pictures metadata
+  const serializedPictures = serializePictures(pictures);
+  const picturesJson = JSON.stringify(serializedPictures);
+  zip.file('document/pictures.json', picturesJson);
+
+  // Serialize practice sheets
+  const serializedPracticeSheets = serializePracticeSheets(practiceSheets);
+  const practiceSheetsJson = JSON.stringify(serializedPracticeSheets);
+  zip.file('document/practiceSheets.json', practiceSheetsJson);
+
+  // Serialize styles
+  const styles = {
+    primaryColor: state.primaryColor,
+    backgroundColor: state.backgroundColor,
+    colorTheme: state.colorTheme,
+  };
+  const stylesJson = JSON.stringify(styles);
+  zip.file('document/styles.json', stylesJson);
+
+  // Add images to the ZIP under 'document/images/'
+  for (const [nodeId, pictureArray] of pictures.entries()) {
+    for (const picture of pictureArray) {
+      if (picture.image) {
+        try {
+          const imageData = await picture.image.arrayBuffer();
+          zip.file(`document/images/${picture.id}_${picture.image.name}`, imageData);
+        } catch (error) {
+          console.error(`Error saving image ${picture.id}:`, error);
+        }
+      }
+    }
+  }
+
   // Generate ZIP and trigger download
-  const content = await zip.generateAsync({ type: 'blob' });
-  saveAs(content, 'my_document.bloomdocx');
+  try {
+    const content = await zip.generateAsync({ type: 'blob' });
+    saveAs(content, 'my_document.bloomdocx');
+  } catch (error) {
+    console.error('Error generating ZIP:', error);
+  }
 };
 
 const handleOpenDocument = () => {
@@ -128,6 +154,8 @@ const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     await handleLoadDocument(file);
   }
 };
+
+
 const handleLoadDocument = async (file: File) => {
   console.log("handleLoadDocument called with file:", file.name);
   const zip = new JSZip();
@@ -141,11 +169,7 @@ const handleLoadDocument = async (file: File) => {
 
     // Reconstruct nodes Map
     const nodes = new Map<string, ConceptNode>(parsedDocument.nodes);
-
-    // Update DocumentProvider state
     dispatch(setNodes(nodes));
-    //dispatch(setColorTheme(parsedDocument.colorTheme));
-    //dispatch(setZoomLevel(parsedDocument.zoomLevel));
     dispatch(setPrimaryColor(parsedDocument.primaryColor));
     dispatch(setBackgroundColor(parsedDocument.backgroundColor));
   }
@@ -168,6 +192,48 @@ const handleLoadDocument = async (file: File) => {
     setSubtrees(subtreesMap);
   }
 
+  // Load pictures.json and images
+  const picturesFile = content.file('document/pictures.json');
+  if (picturesFile) {
+    const picturesJson = await picturesFile.async('string');
+    const parsedPictures = JSON.parse(picturesJson) as [string, { id: string; title: string; imagePath: string }[]][];
+    const picturesMap = new Map<string, Picture[]>();
+
+    for (const [nodeId, pictureArray] of parsedPictures) {
+      const reconstructedPictures: Picture[] = [];
+      for (const pic of pictureArray) {
+        const imageFile = content.file(pic.imagePath);
+        if (imageFile) {
+          try {
+            const imageBlob = await imageFile.async('blob');
+            const imageURL = URL.createObjectURL(imageBlob);
+            const imageFileObject = new File([imageBlob], pic.imagePath.split('/').pop() || 'image', { type: imageBlob.type });
+            reconstructedPictures.push({
+              id: pic.id,
+              title: pic.title,
+              image: imageFileObject,
+            });
+          } catch (error) {
+            console.error(`Error loading image ${pic.id}:`, error);
+          }
+        } else {
+          console.warn(`Image file not found: ${pic.imagePath}`);
+        }
+      }
+      picturesMap.set(nodeId, reconstructedPictures);
+    }
+    setPictures(picturesMap);
+  }
+
+  // Load practiceSheets.json
+  const practiceSheetsFile = content.file('document/practiceSheets.json');
+  if (practiceSheetsFile) {
+    const practiceSheetsJson = await practiceSheetsFile.async('string');
+    const parsedPracticeSheets = JSON.parse(practiceSheetsJson) as [string, PracticeSheet[]][];
+    const practiceSheetsMap = new Map<string, PracticeSheet[]>(parsedPracticeSheets);
+    setPracticeSheets(practiceSheetsMap);
+  }
+
   // Load styles.json
   const stylesFile = content.file('document/styles.json');
   if (stylesFile) {
@@ -175,7 +241,6 @@ const handleLoadDocument = async (file: File) => {
     const styles = JSON.parse(stylesJson);
     dispatch(setPrimaryColor(styles.primaryColor));
     dispatch(setBackgroundColor(styles.backgroundColor));
-    //dispatch(setColorTheme(styles.colorTheme));
   }
 
   // Trigger layout computation if necessary

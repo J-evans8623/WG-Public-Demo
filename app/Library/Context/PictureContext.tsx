@@ -23,6 +23,25 @@ interface PictureContextType {
 // Create the Picture context
 const PictureContext = createContext<PictureContextType | undefined>(undefined);
 
+// bloom-maps/app/Library/Context/PictureContext.tsx
+
+export const serializePictures = (
+    pictures: Map<string, Picture[]>
+  ): [string, { id: string; title: string; imagePath: string }[]][] => {
+    const serialized: [string, { id: string; title: string; imagePath: string }[]][] = [];
+    pictures.forEach((pictureArray, nodeId) => {
+      const serializedPictures = pictureArray.map(pic => ({
+        id: pic.id,
+        title: pic.title,
+        imagePath: `document/images/${pic.id}_${pic.image?.name}`, // Updated path
+      }));
+      serialized.push([nodeId, serializedPictures]);
+    });
+    return serialized;
+  };
+  
+  
+
 export const PictureProvider = ({ children }: { children: ReactNode }) => {
   const [pictures, setPicturesState] = useState<Map<string, Picture[]>>(new Map());
 

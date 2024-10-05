@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "target": "es2015", // Added line
     "lib": [
       "dom",
       "dom.iterable",
@@ -31,8 +32,13 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
-, "../Archived/drawLines.tsx", "../Archived/DrawConnections.tsx", "../Archived/utils/drawTreeLines.tsx", "../Archived/utils/blendedhvLayout.tsx"  ],
+    ".next/types/**/*.ts",
+    "../Archived/drawLines.tsx",
+    "../Archived/DrawConnections.tsx",
+    "../Archived/utils/drawTreeLines.tsx",
+    "../Archived/utils/blendedhvLayout.tsx",
+    "../Archived/utils/Modal.tsx"
+  ],
   "exclude": [
     "node_modules"
   ]
