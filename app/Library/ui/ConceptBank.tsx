@@ -84,12 +84,14 @@ const ConceptBank: React.FC = () => {
   };
 
   const handleModalSave = (
+    resourceType: 'cueCard' | 'picture' | 'practiceSheet',
     nodeTitle: string,
     cueCardTitle: string,
     cueCardContent: string,
     bloomLevel: 1 | 2 | 3 | 4 | 5 | 6,
     image?: File | null,
     source?: string
+    
   ) => {
     if (modalMode === 'edit' && selectedCueCardId && selectedNodeId && initialCueCardData) {
       // Correctly set the id to selectedCueCardId for editing
@@ -231,7 +233,7 @@ const ConceptBank: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         onSave={handleModalSave}
         initialNodeTitle={modalMode === 'edit' && selectedNodeId ? nodes.get(selectedNodeId)?.title || '' : 'New Cue Card'}
-        mode={modalMode === 'add' ? 'addCueCard' : 'editCueCard'}
+        mode={modalMode === 'add' ? 'addResource' : 'editCueCard'}
         initialCueCardTitle={modalMode === 'edit' && initialCueCardData ? initialCueCardData.title : undefined}
         initialCueCardContent={modalMode === 'edit' && initialCueCardData ? initialCueCardData.content : undefined}
         initialBloomLevel={modalMode === 'edit' && initialCueCardData ? initialCueCardData.bloomLevel : undefined}

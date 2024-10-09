@@ -1,10 +1,6 @@
 // bloom-maps/app/(client-ui)/layout.tsx
 
 'use client';
-/**
- * Refactored
- * 
- */
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
 import CueCardDisplay from '@/app/Library/components/CueCardDisplay'// Tests
@@ -25,6 +21,10 @@ import ToolPane from '@/app/Library/ui/ToolPane';
 import { PictureProvider, usePictureContext, serializePictures } from '@/app/Library/Context/PictureContext'; // Import PictureProvider
 import { PracticeSheetProvider,usePracticeSheetContext, serializePracticeSheets } from '@/app/Library/Context/PracticeSheetContext'; // Import PracticeSheetProvider
 import { saveResource, ResourceType } from '@/app/Library/utils/ResourceSave/saveResource'; // Import helper function
+import MenuBar from './MenuBar'; // Import the new MenuBar
+import ToolBar from './ToolBar'; // Import the new ToolBar
+import './ClientLayout.css';
+
 
 function ClientLayoutContent() {
  
@@ -365,34 +365,42 @@ const handleLoadDocument = async (file: File) => {
         initialNodeTitle={initialNodeTitle}
         mode={modalMode}
       />
+            {/* Add MenuBar and ToolBar */}
+            <MenuBar
+        documentTitle="Untitled Document"
+        onTitleChange={() => console.log('Title Changed')}
+        onNewDocument={handleCreateNewDocument}
+        onOpenDocument={handleOpenDocument}
+        onSaveDocument={handleSaveDocument}
+        onHelp={() => console.log('Help clicked')}
+      />
+
+<ToolBar
+        onAddStudyResource={() => console.log('Add Study Resource clicked')}
+        onAddConcept={() => console.log('Add Concept clicked')}
+        onCut={() => console.log('Cut clicked')}
+        onPaste={() => console.log('Paste clicked')}
+        onDelete={() => console.log('Delete clicked')}
+        onEdit={() => console.log('Edit clicked')}
+        onUndo={() => console.log('Undo clicked')}
+        onRedo={() => console.log('Redo clicked')}
+        onZoomIn={() => zoomIn()}
+        onZoomOut={() => zoomOut()}
+        zoomLevel={zoomLevel}
+      />
+
+          {/* Add Padding Section Below Toolbar */}
+    <div className="toolbar-padding-bottom"></div>
 
       {/* Main UI Layout */}
-      <div className="flex items-center justify-between bg-gray-50 p-2 shadow-md">
-        {/* Dynamic Menu Options */}
-        <div className="flex items-center space-x-4">
-          <button onClick={handleCreateNewDocument} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
-            New Doc
-          </button>
-          <button onClick={handleOpenDocument} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
-            Open
-          </button>
-          <button onClick={handleSaveDocument} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
-            Save
-          </button>
-        </div>
-        <div className="flex items-center space-x-4">
-          <button onClick={handleHelp} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
-            Help
-          </button>
-        </div>
-      </div>
+
 
       <Split
     className="flex h-[calc(100vh-50px)]"
     sizes={paneSizes}
     minSize={[200, 400, 200]}
     maxSize={[500, Infinity, 400]}
-    gutterSize={8}
+    gutterSize={6}
     direction="horizontal"
     cursor="col-resize"
     onDragEnd={(sizes) => {
@@ -400,18 +408,19 @@ const handleLoadDocument = async (file: File) => {
     }}
   >
   {/* Left Panel (Cue Card Viewer) */}
-  <div className="flex flex-col space-y-2 bg-gray-200 p-4 shadow-lg rounded-lg overflow-y-auto">
+  <div className="flex flex-col space-y-2 bg-[#f5f5f5] p-4 shadow-lg rounded-lg overflow-y-auto">
     <CueCardDisplay />
   </div>
 
   {/* Center Pane (Map Canvas) */}
   <div
     ref={centerPaneRef}
-    className="flex-1 bg-gray-200 p-4 shadow-lg rounded-lg overflow-auto scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200"
+    className="center-pane flex-1 bg-[#f5f5f5] p-4 shadow-lg rounded-lg overflow-auto"
     style={{
       position: 'relative',
       overflowX: 'auto', // Enables horizontal scrolling
       overflowY: 'auto', // Enables vertical scrolling
+      scrollbarWidth: 'none', 
     }}
   >
     <ConceptMap 
@@ -422,7 +431,7 @@ const handleLoadDocument = async (file: File) => {
   </div>
 
   {/* Right Panel (Tool Interface) */}
-  <div className="relative bg-gray-200 p-4 shadow-lg rounded-lg overflow-auto">
+  <div className="relative bg-[#f5f5f5] p-4 shadow-lg rounded-lg overflow-auto">
   <ToolPane />
   </div>
 </Split>

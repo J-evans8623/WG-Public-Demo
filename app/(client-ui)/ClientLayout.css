@@ -1,0 +1,136 @@
+.client-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #fafafa; /* Keep background color consistent with the main UI */
+}
+
+.menu-bar {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    background-color: #f5f5f5; /* Ensure this matches the theme */
+}
+
+.menu-left {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 10px;
+}
+
+.menu-right {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.menu-buttons {
+    display: flex;
+    gap: 10px; /* Ensure buttons are adjacent */
+}
+
+.menu-button {
+    background-color: #f9fafb; /* Tailwind bg-gray-50 equivalent */
+    border: none;
+    border-radius: 5px; /* Maintain consistent rounded styling */
+    padding: 8px 15px; /* Increase button padding */
+    transition: background-color 0.3s ease;
+    font-size: 16px; /* Increase button font size */
+    cursor: pointer;
+}
+
+.menu-button:hover {
+    background-color: #e0e0e0; /* Subtle hover effect */
+}
+
+.help-button {
+    padding: 8px 15px; /* Larger Help button for better accessibility */
+}
+
+.main-content {
+    display: flex;
+    flex: 1;
+    padding: 15px; /* Consistent spacing across the project */
+}
+
+.cue-card-display, .concept-map {
+    flex: 1;
+    background-color: #f8f8f8; /* Match background theme */
+    border-radius: 8px; /* Soft edges for visual consistency */
+}
+
+/* Ensure consistent button spacing for toolbars */
+.tool-bar {
+    display: flex;
+    justify-content: flex-start;
+    background-color: #e2e8f0; /* Updated lighter color */
+    border-bottom: 1px solid #cbd5e0;
+    padding: 12px 20px; /* Increase padding for more space */
+    border-radius: 30px; /* Rounded edges for a rectangular-oval shape */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+    gap: 10px;
+}
+.toolbar-padding-bottom {
+    background-color: #f5f5f5; /* Same color as the menu bar */
+    height: 20px; /* Adjust the height for visual spacing */
+    width: 100%; /* Full width */
+    margin-top: 10px; /* Space between the toolbar and padding */
+}
+
+
+
+.tool-bar button {
+    padding: 8px 15px; /* Increase button size and padding */
+}
+.gutter {
+    background-color: #d1d1d1; /* More noticeable gray color */
+    border: 1px solid #c1c1c1; /* Add a subtle border */
+  }
+  
+  .gutter:hover {
+    background-color: #a0a0a0; /* Darken the gutter on hover */
+  }
+  /* Hide scrollbar in WebKit-based browsers (Chrome, Safari) */
+.center-pane::-webkit-scrollbar {
+    display: none; /* Hides the scrollbar */
+  }
+  
+  /* Firefox scrollbar handling */
+  .center-pane {
+    scrollbar-width: none; /* Hides the scrollbar in Firefox */
+  }
+  
+  /* Optional: Shows scrollbar on hover */
+  .center-pane:hover::-webkit-scrollbar {
+    display: block; /* Shows scrollbar on hover */
+    width: 8px;
+  }
+  
+  /* Optional: Custom scrollbar styling when visible */
+  .center-pane::-webkit-scrollbar-thumb {
+    background-color: #6b7280; /* Darker color for the thumb */
+    border-radius: 4px;
+  }
+  
+  .center-pane::-webkit-scrollbar-track {
+    background-color: #e5e7eb; /* Track color */
+  }
+
+  .gutter {
+    background-color: transparent; /* Default state with invisible gutter */
+    border: none;
+    transition: background-color 0.2s ease, border-color 0.2s ease; /* Smooth transition */
+    width: 8px; /* Slightly larger area for hover detection */
+}
+
+.gutter:hover {
+    background-color: #d1d1d1; /* Visible gutter on hover */
+    border: 1px solid #c1c1c1;
+}
+
+/* During dragging, the gutter stays visible */
+.gutter.dragging {
+    background-color: #a0a0a0;
+    border: 1px solid #909090;
+}

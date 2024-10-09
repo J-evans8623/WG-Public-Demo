@@ -1,10 +1,6 @@
 // bloom-maps/app/(client-ui)/layout.tsx
 
 'use client';
-/**
- * Refactored
- * 
- */
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
 import CueCardDisplay from '@/app/Library/components/CueCardDisplay'// Tests
@@ -13,7 +9,7 @@ import { DocumentProvider, serializeDocument , useDocumentContext, setColorTheme
 import { CueCard, ConceptNode, SerializedDocument, Picture,PracticeSheet} from '@/app/Library/Definitions/Definitions';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
-import ModernModal from '@/app/Library/Tests/ModernModal';//Tests
+import ModernModal from '@/app/Library/components/ModernModal';//Tests
 import { useCueCardContext, serializeCueCards } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 import { useSubTreeContext, SubTreeProvider, serializeSubtrees, SubtreeData} from '@/app/Library/Context/SubTreeProvider'//'../Library/Context/SubTreeProvider'  
@@ -139,9 +135,9 @@ const handleSaveDocument = async () => {
       if (picture.image) {
         try {
           const imageData = await picture.image.arrayBuffer();
-          zip.file(`document/images/${picture.id}_${picture.image.name}`, imageData);
+          zip.file(document/images/${picture.id}_${picture.image.name}, imageData);
         } catch (error) {
-          console.error(`Error saving image ${picture.id}:`, error);
+          console.error(Error saving image ${picture.id}:, error);
         }
       }
     }
@@ -229,10 +225,10 @@ const handleLoadDocument = async (file: File) => {
               image: imageFileObject,
             });
           } catch (error) {
-            console.error(`Error loading image ${pic.id}:`, error);
+            console.error(Error loading image ${pic.id}:, error);
           }
         } else {
-          console.warn(`Image file not found: ${pic.imagePath}`);
+          console.warn(Image file not found: ${pic.imagePath});
         }
       }
       picturesMap.set(nodeId, reconstructedPictures);
@@ -451,3 +447,7 @@ export default function ClientLayout() {
     </DndProvider>
   );
 }
+/***
+ * 
+ * 9th october 2024
+*/

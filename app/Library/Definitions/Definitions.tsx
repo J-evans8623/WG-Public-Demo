@@ -207,7 +207,6 @@ export interface SerializedDocument {
 export interface Picture {
   id: string;
   title: string;
-  description?: string;
   image: File | null; // The image file, if provided
 }
 

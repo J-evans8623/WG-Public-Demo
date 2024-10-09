@@ -247,5 +247,5 @@ const CueCardDisplay = React.memo(() => {
     </Sider>
   );
 });
-
+CueCardDisplay.displayName = 'CueCardDisplay';
 export default CueCardDisplay;
