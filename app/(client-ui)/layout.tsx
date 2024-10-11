@@ -408,14 +408,14 @@ const handleLoadDocument = async (file: File) => {
     }}
   >
   {/* Left Panel (Cue Card Viewer) */}
-  <div className="flex flex-col space-y-2 bg-[#f5f5f5] p-4 shadow-lg rounded-lg overflow-y-auto">
+  <div className="flex flex-col space-y-2 bg-[#F9FBFD] p-4 shadow-lg rounded-lg overflow-y-auto">
     <CueCardDisplay />
   </div>
 
   {/* Center Pane (Map Canvas) */}
   <div
     ref={centerPaneRef}
-    className="center-pane flex-1 bg-[#f5f5f5] p-4 shadow-lg rounded-lg overflow-auto"
+    className="center-pane flex-1 bg-[#F9FBFD] p-4 shadow-lg rounded-lg overflow-auto"
     style={{
       position: 'relative',
       overflowX: 'auto', // Enables horizontal scrolling
@@ -431,7 +431,7 @@ const handleLoadDocument = async (file: File) => {
   </div>
 
   {/* Right Panel (Tool Interface) */}
-  <div className="relative bg-[#f5f5f5] p-4 shadow-lg rounded-lg overflow-auto">
+  <div className="relative bg-[#F9FBFD] p-4 shadow-lg rounded-lg overflow-auto">
   <ToolPane />
   </div>
 </Split>

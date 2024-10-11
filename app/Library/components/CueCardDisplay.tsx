@@ -133,7 +133,7 @@ const CueCardDisplay = React.memo(() => {
     <Sider
       width="100%"  // Full width
       style={{
-        backgroundColor: '#f5f5f5',  // Background color
+        backgroundColor: '#F9FBFD',  // Background color
         padding: '16px',  // Padding around the content
         overflowY: 'auto',  // Enable scrolling for long content
         height: '100%',  // Full height to ensure fixed size

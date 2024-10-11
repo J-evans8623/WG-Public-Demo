@@ -14,7 +14,7 @@ const ToolPane: React.FC = () => {
     <Sider
       width="100%"
       style={{
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#F9FBFD',
         padding: '16px',
         height: '100%',
         display: 'flex',

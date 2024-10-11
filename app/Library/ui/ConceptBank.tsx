@@ -151,7 +151,7 @@ const ConceptBank: React.FC = () => {
           sx={{
             backgroundColor: 'white',
             '&:hover': { backgroundColor: '#D3E3FD' },
-            '&:disabled': { backgroundColor: '#f5f5f5' },
+            '&:disabled': { backgroundColor: '#F9FBFD' },
             boxShadow: 'none',
           }}
           onClick={handleCutCueCardAction}
@@ -168,7 +168,7 @@ const ConceptBank: React.FC = () => {
           sx={{
             backgroundColor: 'white',
             '&:hover': { backgroundColor: '#D3E3FD' },
-            '&:disabled': { backgroundColor: '#f5f5f5' },
+            '&:disabled': { backgroundColor: '#F9FBFD' },
             boxShadow: 'none',
           }}
           onClick={handlePasteCueCard}
@@ -179,12 +179,12 @@ const ConceptBank: React.FC = () => {
           <ContentPasteIcon />
         </Fab>
   
-        {/* Edit Button */}
+        {/* Edit Button Fix here */}
         <Fab
           size="small"
           sx={{
-            backgroundColor: selectedCueCardId ? 'white' : '#f5f5f5',
-            '&:hover': { backgroundColor: selectedCueCardId ? '#D3E3FD' : '#f5f5f5' },
+            backgroundColor: selectedCueCardId ? 'white' : '#F9FBFD',
+            '&:hover': { backgroundColor: selectedCueCardId ? '#D3E3FD' : '#F9FBFD' },
             boxShadow: 'none',
           }}
           onClick={handleOpenEditModal}
@@ -201,7 +201,7 @@ const ConceptBank: React.FC = () => {
           sx={{
             backgroundColor: 'white',
             '&:hover': { backgroundColor: '#D3E3FD' },
-            '&:disabled': { backgroundColor: '#f5f5f5' },
+            '&:disabled': { backgroundColor: '#F9FBFD' },
             boxShadow: 'none',
           }}
           onClick={handleDeleteCueCard}

@@ -9,7 +9,7 @@ const ToolPane: React.FC = () => {
     <Sider
       width="100%"
       style={{
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#F9FBFD',
         padding: '16px',
         overflowY: 'auto', // Allow vertical scrolling
         height: '100%', // Ensure it takes the full height
