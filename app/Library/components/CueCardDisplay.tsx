@@ -1,7 +1,9 @@
+// bloom-maps\app\Library\components\CueCardDisplay.tsx
 import React, { useState, useCallback, useEffect } from 'react';
 import CueCard from './CueCard';
 import PictureCard from './PictureCard'; 
-import PracticeSheetCard from './PracticeSheetCard'; 
+import PracticeSheetCard from './PracticeSheetCard';
+import MatchingQuizModal from './MatchingQuizModal';  // Import the matching quiz modal
 import { CueCard as CueCardInterface } from '@/app/Library/Definitions/Definitions';
 import { useCueCardContext } from '../Context/CueCardContext';
 import { usePictureContext } from '../Context/PictureContext'; 
@@ -9,6 +11,7 @@ import { usePracticeSheetContext } from '../Context/PracticeSheetContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { Layout } from 'antd';
+import { parseQuizContent, scrambleAnswers, calculateScore, scrambleArray } from '@/app/Library/utils/QuizUtils'  // Import utility functions
 
 const { Sider } = Layout;
 
@@ -113,6 +116,21 @@ const CueCardDisplay = React.memo(() => {
     [selectCueCards, selectPictures, selectPracticeSheets, deselectNode]
   );
 
+  // New function to handle opening the Matching Quiz Modal
+  const handleOpenQuizModal = (quizContent: string) => {
+    const parsedQuiz = parseQuizContent(quizContent);  // Parse quiz content
+    const scrambledAnswers = scrambleArray(parsedQuiz.map((q) => q.answer));  // Scramble answers
+
+    // Open modal with the matching quiz modal content
+    setOverlayContent(
+      <MatchingQuizModal
+        quiz={parsedQuiz}
+        scrambledAnswers={scrambledAnswers}
+        onClose={handleCloseOverlay}
+      />
+    );
+  };
+
   const handleOpenOverlay = (content: React.ReactNode) => {
     setOverlayContent(content);
   };
@@ -194,20 +212,7 @@ const CueCardDisplay = React.memo(() => {
             title={practiceSheet.title}
             quizType={practiceSheet.quizType}  // Pass quizType
             quizContent={practiceSheet.quizContent}  // Pass quizContent
-            onOpenFullSize={() =>
-              handleOpenOverlay(
-                <div>
-                  <h2 className="text-xl font-bold mb-2">{practiceSheet.title}</h2>
-                  <p className="mb-4">{practiceSheet.quizContent}</p>
-                  <button
-                    onClick={handleCloseOverlay}
-                    className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  >
-                    Close
-                  </button>
-                </div>
-              )
-            }
+            onOpenFullSize={() => handleOpenQuizModal(practiceSheet.quizContent)}  // Open quiz modal
             onDismiss={() => handleDismissResource(practiceSheet.id, practiceSheet.nodeId)}
           />
         ))}
@@ -226,7 +231,7 @@ const CueCardDisplay = React.memo(() => {
 
         {overlayContent && (
           <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none">
-            <div className="bg-white p-6 rounded shadow-lg pointer-events-auto max-w-lg w-full">
+            <div className="p-6 pointer-events-auto max-w-full w-full">
               {overlayContent}
             </div>
           </div>
@@ -235,5 +240,6 @@ const CueCardDisplay = React.memo(() => {
     </Sider>
   );
 });
+
 CueCardDisplay.displayName = 'CueCardDisplay';
 export default CueCardDisplay;

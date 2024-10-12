@@ -1,12 +1,14 @@
+// bloom-maps\app\Library\components\PracticeSheetCard.tsx
 import React from 'react';
+import QuizIcon from '@/app/icons-custom/Quiz.svg';
 
 interface PracticeSheetCardProps {
   id: string;
   title: string;
-  quizType: 'matching' | 'multipleChoice' | 'wordProblem'; // Updated to accept quizType
-  quizContent: string; // Updated to accept quizContent
-  onOpenFullSize: () => void; // Callback to handle opening full-size view
-  onDismiss?: () => void; // Optional callback to handle dismissal
+  quizType: 'matching' | 'multipleChoice' | 'wordProblem';
+  quizContent: string;
+  onOpenFullSize: () => void;
+  onDismiss?: () => void;
 }
 
 const PracticeSheetCard: React.FC<PracticeSheetCardProps> = ({
@@ -35,23 +37,34 @@ const PracticeSheetCard: React.FC<PracticeSheetCardProps> = ({
   };
 
   return (
-    <div className="bg-gray-200 p-4 border rounded shadow-sm cursor-pointer" onClick={onOpenFullSize}>
-      <div className="flex justify-between items-center">
-        <p className="font-bold text-lg">{title}</p>
-        {onDismiss && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDismiss();
-            }}
-            className="text-gray-600 hover:text-gray-800"
-            title="Dismiss"
-          >
-            ×
-          </button>
-        )}
+    <div
+      className="bg-gray-200 p-4 border rounded shadow-sm cursor-pointer relative min-w-[150px] h-60 flex flex-col"
+      onClick={onOpenFullSize}
+    >
+      {/* Dismiss Button */}
+      {onDismiss && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDismiss();
+          }}
+          className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+          title="Dismiss"
+        >
+          ×
+        </button>
+      )}
+
+      {/* Title at the top */}
+      <div className="text-lg font-bold text-center mb-2">{title}</div>
+
+      {/* Center the icon */}
+      <div className="flex-grow flex items-center justify-center">
+        <QuizIcon className="w-12 h-12" /> {/* Scaled down icon */}
       </div>
-      <p className="text-gray-500 mt-2">
+
+      {/* Quiz Type and Preview at the bottom */}
+      <p className="text-gray-500 mt-2 text-center">
         <span className="font-semibold">{quizTypeLabel(quizType)}: </span>
         {preview ? preview : 'No content available'}
       </p>
