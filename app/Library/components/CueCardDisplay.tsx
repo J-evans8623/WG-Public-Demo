@@ -1,4 +1,3 @@
-// CueCardDisplay.tsx
 import React, { useState, useCallback, useEffect } from 'react';
 import CueCard from './CueCard';
 import PictureCard from './PictureCard'; 
@@ -9,14 +8,10 @@ import { usePictureContext } from '../Context/PictureContext';
 import { usePracticeSheetContext } from '../Context/PracticeSheetContext'; 
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
-import { Layout } from 'antd';  // Importing the Layout component from antd
+import { Layout } from 'antd';
 
-const { Sider } = Layout;  // Using Sider for the fixed background layout
+const { Sider } = Layout;
 
-/**
- * New implementation
- * //bloom-maps\app\Library\Tests\CueCardDisplay.tsx
- */
 const defaultCueCards: CueCardInterface[] = [
   {
     id: 'default',
@@ -38,7 +33,6 @@ const CueCardDisplay = React.memo(() => {
 
   const selectedNodeIds = getSelectedNodeIds();
 
-  // Clean up dismissed resources for nodes no longer selected
   useEffect(() => {
     setDismissedResourceIds((prev) => {
       const newMap = new Map(prev);
@@ -52,7 +46,6 @@ const CueCardDisplay = React.memo(() => {
     });
   }, [selectedNodeIds]);
 
-  // Retrieve cue cards, pictures, and practice sheets associated with selected nodes
   const cueCards = selectedNodeIds.flatMap((nodeId) =>
     selectCueCards(nodeId).map((cueCard) => ({
       ...cueCard,
@@ -69,15 +62,17 @@ const CueCardDisplay = React.memo(() => {
     }))
   );
 
+  // Updated practiceSheets array processing
   const practiceSheets = selectedNodeIds.flatMap((nodeId) =>
     selectPracticeSheets(nodeId).map((practiceSheet) => ({
       ...practiceSheet,
+      quizType: practiceSheet.content.quizType, // Extract quizType
+      quizContent: practiceSheet.content.quizContent, // Extract quizContent
       conceptNodeTitle: nodes.get(nodeId)?.title || 'Untitled',
       nodeId,
     }))
   );
 
-  // Filter out dismissed resources
   const visibleCueCards = cueCards.filter(
     (cueCard) => !dismissedResourceIds.get(cueCard.nodeId)?.includes(cueCard.id)
   );
@@ -90,7 +85,6 @@ const CueCardDisplay = React.memo(() => {
     (practiceSheet) => !dismissedResourceIds.get(practiceSheet.nodeId)?.includes(practiceSheet.id)
   );
 
-  // Handle dismissing a resource
   const handleDismissResource = useCallback(
     (resourceId: string, nodeId: string) => {
       setDismissedResourceIds((prev) => {
@@ -119,29 +113,26 @@ const CueCardDisplay = React.memo(() => {
     [selectCueCards, selectPictures, selectPracticeSheets, deselectNode]
   );
 
-  // Handle opening the overlay for full-size view
   const handleOpenOverlay = (content: React.ReactNode) => {
     setOverlayContent(content);
   };
 
-  // Handle closing the overlay
   const handleCloseOverlay = () => {
     setOverlayContent(null);
   };
 
   return (
     <Sider
-      width="100%"  // Full width
+      width="100%"
       style={{
-        backgroundColor: '#F9FBFD',  // Background color
-        padding: '16px',  // Padding around the content
-        overflowY: 'auto',  // Enable scrolling for long content
-        height: '100%',  // Full height to ensure fixed size
-        minHeight: '400px',  // Ensure the CueCardDisplay always has a minimum height
+        backgroundColor: '#F9FBFD',
+        padding: '16px',
+        overflowY: 'auto',
+        height: '100%',
+        minHeight: '400px',
       }}
     >
       <div className="flex flex-col space-y-2 pb-8" data-testid="cue-card-display">
-        {/* Clear All Button */}
         <div className="flex justify-end">
           <button
             onClick={() => {
@@ -154,7 +145,6 @@ const CueCardDisplay = React.memo(() => {
           </button>
         </div>
 
-        {/* Render Cue Cards */}
         {visibleCueCards.map((cueCard) => (
           <CueCard
             key={cueCard.id}
@@ -166,7 +156,6 @@ const CueCardDisplay = React.memo(() => {
           />
         ))}
 
-        {/* Render Picture Cards */}
         {visiblePictures.map((picture) => (
           <PictureCard
             key={picture.id}
@@ -197,18 +186,19 @@ const CueCardDisplay = React.memo(() => {
           />
         ))}
 
-        {/* Render Practice Sheet Cards */}
+        {/* Updated: Pass quizType and quizContent to PracticeSheetCard */}
         {visiblePracticeSheets.map((practiceSheet) => (
           <PracticeSheetCard
             key={practiceSheet.id}
             id={practiceSheet.id}
             title={practiceSheet.title}
-            content={practiceSheet.content}
+            quizType={practiceSheet.quizType}  // Pass quizType
+            quizContent={practiceSheet.quizContent}  // Pass quizContent
             onOpenFullSize={() =>
               handleOpenOverlay(
                 <div>
                   <h2 className="text-xl font-bold mb-2">{practiceSheet.title}</h2>
-                  <p className="mb-4">{practiceSheet.content}</p>
+                  <p className="mb-4">{practiceSheet.quizContent}</p>
                   <button
                     onClick={handleCloseOverlay}
                     className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
@@ -222,8 +212,7 @@ const CueCardDisplay = React.memo(() => {
           />
         ))}
 
-        {/* Render Default Cue Card if No Resources are Visible */}
-        {visibleCueCards.length === 0 && visiblePictures.length === 0 && visiblePracticeSheets.length === 0 && (
+        {visibleCueCards.length === 0 && visiblePictures.length === 0 && visiblePracticeSheets.length === 0 &&
           defaultCueCards.map((cueCard) => (
             <CueCard
               key={cueCard.id}
@@ -233,9 +222,8 @@ const CueCardDisplay = React.memo(() => {
               conceptNodeTitle="Welcome"
             />
           ))
-        )}
+        }
 
-        {/* Overlay Window */}
         {overlayContent && (
           <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none">
             <div className="bg-white p-6 rounded shadow-lg pointer-events-auto max-w-lg w-full">

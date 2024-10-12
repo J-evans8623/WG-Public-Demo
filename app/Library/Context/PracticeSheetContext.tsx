@@ -1,12 +1,13 @@
-// bloom-maps/app/Library/Context/PracticeSheetContext.tsx
-
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-// Define the structure for a PracticeSheet
+// Define the structure for a PracticeSheet with quizType and quizContent fields
 export interface PracticeSheet {
   id: string;
   title: string;
-  content: string;
+  content: {
+    quizType: 'matching' | 'multipleChoice' | 'wordProblem'; // New field for quiz type
+    quizContent: string; // New field for actual content of the quiz
+  };
 }
 
 // Define the context type
@@ -23,9 +24,11 @@ interface PracticeSheetContextType {
 // Create the PracticeSheet context
 const PracticeSheetContext = createContext<PracticeSheetContextType | undefined>(undefined);
 
+// Serialization logic to handle the updated PracticeSheet structure
 export const serializePracticeSheets = (practiceSheets: Map<string, PracticeSheet[]>): [string, PracticeSheet[]][] => {
-    return Array.from(practiceSheets.entries());
-  };
+  return Array.from(practiceSheets.entries());
+};
+
 export const PracticeSheetProvider = ({ children }: { children: ReactNode }) => {
   const [practiceSheets, setPracticeSheetsState] = useState<Map<string, PracticeSheet[]>>(new Map());
 

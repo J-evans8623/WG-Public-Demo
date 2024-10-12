@@ -1,7 +1,5 @@
-// saveResource.ts
-
+// bloom-maps\app\Library\utils\ResourceSave\saveResource.ts
 import { CueCard, Picture, PracticeSheet } from '@/app/Library/Definitions/Definitions';
-
 
 export type ResourceType = 'cueCard' | 'picture' | 'practiceSheet';
 
@@ -16,7 +14,7 @@ interface ResourceSaveParams {
   bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   image?: File | null;
   pictureDescription?: string;
-  practiceSheetContent?: string;
+  practiceSheetContent?: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string }; // Updated structure
 }
 
 export function saveResource({
@@ -30,7 +28,7 @@ export function saveResource({
   bloomLevel = 1,
   image = null,
   pictureDescription = '',
-  practiceSheetContent = '',
+  practiceSheetContent,
 }: ResourceSaveParams) {
   switch (resourceType) {
     case 'cueCard':
@@ -61,7 +59,11 @@ export function saveResource({
         const newPracticeSheet: PracticeSheet = {
           id: Date.now().toString(),
           title: cueCardTitle,
-          content: practiceSheetContent,
+          // Directly assigning the object as the content
+          content: {
+            quizType: practiceSheetContent.quizType,
+            quizContent: practiceSheetContent.quizContent,
+          },
         };
         addPracticeSheet(nodeId, newPracticeSheet);
       }

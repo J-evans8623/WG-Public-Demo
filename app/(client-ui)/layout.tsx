@@ -9,7 +9,7 @@ import { DocumentProvider, serializeDocument , useDocumentContext, setColorTheme
 import { CueCard, ConceptNode, SerializedDocument, Picture,PracticeSheet} from '@/app/Library/Definitions/Definitions';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
-import ModernModal from '@/app/Library/components/ModernModal';//Tests
+import ModernModal from  '@/app/Library/Tests/Modals/ModernModal';//Tests
 import { useCueCardContext, serializeCueCards } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 import { useSubTreeContext, SubTreeProvider, serializeSubtrees, SubtreeData} from '@/app/Library/Context/SubTreeProvider'//'../Library/Context/SubTreeProvider'  
@@ -290,7 +290,6 @@ const handleLoadDocument = async (file: File) => {
       : modalNodeId
       ? nodes.get(modalNodeId)?.title || ''
       : '';
-
       const handleModalSave = (
         resourceType: ResourceType,
         nodeTitle: string,
@@ -298,8 +297,12 @@ const handleLoadDocument = async (file: File) => {
         cueCardContent?: string,
         bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6,
         image?: File | null,
+        source?: string,
         pictureDescription?: string,
-        practiceSheetContent?: string
+        practiceSheetContent?: {
+          quizType: 'matching' | 'multipleChoice' | 'wordProblem';
+          quizContent: string;
+        } // Updated type for practiceSheetContent
       ) => {
         if (modalNodeId) {
           // Logic for adding a child node or updating an existing node
@@ -307,7 +310,7 @@ const handleLoadDocument = async (file: File) => {
             const newNodeId = uuidv4(); // Generate a unique ID for the new child node
             dispatch(createNewNode(nodeTitle || 'New Concept', modalNodeId, newNodeId));
             dispatch(setGetLayout(true));
-    
+      
             // Save resource (cue card, picture, or practice sheet) to the new child node
             if (cueCardTitle || cueCardContent || image || practiceSheetContent) {
               saveResource({
@@ -320,13 +323,13 @@ const handleLoadDocument = async (file: File) => {
                 cueCardContent,
                 bloomLevel,
                 image,
-                practiceSheetContent,
+                practiceSheetContent, // Pass the updated structure
               });
             }
           } else if (modalMode === 'addResource') {
             // Update node title if it was changed
             dispatch(updateNodeTitle(modalNodeId, nodeTitle));
-    
+      
             // Save resource (cue card, picture, or practice sheet) to the existing node
             if (cueCardTitle || cueCardContent || image || practiceSheetContent) {
               saveResource({
@@ -339,13 +342,14 @@ const handleLoadDocument = async (file: File) => {
                 cueCardContent,
                 bloomLevel,
                 image,
-                practiceSheetContent,
+                practiceSheetContent, // Pass the updated structure
               });
             }
           }
         }
         setIsModalOpen(false); // Close the modal after saving
       };
+      
 
   return (
     <>

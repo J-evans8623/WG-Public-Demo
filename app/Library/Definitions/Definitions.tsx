@@ -214,5 +214,8 @@ export interface Picture {
 export interface PracticeSheet {
   id: string;
   title: string;
-  content: string;
+  content: {
+    quizType: 'matching' | 'multipleChoice' | 'wordProblem'; // New field for quiz type
+    quizContent: string; // New field for actual content of the quiz
+  };
 }

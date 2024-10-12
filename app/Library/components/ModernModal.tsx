@@ -1,9 +1,8 @@
 'use client';
-
+// bloom-maps\app\Library\components\ModernModal.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Tabs, Input, InputRef, Radio, Upload, Button } from 'antd';
 import { FaPencilAlt } from 'react-icons/fa';
-import { UploadFile } from 'antd/lib/upload/interface'; 
 
 const { TabPane } = Tabs;
 
@@ -89,14 +88,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
     }
   }, [isOpen, initialNodeTitle, mode, initialCueCardTitle, initialCueCardContent, initialBloomLevel, initialSource]);
 
-  // Handle image or GIF attachment
-  const handleImageChange = (info: any) => {
-    if (info.file.originFileObj) {
-      setImage(info.file.originFileObj);
-    }
-  };
-// Handle Picture Upload (for picture tab)
-// Handle Picture Upload (for picture tab)
+
 // Handle Picture Upload (for picture tab)
 const handlePictureUpload = (file: File) => {
     // List of allowed image MIME types, including more common image formats
