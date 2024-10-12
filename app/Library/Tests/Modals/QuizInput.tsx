@@ -1,26 +1,14 @@
-// bloom-maps\app\Library\Tests\Modals\QuizInput.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Input, Button, Row, Col, Alert } from 'antd';
 
 interface QuizInputProps {
   pairs: { question: string; answer: string }[];
   onRemovePair: (index: number) => void;
   onInputChange: (index: number, key: 'question' | 'answer', value: string) => void;
-  autofillText: string; // Receive autofill text as a prop
-  setAutofillText: (text: string) => void; // Function to update autofill text
 }
 
-const QuizInput: React.FC<QuizInputProps> = ({ pairs, onRemovePair, onInputChange, autofillText, setAutofillText }) => {
+const QuizInput: React.FC<QuizInputProps> = ({ pairs, onRemovePair, onInputChange }) => {
   const [error, setError] = useState<string | null>(null);
-
-  // Update the autofill text when pairs change (syncing)
-  useEffect(() => {
-    const formattedText = pairs
-      .filter(pair => pair.question && pair.answer) // Ensure both question and answer exist before adding to autofill text
-      .map(pair => `${pair.question}:${pair.answer}`)
-      .join(',');
-    setAutofillText(formattedText); // Sync the autofill text with the parent
-  }, [pairs]);
 
   return (
     <div>

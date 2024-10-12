@@ -3,7 +3,8 @@
   background-color: #f5f5f5;
   padding: 24px;
   border-radius: 8px;
-  max-width: 800px; /* Despite a px of 800, the modal still has a size of 550px and does not get larger after this point  */
+  max-width: 800px; 
+  min-width: 600px;
   overflow-y: auto;
   width: 100%;
   box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
@@ -14,6 +15,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr; /* Two-column layout for questions and answers */
   gap: 32px;
+  align-items: start; /* Ensures both columns align vertically at the top */
 }
 
 /* Section for questions and dropdowns */

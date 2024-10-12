@@ -7,9 +7,9 @@ const { Option } = Select;
 
 interface PracticeSheetInputProps {
   practiceSheetTitle: string;
-  practiceContent: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string }; // Ensure specific union types
+  practiceContent: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string };
   setPracticeSheetTitle: (title: string) => void;
-  setPracticeContent: (content: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string }) => void; // Ensure specific union types
+  setPracticeContent: (content: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string }) => void;
 }
 
 const MAX_ENTRIES = 10;
@@ -20,10 +20,11 @@ const PracticeSheetInput: React.FC<PracticeSheetInputProps> = ({
   setPracticeSheetTitle,
   setPracticeContent,
 }) => {
-  // Now, quizType is typed specifically to the allowed values
-  const [quizType, setQuizType] = useState<'matching' | 'multipleChoice' | 'wordProblem'>(practiceContent.quizType || 'matching'); 
+  const [quizType, setQuizType] = useState<'matching' | 'multipleChoice' | 'wordProblem'>(
+    practiceContent.quizType || 'matching'
+  );
   const [autofillText, setAutofillText] = useState<string>('');
-  const [pairs, setPairs] = useState<{ question: string; answer: string }[]>([{ question: '', answer: '' }]); // For matching quiz
+  const [pairs, setPairs] = useState<{ question: string; answer: string }[]>([{ question: '', answer: '' }]);
 
   const handleQuizTypeChange = (value: 'matching' | 'multipleChoice' | 'wordProblem') => {
     setQuizType(value);
@@ -31,12 +32,28 @@ const PracticeSheetInput: React.FC<PracticeSheetInputProps> = ({
     setAutofillText(''); // Clear autofill text
   };
 
-  // Autofill logic passed to the QuizInput component
   const handleAutofillChange = (text: string) => {
-    setAutofillText(text);
+    // Ensure that text ends with a comma
+    let updatedText = text;
+    if (!text.endsWith(',')) {
+      updatedText += ',';
+    }
+    setAutofillText(updatedText);
+
+    // Parse the text and update pairs
+    if (updatedText) {
+      const regex = /([^:,\n]+):([^:,\n]+),?/g; // Adjusted regex to handle trailing commas
+      let match;
+      const newPairs = [];
+      while ((match = regex.exec(updatedText)) !== null) {
+        newPairs.push({ question: match[1].trim(), answer: match[2].trim() });
+      }
+      setPairs(newPairs.slice(0, MAX_ENTRIES)); // Enforce MAX_ENTRIES limit
+    } else {
+      setPairs([{ question: '', answer: '' }]); // Reset pairs if autofillText is empty
+    }
   };
 
-  // Add a new empty pair
   const handleAddPair = () => {
     if (pairs.length >= MAX_ENTRIES) {
       return; // You can show an error message here if needed
@@ -44,26 +61,37 @@ const PracticeSheetInput: React.FC<PracticeSheetInputProps> = ({
     setPairs([...pairs, { question: '', answer: '' }]);
   };
 
-  // Remove a pair
   const handleRemovePair = (index: number) => {
-    setPairs(pairs.filter((_, i) => i !== index));
+    const updatedPairs = pairs.filter((_, i) => i !== index);
+    setPairs(updatedPairs);
+    // Update the autofillText accordingly
+    const formattedAutofillText = updatedPairs
+      .filter((pair) => pair.question && pair.answer)
+      .map((pair) => `${pair.question}:${pair.answer}`)
+      .join(', ');
+    setAutofillText(formattedAutofillText ? formattedAutofillText + ',' : '');
   };
 
-  // Handle change in question or answer input
   const handleInputChange = (index: number, key: 'question' | 'answer', value: string) => {
     const updatedPairs = [...pairs];
     updatedPairs[index][key] = value;
     setPairs(updatedPairs);
+    // Update the autofillText accordingly
+    const formattedAutofillText = updatedPairs
+      .filter((pair) => pair.question && pair.answer)
+      .map((pair) => `${pair.question}:${pair.answer}`)
+      .join(', ');
+    setAutofillText(formattedAutofillText ? formattedAutofillText + ',' : '');
   };
 
-  // This effect will update the practiceContent whenever pairs change or quizType changes
   useEffect(() => {
     const formattedContent = pairs
-      .filter(pair => pair.question && pair.answer) // Ensure both question and answer exist
-      .map(pair => `${pair.question}:${pair.answer}`) // Concatenate question and answer as Q:A
-      .join(', '); // Join pairs with a comma for a single content string
+      .filter((pair) => pair.question && pair.answer)
+      .map((pair) => `${pair.question}:${pair.answer}`)
+      .join(', '); // No extra comma at the end
 
-    setPracticeContent({ quizType, quizContent: formattedContent }); // Update practiceContent as an object
+    setPracticeContent({ quizType, quizContent: formattedContent });
+    // Do not update setAutofillText(formattedContent);
   }, [pairs, quizType, setPracticeContent]);
 
   return (
@@ -90,8 +118,6 @@ const PracticeSheetInput: React.FC<PracticeSheetInputProps> = ({
             pairs={pairs}
             onRemovePair={handleRemovePair}
             onInputChange={handleInputChange}
-            autofillText={autofillText}
-            setAutofillText={handleAutofillChange}
           />
         )}
         {quizType === 'multipleChoice' && <div>Multiple Choice Quiz Input (Coming Soon)</div>}
