@@ -1,89 +1,92 @@
-/* Style for the modal container */
+/* Updated Modal Styling */
 .quiz-modal {
-  background-color: #f5f5f5;
-  padding: 24px;
-  border-radius: 8px;
-  max-width: 800px; 
+  background-color: #ffffff ; /* Soft gray-blue background to match theme */
+  padding: 32px; /* Increased padding for more spacing */
+  border-radius: 0 px; /* Smoother rounded corners */
+  max-width: 800px;
   min-width: 600px;
   max-height: 600px;
   overflow-y: auto;
   width: 100%;
-  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
 }
 
 /* Layout for the quiz content */
 .quiz-content {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* Two-column layout for questions and answers */
-  gap: 32px;
-  align-items: start; /* Ensures both columns align vertically at the top */
+  grid-template-columns: 1fr 1fr;
+  gap: 40px; /* Increased gap for better spacing */
+  align-items: start;
 }
 
-/* Section for questions and dropdowns */
+/* Questions and answers sections */
 .question-section, .answer-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px; /* Slightly larger gap between items */
 }
 
 .question-item {
   display: flex;
-  justify-content: space-between; /* Aligns dropdown at the end of the first line */
-  align-items: flex-start; /* Aligns the question text at the start */
-  max-width: 100%; /* Ensure the question section doesn't overflow */
-  margin-bottom: 12px;
-  position: relative; /* Positions the dropdown at the end of the first line */
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px; /* Added more space below each item */
+  position: relative;
 }
 
-/* Control the wrapping behavior for long questions */
 .question-text {
-  font-size: 1.2rem; /* Increase font size */
-  max-width: 70%; /* Set a max width to ensure consistent placement */
-  word-wrap: break-word; /* Allows long words to break */
+  font-size: 1.2rem;
+  max-width: 70%;
+  word-wrap: break-word;
+  color: #333; /* Slightly darker text for readability */
 }
 
 .answer-dropdown {
   border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 6px;
-  font-size: 1.2rem; /* Adjust font size for balance */
-  width: 60px; /* Reduce width to balance the size */
+  border-radius: 6px; /* Rounded corners for the dropdown */
+  padding: 8px; /* More padding inside dropdown */
+  font-size: 1.2rem;
+  width: 80px; /* Adjusted width for better spacing */
   position: absolute;
-  right: 0; /* Align to the right of the question text */
-  top: 0; /* Keep dropdown aligned to the top */
+  right: 0;
+  top: 0;
 }
 
-/* Section for scrambled answers */
+/* Answer items */
 .answer-item {
-  font-size: 1.2rem; /* Increase font size */
+  font-size: 1.2rem;
   display: flex;
   align-items: center;
-  padding-left: 10px; /* Ensure consistency between the columns */
+  padding-left: 10px;
 }
 
 /* Buttons */
 .button-group {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 12px; /* Added space between buttons */
 }
 
 .quiz-modal button {
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: 10px 20px; /* Increased button size */
+  border-radius: 6px;
   font-size: 1rem;
 }
 
 button.close-btn {
-  background-color: #e0e0e0;
+  background-color: #d0d0d0;
   color: #333;
 }
 
 button.submit-btn {
-  background-color: #007bff;
+  background-color: #008cff; /* Brighter blue for better contrast */
   color: white;
 }
 
 button:hover {
-  opacity: 0.8;
+  opacity: 0.9;
+  cursor: pointer; /* Added pointer to indicate clickability */
+}
+
+button:active {
+  opacity: 0.8; /* Added active state feedback */
 }
