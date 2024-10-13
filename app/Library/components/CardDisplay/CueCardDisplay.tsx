@@ -1,17 +1,17 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import CueCard from './CueCard';
-import PictureCard from './PictureCard'; 
-import PracticeSheetCard from './PracticeSheetCard';
-import MatchingQuizModal from './MatchingQuizModal';  // Import the matching quiz modal
+import CueCard from '../CueCard';
+import PictureCard from '../PictureCard'; 
+import PracticeSheetCard from '../PracticeSheetCard';
+import MatchingQuizModal from '../MatchingQuizModal';
 import { CueCard as CueCardInterface } from '@/app/Library/Definitions/Definitions';
-import { useCueCardContext } from '../Context/CueCardContext';
-import { usePictureContext } from '../Context/PictureContext'; 
-import { usePracticeSheetContext } from '../Context/PracticeSheetContext'; 
+import { useCueCardContext } from '../../Context/CueCardContext';
+import { usePictureContext } from '../../Context/PictureContext'; 
+import { usePracticeSheetContext } from '../../Context/PracticeSheetContext'; 
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { Layout } from 'antd';
 import { parseQuizContent, scrambleArray } from '@/app/Library/utils/QuizUtils';
-import Draggable, { DraggableProps } from 'react-draggable';
+import ModalOverlayManager from './ModalOverlayManager'; // Import the new ModalOverlayManager
 
 const { Sider } = Layout;
 
@@ -34,17 +34,14 @@ const CueCardDisplay: React.FC<CueCardDisplayProps> = React.memo(({ centerPaneRe
   const { selectCueCards } = useCueCardContext();
   const { selectPictures } = usePictureContext();
   const { selectPracticeSheets } = usePracticeSheetContext();
+  
   const [dismissedResourceIds, setDismissedResourceIds] = useState<Map<string, string[]>>(new Map());
-  const [overlayContent, setOverlayContent] = useState<React.ReactNode | null>(null); 
+  const [openedPictureModals, setOpenedPictureModals] = useState<{ id: string, content: React.ReactNode }[]>([]); // Track opened picture modals
+  const [overlayContent, setOverlayContent] = useState<React.ReactNode | null>(null); // State for quiz modal (only one allowed)
   const { state } = useDocumentContext();
   const { nodes } = state;
 
   const selectedNodeIds = getSelectedNodeIds();
-  
-  const [isCenterPaneReady, setIsCenterPaneReady] = useState<boolean>(false);
-  const [bounds, setBounds] = useState<DraggableProps['bounds']>();
-  const [initialPosition, setInitialPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   useEffect(() => {
     setDismissedResourceIds((prev) => {
@@ -125,6 +122,26 @@ const CueCardDisplay: React.FC<CueCardDisplayProps> = React.memo(({ centerPaneRe
     [selectCueCards, selectPictures, selectPracticeSheets, deselectNode]
   );
 
+  // Handle opening a modal for picture cards, one for each picture
+  const handleOpenPictureModal = (pictureId: string, content: React.ReactNode) => {
+    setOpenedPictureModals((prevModals) => {
+      // Check if modal for this picture is already opened
+      const isAlreadyOpened = prevModals.some((modal) => modal.id === pictureId);
+      if (!isAlreadyOpened) {
+        return [...prevModals, { id: pictureId, content }];
+      }
+      return prevModals;
+    });
+  };
+
+  // Handle closing a specific picture modal
+  const handleClosePictureModal = (pictureId: string) => {
+    setOpenedPictureModals((prevModals) =>
+      prevModals.filter((modal) => modal.id !== pictureId)
+    );
+  };
+
+  // Handle opening a single quiz modal (only one allowed)
   const handleOpenQuizModal = (quizContent: string) => {
     const parsedQuiz = parseQuizContent(quizContent);
     const scrambledAnswers = scrambleArray(parsedQuiz.map((q) => q.answer));
@@ -137,70 +154,8 @@ const CueCardDisplay: React.FC<CueCardDisplayProps> = React.memo(({ centerPaneRe
     );
   };
 
-  const handleOpenOverlay = (content: React.ReactNode) => {
-    setOverlayContent(content);
-  };
-
   const handleCloseOverlay = () => {
     setOverlayContent(null);
-  };
-
-  // Dynamically update bounds based on pane sizes and window size
-  useEffect(() => {
-    const updateBounds = () => {
-      if (centerPaneRef && centerPaneRef.current) {
-        const centerPaneRect = centerPaneRef.current.getBoundingClientRect();
-
-        // Calculate the left bound as the width of the left pane
-        const leftPaneWidth = (window.innerWidth * paneSizes[0]) / 100; // Convert left pane size to pixels
-
-        setBounds({
-          left: leftPaneWidth, // Account for the width of the left pane
-          top: 0,
-          right: centerPaneRect.width,
-          bottom: centerPaneRect.height / 2, // Use half of the height for the bottom bound
-        });
-
-        // Set the initial position to start within the center pane
-        setInitialPosition({
-          x: leftPaneWidth + 50, // Start 50px from the left bound
-          y: centerPaneRect.height / 4, // Start at a quarter of the height
-        });
-
-        setIsCenterPaneReady(true);
-      } else {
-        setIsCenterPaneReady(false);
-      }
-    };
-
-    // Update bounds on window resize and pane size changes
-    window.addEventListener('resize', updateBounds);
-    updateBounds(); // Initial call
-
-    return () => {
-      window.removeEventListener('resize', updateBounds); // Cleanup listener on unmount
-    };
-  }, [centerPaneRef, paneSizes, window.innerHeight, window.innerWidth]);
-
-  // Disable background scrolling when dragging starts
-  const handleStart = () => {
-    setIsDragging(true);
-    if (centerPaneRef.current) {
-      centerPaneRef.current.style.overflow = 'hidden'; // Disable scroll
-    }
-  };
-
-  // Re-enable scrolling when dragging stops
-  const handleStop = () => {
-    setIsDragging(false);
-    if (centerPaneRef.current) {
-      centerPaneRef.current.style.overflow = 'auto'; // Enable scroll
-    }
-  };
-
-  // Prevent default dragging behavior of images inside the modal
-  const preventImageDrag = (e: React.DragEvent<HTMLImageElement>) => {
-    e.preventDefault();
   };
 
   return (
@@ -245,7 +200,7 @@ const CueCardDisplay: React.FC<CueCardDisplayProps> = React.memo(({ centerPaneRe
             title={picture.title}
             image={picture.image}
             onOpenFullSize={() =>
-              handleOpenOverlay(
+              handleOpenPictureModal(picture.id, (
                 <div>
                   <h2 className="text-xl font-bold mb-2">{picture.title}</h2>
                   {picture.image && (
@@ -253,17 +208,16 @@ const CueCardDisplay: React.FC<CueCardDisplayProps> = React.memo(({ centerPaneRe
                       src={URL.createObjectURL(picture.image)}
                       alt={picture.title}
                       className="max-w-full h-auto mb-4"
-                      onDragStart={preventImageDrag} // Prevent image drag behavior
                     />
                   )}
                   <button
-                    onClick={handleCloseOverlay}
+                    onClick={() => handleClosePictureModal(picture.id)}
                     className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                   >
                     Close
                   </button>
                 </div>
-              )
+              ))
             }
             onDismiss={() => handleDismissResource(picture.id, picture.nodeId)}
           />
@@ -293,18 +247,15 @@ const CueCardDisplay: React.FC<CueCardDisplayProps> = React.memo(({ centerPaneRe
           ))
         }
 
-        {isCenterPaneReady && overlayContent && bounds && (
-          <Draggable 
-            bounds={bounds} 
-            defaultPosition={initialPosition} 
-            onStart={handleStart} 
-            onStop={handleStop}
-          >
-            <div className="fixed z-[9999] pointer-events-auto bg-white p-6 shadow-lg rounded-lg max-w-[70%] w-auto">
-              <div>{overlayContent}</div>
-            </div>
-          </Draggable>
-        )}
+        {/* Render modal overlay using ModalOverlayManager */}
+        <ModalOverlayManager
+          centerPaneRef={centerPaneRef}
+          paneSizes={paneSizes}
+          overlayContent={overlayContent}
+          setOverlayContent={setOverlayContent}
+          openedPictureModals={openedPictureModals}
+          handleClosePictureModal={handleClosePictureModal}
+        />
       </div>
     </Sider>
   );

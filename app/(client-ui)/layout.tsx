@@ -3,7 +3,7 @@
 'use client';
 import React, { useState, useCallback, useEffect, useRef } from 'react'; 
 import Split from 'react-split';
-import CueCardDisplay from '@/app/Library/components/CueCardDisplay'// Tests
+import CueCardDisplay from '@/app/Library/components/CardDisplay/CueCardDisplay'// Tests
 import ConceptMap from '@/app/Library/components/ConceptMap';
 import { DocumentProvider, serializeDocument , useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize, updateNodeTitle, createNewNode, setGetLayout, setNodes} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
 import { CueCard, ConceptNode, SerializedDocument, Picture,PracticeSheet} from '@/app/Library/Definitions/Definitions';
@@ -407,22 +407,27 @@ const handleLoadDocument = async (file: File) => {
 
 
       <Split
-    className="flex h-[calc(100vh-50px)]"
-    sizes={paneSizes}
-    minSize={[200, 400, 200]}
-    maxSize={[500, Infinity, 400]}
-    gutterSize={6}
-    direction="horizontal"
-    cursor="col-resize"
-    onDragEnd={(sizes) => {
-      setPaneSizes(sizes);
-    }}
-  >
+  className="flex h-[calc(100vh-50px)]"
+  sizes={paneSizes}
+  minSize={[200, 400, 200]}
+  maxSize={[500, Infinity, 400]}
+  gutterSize={6}
+  direction="horizontal"
+  cursor="col-resize"
+  onDragEnd={(sizes) => {
+    setPaneSizes(sizes);
+  }}
+>
   {/* Left Panel (Cue Card Viewer) */}
   <div className="flex flex-col space-y-2 bg-[#F9FBFD] p-4 shadow-lg rounded-lg overflow-y-auto">
-          {/* Only render the CueCardDisplay after the center pane is mounted */}
-          {isCenterPaneMounted && <CueCardDisplay centerPaneRef={centerPaneRef} paneSizes={paneSizes}/>}
-        </div>
+    {/* Only render the CueCardDisplay after the center pane is mounted */}
+    {isCenterPaneMounted && (
+      <div className="flex flex-col space-y-2 pb-40">
+        {/* Insert CueCardDisplay here */}
+        <CueCardDisplay centerPaneRef={centerPaneRef} paneSizes={paneSizes} />
+      </div>
+    )}
+  </div>
 
   {/* Center Pane (Map Canvas) */}
   <div
@@ -432,21 +437,23 @@ const handleLoadDocument = async (file: File) => {
       position: 'relative',
       overflowX: 'auto', // Enables horizontal scrolling
       overflowY: 'auto', // Enables vertical scrolling
-      scrollbarWidth: 'none', 
+      scrollbarWidth: 'none',
     }}
   >
-    <ConceptMap 
-    groundWidth={windowWidth} 
-    centerPaneRef={centerPaneRef} 
-    onOpenCueCardModal={handleOpenCueCardModal} 
-    onOpenAddChildModal={handleOpenAddChildModal}/>
+    <ConceptMap
+      groundWidth={windowWidth}
+      centerPaneRef={centerPaneRef}
+      onOpenCueCardModal={handleOpenCueCardModal}
+      onOpenAddChildModal={handleOpenAddChildModal}
+    />
   </div>
 
   {/* Right Panel (Tool Interface) */}
   <div className="relative bg-[#F9FBFD] p-4 shadow-lg rounded-lg overflow-auto">
-  <ToolPane />
+    <ToolPane />
   </div>
 </Split>
+
     </>
   );
 }
