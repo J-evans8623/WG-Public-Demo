@@ -350,6 +350,13 @@ const handleLoadDocument = async (file: File) => {
         setIsModalOpen(false); // Close the modal after saving
       };
       
+      const [isCenterPaneMounted, setIsCenterPaneMounted] = useState<boolean>(false);
+        // Set the state when the center pane is mounted
+  useEffect(() => {
+    if (centerPaneRef) {
+      setIsCenterPaneMounted(true); // Mark the center pane as mounted
+    }
+  }, [centerPaneRef]);
 
   return (
     <>
@@ -413,8 +420,9 @@ const handleLoadDocument = async (file: File) => {
   >
   {/* Left Panel (Cue Card Viewer) */}
   <div className="flex flex-col space-y-2 bg-[#F9FBFD] p-4 shadow-lg rounded-lg overflow-y-auto">
-    <CueCardDisplay />
-  </div>
+          {/* Only render the CueCardDisplay after the center pane is mounted */}
+          {isCenterPaneMounted && <CueCardDisplay centerPaneRef={centerPaneRef} paneSizes={paneSizes}/>}
+        </div>
 
   {/* Center Pane (Map Canvas) */}
   <div

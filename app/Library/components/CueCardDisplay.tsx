@@ -1,4 +1,3 @@
-// bloom-maps\app\Library\components\CueCardDisplay.tsx
 import React, { useState, useCallback, useEffect } from 'react';
 import CueCard from './CueCard';
 import PictureCard from './PictureCard'; 
@@ -11,7 +10,8 @@ import { usePracticeSheetContext } from '../Context/PracticeSheetContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { Layout } from 'antd';
-import { parseQuizContent, scrambleAnswers, calculateScore, scrambleArray } from '@/app/Library/utils/QuizUtils'  // Import utility functions
+import { parseQuizContent, scrambleArray } from '@/app/Library/utils/QuizUtils';
+import Draggable, { DraggableProps } from 'react-draggable';
 
 const { Sider } = Layout;
 
@@ -24,7 +24,12 @@ const defaultCueCards: CueCardInterface[] = [
   },
 ];
 
-const CueCardDisplay = React.memo(() => {
+interface CueCardDisplayProps {
+  centerPaneRef: React.RefObject<HTMLDivElement>;
+  paneSizes: number[];
+}
+
+const CueCardDisplay: React.FC<CueCardDisplayProps> = React.memo(({ centerPaneRef, paneSizes }) => {
   const { getSelectedNodeIds, clearSelection, deselectNode } = useNodeSelection();
   const { selectCueCards } = useCueCardContext();
   const { selectPictures } = usePictureContext();
@@ -35,6 +40,11 @@ const CueCardDisplay = React.memo(() => {
   const { nodes } = state;
 
   const selectedNodeIds = getSelectedNodeIds();
+  
+  const [isCenterPaneReady, setIsCenterPaneReady] = useState<boolean>(false);
+  const [bounds, setBounds] = useState<DraggableProps['bounds']>();
+  const [initialPosition, setInitialPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   useEffect(() => {
     setDismissedResourceIds((prev) => {
@@ -65,12 +75,11 @@ const CueCardDisplay = React.memo(() => {
     }))
   );
 
-  // Updated practiceSheets array processing
   const practiceSheets = selectedNodeIds.flatMap((nodeId) =>
     selectPracticeSheets(nodeId).map((practiceSheet) => ({
       ...practiceSheet,
-      quizType: practiceSheet.content.quizType, // Extract quizType
-      quizContent: practiceSheet.content.quizContent, // Extract quizContent
+      quizType: practiceSheet.content.quizType,
+      quizContent: practiceSheet.content.quizContent,
       conceptNodeTitle: nodes.get(nodeId)?.title || 'Untitled',
       nodeId,
     }))
@@ -116,12 +125,9 @@ const CueCardDisplay = React.memo(() => {
     [selectCueCards, selectPictures, selectPracticeSheets, deselectNode]
   );
 
-  // New function to handle opening the Matching Quiz Modal
   const handleOpenQuizModal = (quizContent: string) => {
-    const parsedQuiz = parseQuizContent(quizContent);  // Parse quiz content
-    const scrambledAnswers = scrambleArray(parsedQuiz.map((q) => q.answer));  // Scramble answers
-
-    // Open modal with the matching quiz modal content
+    const parsedQuiz = parseQuizContent(quizContent);
+    const scrambledAnswers = scrambleArray(parsedQuiz.map((q) => q.answer));
     setOverlayContent(
       <MatchingQuizModal
         quiz={parsedQuiz}
@@ -137,6 +143,64 @@ const CueCardDisplay = React.memo(() => {
 
   const handleCloseOverlay = () => {
     setOverlayContent(null);
+  };
+
+  // Dynamically update bounds based on pane sizes and window size
+  useEffect(() => {
+    const updateBounds = () => {
+      if (centerPaneRef && centerPaneRef.current) {
+        const centerPaneRect = centerPaneRef.current.getBoundingClientRect();
+
+        // Calculate the left bound as the width of the left pane
+        const leftPaneWidth = (window.innerWidth * paneSizes[0]) / 100; // Convert left pane size to pixels
+
+        setBounds({
+          left: leftPaneWidth, // Account for the width of the left pane
+          top: 0,
+          right: centerPaneRect.width,
+          bottom: centerPaneRect.height / 2, // Use half of the height for the bottom bound
+        });
+
+        // Set the initial position to start within the center pane
+        setInitialPosition({
+          x: leftPaneWidth + 50, // Start 50px from the left bound
+          y: centerPaneRect.height / 4, // Start at a quarter of the height
+        });
+
+        setIsCenterPaneReady(true);
+      } else {
+        setIsCenterPaneReady(false);
+      }
+    };
+
+    // Update bounds on window resize and pane size changes
+    window.addEventListener('resize', updateBounds);
+    updateBounds(); // Initial call
+
+    return () => {
+      window.removeEventListener('resize', updateBounds); // Cleanup listener on unmount
+    };
+  }, [centerPaneRef, paneSizes, window.innerHeight, window.innerWidth]);
+
+  // Disable background scrolling when dragging starts
+  const handleStart = () => {
+    setIsDragging(true);
+    if (centerPaneRef.current) {
+      centerPaneRef.current.style.overflow = 'hidden'; // Disable scroll
+    }
+  };
+
+  // Re-enable scrolling when dragging stops
+  const handleStop = () => {
+    setIsDragging(false);
+    if (centerPaneRef.current) {
+      centerPaneRef.current.style.overflow = 'auto'; // Enable scroll
+    }
+  };
+
+  // Prevent default dragging behavior of images inside the modal
+  const preventImageDrag = (e: React.DragEvent<HTMLImageElement>) => {
+    e.preventDefault();
   };
 
   return (
@@ -189,6 +253,7 @@ const CueCardDisplay = React.memo(() => {
                       src={URL.createObjectURL(picture.image)}
                       alt={picture.title}
                       className="max-w-full h-auto mb-4"
+                      onDragStart={preventImageDrag} // Prevent image drag behavior
                     />
                   )}
                   <button
@@ -204,15 +269,14 @@ const CueCardDisplay = React.memo(() => {
           />
         ))}
 
-        {/* Updated: Pass quizType and quizContent to PracticeSheetCard */}
         {visiblePracticeSheets.map((practiceSheet) => (
           <PracticeSheetCard
             key={practiceSheet.id}
             id={practiceSheet.id}
             title={practiceSheet.title}
-            quizType={practiceSheet.quizType}  // Pass quizType
-            quizContent={practiceSheet.quizContent}  // Pass quizContent
-            onOpenFullSize={() => handleOpenQuizModal(practiceSheet.quizContent)}  // Open quiz modal
+            quizType={practiceSheet.quizType}
+            quizContent={practiceSheet.quizContent}
+            onOpenFullSize={() => handleOpenQuizModal(practiceSheet.quizContent)}
             onDismiss={() => handleDismissResource(practiceSheet.id, practiceSheet.nodeId)}
           />
         ))}
@@ -229,12 +293,17 @@ const CueCardDisplay = React.memo(() => {
           ))
         }
 
-        {overlayContent && (
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none">
-            <div className="p-6 pointer-events-auto max-w-full w-full">
-              {overlayContent}
+        {isCenterPaneReady && overlayContent && bounds && (
+          <Draggable 
+            bounds={bounds} 
+            defaultPosition={initialPosition} 
+            onStart={handleStart} 
+            onStop={handleStop}
+          >
+            <div className="fixed z-[9999] pointer-events-auto bg-white p-6 shadow-lg rounded-lg max-w-[70%] w-auto">
+              <div>{overlayContent}</div>
             </div>
-          </div>
+          </Draggable>
         )}
       </div>
     </Sider>
