@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Select, Divider, Button } from 'antd';
 import QuizInput from './QuizInput';
-import './PracticeSheetStyles.css'; // Updated styles
+import './PracticeSheetStyles.css';
+import { parseQuizContent, encodeQuizContent } from '@/app/Library/utils/QuizUtils'; // Import utility functions
 
 const { Option } = Select;
 
@@ -42,12 +43,7 @@ const PracticeSheetInput: React.FC<PracticeSheetInputProps> = ({
 
     // Parse the text and update pairs
     if (updatedText) {
-      const regex = /([^:,\n]+):([^:,\n]+),?/g; // Adjusted regex to handle trailing commas
-      let match;
-      const newPairs = [];
-      while ((match = regex.exec(updatedText)) !== null) {
-        newPairs.push({ question: match[1].trim(), answer: match[2].trim() });
-      }
+      const newPairs = parseQuizContent(updatedText);
       setPairs(newPairs.slice(0, MAX_ENTRIES)); // Enforce MAX_ENTRIES limit
     } else {
       setPairs([{ question: '', answer: '' }]); // Reset pairs if autofillText is empty
@@ -65,10 +61,7 @@ const PracticeSheetInput: React.FC<PracticeSheetInputProps> = ({
     const updatedPairs = pairs.filter((_, i) => i !== index);
     setPairs(updatedPairs);
     // Update the autofillText accordingly
-    const formattedAutofillText = updatedPairs
-      .filter((pair) => pair.question && pair.answer)
-      .map((pair) => `${pair.question}:${pair.answer}`)
-      .join(', ');
+    const formattedAutofillText = encodeQuizContent(updatedPairs);
     setAutofillText(formattedAutofillText ? formattedAutofillText + ',' : '');
   };
 
@@ -77,19 +70,12 @@ const PracticeSheetInput: React.FC<PracticeSheetInputProps> = ({
     updatedPairs[index][key] = value;
     setPairs(updatedPairs);
     // Update the autofillText accordingly
-    const formattedAutofillText = updatedPairs
-      .filter((pair) => pair.question && pair.answer)
-      .map((pair) => `${pair.question}:${pair.answer}`)
-      .join(', ');
+    const formattedAutofillText = encodeQuizContent(updatedPairs);
     setAutofillText(formattedAutofillText ? formattedAutofillText + ',' : '');
   };
 
   useEffect(() => {
-    const formattedContent = pairs
-      .filter((pair) => pair.question && pair.answer)
-      .map((pair) => `${pair.question}:${pair.answer}`)
-      .join(', '); // No extra comma at the end
-
+    const formattedContent = encodeQuizContent(pairs);
     setPracticeContent({ quizType, quizContent: formattedContent });
     // Do not update setAutofillText(formattedContent);
   }, [pairs, quizType, setPracticeContent]);
@@ -136,7 +122,7 @@ const PracticeSheetInput: React.FC<PracticeSheetInputProps> = ({
         <label htmlFor="autofill-text">Autofill Text</label>
         <Input
           id="autofill-text"
-          placeholder="Enter autofill text (e.g., Q1:A1,Q2:A2)"
+          placeholder="Enter autofill text (e.g., Q1@A1,Q2@A2)"
           value={autofillText}
           onChange={(e) => handleAutofillChange(e.target.value)}
         />

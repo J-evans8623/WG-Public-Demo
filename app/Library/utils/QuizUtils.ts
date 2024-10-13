@@ -1,17 +1,30 @@
 // bloom-maps\app\Library\utils\QuizUtils.ts
-// Utility function to parse quiz content encoded as 'Question1:AnswerA,Question2:AnswerB,...'
-export function parseQuizContent(quizContent: string): { question: string, answer: string }[] {
+
+// Utility function to parse quiz content encoded as 'Question1@AnswerA,Question2@AnswerB,...'
+export function parseQuizContent(quizContent: string): { question: string; answer: string }[] {
     const pairs = quizContent.split(',');
-    return pairs.map(pair => {
-      const [question, answer] = pair.split(':');
-      return { question, answer };
-    });
+    return pairs
+      .map((pair) => pair.trim())
+      .filter((pair) => pair) // Remove any empty strings
+      .map((pair) => {
+        const [question, answer] = pair.split('@');
+        return { question: question?.trim() || '', answer: answer?.trim() || '' };
+      })
+      .filter((pair) => pair.question && pair.answer); // Ensure both question and answer are present
+  }
+  
+  // Utility function to encode quiz content from an array of question-answer pairs
+  export function encodeQuizContent(pairs: { question: string; answer: string }[]): string {
+    return pairs
+      .filter((pair) => pair.question && pair.answer) // Ensure both question and answer are present
+      .map((pair) => `${pair.question}@${pair.answer}`)
+      .join(', ');
   }
   
   // Utility function to scramble the answers
-  export function scrambleAnswers(quiz: { question: string, answer: string }[]): { question: string, scrambledAnswer: string }[] {
-    const answers = quiz.map(q => q.answer);
-    
+  export function scrambleAnswers(quiz: { question: string; answer: string }[]): { question: string; scrambledAnswer: string }[] {
+    const answers = quiz.map((q) => q.answer);
+  
     // Fisher-Yates shuffle algorithm
     for (let i = answers.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -25,7 +38,7 @@ export function parseQuizContent(quizContent: string): { question: string, answe
   }
   
   // Utility function to calculate the score by comparing user answers with the correct answers
-  export function calculateScore(userAnswers: string[], answerKey: { question: string, answer: string }[]): number {
+  export function calculateScore(userAnswers: string[], answerKey: { question: string; answer: string }[]): number {
     let score = 0;
   
     userAnswers.forEach((userAnswer, index) => {
@@ -38,7 +51,7 @@ export function parseQuizContent(quizContent: string): { question: string, answe
   }
   
   // Utility function to scramble an array
-export function scrambleArray<T>(array: T[]): T[] {
+  export function scrambleArray<T>(array: T[]): T[] {
     const scrambled = [...array];
     for (let i = scrambled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));

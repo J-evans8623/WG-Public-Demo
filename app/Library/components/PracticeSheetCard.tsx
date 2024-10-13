@@ -1,6 +1,6 @@
-// bloom-maps\app\Library\components\PracticeSheetCard.tsx
 import React from 'react';
 import QuizIcon from '@/app/icons-custom/Quiz.svg';
+import { parseQuizContent } from '@/app/Library/utils/QuizUtils'; // Import parseQuizContent
 
 interface PracticeSheetCardProps {
   id: string;
@@ -18,9 +18,12 @@ const PracticeSheetCard: React.FC<PracticeSheetCardProps> = ({
   onOpenFullSize,
   onDismiss,
 }) => {
-  // Extract a preview of the first question-answer pair for 'matching' type quizzes
+  // Parse quiz content to extract a preview
+  const parsedQuiz = parseQuizContent(quizContent);
   const preview =
-    quizType === 'matching' ? quizContent.split(',')[0] : quizContent;
+    quizType === 'matching' && parsedQuiz.length > 0
+      ? `${parsedQuiz[0].question}@${parsedQuiz[0].answer}`
+      : 'No content available';
 
   // Define descriptions for each quiz type
   const quizTypeLabel = (type: 'matching' | 'multipleChoice' | 'wordProblem') => {
@@ -66,7 +69,7 @@ const PracticeSheetCard: React.FC<PracticeSheetCardProps> = ({
       {/* Quiz Type and Preview at the bottom */}
       <p className="text-gray-500 mt-2 text-center">
         <span className="font-semibold">{quizTypeLabel(quizType)}: </span>
-        {preview ? preview : 'No content available'}
+        {preview}
       </p>
     </div>
   );

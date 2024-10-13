@@ -43,7 +43,7 @@ const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
     };
 
     const handleCopy = () => {
-      const textToCopy = `${title}:${content}`;
+      const textToCopy = `${title}@${content}`;
       navigator.clipboard.writeText(textToCopy).then(() => {
         // Optional: Show a notification that the text was copied
         console.log('Cue card copied to clipboard');
