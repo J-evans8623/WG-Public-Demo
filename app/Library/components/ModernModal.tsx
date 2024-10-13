@@ -5,7 +5,12 @@ import { Tabs, Input, InputRef, Radio, Upload, Button } from 'antd';
 import { FaPencilAlt } from 'react-icons/fa';
 
 const { TabPane } = Tabs;
-
+/**
+ * Original general purpose modern modal
+ * Oct 13/10/2024
+ * 
+ * 
+ */
 interface ModernModalProps {
   isOpen: boolean;
   onClose: () => void;
