@@ -88,7 +88,7 @@ const ModalOverlayManager: React.FC<ModalOverlayManagerProps> = ({
           onStart={handleStart}
           onStop={handleStop}
         >
-          <div className="fixed z-[9999] pointer-events-auto bg-[#f5f5f5] p-6 shadow-lg rounded-lg max-w-[70%] w-auto">
+          <div className="fixed z-[9999] pointer-events-auto bg-[#D8EAF2] p-6 shadow-lg rounded-lg max-w-[70%] w-auto">
             <div onDragStart={preventImageDrag}>
               {overlayContent}
             </div>
@@ -105,7 +105,7 @@ const ModalOverlayManager: React.FC<ModalOverlayManagerProps> = ({
           onStart={handleStart}
           onStop={handleStop}
         >
-          <div className="fixed z-[9999] pointer-events-auto bg-[#f5f5f5] p-6 shadow-lg rounded-lg max-w-[70%] w-auto">
+          <div className="fixed z-[9999] pointer-events-auto bg-[#D8EAF2] p-6 shadow-lg rounded-lg max-w-[70%] w-auto">
             <div onDragStart={preventImageDrag}>
               {modal.content}
             </div>

@@ -11,7 +11,7 @@ interface PictureCardProps {
 
 const PictureCard: React.FC<PictureCardProps> = ({ title, description, image, onOpenFullSize, onDismiss }) => {
   return (
-    <div className="bg-gray-200 p-4 border rounded shadow-sm cursor-pointer" onClick={onOpenFullSize}>
+    <div className="bg-[#D8EAF2] p-4 border rounded shadow-sm cursor-pointer" onClick={onOpenFullSize}>
       <div className="flex justify-between">
         <p className="font-bold text-lg">{title}</p>
         {onDismiss && (

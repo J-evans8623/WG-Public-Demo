@@ -9,7 +9,7 @@ import { DocumentProvider, serializeDocument , useDocumentContext, setColorTheme
 import { CueCard, ConceptNode, SerializedDocument, Picture,PracticeSheet} from '@/app/Library/Definitions/Definitions';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
-import ModernModal from  '@/app/Library/Tests/Modals/ModernModal';//Tests
+import ModernModal from  '@/app/Library/components/Modals/ModernModal';//Tests
 import { useCueCardContext, serializeCueCards } from '@/app/Library/Context/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 import { useSubTreeContext, SubTreeProvider, serializeSubtrees, SubtreeData} from '@/app/Library/Context/SubTreeProvider'//'../Library/Context/SubTreeProvider'  

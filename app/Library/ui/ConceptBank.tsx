@@ -5,7 +5,7 @@ import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
 import ConceptNodeDisplay from './ConceptNodeDisplay';
 import { Fab } from '@mui/material';
-import ModernModal from  '@/app/Library/Tests/Modals/ModernModal';//Tests
+import ModernModal from  '@/app/Library/components/Modals/ModernModal';//Tests
 import ContentCutOutlinedIcon from '@mui/icons-material/ContentCutOutlined';
 import ContentPasteIcon from '@mui/icons-material/ContentPaste';
 import EditIcon from '@mui/icons-material/Edit';
