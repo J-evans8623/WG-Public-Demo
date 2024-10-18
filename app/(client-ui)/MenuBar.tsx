@@ -1,8 +1,9 @@
+// bloom-maps\app\(client-ui)\MenuBar.tsx
 import React, { useState } from 'react';
-import { Menu, Input, Button } from 'antd';
+import { Input, Button } from 'antd';
+import { useDocumentContext } from '@/app/Library/Context/DocumentProvider'; // Import useDocumentContext
 
 interface MenuBarProps {
-  documentTitle: string;
   onTitleChange: (newTitle: string) => void;
   onNewDocument: () => void;
   onOpenDocument: () => void;
@@ -11,15 +12,15 @@ interface MenuBarProps {
 }
 
 const MenuBar: React.FC<MenuBarProps> = ({
-  documentTitle,
   onTitleChange,
   onNewDocument,
   onOpenDocument,
   onSaveDocument,
   onHelp,
 }) => {
+  const { state, dispatch } = useDocumentContext();  // Get fileName from context
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [newTitle, setNewTitle] = useState(documentTitle);
+  const [newTitle, setNewTitle] = useState(state.fileName);  // Initialize with current fileName
 
   const handleTitleClick = () => {
     setIsEditingTitle(true);
@@ -31,7 +32,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   const handleTitleBlur = () => {
     setIsEditingTitle(false);
-    onTitleChange(newTitle);
+    onTitleChange(newTitle);  // Trigger the title change event to update the state
   };
 
   return (
@@ -51,38 +52,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
               onClick={handleTitleClick}
               style={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '18px' }} // Title styling
             >
-              {documentTitle}
+              {state.fileName}  {/* Display the file name from the context */}
             </span>
           )}
         </div>
         <div className="menu-buttons">
-          <Button
-            onClick={onNewDocument}
-            className="menu-button"
-          >
-            New Document
-          </Button>
-          <Button
-            onClick={onOpenDocument}
-            className="menu-button"
-          >
-            Open
-          </Button>
-          <Button
-            onClick={onSaveDocument}
-            className="menu-button"
-          >
-            Save
-          </Button>
+          <Button onClick={onNewDocument} className="menu-button">New Document</Button>
+          <Button onClick={onOpenDocument} className="menu-button">Open</Button>
+          <Button onClick={onSaveDocument} className="menu-button">Save</Button>
         </div>
       </div>
       <div className="menu-right">
-        <Button
-          onClick={onHelp}
-          className="menu-button help-button"
-        >
-          Help
-        </Button>
+        <Button onClick={onHelp} className="menu-button help-button">Help</Button>
       </div>
     </div>
   );

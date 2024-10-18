@@ -151,7 +151,7 @@ export interface DocumentContextType {
     scrollTop: number; // Add this line for vertical scroll position
     primaryColor: string; // New property
     backgroundColor: string;
-    
+    fileName: string;    
     // Add other state properties as needed
   }
   export type DocumentAction =
@@ -171,7 +171,9 @@ export interface DocumentContextType {
   | { type: DocumentActionType.ZOOM_OUT }
   | { type: DocumentActionType.SET_PRIMARY_COLOR; payload: string } // New action type
   | { type: DocumentActionType.SET_BACKGROUND_COLOR; payload: string }
-  | { type: DocumentActionType.TOGGLE_RESET_MAP_SIZE };
+  | { type: DocumentActionType.TOGGLE_RESET_MAP_SIZE }
+  | { type: DocumentActionType.SET_FILE_NAME; payload: string } ;
+
 
 // Action Types
 export enum DocumentActionType {
@@ -191,7 +193,8 @@ export enum DocumentActionType {
   UPDATE_NODE = 'UPDATE_NODE',
   SET_PRIMARY_COLOR = 'SET_PRIMARY_COLOR',
   SET_BACKGROUND_COLOR = 'SET_BACKGROUND_COLOR',
-  TOGGLE_RESET_MAP_SIZE = 'TOGGLE_RESET_MAP_SIZE', 
+  TOGGLE_RESET_MAP_SIZE = 'TOGGLE_RESET_MAP_SIZE',
+  SET_FILE_NAME = 'SET_FILE_NAME',
   // Add other action types as needed
 }
 
@@ -201,6 +204,7 @@ export interface SerializedDocument {
   colorTheme: ColorTheme;
   primaryColor: string;
   backgroundColor: string;
+  fileName: string; 
 }
 
 // Picture Definition

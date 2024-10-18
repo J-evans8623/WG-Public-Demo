@@ -18,8 +18,8 @@ export const initialDocumentState: DocumentState = {
     scrollLeft: 0, // Initial scroll position on the x-axis
   scrollTop: 0, // Initial scroll position on the y-axis
   primaryColor: '#D5E6ED', // Default primary color
-  backgroundColor: '#ECE7D1',
-
+  backgroundColor: '#ECE7D1', // default bg color for node
+  fileName: 'Untitled Document'
   };
 
 
@@ -35,6 +35,11 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
         return { ...state, selectedCueCards: action.payload }; */
       case DocumentActionType.SET_NODES:
         return { ...state, nodes: action.payload };
+      case DocumentActionType.SET_FILE_NAME:
+          return {
+            ...state,
+            fileName: action.payload,  // Update the fileName state
+          };
       case DocumentActionType.SET_COLOR_THEME:
         return { ...state, colorTheme: action.payload };
       
