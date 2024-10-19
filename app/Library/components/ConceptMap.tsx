@@ -102,6 +102,8 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal, onOpenAddC
   );
 }
 
+ConceptMap.displayName = 'ConceptMap';
+ConceptMap.whyDidYouRender = true;
 export default ConceptMap;
 /**
  * Original

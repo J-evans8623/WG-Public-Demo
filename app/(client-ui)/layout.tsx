@@ -324,6 +324,9 @@ const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
   );
 }
 
+ClientLayoutContent.displayName = 'ClientLayoutContent';
+ClientLayoutContent.whyDidYouRender = true;
+
 export default function ClientLayout() {
   return (
     <DndProvider backend={HTML5Backend}>

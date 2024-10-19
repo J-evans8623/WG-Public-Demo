@@ -1,5 +1,3 @@
-// bloom-maps/app/Library/components/ConceptNode.tsx
-
 import React, { memo, useCallback } from 'react';
 import { ConceptNodeProps } from '@/app/Library/Definitions/Definitions';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
@@ -94,18 +92,17 @@ function ConceptNode({
 
       {/* Add Child Node Button */}
       <button
-  onClick={handleAddChildNode}
-  className="absolute bottom-2 right-2 text-black rounded-full flex items-center justify-center transition-colors duration-200"
-  title="Add Supporting Concept"
-  style={{
-    width: '28px',  // Increase the button size if necessary
-    height: '28px', // Increase the button size to match icon dimensions
-    padding: '2px',
-     // Add padding around the icon to prevent truncation
-  }}
->
-  <AddConceptIcon className="w-full h-full" />
-</button>
+        onClick={handleAddChildNode}
+        className="absolute bottom-2 right-2 text-black rounded-full flex items-center justify-center transition-colors duration-200"
+        title="Add Supporting Concept"
+        style={{
+          width: '28px',
+          height: '28px',
+          padding: '2px',
+        }}
+      >
+        <AddConceptIcon className="w-full h-full" />
+      </button>
 
       {/* Add Cue Card Button */}
       <button
@@ -137,6 +134,9 @@ function ConceptNode({
     </div>
   );
 }
+
+ConceptNode.displayName = 'ConceptNode';
+ConceptNode.whyDidYouRender = true;
 
 export default memo(ConceptNode, (prevProps, nextProps) => {
   return (
