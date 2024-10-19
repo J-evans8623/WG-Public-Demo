@@ -242,18 +242,29 @@ const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
 />
 
 <ToolBar
-        onAddStudyResource={() => console.log('Add Study Resource clicked')}
-        onAddConcept={() => console.log('Add Concept clicked')}
-        onCut={() => console.log('Cut clicked')}
-        onPaste={() => console.log('Paste clicked')}
-        onDelete={() => console.log('Delete clicked')}
-        onEdit={() => console.log('Edit clicked')}
-        onUndo={() => console.log('Undo clicked')}
-        onRedo={() => console.log('Redo clicked')}
-        onZoomIn={() => zoomIn()}
-        onZoomOut={() => zoomOut()}
-        zoomLevel={zoomLevel}
-      />
+  onSearch={() => console.log('Search clicked')}
+  onZoomIn={() => console.log('Zoom In clicked')}
+  onZoomOut={() => console.log('Zoom Out clicked')}
+  onSetZoomLevel={(value) => console.log(`Zoom Level set to ${value}%`)}
+  zoomLevel={Math.ceil((zoomLevel / baseZoomLevel) * 100)}
+  onUndo={() => console.log('Undo clicked')}
+  onRedo={() => console.log('Redo clicked')}
+  onDeselectAll={() => console.log('Deselect All clicked')}
+  onAddConcept={() => console.log('Add Concept clicked')}
+  onAddCueCard={() => console.log('Add Cue Card clicked')}
+  onAddPicture={() => console.log('Add Picture clicked')}
+  onAddQuiz={() => console.log('Add Quiz clicked')}
+  onEdit={() => console.log('Edit clicked')}
+  onCut={() => console.log('Cut clicked')}
+  onCopy={() => console.log('Copy clicked')}
+  onPaste={() => console.log('Paste clicked')}
+  onMerge={() => console.log('Merge clicked')}
+  onDelete={() => console.log('Delete clicked')}
+  onSetPrimaryColor={() => console.log('Primary Color clicked')}
+  onSetSecondaryColor={() => console.log('Secondary Color clicked')}
+  onSetTheme={() => console.log('Theme clicked')}
+/>
+
 
           {/* Add Padding Section Below Toolbar */}
     <div className="toolbar-padding-bottom"></div>

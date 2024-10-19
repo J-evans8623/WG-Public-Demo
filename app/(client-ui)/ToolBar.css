@@ -1,0 +1,31 @@
+/* bloom-maps/app/(client-ui)/ToolBar.css */
+
+.tool-bar {
+    display: flex;
+    gap: 8px;
+  }
+  
+  .tool-bar-button {
+    background-color: #EDF2FA;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+  
+  .tool-bar-button:hover {
+    background-color: #D3D3D3; /* Light gray color on hover */
+  }
+  
+  .tool-bar-button:focus {
+    outline: none; /* Remove button outline on focus */
+  }
+  /* bloom-maps/app/(client-ui)/ToolBar.css */
+
+/* General styling for the closed select box */
+.tool-bar-dropdown .ant-select-selector {
+    background-color: #EDF2FA; /* Set the desired background color */
+    border: none; /* Remove border */
+    border-radius: 4px; /* Adjust border-radius if needed */
+  }
+  

@@ -8,11 +8,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="h-screen w-screen overflow-hidden bg-[#F9FBFD]">
         {/* Static server-rendered content here */}
-        <div className="flex items-center justify-between bg-[#F9FBFD] p-2 shadow-md">
+        <div className="flex items-center justify-between bg-[#F9FBFD]">
           {/* Placeholder for static elements */}
-          {/* Dynamic buttons have been removed */}
         </div>
-        {children} {/* Nested layouts and pages go here */}
+
+        {/* Wrapper with subtle margins to allow space without affecting client-ui layout */}
+        <div className="w-full h-full px-6 py-4">
+          {children} {/* Nested layouts and pages go here */}
+        </div>
       </body>
     </html>
   );

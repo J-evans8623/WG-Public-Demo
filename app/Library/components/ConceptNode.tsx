@@ -4,6 +4,7 @@ import React, { memo, useCallback } from 'react';
 import { ConceptNodeProps } from '@/app/Library/Definitions/Definitions';
 import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
+import AddConceptIcon from '@/app/icons-custom/ConceptNodeAdd.svg'; 
 
 const DEFAULT_PRIMARY_COLOR = '#D5E6ED';
 const DEFAULT_BACKGROUND_COLOR = '#ECE7D1';
@@ -93,36 +94,18 @@ function ConceptNode({
 
       {/* Add Child Node Button */}
       <button
-        onClick={handleAddChildNode}
-        className="absolute bottom-2 right-2 text-black rounded-full w-6 h-6 flex items-center justify-center transition-colors duration-200"
-        title="Add Child Concept"
-      >
-        {/* Icon: Single white card with an arrow */}
-        <div className="relative w-full h-full flex items-center justify-center">
-          {/* Card */}
-          <div
-            className="absolute w-2/3 h-2/3 border border-black"
-            style={{ backgroundColor: nodeColor }}
-          />
-          {/* Plus Sign */}
-          <span className="absolute text-xs font-bold">+</span>
-          {/* Downward Arrow */}
-          <svg
-            className="absolute"
-            width="10"
-            height="10"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="black"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ top: '-4px' }}
-          >
-            <path d="M12 2v14M5 10l7 7 7-7" />
-          </svg>
-        </div>
-      </button>
+  onClick={handleAddChildNode}
+  className="absolute bottom-2 right-2 text-black rounded-full flex items-center justify-center transition-colors duration-200"
+  title="Add Supporting Concept"
+  style={{
+    width: '28px',  // Increase the button size if necessary
+    height: '28px', // Increase the button size to match icon dimensions
+    padding: '2px',
+     // Add padding around the icon to prevent truncation
+  }}
+>
+  <AddConceptIcon className="w-full h-full" />
+</button>
 
       {/* Add Cue Card Button */}
       <button
@@ -131,7 +114,7 @@ function ConceptNode({
           onOpenCueCardModal(node.id);
         }}
         className="absolute bottom-2 right-10 text-black rounded-full w-6 h-6 flex items-center justify-center transition-colors duration-200"
-        title="Add Cue Card"
+        title="Add Study Resource"
       >
         {/* Icon: Stacked Cards */}
         <div className="relative w-full h-full flex items-center justify-center">
