@@ -1,8 +1,11 @@
+// bloom-maps\app\Library\components\ConceptNode.tsx
 import React, { memo, useCallback } from 'react';
 import { ConceptNodeProps } from '@/app/Library/Definitions/Definitions';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import AddConceptIcon from '@/app/icons-custom/ConceptNodeAdd.svg'; 
+import AddConceptIcon from '@/app/icons-custom/ConceptNodeAdd.svg';
+
+// Import the new context
+import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 
 const DEFAULT_PRIMARY_COLOR = '#D5E6ED';
 const DEFAULT_BACKGROUND_COLOR = '#ECE7D1';
@@ -11,32 +14,53 @@ function ConceptNode({
   node,
   onOpenCueCardModal,
   onOpenAddChildModal,
-}: ConceptNodeProps & { onOpenAddChildModal: (parentNodeId: string) => void }) {
-  const { state } = useDocumentContext();
+  onNodeClick, // Add this prop
+}: ConceptNodeProps & {
+  onOpenAddChildModal: (parentNodeId: string) => void;
+  onNodeClick: (nodeId: string) => void; // Add this prop
+}) {
+  // Use new context for colors
   const {
     primaryColor = DEFAULT_PRIMARY_COLOR,
     backgroundColor = DEFAULT_BACKGROUND_COLOR,
-  } = state;
-  const { toggleNodeSelection, isSelected } = useNodeSelection();
+  } = useColorThemeContext();
+
+  const { isSelected, targetNodeId } = useNodeSelection();
+  const selected = isSelected(node.id) || node.id === targetNodeId;
 
   const { title, x, y, depth } = node;
-  const selected = isSelected(node.id);
+ 
 
+  // Updated handleNodeClick to use onNodeClick prop
   const handleNodeClick = useCallback(() => {
-    toggleNodeSelection(node.id);
-  }, [node.id, toggleNodeSelection]);
+    onNodeClick(node.id); // Use the onNodeClick prop
+  }, [node.id, onNodeClick]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleNodeClick();
-    }
-  };
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleNodeClick();
+      }
+    },
+    [handleNodeClick]
+  );
 
-  const handleAddChildNode = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onOpenAddChildModal(node.id);
-  };
+  const handleAddChildNode = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onOpenAddChildModal(node.id);
+    },
+    [node.id, onOpenAddChildModal]
+  );
+
+  const handleOpenCueCardModal = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onOpenCueCardModal(node.id);
+    },
+    [node.id, onOpenCueCardModal]
+  );
 
   const nodeColor = depth === 1 ? primaryColor : backgroundColor;
 
@@ -106,10 +130,7 @@ function ConceptNode({
 
       {/* Add Cue Card Button */}
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onOpenCueCardModal(node.id);
-        }}
+        onClick={handleOpenCueCardModal}
         className="absolute bottom-2 right-10 text-black rounded-full w-6 h-6 flex items-center justify-center transition-colors duration-200"
         title="Add Study Resource"
       >
@@ -144,6 +165,7 @@ export default memo(ConceptNode, (prevProps, nextProps) => {
     prevProps.node.title === nextProps.node.title &&
     prevProps.node.x === nextProps.node.x &&
     prevProps.node.y === nextProps.node.y &&
-    prevProps.node.isRoot === nextProps.node.isRoot
+    prevProps.node.isRoot === nextProps.node.isRoot &&
+    prevProps.onNodeClick === nextProps.onNodeClick // Include this line
   );
 });

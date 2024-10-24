@@ -1,17 +1,20 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import CueCard from '../CueCard';
-import PictureCard from '../PictureCard'; 
-import PracticeSheetCard from '../PracticeSheetCard';
-import MatchingQuizModal from '../MatchingQuizModal';
+//bloom-maps\app\Library\components\CardDisplay\CueCardDisplay.tsx
+import React, { useState, useCallback, useEffect, memo } from 'react';
+import CueCard from '@/app/Library/components/CueCard';
+import PictureCard from '@/app/Library/components/PictureCard';
+import PracticeSheetCard from '@/app/Library/components/PracticeSheetCard';
+import MatchingQuizModal from '@/app/Library/components/MatchingQuizModal';
 import { CueCard as CueCardInterface } from '@/app/Library/Definitions/Definitions';
 import { useCueCardContext } from '../../Context/CueCardContext';
-import { usePictureContext } from '../../Context/PictureContext'; 
-import { usePracticeSheetContext } from '../../Context/PracticeSheetContext'; 
+import { usePictureContext } from '../../Context/PictureContext';
+import { usePracticeSheetContext } from '../../Context/PracticeSheetContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+
+// Import new context
+import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { Layout } from 'antd';
 import { parseQuizContent, scrambleArray } from '@/app/Library/utils/QuizUtils';
-import ModalOverlayManager from './ModalOverlayManager'; // Import the new ModalOverlayManager
+import ModalOverlayManager from '@/app/Library/components/CardDisplay/ModalOverlayManager';
 
 const { Sider } = Layout;
 
@@ -29,17 +32,18 @@ interface CueCardDisplayProps {
   paneSizes: number[];
 }
 
-const CueCardDisplay: React.FC<CueCardDisplayProps> = React.memo(({ centerPaneRef, paneSizes }) => {
+const CueCardDisplay: React.FC<CueCardDisplayProps> = memo(({ centerPaneRef, paneSizes }) => {
   const { getSelectedNodeIds, clearSelection, deselectNode } = useNodeSelection();
   const { selectCueCards } = useCueCardContext();
   const { selectPictures } = usePictureContext();
   const { selectPracticeSheets } = usePracticeSheetContext();
-  
+
   const [dismissedResourceIds, setDismissedResourceIds] = useState<Map<string, string[]>>(new Map());
-  const [openedPictureModals, setOpenedPictureModals] = useState<{ id: string, content: React.ReactNode }[]>([]); // Track opened picture modals
-  const [overlayContent, setOverlayContent] = useState<React.ReactNode | null>(null); // State for quiz modal (only one allowed)
-  const { state } = useDocumentContext();
-  const { nodes } = state;
+  const [openedPictureModals, setOpenedPictureModals] = useState<{ id: string; content: React.ReactNode }[]>([]);
+  const [overlayContent, setOverlayContent] = useState<React.ReactNode | null>(null);
+  
+  // Use new context for nodes
+  const { nodes } = useNodesContext();
 
   const selectedNodeIds = getSelectedNodeIds();
 
@@ -122,27 +126,21 @@ const CueCardDisplay: React.FC<CueCardDisplayProps> = React.memo(({ centerPaneRe
     [selectCueCards, selectPictures, selectPracticeSheets, deselectNode]
   );
 
-  // Handle opening a modal for picture cards, one for each picture
-  const handleOpenPictureModal = (pictureId: string, content: React.ReactNode) => {
+  const handleOpenPictureModal = useCallback((pictureId: string, content: React.ReactNode) => {
     setOpenedPictureModals((prevModals) => {
-      // Check if modal for this picture is already opened
       const isAlreadyOpened = prevModals.some((modal) => modal.id === pictureId);
       if (!isAlreadyOpened) {
         return [...prevModals, { id: pictureId, content }];
       }
       return prevModals;
     });
-  };
+  }, []);
 
-  // Handle closing a specific picture modal
-  const handleClosePictureModal = (pictureId: string) => {
-    setOpenedPictureModals((prevModals) =>
-      prevModals.filter((modal) => modal.id !== pictureId)
-    );
-  };
+  const handleClosePictureModal = useCallback((pictureId: string) => {
+    setOpenedPictureModals((prevModals) => prevModals.filter((modal) => modal.id !== pictureId));
+  }, []);
 
-  // Handle opening a single quiz modal (only one allowed)
-  const handleOpenQuizModal = (quizContent: string) => {
+  const handleOpenQuizModal = useCallback((quizContent: string) => {
     const parsedQuiz = parseQuizContent(quizContent);
     const scrambledAnswers = scrambleArray(parsedQuiz.map((q) => q.answer));
     setOverlayContent(
@@ -152,11 +150,11 @@ const CueCardDisplay: React.FC<CueCardDisplayProps> = React.memo(({ centerPaneRe
         onClose={handleCloseOverlay}
       />
     );
-  };
+  }, []);
 
-  const handleCloseOverlay = () => {
+  const handleCloseOverlay = useCallback(() => {
     setOverlayContent(null);
-  };
+  }, []);
 
   return (
     <Sider

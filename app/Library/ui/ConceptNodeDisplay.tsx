@@ -1,18 +1,13 @@
-// bloom-maps/app/Library/components/ConceptNodeDisplay.tsx
+//bloom-maps\app\Library\Tests\components\ui\ConceptNodeDisplay.tsx
 
 import React, { useState, useCallback } from 'react';
 import { Button, Dropdown, Menu } from 'antd';
 import { DownOutlined, RightOutlined } from '@ant-design/icons';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
-import CueCardEntry from './CueCardEntry';
+import CueCardEntry from '@/app/Library/ui/CueCardEntry';
 
-/**
- * Original
- * 
- * 
- */
 interface ConceptNodeDisplayProps {
   node: {
     id: string;
@@ -36,8 +31,7 @@ export const ConceptNodeDisplay: React.FC<ConceptNodeDisplayProps> = ({
   onNodeSelect,
 }) => {
   const [expanded, setExpanded] = useState(false);
-  const { state } = useDocumentContext();
-  const { nodes } = state;
+  const { nodes } = useNodesContext();
   const { toggleNodeSelection, isSelected } = useNodeSelection();
   const { selectCueCards } = useCueCardContext();
 
@@ -169,4 +163,6 @@ export const ConceptNodeDisplay: React.FC<ConceptNodeDisplayProps> = ({
   );
 };
 
+ConceptNodeDisplay.displayName = 'ConceptNodeDisplay';
+//ConceptNodeDisplay.whyDidYouRender = true;
 export default ConceptNodeDisplay;

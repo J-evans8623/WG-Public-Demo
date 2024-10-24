@@ -1,14 +1,13 @@
-// useTreePositioning.tsx
+// bloom-maps\app\Library\Tests\hooks\useTreePositioning.tsx
 
 import { useEffect, useState } from 'react';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 
 export function useTreePositioning(mapRef: React.RefObject<HTMLDivElement>) {
   const [offset, setOffset] = useState<number>(0);
   const { subtrees } = useSubTreeContext();
-  const { state } = useDocumentContext();
-  const { nodes } = state;
+  const { nodes } = useNodesContext();
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -35,7 +34,12 @@ export function useTreePositioning(mapRef: React.RefObject<HTMLDivElement>) {
     // Calculate offset to center the tree within the map without moving the root node
     const offsetX = (mapWidth - totalTreeWidth) / 2 - minLeft;
 
-    setOffset(offsetX);
+    setOffset((prevOffset) => {
+        if (prevOffset !== offsetX) {
+          return offsetX;
+        }
+        return prevOffset;
+      });
   }, [subtrees, nodes, mapRef]);
 
   return { offset };

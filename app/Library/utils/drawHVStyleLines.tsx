@@ -22,12 +22,17 @@ export function drawHVStyleLines(
   // Calculate the center bottom point of the root node
   const rootPCP = { x: rootNode.x + nodeWidth / 2, y: rootNode.y + nodeHeight };
 
-  // If there are no subtrees, return
-  if (subtrees.size === 0) return lineElements;
+  // Remove the sentinel node from subtrees before drawing lines
+  const filteredSubtrees = new Map(
+    Array.from(subtrees.entries()).filter(([nodeId]) => nodeId !== 'sentinel-node')
+  );
 
-  if (subtrees.size === 1) {
-    // Only one subtree
-    const [nodeId, subtreeData] = subtrees.entries().next().value;
+  // Adjust the base case to ignore the sentinel node
+  if (filteredSubtrees.size === 0) return lineElements;
+
+  if (filteredSubtrees.size === 1) {
+    // Only one subtree (ignoring the sentinel)
+    const [nodeId, subtreeData] = filteredSubtrees.entries().next().value;
 
     // Fallback to 0 if position is undefined
     const childCCP = {
@@ -45,11 +50,11 @@ export function drawHVStyleLines(
       />
     );
   } else {
-    // Multiple subtrees
+    // Multiple subtrees (ignoring the sentinel)
     let leftmostX = Infinity;
     let rightmostX = -Infinity;
 
-    subtrees.forEach((subtreeData) => {
+    filteredSubtrees.forEach((subtreeData) => {
       const x = (subtreeData.position?.x ?? 0) + nodeWidth / 2;
       if (x < leftmostX) leftmostX = x;
       if (x > rightmostX) rightmostX = x;
@@ -80,7 +85,7 @@ export function drawHVStyleLines(
     );
 
     // Draw paths from anchor to each subtree
-    subtrees.forEach((subtreeData, nodeId) => {
+    filteredSubtrees.forEach((subtreeData, nodeId) => {
       const x = (subtreeData.position?.x ?? 0) + nodeWidth / 2;
       const y = subtreeData.position?.y ?? 0;
       const controlY = anchorY + 10;

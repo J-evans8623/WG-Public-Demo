@@ -1,12 +1,13 @@
-import React, { useMemo, useCallback } from 'react';
-import { useDocumentContext, setGetLayout } from '@/app/Library/Context/DocumentProvider';
+import React, { useMemo, useCallback, memo } from 'react';
+import { useNodesContext } from '@/app/Library/Context/NodesProvider';
+import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
+import { setGetLayout } from '@/app/Library/Context/LayoutActions';
 import ConceptNode from './ConceptNode';
 import { ConceptNode as ConceptNodeType } from '@/app/Library/Definitions/Definitions';
 import { drawIndentedStyleLines } from '@/app/Library/utils/drawIndentedStyleLines';
 import { useDrag, useDrop } from 'react-dnd';
-import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider'; // Corrected import path
-import DashedRing from './DashedRing';
-
+import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
+import DashedRing from '@/app/Library/components/DashedRing';
 
 interface SubtreeProps {
   rootNodeId: string;
@@ -15,6 +16,7 @@ interface SubtreeProps {
   height: number;
   onOpenCueCardModal: (nodeId: string) => void;
   onOpenAddChildModal: (parentNodeId: string) => void;
+  onNodeClick: (nodeId: string) => void;
 }
 
 const Subtree: React.FC<SubtreeProps> = ({
@@ -24,9 +26,10 @@ const Subtree: React.FC<SubtreeProps> = ({
   height,
   onOpenCueCardModal,
   onOpenAddChildModal,
+  onNodeClick,
 }) => {
-  const { state, dispatch } = useDocumentContext();
-  const { nodes } = state;
+  const { nodes } = useNodesContext();
+  const { dispatch: layoutDispatch } = useLayoutContext();
   const {
     draggingSubtreeId,
     targetSubtreeId,
@@ -35,11 +38,29 @@ const Subtree: React.FC<SubtreeProps> = ({
     commitSwap,
   } = useSubTreeContext();
 
-  const [{ isDragging }, dragRef] = useDrag<
-    { id: string },    // DragObject
-    void,              // DropResult
-    { isDragging: boolean }  // CollectedProps
-  >({
+  // **Step 1: Handle the sentinel subtree**
+  // Check if the subtree being rendered is the sentinel node
+  const isSentinelSubtree = rootNodeId === 'sentinel-node';
+
+  // **Step 2: For the sentinel node, render an empty subtree**
+  // Instead of returning `null`, render the sentinel with dimensions but no content
+  if (isSentinelSubtree) {
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          left: position.x,
+          top: position.y,
+          width: `${width}px`,
+          height: `${height}px`,
+          opacity: 0, // Keep the sentinel invisible
+        }}
+      />
+    );
+  }
+
+  // **Dragging logic for draggable subtrees**
+  const [{ isDragging }, dragRef] = useDrag<{ id: string }, void, { isDragging: boolean }>({
     type: 'SUBTREE',
     item: () => {
       setDraggingSubtreeId(rootNodeId);
@@ -52,42 +73,34 @@ const Subtree: React.FC<SubtreeProps> = ({
       commitSwap();
       setDraggingSubtreeId(null);
       setTargetSubtreeId(null);
-      dispatch(setGetLayout(true));
+      layoutDispatch(setGetLayout(true));
     },
   });
 
-  const [, dropRef] = useDrop<
-    { id: string },  // DragObject
-    void,            // DropResult
-    unknown          // CollectedProps
-  >({
+  const [, dropRef] = useDrop<{ id: string }, void, unknown>({
     accept: 'SUBTREE',
     hover: (draggedItem: { id: string }) => {
-      if (
-        draggedItem.id !== rootNodeId &&
-        targetSubtreeId !== rootNodeId
-      ) {
+      if (draggedItem.id !== rootNodeId && targetSubtreeId !== rootNodeId) {
         setTargetSubtreeId(rootNodeId);
       }
     },
   });
 
-  // Extract subtree nodes
+  // **Extract subtree nodes for rendering**
   const subtreeNodes = useMemo(() => {
     const extractedNodes = new Map<string, ConceptNodeType>();
     const extractSubtree = (nodeId: string) => {
       const node = nodes.get(nodeId);
       if (node) {
         extractedNodes.set(nodeId, { ...node });
-        node.childrenNodeIds?.forEach((childId) =>
-          extractSubtree(childId)
-        );
+        node.childrenNodeIds?.forEach((childId) => extractSubtree(childId));
       }
     };
     extractSubtree(rootNodeId);
     return extractedNodes;
   }, [nodes, rootNodeId]);
 
+  // **Callback to manage drag and drop behavior**
   const dragDropRef = useCallback(
     (node: HTMLDivElement | null) => {
       if (node) {
@@ -110,7 +123,7 @@ const Subtree: React.FC<SubtreeProps> = ({
         opacity: isDragging ? 0.5 : 1,
       }}
     >
-      {/* Draw lines within the subtree */}
+      {/* **Step 3: Drawing lines within the subtree** */}
       <svg
         className="absolute top-0 left-0"
         width={width}
@@ -119,29 +132,26 @@ const Subtree: React.FC<SubtreeProps> = ({
       >
         {drawIndentedStyleLines(subtreeNodes, 4)}
       </svg>
-      {/* Render nodes within the subtree */}
+
+      {/* **Step 4: Rendering each node within the subtree** */}
       {Array.from(subtreeNodes.values()).map((node) => (
         <ConceptNode
           key={node.id}
           node={node}
           onOpenCueCardModal={onOpenCueCardModal}
           onOpenAddChildModal={onOpenAddChildModal}
+          onNodeClick={onNodeClick}
         />
       ))}
-      {/* Render DashedRing when dragging over */}
+
+      {/* **Step 5: Render DashedRing when dragging over the subtree** */}
       {draggingSubtreeId && targetSubtreeId === rootNodeId && (
-        <DashedRing
-          width={width}
-          height={height}
-          position={{ x: 0, y: 0 }}
-        />
+        <DashedRing width={width} height={height} position={{ x: 0, y: 0 }} />
       )}
     </div>
   );
 };
 
-export default Subtree;
-/**
- * Original
- * 
- */
+Subtree.displayName = 'Subtree';
+
+export default memo(Subtree);

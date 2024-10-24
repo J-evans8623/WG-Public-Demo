@@ -1,8 +1,8 @@
 'use client';
-
+// bloom-maps\app\Library\Tests\components\CueCard.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { CueCardProps, colorThemes } from '@/app/Library/Definitions/Definitions';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { FiX } from 'react-icons/fi';
 import { createPortal } from 'react-dom'; // Import createPortal
 
@@ -25,8 +25,7 @@ const bloomLevelNames = {
 const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
   ({ title, content, bloomLevel, conceptNodeTitle, onDismiss, source }) => {
     const [showTitle, setShowTitle] = useState(true);
-    const { state } = useDocumentContext();
-    const { colorTheme } = state;
+    const { colorTheme } = useColorThemeContext();
 
     const [contextMenuVisible, setContextMenuVisible] = useState(false);
     const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -155,5 +154,6 @@ const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
 );
 
 CueCard.displayName = 'CueCard';
+//CueCard.whyDidYouRender = true;
 
 export default CueCard;

@@ -17,6 +17,7 @@ interface PictureContextType {
   selectPictures: (nodeId: string) => Picture[]; // Method to select pictures for a given nodeId
   resetPictures: () => void;
   setPictures: (newPictures: Map<string, Picture[]>) => void;
+  editPicture: (nodeId: string, updatedPicture: Picture) => void;
   transferPicture: (sourceNodeId: string, targetNodeId: string, pictureId: string) => void;
 }
 
@@ -75,6 +76,18 @@ export const PictureProvider = ({ children }: { children: ReactNode }) => {
     setPicturesState(newPictures);
   };
 
+  const editPicture = (nodeId: string, updatedPicture: Picture) => {
+    setPicturesState((prev) => {
+      const updatedPictures = new Map(prev);
+      const nodePictures = updatedPictures.get(nodeId) || [];
+      updatedPictures.set(
+        nodeId,
+        nodePictures.map((pic) => (pic.id === updatedPicture.id ? updatedPicture : pic))
+      );
+      return updatedPictures;
+    });
+  };
+
   const transferPicture = (sourceNodeId: string, targetNodeId: string, pictureId: string) => {
     setPicturesState((prev) => {
       const updatedPictures = new Map(prev);
@@ -102,6 +115,7 @@ export const PictureProvider = ({ children }: { children: ReactNode }) => {
         selectPictures,
         resetPictures,
         setPictures,
+        editPicture,
         transferPicture,
       }}
     >

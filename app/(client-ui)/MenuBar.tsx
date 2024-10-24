@@ -1,9 +1,10 @@
-// bloom-maps\app\(client-ui)\MenuBar.tsx
+// bloom-maps\app\Library\Tests\components\MenuBar.tsx
+
 import React, { useState } from 'react';
 import { Input, Button } from 'antd';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import { useFileContext } from '@/app/Library/Context/FileProvider'  //'./context/FileProvider';
 import AppIcon from '@/app/icons-custom/AppIcon.svg';
-import './MenuBar.css'; 
+import '@/app/(client-ui)/MenuBar.css';
 
 interface MenuBarProps {
   onTitleChange: (newTitle: string) => void;
@@ -20,9 +21,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
   onSaveDocument,
   onHelp,
 }) => {
-  const { state } = useDocumentContext();
+  const { fileName } = useFileContext();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [newTitle, setNewTitle] = useState(state.fileName); 
+  const [newTitle, setNewTitle] = useState(fileName);
 
   const handleTitleClick = () => {
     setIsEditingTitle(true);
@@ -57,7 +58,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             />
           ) : (
             <span onClick={handleTitleClick} className="menu-bar-title-text">
-              {state.fileName}
+              {fileName}
             </span>
           )}
         </div>
@@ -77,5 +78,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     </div>
   );
 };
+
+MenuBar.displayName = 'MenuBar';
+//MenuBar.whyDidYouRender = true;
 
 export default MenuBar;

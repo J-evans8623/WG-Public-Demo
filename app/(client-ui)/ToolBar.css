@@ -28,4 +28,18 @@
     border: none; /* Remove border */
     border-radius: 4px; /* Adjust border-radius if needed */
   }
-  
+
+  .icon {
+  transition: opacity 0.3s ease;
+}
+
+.tool-bar-button:disabled .icon {
+  opacity: 0.5; /* Example of a dimmed effect for an inactive icon, you can imrpove the stling here*/
+  pointer-events: none; /* Prevent interaction */
+}
+
+.color-selector {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}

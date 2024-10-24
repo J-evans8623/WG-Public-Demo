@@ -1,6 +1,6 @@
-// bloom-maps\app\Library\context\SubTreeProvider.Tsx
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+// bloom-maps\app\Library\Context\SubTreeProvider.Tsx
+import React, { useCallback, createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
+
 
 export interface SubtreeData {
   minX: number;
@@ -14,12 +14,12 @@ export interface SubtreeData {
 
 interface SubTreeContextType {
   subtrees: Map<string, SubtreeData>;
-  calculateSubtreeDimensions: (nodeId: string, subtreeData: SubtreeData) => void; // Updated signature
+  calculateSubtreeDimensions: (nodeId: string, subtreeData: SubtreeData) => void;
   getTotalSubtreeWidths: () => number;
   getMaxSubtreeHeight: () => number;
   setSubtreePosition: (nodeId: string, position: { x: number; y: number }) => void;
-  resetSubtrees: () => void; // Added reset function
-  setSubtrees : (newSubtrees: Map<string, SubtreeData>) => void;
+  resetSubtrees: () => void;
+  setSubtrees: (newSubtrees: Map<string, SubtreeData>) => void;
   draggingSubtreeId: string | null;
   targetSubtreeId: string | null;
   setDraggingSubtreeId: (id: string | null) => void;
@@ -31,85 +31,77 @@ const SubTreeContext = createContext<SubTreeContextType | undefined>(undefined);
 
 export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
   const [subtrees, setSubtreesState] = useState<Map<string, SubtreeData>>(new Map());
-  const [draggingSubtreeId, setDraggingSubtreeId] = useState<string | null>(
-    null
-  );
+  const [draggingSubtreeId, setDraggingSubtreeId] = useState<string | null>(null);
   const [targetSubtreeId, setTargetSubtreeId] = useState<string | null>(null);
-  const [tempSubtrees, setTempSubtrees] = useState<Map<string, SubtreeData>>(
-    new Map()
-  );
 
-  useEffect(() => {
-    if (draggingSubtreeId && targetSubtreeId) {
-      setTempSubtrees((prevSubtrees) => {
-        const updatedSubtrees = new Map(subtrees); // Reads updated subtrees
-        const draggingSubtree = updatedSubtrees.get(draggingSubtreeId);
-        const targetSubtree = updatedSubtrees.get(targetSubtreeId);
-        if (draggingSubtree && targetSubtree) {
-          const tempPosition = draggingSubtree.position;
-          // Position Swap
-          updatedSubtrees.set(draggingSubtreeId, {
-            ...draggingSubtree,
-            position: targetSubtree.position,
-          });
-          updatedSubtrees.set(targetSubtreeId, {
-            ...targetSubtree,
-            position: tempPosition,
-          });
-        }
-        return updatedSubtrees;
-      });
+
+ // Initialize the sentinel node's data (invisible reference point at x=0, y=0)
+ useMemo(() => {
+  const sentinelNodeId = 'sentinel-node'; // Sentinel node ID
+  console.log('Initializing sentinel node in SubTreeProvider');
+  const sentinelSubtree: SubtreeData = {
+    minX: 0,
+    maxX: 0,
+    minY: 0,
+    maxY: 0,
+    width: 0,
+    height: 0,
+    position: { x: 0, y: 0 }, // Positioned at (0, 0) but invisible
+  };
+
+  
+  setSubtreesState((prevSubtrees) => {
+    const updatedSubtrees = new Map(prevSubtrees);
+    
+    // Safeguard: Check if the sentinel node already exists
+    if (!updatedSubtrees.has(sentinelNodeId)) {
+      updatedSubtrees.set(sentinelNodeId, sentinelSubtree); // Add the sentinel node if not already present
+      console.log('Sentinel node added.');
     } else {
-      //
-      setTempSubtrees(() => new Map(subtrees));
+      console.log('Sentinel node already exists, skipping insertion.');
     }
-  }, [draggingSubtreeId, targetSubtreeId, subtrees]);
 
-  const calculateSubtreeDimensions = (nodeId: string, subtreeData: SubtreeData) => {
+    return updatedSubtrees;
+  });
+}, []); // Only initialized once on mount
+
+
+  // Memoize functions
+  const calculateSubtreeDimensions = useCallback((nodeId: string, subtreeData: SubtreeData) => {
     setSubtreesState((prevSubtrees) => {
       const updatedSubtrees = new Map(prevSubtrees);
       updatedSubtrees.set(nodeId, subtreeData);
       return updatedSubtrees;
     });
-  };
+  }, []);
 
-  const commitSwap = () => {
+  const commitSwap = useCallback(() => {
     if (draggingSubtreeId && targetSubtreeId) {
       setSubtreesState((prevSubtrees) => {
         const updatedSubtrees = new Map(prevSubtrees);
         const draggingSubtree = updatedSubtrees.get(draggingSubtreeId);
         const targetSubtree = updatedSubtrees.get(targetSubtreeId);
         if (draggingSubtree && targetSubtree) {
-
-          //console.log(`Before Swap: Dragging subtree: ${draggingSubtree.position.x? :0} \n Target Subtree: ${targetSubtree.position.x}  `);
           const tempPosition = draggingSubtree.position;
-          updatedSubtrees.set(draggingSubtreeId, {
-            ...draggingSubtree,
-            position: targetSubtree.position,
-          });
-          updatedSubtrees.set(targetSubtreeId, {
-            ...targetSubtree,
-            position: tempPosition,
-          });
+          updatedSubtrees.set(draggingSubtreeId, { ...draggingSubtree, position: targetSubtree.position });
+          updatedSubtrees.set(targetSubtreeId, { ...targetSubtree, position: tempPosition });
         }
-        //console.log(`After Swap: Dragging subtree: ${updatedSubtrees.get(draggingSubtreeId)?.position.x} \n Target Subtree: ${updatedSubtrees.get(targetSubtreeId)?.position.x}  `);
-        //console.log(Array.from( updatedSubtrees.entries()));
-        return updatedSubtrees; // Subtree Positions are correctly swapped and updated. State 1
+        return updatedSubtrees;
       });
     }
     setDraggingSubtreeId(null);
     setTargetSubtreeId(null);
-  };
+  }, [draggingSubtreeId, targetSubtreeId]);
 
-  const getTotalSubtreeWidths = () => {
+  const getTotalSubtreeWidths = useCallback(() => {
     let totalWidth = 0;
     subtrees.forEach((subtree) => {
       totalWidth += subtree.width;
     });
     return totalWidth;
-  };
+  }, [subtrees]);
 
-  const getMaxSubtreeHeight = () => {
+  const getMaxSubtreeHeight = useCallback(() => {
     let maxHeight = 0;
     subtrees.forEach((subtree) => {
       if (subtree.height > maxHeight) {
@@ -117,9 +109,9 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
       }
     });
     return maxHeight;
-  };
+  }, [subtrees]);
 
-  const setSubtreePosition = (nodeId: string, position: { x: number; y: number }) => {
+  const setSubtreePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
     setSubtreesState((prevSubtrees) => {
       const updatedSubtrees = new Map(prevSubtrees);
       const subtree = updatedSubtrees.get(nodeId);
@@ -128,36 +120,76 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
       }
       return updatedSubtrees;
     });
-  };
+  }, []);
 
-  const resetSubtrees = () => {
-    setSubtreesState(new Map());
-  };
+  const resetSubtrees = useCallback(() => {
+    // Reset the subtree state to an empty map
+    setSubtreesState(() => {
+      const sentinelNodeId = 'sentinel-node';
+      
+      // Re-add the sentinel node after resetting
+      console.log('Reinitializing sentinel node after reset in resetSubtrees');
+      
+      const sentinelSubtree: SubtreeData = {
+        minX: 0,
+        maxX: 0,
+        minY: 0,
+        maxY: 0,
+        width: 0,
+        height: 0,
+        position: { x: 0, y: 0 }, // Positioned at (0, 0) but invisible
+      };
+      
+      const updatedSubtrees = new Map();
+      updatedSubtrees.set(sentinelNodeId, sentinelSubtree); // Add the sentinel node to the subtree map
+      return updatedSubtrees;
+    });
+  }, []);
+  
 
-  const setSubtrees = (newSubtrees: Map<string, SubtreeData>) => {
-    setSubtreesState(newSubtrees);
-  };
+  const setSubtrees = useCallback((newSubtrees: Map<string, SubtreeData>) => {
+    const sentinelNodeId = 'sentinel-node'; // Sentinel node ID
+    const sentinelSubtree: SubtreeData = {
+      minX: 0,
+      maxX: 0,
+      minY: 0,
+      maxY: 0,
+      width: 0,
+      height: 0,
+      position: { x: 0, y: 0 }, // Positioned at (0, 0) but invisible
+    };
+  
+    // Safeguard: Check if the sentinel node exists in newSubtrees, if not, add it
+    if (!newSubtrees.has(sentinelNodeId)) {
+      console.log('Sentinel node is missing in the new subtree map, adding it.');
+      newSubtrees.set(sentinelNodeId, sentinelSubtree); // Add the sentinel node if not present
+    }
+  
+    setSubtreesState(newSubtrees); // Update state with the modified subtrees
+  }, []);
+  
 
-  return (
-    <SubTreeContext.Provider
-      value={{
-        subtrees,
-        calculateSubtreeDimensions,
-        getTotalSubtreeWidths,
-        getMaxSubtreeHeight,
-        setSubtreePosition,
-        resetSubtrees, 
-        setSubtrees,
-        draggingSubtreeId,
-        targetSubtreeId,
-        setDraggingSubtreeId,
-        setTargetSubtreeId,
-        commitSwap,
-      }}
-    >
-      {children}
-    </SubTreeContext.Provider>
-  );
+  // Memoize context value
+  const contextValue = useMemo(() => ({
+    subtrees,
+    calculateSubtreeDimensions,
+    getTotalSubtreeWidths,
+    getMaxSubtreeHeight,
+    setSubtreePosition,
+    resetSubtrees,
+    setSubtrees,
+    draggingSubtreeId,
+    targetSubtreeId,
+    setDraggingSubtreeId,
+    setTargetSubtreeId,
+    commitSwap,
+  }), [
+    subtrees,
+    draggingSubtreeId,
+    targetSubtreeId,
+  ]);
+
+  return <SubTreeContext.Provider value={contextValue}>{children}</SubTreeContext.Provider>;
 };
 
 export const useSubTreeContext = () => {
@@ -170,4 +202,4 @@ export const useSubTreeContext = () => {
 
 export const serializeSubtrees = (subtrees: Map<string, SubtreeData>): [string, SubtreeData][] => {
   return Array.from(subtrees.entries());
-}; 
+};

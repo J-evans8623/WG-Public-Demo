@@ -15,7 +15,7 @@ export function applyIndentedLayout(
 ): { updatedNodes: Map<string, ConceptNode>; subtreeDimension: SubtreeDimension } {
   const updatedNodes = new Map(nodes);
 
-  const indentationWidth = 90;
+  const indentationWidth = 75;
   const verticalSpacing = 175;
 
   let minX = 0;

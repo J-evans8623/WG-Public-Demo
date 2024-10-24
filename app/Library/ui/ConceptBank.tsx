@@ -1,22 +1,18 @@
-// bloom-maps/app/Library/components/ConceptBank.tsx
-
+// bloom-maps\app\Library\Tests\components\ui\ConceptBank.tsx
 import React, { useState } from 'react';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
-import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
-import ConceptNodeDisplay from './ConceptNodeDisplay';
+import { useNodesContext } from '@/app/Library/Context/NodesProvider';
+import { useCueCardContext } from '@/app/Library/Context/CueCardContext' ///Context/CueCardContext';
+import ConceptNodeDisplay from '@/app/Library/ui/ConceptNodeDisplay'//./ConceptNodeDisplay';
 import { Fab } from '@mui/material';
-import ModernModal from  '@/app/Library/components/Modals/ModernModal';//Tests
+import ModernModal from '@/app/Library/components/Modals/ModernModal';
 import ContentCutOutlinedIcon from '@mui/icons-material/ContentCutOutlined';
 import ContentPasteIcon from '@mui/icons-material/ContentPaste';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-
-
 const ConceptBank: React.FC = () => {
-  const { state } = useDocumentContext(); // Fetch concept nodes from state
-  const { nodes } = state; // Assuming nodes are stored in the state as a Map
-  const {removeCueCard, editCueCard, transferCueCard, selectCueCards } = useCueCardContext();
+  const { nodes } = useNodesContext(); // Fetch concept nodes from NodesContext
+  const { removeCueCard, editCueCard, transferCueCard, selectCueCards } = useCueCardContext();
 
   // State for managing cue card selection and cut
   const [selectedCueCardId, setSelectedCueCardId] = useState<string | null>(null);
@@ -244,4 +240,6 @@ const ConceptBank: React.FC = () => {
   
 };
 
+//ConceptBank.displayName = 'ConceptBank';
+//ConceptBank.whyDidYouRender = true;
 export default ConceptBank;

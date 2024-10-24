@@ -31,71 +31,103 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
     }
   
     switch (action.type) {
-      /**case DocumentActionType.SELECT_CUE_CARDS:
-        return { ...state, selectedCueCards: action.payload }; */
       case DocumentActionType.SET_NODES:
+        // **Added check to prevent unnecessary state updates**
+        if (state.nodes === action.payload) {
+          return state;
+        }
         return { ...state, nodes: action.payload };
-      case DocumentActionType.SET_FILE_NAME:
+        
+        case DocumentActionType.SET_FILE_NAME:
+          // **Added check to prevent unnecessary state updates**
+          if (state.fileName === action.payload) {
+            return state;
+          }
           return {
             ...state,
-            fileName: action.payload,  // Update the fileName state
+            fileName: action.payload,
           };
-      case DocumentActionType.SET_COLOR_THEME:
-        return { ...state, colorTheme: action.payload };
-      
-        case DocumentActionType.SET_PRIMARY_COLOR:
-            return { ...state, primaryColor: action.payload };
-      
-          case DocumentActionType.SET_BACKGROUND_COLOR:
-            return { ...state, backgroundColor: action.payload };
-        case DocumentActionType.UPDATE_NODE_TITLE:
-        const { nodeId: titleNodeId, newTitle } = action.payload;
-        const nodesWithUpdatedTitle = new Map(state.nodes);
-        const nodeToUpdate = nodesWithUpdatedTitle.get(titleNodeId);
-        if (nodeToUpdate) {
-          nodeToUpdate.title = newTitle;
-          nodesWithUpdatedTitle.set(titleNodeId, nodeToUpdate);
-        }
-        return { ...state, nodes: nodesWithUpdatedTitle };
-      case DocumentActionType.SET_GET_LAYOUT:
-        return { ...state, getLayout: action.payload };
-            case DocumentActionType.CREATE_NEW_NODE: {
-              const {newNodeId, title, parentNodeId } = action.payload;
-              const parentNode = state.nodes.get(parentNodeId);
-              if (!parentNode) {
-                console.error(`Parent node with ID ${parentNodeId} not found.`);
+          case DocumentActionType.SET_COLOR_THEME:
+            // **Added check to prevent unnecessary state updates**
+            if (state.colorTheme === action.payload) {
+              return state;
+            }
+            return { ...state, colorTheme: action.payload };
+            case DocumentActionType.SET_PRIMARY_COLOR:
+              // **Added check to prevent unnecessary state updates**
+              if (state.primaryColor === action.payload) {
                 return state;
               }
-        
-              const newDepth = (parentNode.depth || 0) + 1;
-        
-              const newNode: ConceptNode = {
-                id: newNodeId,
-                title: title || `Untitled Concept ${state.nodes.size + 1}`,
-                parentNodeId: parentNodeId,
-                childrenNodeIds: [],
-                x: undefined,
-                y: undefined,
-                isRoot: false,
-                depth: newDepth,
-                subtreeID: parentNode.subtreeID || parentNodeId, // Assign subtreeID
-              };
-        
-              const updatedNodes = new Map(state.nodes);
-              const updatedParentNode = {
-                ...parentNode,
-                childrenNodeIds: [...(parentNode.childrenNodeIds || []), newNodeId],
-              };
-        
-              updatedNodes.set(parentNodeId, updatedParentNode);
-              updatedNodes.set(newNode.id, newNode);
-        
-              return {
-                ...state,
-                nodes: updatedNodes,
-                getLayout: true, // Trigger layout computation
-              };
-            }
+              return { ...state, primaryColor: action.payload };
+      
+              case DocumentActionType.SET_BACKGROUND_COLOR:
+                // **Added check to prevent unnecessary state updates**
+                if (state.backgroundColor === action.payload) {
+                  return state;
+                }
+                return { ...state, backgroundColor: action.payload };
+
+ case DocumentActionType.UPDATE_NODE_TITLE:
+      const { nodeId: titleNodeId, newTitle } = action.payload;
+      const nodeToUpdate = state.nodes.get(titleNodeId);
+      if (nodeToUpdate && nodeToUpdate.title !== newTitle) {
+        // **Create a new node object to ensure immutability**
+        const updatedNode = { ...nodeToUpdate, title: newTitle };
+        // **Create a new Map to avoid mutating state**
+        const updatedNodes = new Map(state.nodes);
+        updatedNodes.set(titleNodeId, updatedNode);
+        return { ...state, nodes: updatedNodes };
+      }
+      return state; // **Return previous state if no changes**
+
+      case DocumentActionType.SET_GET_LAYOUT:
+      // **Added check to prevent unnecessary state updates**
+      if (state.getLayout === action.payload) {
+        return state;
+      }
+      return { ...state, getLayout: action.payload };
+
+      
+      case DocumentActionType.CREATE_NEW_NODE: {
+        const { newNodeId, title, parentNodeId } = action.payload;
+        const parentNode = state.nodes.get(parentNodeId);
+        if (!parentNode) {
+          console.error(`Parent node with ID ${parentNodeId} not found.`);
+          return state;
+        }
+      
+        const newDepth = (parentNode.depth || 0) + 1;
+      
+        const newNode: ConceptNode = {
+          id: newNodeId,
+          title: title || `Untitled Concept ${state.nodes.size + 1}`,
+          parentNodeId: parentNodeId,
+          childrenNodeIds: [],
+          x: undefined,
+          y: undefined,
+          isRoot: false,
+          depth: newDepth,
+          subtreeID: parentNode.subtreeID || parentNodeId,
+        };
+      
+        // **Create updated parent node with new child**
+        const updatedParentNode = {
+          ...parentNode,
+          childrenNodeIds: [...(parentNode.childrenNodeIds || []), newNodeId],
+        };
+      
+        // **Create a new Map to avoid mutating state**
+        const updatedNodes = new Map(state.nodes);
+        updatedNodes.set(parentNodeId, updatedParentNode);
+        updatedNodes.set(newNodeId, newNode);
+      
+        return {
+          ...state,
+          nodes: updatedNodes,
+          getLayout: true,
+        };
+      }
+      
         
           case DocumentActionType.RESET_GLOBAL_DATA:
             return {
@@ -104,13 +136,21 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
               selectedCueCards: [], // Reset selected cue cards
               zoomLevel: baseZoomLvl, // Reset zoom level 0.7
             };
-        case DocumentActionType.SET_MAP_SIZE:
-      return {
-        ...state,
-        groundWidth: action.payload.groundWidth,
-        defaultMapWidth: action.payload.mapWidth,
-        defaultMapHeight: action.payload.mapHeight,
-      };
+            case DocumentActionType.SET_MAP_SIZE:
+              // **Added check to prevent unnecessary state updates**
+              if (
+                state.groundWidth === action.payload.groundWidth &&
+                state.defaultMapWidth === action.payload.mapWidth &&
+                state.defaultMapHeight === action.payload.mapHeight
+              ) {
+                return state;
+              }
+              return {
+                ...state,
+                groundWidth: action.payload.groundWidth,
+                defaultMapWidth: action.payload.mapWidth,
+                defaultMapHeight: action.payload.mapHeight,
+              };
 
       case DocumentActionType.TOGGLE_RESET_MAP_SIZE:
       return {
@@ -143,38 +183,14 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
         };
 
         case DocumentActionType.ZOOM_IN: {
-            const newZoom = Math.min(state.zoomLevel + 0.1 * baseZoomLvl, 2 * baseZoomLvl);
-            
-            // Adjust scroll positions to maintain the center
-            const adjustedScrollLeft = state.scrollLeft * (newZoom / state.zoomLevel);
-            const adjustedScrollTop = state.scrollTop * (newZoom / state.zoomLevel);
-            
-            return { 
-                ...state, 
-                zoomLevel: Math.round(newZoom * 100) / 100 ,
-                scrollLeft: adjustedScrollLeft,
-                scrollTop: adjustedScrollTop,
-            };
-        }
-      
-        case DocumentActionType.ZOOM_OUT: {
-            const newZoom = Math.max(state.zoomLevel - 0.1 * baseZoomLvl, 0.1 * baseZoomLvl);
-            
-            // Adjust scroll positions to maintain the center
-            const adjustedScrollLeft = state.scrollLeft * (newZoom / state.zoomLevel);
-            const adjustedScrollTop = state.scrollTop * (newZoom / state.zoomLevel);
-            
-            return { 
-                ...state, 
-                zoomLevel: Math.round(newZoom * 100) / 100,
-                scrollLeft: adjustedScrollLeft,
-                scrollTop: adjustedScrollTop,
-            };
-        }
-        case DocumentActionType.SET_ZOOM_LEVEL: {
-          const newZoom = Math.max(0.1 * state.baseZoomLevel, Math.min(action.payload, 2 * state.baseZoomLevel));
-    
-          // Adjust scroll positions to maintain the center
+          const newZoom = Math.min(
+            state.zoomLevel + 0.1 * baseZoomLvl,
+            2 * baseZoomLvl
+          );
+          // **Added check to prevent unnecessary state updates**
+          if (state.zoomLevel === newZoom) {
+            return state;
+          }
           const adjustedScrollLeft = state.scrollLeft * (newZoom / state.zoomLevel);
           const adjustedScrollTop = state.scrollTop * (newZoom / state.zoomLevel);
     
@@ -185,21 +201,66 @@ export const documentReducer = (state: DocumentState, action: DocumentAction): D
             scrollTop: adjustedScrollTop,
           };
         }
-          case DocumentActionType.UPDATE_NODE: {
-            const { nodeId, updatedNode } = action.payload;
-            const nodesWithUpdatedNode = new Map(state.nodes);
-            const nodeToUpdate = nodesWithUpdatedNode.get(nodeId);
-          
-            if (nodeToUpdate) {
-              // Merge the existing node properties with the updated properties
-              const mergedNode = { ...nodeToUpdate, ...updatedNode };
-              nodesWithUpdatedNode.set(nodeId, mergedNode); // Update the Map with the merged node
-            } else {
-              console.error(`Node with ID ${nodeId} not found.`);
-            }
-          
-            return { ...state, nodes: nodesWithUpdatedNode };
+      
+        case DocumentActionType.ZOOM_OUT: {
+          const newZoom = Math.max(
+            state.zoomLevel - 0.1 * baseZoomLvl,
+            0.1 * baseZoomLvl
+          );
+          // **Added check to prevent unnecessary state updates**
+          if (state.zoomLevel === newZoom) {
+            return state;
           }
+          const adjustedScrollLeft = state.scrollLeft * (newZoom / state.zoomLevel);
+          const adjustedScrollTop = state.scrollTop * (newZoom / state.zoomLevel);
+    
+          return {
+            ...state,
+            zoomLevel: Math.round(newZoom * 100) / 100,
+            scrollLeft: adjustedScrollLeft,
+            scrollTop: adjustedScrollTop,
+          };
+        }
+
+
+    case DocumentActionType.SET_ZOOM_LEVEL: {
+      const newZoom = Math.max(
+        0.1 * state.baseZoomLevel,
+        Math.min(action.payload, 2 * state.baseZoomLevel)
+      );
+      // **Added check to prevent unnecessary state updates**
+      if (state.zoomLevel === newZoom) {
+        return state;
+      }
+      const adjustedScrollLeft = state.scrollLeft * (newZoom / state.zoomLevel);
+      const adjustedScrollTop = state.scrollTop * (newZoom / state.zoomLevel);
+
+      return {
+        ...state,
+        zoomLevel: Math.round(newZoom * 100) / 100,
+        scrollLeft: adjustedScrollLeft,
+        scrollTop: adjustedScrollTop,
+      };
+    }
+
+    case DocumentActionType.UPDATE_NODE: {
+      const { nodeId, updatedNode } = action.payload;
+      const nodeToUpdate = state.nodes.get(nodeId);
+
+      if (nodeToUpdate) {
+        const mergedNode = { ...nodeToUpdate, ...updatedNode };
+        // **Added deep comparison to prevent unnecessary state updates**
+        if (JSON.stringify(nodeToUpdate) === JSON.stringify(mergedNode)) {
+          return state;
+        }
+        const updatedNodes = new Map(state.nodes);
+        updatedNodes.set(nodeId, mergedNode);
+        return { ...state, nodes: updatedNodes };
+      } else {
+        console.error(`Node with ID ${nodeId} not found.`);
+        return state;
+      }
+    }
           
 
     

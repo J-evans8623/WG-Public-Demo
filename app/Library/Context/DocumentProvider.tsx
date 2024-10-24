@@ -1,7 +1,7 @@
 //bloom-maps\app\Library\Context\DocumentProvider.tsx
 'use client';
 
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useCallback } from 'react';
 import { documentReducer, initialDocumentState } from './documentReducer';
 import { 
   ColorTheme, 
@@ -215,19 +215,40 @@ export const DocumentProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(documentReducer, initialDocumentState);
 
   // Debounced zoom functions
-  const debouncedZoomIn = debounce(() => dispatch(zoomIn()), 100);
-  const debouncedZoomOut = debounce(() => dispatch(zoomOut()), 100);
-  const debouncedSetZoomLevel = debounce((zoomLevel: number) => dispatch(setZoomLevel(zoomLevel)), 100);
-  const handleSetColorTheme = (colorTheme: ColorTheme) => {
-    dispatch(setColorTheme(colorTheme));
-  };
-  const handleSetPrimaryColor = (color: string) => {
-    dispatch(setPrimaryColor(color));
-  };
+  // Memoized debounced zoom functions
+  const debouncedZoomIn = useCallback(
+    debounce(() => dispatch(zoomIn()), 100),
+    [dispatch]
+  );
+  const debouncedZoomOut = useCallback(
+    debounce(() => dispatch(zoomOut()), 100),
+    [dispatch]
+  );
+  const debouncedSetZoomLevel = useCallback(
+    debounce((zoomLevel: number) => dispatch(setZoomLevel(zoomLevel)), 100),
+    [dispatch]
+  );
 
-  const handleSetBackgroundColor = (color: string) => {
-    dispatch(setBackgroundColor(color));
-  };
+  const handleSetColorTheme = useCallback(
+    (colorTheme: ColorTheme) => {
+      dispatch(setColorTheme(colorTheme));
+    },
+    [dispatch]
+  );
+
+  const handleSetPrimaryColor = useCallback(
+    (color: string) => {
+      dispatch(setPrimaryColor(color));
+    },
+    [dispatch]
+  );
+
+  const handleSetBackgroundColor = useCallback(
+    (color: string) => {
+      dispatch(setBackgroundColor(color));
+    },
+    [dispatch]
+  );
   return (
     <NewDocumentContext.Provider 
     value={{ 

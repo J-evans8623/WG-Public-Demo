@@ -20,6 +20,7 @@ interface PracticeSheetContextType {
   resetPracticeSheets: () => void;
   setPracticeSheets: (newPracticeSheets: Map<string, PracticeSheet[]>) => void;
   transferPracticeSheet: (sourceNodeId: string, targetNodeId: string, practiceSheetId: string) => void;
+  editPracticeSheet: (nodeId: string, updatedPracticeSheet: PracticeSheet) => void;
 }
 
 // Create the PracticeSheet context
@@ -81,6 +82,20 @@ export const PracticeSheetProvider = ({ children }: { children: ReactNode }) => 
     });
   };
 
+  const editPracticeSheet = (nodeId: string, updatedPracticeSheet: PracticeSheet) => {
+    setPracticeSheetsState((prev) => {
+      const updatedPracticeSheets = new Map(prev);
+      const nodePracticeSheets = updatedPracticeSheets.get(nodeId) || [];
+      updatedPracticeSheets.set(
+        nodeId,
+        nodePracticeSheets.map((sheet) =>
+          sheet.id === updatedPracticeSheet.id ? updatedPracticeSheet : sheet
+        )
+      );
+      return updatedPracticeSheets;
+    });
+  };
+
   return (
     <PracticeSheetContext.Provider
       value={{
@@ -91,6 +106,7 @@ export const PracticeSheetProvider = ({ children }: { children: ReactNode }) => 
         resetPracticeSheets,
         setPracticeSheets,
         transferPracticeSheet,
+        editPracticeSheet,
       }}
     >
       {children}

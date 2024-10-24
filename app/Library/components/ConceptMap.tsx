@@ -1,25 +1,37 @@
-//bloom-maps\app\Library\Components\ConceptMap.tsx
-import React, { useRef, useEffect } from 'react';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import React, { memo, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
 import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
 import ConceptNode from '@/app/Library/components/ConceptNode';
-import Subtree from './Subtree';
+import Subtree from '@/app/Library/components/Subtree';
 import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
 import { useAutoMapResize } from '@/app/Library/hooks/useAutoMapResize';
 import { useTreePositioning } from '@/app/Library/hooks/useTreePositioning';
+
+// Import new contexts
+import { useNodesContext } from '@/app/Library/Context/NodesProvider';
+import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
+import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 
 interface ConceptMapProps {
   groundWidth: number;
   centerPaneRef: React.RefObject<HTMLDivElement>;
   onOpenCueCardModal: (nodeId: string) => void;
   onOpenAddChildModal: (parentNodeId: string) => void;
+  onNodeClick: (nodeId: string) => void; // New prop
 }
 
-function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal, onOpenAddChildModal}: ConceptMapProps) {
-  const { state } = useDocumentContext();
-  const { nodes, zoomLevel, resetMapSize } = state; 
+const ConceptMap = ({
+  groundWidth,
+  centerPaneRef,
+  onOpenCueCardModal,
+  onOpenAddChildModal,
+  onNodeClick
+}: ConceptMapProps) => {
+  // Use new context hooks
+  const { nodes } = useNodesContext();
+  const { zoomLevel } = useZoomContext();
+  const { resetMapSize } = useLayoutContext();
   const { subtrees } = useSubTreeContext();
 
   const mapRef = useRef<HTMLDivElement>(null);
@@ -34,10 +46,27 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal, onOpenAddC
     zoomLevel,
   });
 
+  const laidOutNodes = useCompositeLayout(nodes || new Map());
 
-  const laidOutNodes= useCompositeLayout(nodes);
+  // Ensure that nodes exist and have values
+  const rootNode = useMemo(() => {
+    return Array.from(nodes.values()).find((node) => node.isRoot);
+  }, [nodes]);
 
-  const rootNode = Array.from(nodes.values()).find((node) => node.isRoot);
+  // Memoized handler functions to avoid unnecessary re-renders
+  const handleOpenCueCardModal = useCallback(
+    (nodeId: string) => {
+      onOpenCueCardModal(nodeId);
+    },
+    [onOpenCueCardModal]
+  );
+
+  const handleOpenAddChildModal = useCallback(
+    (parentNodeId: string) => {
+      onOpenAddChildModal(parentNodeId);
+    },
+    [onOpenAddChildModal]
+  );
 
   return (
     <div
@@ -46,18 +75,21 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal, onOpenAddC
       style={{
         transform: `scale(${zoomLevel})`,
         transformOrigin: 'top left',
-        transition: 'transform 0.3s ease, min-height 0.3s ease, min-width 0.3s ease',
+        transition:
+          'transform 0.3s ease, min-height 0.3s ease, min-width 0.3s ease',
         position: 'relative',
         display: 'flex',
       }}
     >
       <div style={{ flexGrow: 1, position: 'relative' }}>
-        {/* TreeContainer */} 
+        {/* TreeContainer */}
         <div
           style={{
             position: 'absolute',
             top: '200px',
-            left: `${offset}px`, // Adjusted here
+            left: '0px', // Keep left at 0
+            transform: `translateX(${offset}px)`, // Use transform for horizontal movement
+            transition: 'transform 0.3s ease', // Add transition for smooth movement
             pointerEvents: 'auto',
             width: '100%',
             height: '100%',
@@ -67,8 +99,9 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal, onOpenAddC
             <ConceptNode
               key={rootNode.id}
               node={rootNode}
-              onOpenCueCardModal={onOpenCueCardModal}
-              onOpenAddChildModal={onOpenAddChildModal}
+              onOpenCueCardModal={handleOpenCueCardModal}
+              onOpenAddChildModal={handleOpenAddChildModal}
+              onNodeClick={onNodeClick}
             />
           )}
 
@@ -79,33 +112,34 @@ function ConceptMap({ groundWidth, centerPaneRef, onOpenCueCardModal, onOpenAddC
               overflow: 'visible',
             }}
           >
-            {drawHVStyleLines (laidOutNodes, subtrees, 4)}
+            {drawHVStyleLines(laidOutNodes, subtrees, 4)}
           </svg>
 
           {/* Render Subtree components */}
-          {Array.from(subtrees.entries()).map(([nodeId, subtreeData]) => (
-  subtreeData.position && ( // Only render Subtree if position is not null or undefined
-    <Subtree
-      key={nodeId}
-      rootNodeId={nodeId}
-      position={subtreeData.position}
-      width={subtreeData.width}
-      height={subtreeData.height}
-      onOpenCueCardModal={onOpenCueCardModal}
-      onOpenAddChildModal={onOpenAddChildModal}
-    />
-  )
-))}
+          {Array.from(subtrees.entries()).map(
+            ([nodeId, subtreeData]) =>
+              subtreeData.position && (
+                // Only render Subtree if position is not null or undefined
+                <Subtree
+                  key={nodeId}
+                  rootNodeId={nodeId}
+                  position={subtreeData.position}
+                  width={subtreeData.width}
+                  height={subtreeData.height}
+                  onOpenCueCardModal={handleOpenCueCardModal}
+                  onOpenAddChildModal={handleOpenAddChildModal}
+                  onNodeClick={onNodeClick}
+                  
+                />
+              )
+          )}
         </div>
       </div>
     </div>
   );
-}
+};
 
 ConceptMap.displayName = 'ConceptMap';
 ConceptMap.whyDidYouRender = true;
-export default ConceptMap;
-/**
- * Original
- * 
- */
+
+export default memo(ConceptMap);

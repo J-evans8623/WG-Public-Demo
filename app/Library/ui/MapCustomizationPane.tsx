@@ -1,14 +1,20 @@
-// bloom-maps/app/Library/ui/MapCustomizationPane.tsx
+// bloom-maps\app\Library\Tests\components\ui\MapCustomizationPane.tsx
+
+
 import React from 'react';
 import { Select, Tooltip, Divider } from 'antd';
 import { RiZoomInLine, RiZoomOutLine } from 'react-icons/ri';
-import { useDocumentContext } from '@/app/Library/Context/DocumentProvider';
+import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
+import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
+import { setPrimaryColor, setBackgroundColor } from '@/app/Library/Context/colorThemeActions';
+import { setZoomLevel } from '@/app/Library/Context/zoomActions';
+import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 
 const { Option } = Select;
 
 const MapCustomizationPane: React.FC = () => {
-  const { zoomIn, zoomOut, setPrimaryColor, setBackgroundColor, setZoomLevel, state } = useDocumentContext();
-  const { zoomLevel, baseZoomLevel } = state;
+    const { zoomLevel, baseZoomLevel, dispatch: zoomDispatch } = useZoomContext();
+    const { primaryColor, backgroundColor, dispatch: colorThemeDispatch } = useColorThemeContext();
 
   const primaryColors = [
     { label: 'Light Blue', color: '#D5E6ED' },
@@ -35,15 +41,23 @@ const MapCustomizationPane: React.FC = () => {
   ];
 
   const handleSetPrimaryColor = (value: string) => {
-    setPrimaryColor(value);
+    colorThemeDispatch(setPrimaryColor(value));
   };
 
   const handleSetBackgroundColor = (value: string) => {
-    setBackgroundColor(value);
+    colorThemeDispatch(setBackgroundColor(value));
   };
 
   const handleZoomChange = (value: number) => {
-    setZoomLevel(value);
+    zoomDispatch(setZoomLevel(value));
+  };
+
+  const zoomIn = () => {
+    zoomDispatch({ type: ZoomActionType.ZOOM_IN });
+  };
+
+  const zoomOut = () => {
+    zoomDispatch({ type: ZoomActionType.ZOOM_OUT });
   };
 
   const currentZoomPercentage = Math.round((zoomLevel / baseZoomLevel) * 100);
@@ -56,7 +70,7 @@ const MapCustomizationPane: React.FC = () => {
       <div className="mb-6">
         <h4 className="mb-2">Primary Color</h4>
         <Select
-          value={primaryColors.find(color => color.color === state.primaryColor)?.color}
+          value={primaryColors.find(color => color.color === primaryColor)?.color}
           onChange={handleSetPrimaryColor}
           style={{ width: '100%' }}
           size="small"
@@ -85,7 +99,7 @@ const MapCustomizationPane: React.FC = () => {
 
         <h4 className="mt-4 mb-2">Background Color</h4>
         <Select
-          value={backgroundColors.find(color => color.color === state.backgroundColor)?.color}
+          value={backgroundColors.find(color => color.color === backgroundColor)?.color}
           onChange={handleSetBackgroundColor}
           style={{ width: '100%' }}
           size="small"

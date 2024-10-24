@@ -223,3 +223,72 @@ export interface PracticeSheet {
     quizContent: string; // New field for actual content of the quiz
   };
 }
+
+// New definitions for new context
+// bloom-maps/app/Library/Definitions/Definitions.ts
+export enum NodesActionType {
+  SET_NODES = 'SET_NODES',
+  CREATE_NEW_NODE = 'CREATE_NEW_NODE',
+  UPDATE_NODE_TITLE = 'UPDATE_NODE_TITLE',
+  RESET_NODES = 'RESET_NODES',
+  INIT_NEW_DOCUMENT = 'INIT_NEW_DOCUMENT',
+  TRANSFER_NODE = 'TRANSFER_NODE',
+}
+
+export interface NodesAction {
+  type: NodesActionType;
+  payload?: any;
+}
+// bloom-maps/app/Library/Definitions/Definitions.ts
+export enum ZoomActionType {
+  ZOOM_IN = 'ZOOM_IN',
+  ZOOM_OUT = 'ZOOM_OUT',
+  SET_ZOOM_LEVEL = 'SET_ZOOM_LEVEL',
+}
+
+export interface ZoomAction {
+  type: ZoomActionType;
+  payload?: any;
+}
+
+
+export enum LayoutActionType {
+  SET_GET_LAYOUT = 'SET_GET_LAYOUT',
+  SET_MAP_SIZE = 'SET_MAP_SIZE',
+  TOGGLE_RESET_MAP_SIZE = 'TOGGLE_RESET_MAP_SIZE',
+}
+
+export interface LayoutAction {
+  type: LayoutActionType;
+  payload?: any;
+}
+
+// bloom-maps/app/Library/Definitions/Definitions.ts
+export enum ColorThemeActionType {
+  SET_COLOR_THEME = 'SET_COLOR_THEME',
+  SET_PRIMARY_COLOR = 'SET_PRIMARY_COLOR',
+  SET_BACKGROUND_COLOR = 'SET_BACKGROUND_COLOR',
+}
+
+export interface ColorThemeAction {
+  type: ColorThemeActionType;
+  payload?: any;
+}
+
+export enum FileActionType {
+  SET_FILE_NAME = 'SET_FILE_NAME',
+}
+
+export interface FileAction {
+  type: FileActionType;
+  payload?: any;
+}
+export interface SubtreeData {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  width: number;
+  height: number;
+  position?: { x: number; y: number };
+}

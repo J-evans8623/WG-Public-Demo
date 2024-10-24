@@ -1,138 +1,370 @@
-// bloom-maps\app\Library\utils\hvLayout.tsx
 import { SubtreeData } from '@/app/Library/Context/SubTreeProvider';
 
+// Main function to apply the HV layout algorithm
+// File scope variables to track left and right subtree lengths
+let leftSubtreeLength = 0;
+let rightSubtreeLength = 0;
+let nextNodeExist = false;
+let newNodeWidth = 325
+
+// Main function to apply the HV layout algorithm
 export function applyHVLayout(
   subtrees: Map<string, SubtreeData>
 ): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>();
 
-  const verticalOffset = 225;
-  const minHorizontalGap = 50;
-  const padding = 50;
+  const verticalOffset = 225; // Vertical offset for each subtree
+  const padding = 50; // Padding between subtrees
 
-  //let cumulativeLeftWidth = 0;
-  //let cumulativeRightWidth = 0;
+  // Helper function 1: Find the sentinel subtree directly by its hardcoded ID
+  const sentinelSubtree = findSentinelSubtree(subtrees);
 
-  // Helper function 1: Find the center subtree
-  const centerSubtree = findCenterSubtree(subtrees);
-
-  // Helper function 2: Separate left and right subtrees (excluding the center and undefined position)
-  const { leftSubtrees, rightSubtrees, undefinedPositionSubtree } = separateLeftRightSubtrees(subtrees, centerSubtree);
-
-  // Helper function 3: Initialize cumulative widths, taking into account center subtree offset
-  const { cumulativeLeftWidths, cumulativeRightWidths } = initializeCumulativeWidths(leftSubtrees, rightSubtrees, centerSubtree, padding);
-
-  // Place the center subtree at x = 0
-  if (centerSubtree) {
-    positions.set(centerSubtree.nodeId, { x: 0, y: verticalOffset });
+  if (!sentinelSubtree) {
+    throw new Error("Sentinel subtree not found. The layout cannot proceed without it.");
   }
 
-  // Helper function 4: Place subtrees alternately using cumulative widths
+  // Helper function 2: Separate left, right, and center subtrees (excluding sentinel and undefined position)
+  const { leftSubtrees, rightSubtrees, centerSubtrees, undefinedPositionSubtree } = separateLeftRightSubtrees(subtrees, sentinelSubtree);
+
+  // Store the lengths of left and right subtrees for later use in placeUndefinedPositionSubtree
+  leftSubtreeLength = leftSubtrees.length;
+  rightSubtreeLength = rightSubtrees.length;
+  nextNodeExist = undefinedPositionSubtree ? true:false;
+
+  // New logic: Balance subtrees around the sentinel node
+  //balanceSubtrees(leftSubtrees, rightSubtrees);
+
+  // **Recalculate positions after subtree removal or balancing**
+ // recalculatePositionsAfterRemoval(leftSubtrees, rightSubtrees, sentinelSubtree, padding);
+
+  // Helper function 3: Initialize cumulative widths
+  const { cumulativeLeftWidths, cumulativeRightWidths, cumulativeCenterWidths } = initializeCumulativeWidths(leftSubtrees, rightSubtrees, centerSubtrees, sentinelSubtree, padding);
+  
+
+  // Place the sentinel subtree at x = 0
+  positions.set(sentinelSubtree.nodeId, { x: 0, y: verticalOffset });
+
+  // Helper function 4: Place center subtrees if any exist
+  placeCenterSubtrees(centerSubtrees, sentinelSubtree, positions, cumulativeCenterWidths, verticalOffset);
+
+  // Helper function 5: Place subtrees alternately using cumulative widths
   placeSubtreesAlternating(leftSubtrees, rightSubtrees, positions, cumulativeLeftWidths, cumulativeRightWidths, verticalOffset);
 
-  // Helper function 5: Handle undefined position subtree, if it exists
-  //placeUndefinedPositionSubtree(undefinedPositionSubtree, positions, cumulativeLeftWidth, cumulativeRightWidth, verticalOffset, subtrees, padding);
+  // Helper function 6: Handle undefined position subtree, if it exists
   placeUndefinedPositionSubtree(
     undefinedPositionSubtree,
     positions,
-    cumulativeLeftWidths.get('_next')!,  // Get the next left position
-    cumulativeRightWidths.get('_next')!,  // Get the next right position
+    cumulativeLeftWidths.get('_next')!,
+    cumulativeRightWidths.get('_next')!,
+    cumulativeCenterWidths,
     verticalOffset,
     subtrees,
-    padding
+    padding,
+    centerSubtrees,
   );
-  
+
   return positions;
 }
 
-// Helper function to find the center subtree
-function findCenterSubtree(subtrees: Map<string, SubtreeData>): { nodeId: string; subtree: SubtreeData } | null {
-  let centerSubtree: { nodeId: string; subtree: SubtreeData } | null = null;
-  subtrees.forEach((subtree, nodeId) => {
-    if (subtree.position && subtree.position.x === 0) {
-      centerSubtree = { nodeId, subtree };
-    }
-  });
-  return centerSubtree;
+// Helper function to find the sentinel subtree directly by hardcoded ID
+function findSentinelSubtree(subtrees: Map<string, SubtreeData>): { nodeId: string; subtree: SubtreeData } | null {
+  const sentinelNodeId = 'sentinel-node'; // Hardcoded sentinel node ID
+  const sentinelSubtree = subtrees.get(sentinelNodeId); // Directly retrieve the sentinel subtree
+
+  if (sentinelSubtree) {
+    return { nodeId: sentinelNodeId, subtree: sentinelSubtree };
+  }
+
+  return null; // Return null if the sentinel subtree is not found
 }
 
-// Helper function to separate left and right subtrees
-function separateLeftRightSubtrees(subtrees: Map<string, SubtreeData>, centerSubtree: { nodeId: string; subtree: SubtreeData } | null) {
+// Helper function to separate left and right subtrees, excluding the sentinel
+// Helper function to separate left, right, and center subtrees, excluding the sentinel
+function separateLeftRightSubtrees(
+  subtrees: Map<string, SubtreeData>,
+  sentinelSubtree: { nodeId: string; subtree: SubtreeData } | null
+) {
   const leftSubtrees: Array<{ nodeId: string; subtree: SubtreeData }> = [];
   const rightSubtrees: Array<{ nodeId: string; subtree: SubtreeData }> = [];
   let undefinedPositionSubtree: { nodeId: string; subtree: SubtreeData } | null = null;
+  let centerSubtrees: Array<{ nodeId: string; subtree: SubtreeData }> = []; // For center node(s)
 
-  subtrees.forEach((subtree, nodeId) => {
-    if (centerSubtree && subtree === centerSubtree.subtree) return;
+  // Filter all subtrees except the sentinel
+  const allSubtrees: Array<{ nodeId: string; subtree: SubtreeData }> = Array.from(subtrees.entries())
+    .filter(([nodeId, subtree]) => sentinelSubtree?.nodeId !== nodeId)
+    .map(([nodeId, subtree]) => ({ nodeId, subtree }));
+
+  // Identify and store the undefined position subtree
+  allSubtrees.forEach(({ nodeId, subtree }) => {
     if (!subtree.position) {
       undefinedPositionSubtree = { nodeId, subtree };
-    } else if (subtree.position.x < 0) {
+    }
+  });
+
+  // Filter out the undefined position subtree for further sorting and categorization
+  const definedPositionSubtrees = allSubtrees
+  .filter(({ subtree }) => subtree.position)
+  .sort((a, b) => a.subtree.position!.x - b.subtree.position!.x);
+
+  // Determine center subtrees based on adjusted length
+  if (definedPositionSubtrees.length % 2 === 1 && definedPositionSubtrees.length > 0) {
+    // Odd number of subtrees: Assign the middle subtree as center
+    const middleIndex = Math.floor(definedPositionSubtrees.length / 2);
+    centerSubtrees.push(definedPositionSubtrees[middleIndex]);
+    definedPositionSubtrees.splice(middleIndex, 1); // Remove the center subtree from further consideration
+  } else if (definedPositionSubtrees.length % 2 === 0 && definedPositionSubtrees.length > 0) {
+    // Even number of subtrees: Assign the two middle subtrees as centers
+    const middleLeftIndex = Math.floor(definedPositionSubtrees.length / 2) - 1;
+    const middleRightIndex = middleLeftIndex + 1;
+
+    centerSubtrees.push(definedPositionSubtrees[middleLeftIndex], definedPositionSubtrees[middleRightIndex]);
+    definedPositionSubtrees.splice(middleRightIndex, 1); // Remove middle subtrees from the list
+    definedPositionSubtrees.splice(middleLeftIndex, 1);
+  }
+
+  // Now categorize the remaining subtrees as left or right
+  definedPositionSubtrees.forEach(({ nodeId, subtree }) => {
+    if (subtree.position!.x < sentinelSubtree!.subtree.position!.x) {
       leftSubtrees.push({ nodeId, subtree });
     } else {
       rightSubtrees.push({ nodeId, subtree });
     }
   });
+  
+  // Sort leftSubtrees in descending order of position.x (farthest to closest to the sentinel)
+  leftSubtrees.sort((a, b) => b.subtree.position!.x - a.subtree.position!.x);
+  
+  // Sort rightSubtrees in ascending order of position.x (closest to farthest from the sentinel)
+  rightSubtrees.sort((a, b) => a.subtree.position!.x - b.subtree.position!.x);
+  
 
-  // Sort left and right subtrees by their x-coordinates
-  leftSubtrees.sort((a, b) => (b.subtree.position!.x - a.subtree.position!.x));
-  rightSubtrees.sort((a, b) => (a.subtree.position!.x - b.subtree.position!.x));
-
-  return { leftSubtrees, rightSubtrees, undefinedPositionSubtree };
+  return { leftSubtrees, rightSubtrees, centerSubtrees, undefinedPositionSubtree };
 }
 
-// Helper function to initialize cumulative widths
-// Updated initializeCumulativeWidths to return arrays
+
+
+// New helper function: Balance subtrees around the sentinel node
+function balanceSubtrees(
+  leftSubtrees: Array<{ nodeId: string; subtree: SubtreeData }>,
+  rightSubtrees: Array<{ nodeId: string; subtree: SubtreeData }>
+) {
+  // Dynamically track the count of left and right subtrees
+  let leftCount = leftSubtrees.length;
+  let rightCount = rightSubtrees.length;
+
+  // **Updated Base Case**: If there's only one subtree in total (excluding the sentinel), exit early
+  if (leftCount + rightCount === 1) {
+    return;
+  }
+
+  // Base case: Exit loop when the subtrees are balanced
+  // Continue balancing until the difference between left and right subtrees is at most 1
+  while (leftCount > rightCount + 1) {
+    const subtreeToMove = leftSubtrees.pop(); // pop from near the 'center'
+    if (subtreeToMove) {
+      rightSubtrees.unshift(subtreeToMove); // we want to add to the first element
+      rightCount++;
+      leftCount--;
+    }
+  }
+
+  while (rightCount > leftCount) {
+    const subtreeToMove = rightSubtrees.shift();
+    if (subtreeToMove) {
+      leftSubtrees.push(subtreeToMove);
+      leftCount++;
+      rightCount--;
+    }
+  }
+
+  // The loop will stop when the subtree counts are balanced:
+  //  - leftCount == rightCount (equal balance)
+  //  - leftCount == rightCount + 1 (left side can have at most one extra subtree)
+}
+
+
+// Helper function to recalculate positions after a subtree is removed or adjusted
+function recalculatePositionsAfterRemoval(
+  leftSubtrees: Array<{ nodeId: string; subtree: SubtreeData }>,
+  rightSubtrees: Array<{ nodeId: string; subtree: SubtreeData }>,
+  sentinelSubtree: { nodeId: string; subtree: SubtreeData } | null,
+  padding: number
+) {
+  // **New Base Case**: If there's only one subtree remaining, assign it the sentinel node's position
+  if (leftSubtrees.length + rightSubtrees.length === 1) {
+    const remainingSubtree = leftSubtrees.length > 0 ? leftSubtrees[0] : rightSubtrees[0];
+    remainingSubtree.subtree.position!.x = 0;
+    return;
+  }
+
+  // Adjust left subtrees
+  if (leftSubtrees.length > 0) {
+    let cumulativeLeftWidth = sentinelSubtree ? -(sentinelSubtree.subtree.width + padding) : 0;
+    leftSubtrees.forEach(({ subtree }) => {
+      subtree.position!.x = cumulativeLeftWidth - (subtree.width + padding) / 2;
+      cumulativeLeftWidth -= subtree.width + padding;
+    });
+  }
+
+  // Adjust right subtrees
+  if (rightSubtrees.length > 0) {
+    let cumulativeRightWidth = sentinelSubtree ? sentinelSubtree.subtree.width + padding : 0;
+    rightSubtrees.forEach(({ subtree }) => {
+      subtree.position!.x = cumulativeRightWidth + (subtree.width + padding) / 2;
+      cumulativeRightWidth += subtree.width + padding;
+    });
+  }
+}
+
 function initializeCumulativeWidths(
   leftSubtrees: Array<{ nodeId: string; subtree: SubtreeData }>,
   rightSubtrees: Array<{ nodeId: string; subtree: SubtreeData }>,
-  centerSubtree: { nodeId: string; subtree: SubtreeData } | null,
+  centerSubtrees: Array<{ nodeId: string; subtree: SubtreeData }>, // Center subtrees now included
+  sentinelSubtree: { nodeId: string; subtree: SubtreeData } | null,
   padding: number
 ) {
-  let cumulativeLeftWidth = 0;
-  let cumulativeRightWidth = centerSubtree ? centerSubtree.subtree.width + padding : 0; // Position for first right subtree
+  // Default values initialization for left, right, and center subtrees
 
-  // Using Maps to preserve nodeId as keys for the cumulative widths
   const cumulativeLeftWidths: Map<string, number> = new Map();
   const cumulativeRightWidths: Map<string, number> = new Map();
+  const cumulativeCenterWidths: Map<string, number> = new Map(); // Added for center subtree(s)
 
-  // Calculate cumulative widths for left subtrees
-  leftSubtrees.forEach(({ nodeId, subtree }) => {
-    cumulativeLeftWidth -= (subtree.width + padding);
-    cumulativeLeftWidths.set(nodeId, cumulativeLeftWidth);
-  });
-
-  // Add extra width for the next left subtree (L + 2)
-  const lastLeftNodeId = leftSubtrees.length > 0 ? leftSubtrees[leftSubtrees.length - 1].nodeId : null;
-  if (lastLeftNodeId) {
-    cumulativeLeftWidth -= leftSubtrees[leftSubtrees.length - 1].subtree.width + padding;
-    cumulativeLeftWidths.set("_next", cumulativeLeftWidth);
+  // **Case A: No left, right, or center subtrees** -> Initialize all widths to sentinel position
+  if (centerSubtrees.length === 0) {
+    const sentinelX = sentinelSubtree?.subtree.position?.x ?? 0;
+    cumulativeLeftWidths.set('_next', sentinelX);
+    cumulativeRightWidths.set('_next', sentinelX);
+    cumulativeCenterWidths.set('_nextLeft', sentinelX);
+    cumulativeCenterWidths.set('_nextRight', sentinelX);
+    return { cumulativeLeftWidths, cumulativeRightWidths, cumulativeCenterWidths };
   }
+  
+ 
+    // **Case A: Single center subtree exists (C -> CC transition)**
+    if (centerSubtrees.length === 1) {
+      
+      const singleCenter = centerSubtrees[0];
+      const sentinelX = sentinelSubtree?.subtree.position?.x ?? 0;
+      if (nextNodeExist) {
 
-  // Calculate cumulative widths for right subtrees
-  rightSubtrees.forEach(({ nodeId, subtree }, index) => {
-    if (index === 0) {
-      // First right subtree, already calculated
-      cumulativeRightWidths.set(nodeId, cumulativeRightWidth);
+  
+      // Check if the center subtree exists
+      if (singleCenter?.nodeId) {
+        const spacing = 25; // Symmetrical spacing for a future second center subtree
+        const newNodeWidth = 325; // Fixed width for a new node
+  
+        // Offset the single center subtree from the sentinel, preparing for the second one
+        const centerX = sentinelX - ((singleCenter.subtree.width/2) + spacing);
+        cumulativeCenterWidths.set(singleCenter.nodeId, centerX); // Assign calculated position for center subtree
+  
+        // Set the next available right-side position for the new node to be placed at the sentinel position
+        cumulativeCenterWidths.set('_nextRight', sentinelX + (newNodeWidth /2)  + spacing);
+  
+        // Now calculate the cumulative positions for left and right subtrees, moving outward from the center
+  
+        // Handle left subtrees: Start from the position of the single center node and move outward
+        let leftCumulativeX = cumulativeCenterWidths.get(singleCenter.nodeId)! - padding;
+        leftSubtrees.forEach(({ nodeId, subtree }) => {
+          cumulativeLeftWidths.set(nodeId, leftCumulativeX - subtree.width );
+          leftCumulativeX =  cumulativeLeftWidths.get(nodeId)! - padding; // Update cumulative x for the next left subtree
+        });
+  
+        // Handle right subtrees: Start from the next available right position and move outward
+        let rightCumulativeX = cumulativeCenterWidths.get('_nextRight')! + padding + newNodeWidth;
+        rightSubtrees.forEach(({ nodeId, subtree }) => {
+          cumulativeRightWidths.set(nodeId, rightCumulativeX );
+          rightCumulativeX = cumulativeRightWidths.get(nodeId)! + padding + + subtree.width; // Update cumulative x for the next right subtree
+        });
+      }
     } else {
-      // Subsequent right subtrees
-      cumulativeRightWidth += (rightSubtrees[index - 1].subtree.width + padding);
-      cumulativeRightWidths.set(nodeId, cumulativeRightWidth);
+      // Case 2: No new node added, maintain the current position of the single center subtree
+      if (singleCenter?.nodeId) {
+        // Set the center subtree's position to the sentinel's x position
+        cumulativeCenterWidths.set(singleCenter.nodeId, sentinelX);
+  
+        // Handle left subtrees: Start from the position of the single center node and move outward(
+        let depthDiff = computeDepthDifference(leftSubtrees[0].subtree.width ?? 0, singleCenter.subtree.width)
+        let minSpace = 0
+        let leftCumulativeX = sentinelX - padding ;
+        for (let x= 0; x < leftSubtrees.length; x++){
+          const {nodeId , subtree} = leftSubtrees[x];
+          minSpace = Math.abs ( (subtree.width - (Math.max(depthDiff,0) *75) )) 
+          let distance = leftCumulativeX - Math.min(subtree.width, minSpace)
+          cumulativeLeftWidths.set(nodeId, distance);
+          leftCumulativeX = cumulativeLeftWidths.get(nodeId)! - padding;
+          depthDiff = computeDepthDifference(leftSubtrees[x + 1]?.subtree.width ?? 0, subtree.width);       
+  
+
+        }
+        /**leftSubtrees.forEach(({ nodeId, subtree }) => {
+
+          let distance = leftCumulativeX - subtree.width//  computeDepthDifference
+          cumulativeLeftWidths.set(nodeId, distance );
+          leftCumulativeX = cumulativeLeftWidths.get(nodeId)! - padding; // Update cumulative x for the next left subtree
+        });  */
+  
+        // Handle right subtrees: Start from the position of the single center node and move outward
+        let rightCumulativeX = sentinelX + singleCenter.subtree.width  + padding;
+        rightSubtrees.forEach(({ nodeId, subtree }) => {
+          cumulativeRightWidths.set(nodeId, rightCumulativeX );
+          rightCumulativeX = cumulativeRightWidths.get(nodeId)! + padding + subtree.width;  // Update cumulative x for the next right subtree
+        });
+      }
     }
-  });
+      // No need to set default values for cumulativeLeftWidths and cumulativeRightWidths here
+      // as the loop will handle them based on the center position.
+    } else if (centerSubtrees.length === 2){
 
-  // Add extra width for the next right subtree (R + 2)
-  const lastRightNodeId = rightSubtrees.length > 0 ? rightSubtrees[rightSubtrees.length - 1].nodeId : null;
-  if (lastRightNodeId) {
-    cumulativeRightWidth += rightSubtrees[rightSubtrees.length - 1].subtree.width + padding;
-    cumulativeRightWidths.set("_next", cumulativeRightWidth);
-  }
+  // (leftSubtrees.length === 0 && rightSubtrees.length === 0 && centerSubtrees.length === 2)
+  // **Case C: No left or right subtrees, but two center subtrees**
 
-  return { cumulativeLeftWidths, cumulativeRightWidths };
+  const leftCenter = centerSubtrees[0];
+  const rightCenter = centerSubtrees[1];
+  const sentinelX = sentinelSubtree?.subtree.position?.x ?? 0;
+  
+  // Check if a new node exists or not
+  if (nextNodeExist) {
+    // Case 2: A new node will be added, shift the current center nodes outward
+    if (leftCenter?.nodeId && rightCenter?.nodeId) {
+      const requiredShift = newNodeWidth / 2 + padding; // Shift required to avoid overlap
+
+      // Shift left and right center nodes to make space for the new node at the sentinel position
+      cumulativeCenterWidths.set(leftCenter.nodeId, sentinelX - requiredShift - leftCenter.subtree.width / 2);
+      cumulativeCenterWidths.set(rightCenter.nodeId, sentinelX + requiredShift + rightCenter.subtree.width / 2);// excessive spacing
+
+  } 
+      }
+
+      else {
+    
+        // Case 2: No new node, just balance the existing center subtrees
+        if (leftCenter?.nodeId && rightCenter?.nodeId) {
+          const spacing = 25; // Spacing between the two center nodes
+          cumulativeCenterWidths.set(leftCenter.nodeId, -(leftCenter.subtree.width / 2 + spacing));
+          cumulativeCenterWidths.set(rightCenter.nodeId, rightCenter.subtree.width / 2 + spacing); //excessive spacing
+        }
+      }
+            // Handle left subtrees: Start from the position of the left center node and move outward
+            let leftCumulativeX = cumulativeCenterWidths.get(leftCenter.nodeId)! - padding;
+            leftSubtrees.forEach(({ nodeId, subtree }) => {
+              cumulativeLeftWidths.set(nodeId, leftCumulativeX - subtree.width);
+              leftCumulativeX = cumulativeLeftWidths.get(nodeId)! - padding; // Update cumulative x for the next left subtree
+            });
+      
+            // Handle right subtrees: Start from the position of the right center node and move outward
+            let rightCumulativeX = cumulativeCenterWidths.get(rightCenter.nodeId)! + rightCenter.subtree.width + padding;
+            rightSubtrees.forEach(({ nodeId, subtree }) => {
+              cumulativeRightWidths.set(nodeId, rightCumulativeX );
+              rightCumulativeX = cumulativeRightWidths.get(nodeId)! + padding + subtree.width; // Update cumulative x for the next right subtree
+            });
+}
+  return { cumulativeLeftWidths, cumulativeRightWidths, cumulativeCenterWidths };
 }
 
 
 
-// Helper function to place subtrees alternately
+
+// Helper function to place subtrees alternately on left and right sides
 function placeSubtreesAlternating(
   leftSubtrees: Array<{ nodeId: string; subtree: SubtreeData }>,
   rightSubtrees: Array<{ nodeId: string; subtree: SubtreeData }>,
@@ -141,70 +373,128 @@ function placeSubtreesAlternating(
   cumulativeRightWidths: Map<string, number>,
   verticalOffset: number
 ) {
-  let index = 0;
   let direction = 'left';
 
   while (leftSubtrees.length || rightSubtrees.length) {
     if (direction === 'left' && leftSubtrees.length > 0) {
-      const { nodeId, subtree } = leftSubtrees.shift()!; // Use shift to keep the order consistent
-      const xPos = cumulativeLeftWidths.get(nodeId); // Get the position from the map
+      const { nodeId } = leftSubtrees.shift()!;
+      const xPos = cumulativeLeftWidths.get(nodeId);
       if (xPos !== undefined) {
         positions.set(nodeId, { x: xPos, y: verticalOffset });
       }
     } else if (direction === 'right' && rightSubtrees.length > 0) {
-      const { nodeId, subtree } = rightSubtrees.shift()!; // Use shift to keep the order consistent
-      const xPos = cumulativeRightWidths.get(nodeId); // Get the position from the map
+      const { nodeId } = rightSubtrees.shift()!;
+      const xPos = cumulativeRightWidths.get(nodeId);
       if (xPos !== undefined) {
         positions.set(nodeId, { x: xPos, y: verticalOffset });
       }
     }
 
-    // Alternate between left and right
+    // Alternate between left and right placement
     direction = direction === 'left' ? 'right' : 'left';
-    index++;
   }
 }
 
 
-// Helper function to place the undefined position subtree
+// Helper function to place the center subtrees (one or two) at or near the sentinel's position
+// Helper function to place the center subtrees (one or two) at or near the sentinel's position
+function placeCenterSubtrees(
+  centerSubtrees: Array<{ nodeId: string; subtree: SubtreeData }>,
+  sentinelSubtree: { nodeId: string; subtree: SubtreeData },
+  positions: Map<string, { x: number; y: number }>,
+  cumulativeCenterWidths: Map<string, number>, // Use cumulative center widths
+  verticalOffset: number
+) {
+  // Check if the center subtrees array exists and has valid content
+  if (centerSubtrees.length === 1) {
+    const leftCenter = centerSubtrees[0];
+
+    // Ensure the leftCenter has the necessary properties before setting position
+    if (leftCenter && leftCenter.nodeId) {
+      // One center subtree: place it at the precomputed cumulative center width position
+      const xPos = cumulativeCenterWidths.get(leftCenter.nodeId) ?? sentinelSubtree.subtree.position!.x;
+      positions.set(leftCenter.nodeId, { x: xPos, y: verticalOffset });
+    }
+  } else if (centerSubtrees.length === 2) {
+    const leftCenter = centerSubtrees[0];
+    const rightCenter = centerSubtrees[1];
+
+    // Ensure both center subtrees have the necessary properties before setting their positions
+    if (leftCenter && leftCenter.nodeId && rightCenter && rightCenter.nodeId) {
+      // Use cumulative center widths to position center subtrees, ensuring proper spacing
+      const leftCenterX = cumulativeCenterWidths.get(leftCenter.nodeId) ?? sentinelSubtree.subtree.position!.x - 25;
+      const rightCenterX = cumulativeCenterWidths.get(rightCenter.nodeId) ?? sentinelSubtree.subtree.position!.x + 25;
+
+      // Set the positions of the left and right center subtrees
+      positions.set(leftCenter.nodeId, { x: leftCenterX, y: verticalOffset });
+      positions.set(rightCenter.nodeId, { x: rightCenterX, y: verticalOffset });
+    }
+  }
+}
+
+
+// Helper function to place the undefined subtree (newly added node)
 function placeUndefinedPositionSubtree(
   undefinedPositionSubtree: { nodeId: string; subtree: SubtreeData } | null,
   positions: Map<string, { x: number; y: number }>,
-  cumulativeLeftWidth: number | undefined,  // Now accepting undefined
-  cumulativeRightWidth: number | undefined, // Now accepting undefined
+  cumulativeLeftWidth: number | undefined,
+  cumulativeRightWidth: number | undefined,
+  cumulativeCenterWidths: Map<string, number> | undefined, // Ensure this map is properly initialized
   verticalOffset: number,
-  subtrees: Map<string, SubtreeData>,  // Pass the entire subtrees map for length calculation
-  padding: number
+  subtrees: Map<string, SubtreeData>,
+  padding: number,
+  centerSubtrees: Array<{ nodeId: string; subtree: SubtreeData }> // Handle center subtrees
 ) {
   if (!undefinedPositionSubtree) return;
 
-  const totalSubtrees = subtrees.size; // Read the total number of subtrees directly from the map
+  const totalWithUndefined = subtrees.size - 1;; // Account for the undefined subtree
 
-  // Base case: First child (center subtree)
-  if (totalSubtrees === 1) {
-    // Place the first child directly below the root
+  // **Base Case A**: First child, place directly at the sentinel position (x = 0)
+  if (totalWithUndefined === 1) {
     positions.set(undefinedPositionSubtree.nodeId, { x: 0, y: verticalOffset });
     return;
   }
 
-  // Base case: No preexisting left subtree
-  if (totalSubtrees % 2 === 1 && cumulativeLeftWidth === undefined) {
-    cumulativeLeftWidth = -(undefinedPositionSubtree.subtree.width + padding); // Initialize to a safe left value
+  // **Base Case B**: One center subtree and undefined position (OX)
+  if (centerSubtrees.length === 1 ) { // && totalWithUndefined === 2)
+    // Ensure cumulativeCenterWidths is valid and contains the center subtree's nodeId
+    if (cumulativeCenterWidths && cumulativeCenterWidths.has('_nextRight')) {
+      const rightCenterX = cumulativeCenterWidths.get('_nextRight') ?? 0;
+      positions.set(undefinedPositionSubtree.nodeId, { x: rightCenterX, y: verticalOffset });
+    } else {
+      console.error("Center subtree cumulative width is not properly defined.");
+      positions.set(undefinedPositionSubtree.nodeId, { x: padding, y: verticalOffset }); // Fallback if widths not defined
+    }
+    return;
+  }
+  // Generalized Case B: Two center subtrees and L/R subtrees
+  if (centerSubtrees.length === 2) {
+    positions.set(undefinedPositionSubtree.nodeId, { x: 0, y: verticalOffset });
+    return;
   }
 
-  // Base case: No preexisting right subtree
-  if (totalSubtrees % 2 === 0 && cumulativeRightWidth === undefined) {
-    cumulativeRightWidth = undefinedPositionSubtree.subtree.width + padding; // Initialize to a safe right value
-  }
-
-  if (totalSubtrees % 2 === 0) {
-    // Place on the right side
+  // Generalized Case C: Balanced left/right subtrees (101X or 1001X)
+  if (totalWithUndefined % 2 === 1) {
+    // Default case: Add the new node to the right side
     positions.set(undefinedPositionSubtree.nodeId, { x: cumulativeRightWidth!, y: verticalOffset });
     cumulativeRightWidth! += (undefinedPositionSubtree.subtree.width + padding);
   } else {
-    // Place on the left side
+    // Default case: Add the new node to the left side
     positions.set(undefinedPositionSubtree.nodeId, { x: cumulativeLeftWidth!, y: verticalOffset });
-    cumulativeLeftWidth! -= undefinedPositionSubtree.subtree.width + padding;
+    cumulativeLeftWidth! -= (undefinedPositionSubtree.subtree.width + padding);
   }
 }
 
+function computeDepthDifference(outerTreeWidth: number, innerTreeWidth: number): number {
+  // Helper function to compute the depth based on the width
+  const getDepth = (width: number): number => {
+    return Math.floor((width - 325) / 75); // Formula to calculate depth from width
+  };
+
+  // Calculate the depth for both the outer and inner tree
+  const outerTreeDepth = getDepth(outerTreeWidth);
+  const innerTreeDepth = getDepth(innerTreeWidth);
+
+  // Return the difference between their depth levels
+  return outerTreeDepth - innerTreeDepth;
+}

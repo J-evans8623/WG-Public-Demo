@@ -1,52 +1,51 @@
+// bloom-maps\app\Library\Context\NodeSelectionContext.tsx
 // NodeSelectionContext.tsx
-
 import React, { createContext, useContext, useMemo, useState } from 'react';
 
-// Define the context type
 type NodeSelectionContextType = {
-  toggleNodeSelection: (nodeId: string) => void;  // Function to toggle the selection of a node
-  isSelected: (nodeId: string) => boolean;  // Function to check if a node is selected
-  clearSelection: () => void;  // Function to clear all selections
-  getSelectedNodeIds: () => string[];  // Function to retrieve all selected node IDs
-  deselectNode: (nodeId: string) => void; // New function
-  selectNode: (nodeId: string) => void; 
+  toggleNodeSelection: (nodeId: string) => void;
+  isSelected: (nodeId: string) => boolean;
+  clearSelection: () => void;
+  getSelectedNodeIds: () => string[];
+  deselectNode: (nodeId: string) => void;
+  selectNode: (nodeId: string) => void;
+  targetNodeId: string | null;
+  setTargetNodeId: (nodeId: string) => void;
+  getTargetNodeId: () => string | null;
 };
 
 const NodeSelectionContext = createContext<NodeSelectionContextType | undefined>(undefined);
 
 export const NodeSelectionProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedIDs, setSelectedIDs] = useState<string[]>([]);
+  const [targetNodeId, setTargetNodeIdState] = useState<string | null>(null);
 
-  // Toggle the selection status of a node
   const toggleNodeSelection = (nodeId: string) => {
     setSelectedIDs((prevSelected) =>
-      prevSelected.includes(nodeId)
-        ? prevSelected.filter((id) => id !== nodeId)  // Remove node if already selected
-        : [...prevSelected, nodeId]  // Add node if not selected
+      prevSelected.includes(nodeId) ? prevSelected.filter((id) => id !== nodeId) : [...prevSelected, nodeId]
     );
   };
 
-  // Check if a specific node is selected
   const isSelected = (nodeId: string) => selectedIDs.includes(nodeId);
 
-  // Clear all selected nodes
   const clearSelection = () => setSelectedIDs([]);
 
-  // Retrieve all selected node IDs
   const getSelectedNodeIds = () => selectedIDs;
 
+  const deselectNode = (nodeId: string) => {
+    setSelectedIDs((prevSelected) => prevSelected.filter((id) => id !== nodeId));
+  };
 
+  const selectNode = (nodeId: string) => {
+    setSelectedIDs((prevSelected) => (prevSelected.includes(nodeId) ? prevSelected : [...prevSelected, nodeId]));
+  };
 
-const deselectNode = (nodeId: string) => {
-  setSelectedIDs((prevSelected) => prevSelected.filter((id) => id !== nodeId));
-};
+  const setTargetNodeId = (nodeId: string) => {
+    setTargetNodeIdState(nodeId);
+  };
 
-const selectNode = (nodeId: string) => {
-  setSelectedIDs((prevSelected) =>
-    prevSelected.includes(nodeId) ? prevSelected : [...prevSelected, nodeId]
-  );
-};
-  // Memoize the context value to avoid unnecessary re-renders
+  const getTargetNodeId = () => targetNodeId;
+
   const contextValue = useMemo(
     () => ({
       toggleNodeSelection,
@@ -54,16 +53,15 @@ const selectNode = (nodeId: string) => {
       clearSelection,
       getSelectedNodeIds,
       deselectNode,
-      selectNode
+      selectNode,
+      setTargetNodeId,
+      getTargetNodeId,
+      targetNodeId,
     }),
-    [selectedIDs]  // Dependencies for memoization
+    [selectedIDs, targetNodeId]
   );
 
-  return (
-    <NodeSelectionContext.Provider value={contextValue}>
-      {children}
-    </NodeSelectionContext.Provider>
-  );
+  return <NodeSelectionContext.Provider value={contextValue}>{children}</NodeSelectionContext.Provider>;
 };
 
 export const useNodeSelection = () => {

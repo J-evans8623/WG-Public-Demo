@@ -1,6 +1,7 @@
+//bloom-maps\app\Library\ui\ToolPane.tsx
 import React from 'react';
 import { Layout, Card } from 'antd';
-import ConceptBank from './ConceptBank';
+import ConceptBank from '@/app/Library/ui/ConceptBank';
 import MapCustomizationPane from '@/app/Library/ui/MapCustomizationPane';
 
 const { Sider } = Layout;
