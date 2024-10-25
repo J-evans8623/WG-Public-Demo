@@ -76,6 +76,7 @@ export function useCompositeLayout(
 
       // Create SubtreeData to access the width, height, and position of each subtree
       const existingPosition = localSubtrees.get(childId)?.position;
+      
       const subtreeData: SubtreeData = {
         minX: subtreeDimension.minX,
         maxX: subtreeDimension.maxX,
