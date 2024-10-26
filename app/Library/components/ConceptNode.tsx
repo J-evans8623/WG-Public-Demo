@@ -7,8 +7,8 @@ import AddConceptIcon from '@/app/icons-custom/ConceptNodeAdd.svg';
 // Import the new context
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 
-const DEFAULT_PRIMARY_COLOR = '#D5E6ED';
-const DEFAULT_BACKGROUND_COLOR = '#ECE7D1';
+const DEFAULT_PRIMARY_COLOR = '#F7CAAB';
+const DEFAULT_BACKGROUND_COLOR = '#F7EBD1';
 
 function ConceptNode({
   node,

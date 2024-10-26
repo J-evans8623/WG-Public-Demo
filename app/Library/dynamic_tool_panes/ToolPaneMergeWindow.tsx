@@ -12,8 +12,7 @@ interface ToolPaneMergeWindowProps {
 const ToolPaneMergeWindow = ({ sourceNodeId }: { sourceNodeId: string }) => {
     const { nodes, dispatch } = useNodesContext();
     const { targetNodeId } = useNodeSelection();
-    const { dispatch: layoutDispatch } = useLayoutContext();
-  
+    const { dispatch: layoutDispatch } = useLayoutContext();  
     const sourceNode = nodes.get(sourceNodeId);
     const targetNode = targetNodeId ? nodes.get(targetNodeId) : null;
   
@@ -21,6 +20,7 @@ const ToolPaneMergeWindow = ({ sourceNodeId }: { sourceNodeId: string }) => {
       if (targetNodeId) {
         dispatch(transferNode(sourceNodeId, targetNodeId));
         layoutDispatch(setGetLayout(true));
+        //
         // Optionally, close the tool pane after merging
       }
     };

@@ -56,6 +56,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   const [paneSizes, setPaneSizes] = useState<number[]>([20, 60, 20]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalResourceType, setModalResourceType] = useState<'cueCard' | 'picture' | 'practiceSheet' | undefined>(undefined);
   const [modalNodeId, setModalNodeId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'addChild' | 'addResource'>('addResource');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,7 +65,17 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   const [sourceNodeId, setSourceNodeId] = useState<string | ''>('');
  const { toggleNodeSelection, setTargetNodeId,  clearSelection, selectNode } = useNodeSelection();
 
-
+ const openModalWithResourceType = (nodeId: string, resourceType: 'cueCard' | 'picture' | 'practiceSheet') => {
+  setModalNodeId(nodeId); // Set the node ID for the resource
+  if (!resourceType){
+    setModalMode('addChild')
+  } else {
+    setModalMode('addResource');
+  }
+   // Specify the mode to indicate it's an "add" operation
+  setModalResourceType(resourceType); // Define which resource type is being added
+  setIsModalOpen(true); // Finally, open the modal
+};
 const handleOpenToolPane = useCallback(
   (operation: 'cut-copy' | 'delete' | 'merge' | 'edit' | null, sourceNode: string) => {
     setSourceNodeId(sourceNode);
@@ -330,6 +341,7 @@ const handleRedo = () => {
         onSave={handleModalSave}
         initialNodeTitle={initialNodeTitle}
         mode={modalMode}
+        selectedResourceType={modalResourceType}
       />
       <MenuBar
         onTitleChange={handleTitleChange}
@@ -343,6 +355,7 @@ const handleRedo = () => {
   onUndo={handleUndo}
   onRedo={handleRedo}
   onOpenToolPane={handleOpenToolPane}
+  openModalWithResourceType={openModalWithResourceType}
 />
       <div className="toolbar-padding-bottom"></div>
       <Split

@@ -19,7 +19,6 @@ import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { setPrimaryColor, setBackgroundColor } from '@/app/Library/Context/colorThemeActions';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
-import { useToolBarActions } from './ToolBarActions'; // Import the hook for toolbar actions
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 
 const { Option } = Select;
@@ -29,6 +28,7 @@ interface ToolBarProps {
   onUndo: () => void;
   onRedo: () => void;
   onOpenToolPane: (operation: 'cut-copy' | 'delete' | 'merge' | 'edit' | null, sourceNodeId: string) => void; // Trigger dynamic tool pane based on operation
+  openModalWithResourceType: (nodeId: string| null, resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined) => void;
 }
 
 const ToolBar: React.FC<ToolBarProps> = ({
@@ -36,17 +36,12 @@ const ToolBar: React.FC<ToolBarProps> = ({
   onUndo,
   onRedo,
   onOpenToolPane,
+  openModalWithResourceType
 }) => {
   const { zoomLevel, baseZoomLevel, dispatch: zoomDispatch } = useZoomContext();
   const { primaryColor, backgroundColor, dispatch: colorThemeDispatch } = useColorThemeContext();
   const { clearSelection, getSelectedNodeIds } = useNodeSelection();
 
-  const {
-    addConceptNode,
-    addCueCardResource,
-    addPictureResource,
-    addPracticeSheetResource,
-  } = useToolBarActions(); // Get the actions from ToolBarActions
 
   // Get the selected node IDs and pick the first one for operations
   const selectedNodeIds = getSelectedNodeIds();
@@ -94,9 +89,9 @@ const ToolBar: React.FC<ToolBarProps> = ({
   ];
 
   const backgroundColors = [
+    { label: 'Lemon', color: '#EEECBC' },
     { label: 'Cream', color: '#ECE7D1' },
     { label: 'Pale Yellow', color: '#F7EBD1' },
-    { label: 'Lemon', color: '#EEECBC' },
     { label: 'White', color: '#F5F5F5' }
   ];
 
@@ -148,22 +143,22 @@ const ToolBar: React.FC<ToolBarProps> = ({
 
       {/* 8. Add New Concept */}
       <Tooltip title="Add New Concept">
-        <Button className="tool-bar-button" onClick={() => addConceptNode(selectedNodeId || 'root', 'New Concept Node')} icon={<AddConceptIcon className="icon" />} />
+        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,undefined)} icon={<AddConceptIcon className="icon" />} />
       </Tooltip>
 
       {/* 9. Add Cue Card */}
       <Tooltip title="Add Cue Card">
-        <Button className="tool-bar-button" onClick={() => addCueCardResource(selectedNodeId || 'root', { title: 'New Cue Card' })} icon={<AddCueCardIcon className="icon" />} />
+        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,'cueCard')} icon={<AddCueCardIcon className="icon" />} />
       </Tooltip>
 
       {/* 10. Add Picture */}
       <Tooltip title="Add Picture">
-        <Button className="tool-bar-button" onClick={() => addPictureResource(selectedNodeId || 'root', { title: 'New Picture' })} icon={<AddPictureIcon className="icon" />} />
+        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,'picture')}  icon={<AddPictureIcon className="icon" />} />
       </Tooltip>
 
       {/* 11. Add Quiz */}
       <Tooltip title="Add Quiz">
-        <Button className="tool-bar-button" onClick={() => addPracticeSheetResource(selectedNodeId || 'root', { title: 'New Practice Sheet' })} icon={<AddQuizIcon className="icon" />} />
+        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,'practiceSheet')} icon={<AddQuizIcon className="icon" />} />
       </Tooltip>
 
       {/* 12. Edit */}

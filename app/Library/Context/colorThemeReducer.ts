@@ -9,9 +9,10 @@ export interface ColorThemeState {
 
 export const initialColorThemeState: ColorThemeState = {
   colorTheme: 'cool-spring',
-  primaryColor: '#D5E6ED',
-  backgroundColor: '#ECE7D1',
+  primaryColor: '#F7CAAB',
+  backgroundColor: '#F7EBD1',
 };
+
 
 export const colorThemeReducer = (state: ColorThemeState, action: ColorThemeAction): ColorThemeState => {
   switch (action.type) {

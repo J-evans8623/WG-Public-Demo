@@ -6,12 +6,15 @@ import { usePictureContext } from '@/app/Library/Context/PictureContext';
 import { usePracticeSheetContext } from '@/app/Library/Context/PracticeSheetContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { deleteNode } from '@/app/Library/Context/nodesActions';
+import { setGetLayout } from '../Context/LayoutActions';
+import { useLayoutContext } from '../Context/LayoutProvider';
 
 const ToolPaneDeleteWindow = ({ nodeId }: { nodeId: string }) => {
   const { selectCueCards, removeCueCard } = useCueCardContext();
   const { selectPictures, removePicture } = usePictureContext();
   const { selectPracticeSheets, removePracticeSheet } = usePracticeSheetContext();
   const { dispatch: nodesDispatch, nodes } = useNodesContext();
+  const { dispatch: layoutDispatch } = useLayoutContext();
 
   // Fetch the current node to determine if it's a root node
   const currentNode = nodes.get(nodeId);
@@ -22,6 +25,7 @@ const ToolPaneDeleteWindow = ({ nodeId }: { nodeId: string }) => {
 
   const handleDeleteCueCard = (cueCardId: string) => {
     removeCueCard(nodeId, cueCardId);
+    
   };
 
   const handleDeletePicture = (pictureId: string) => {
@@ -75,6 +79,7 @@ const ToolPaneDeleteWindow = ({ nodeId }: { nodeId: string }) => {
 
     // **Dispatch Delete Node Action**
     nodesDispatch(deleteNode(nodeId));
+    layoutDispatch(setGetLayout(true));
 
     alert(`Node "${currentNode.title}" has been deleted successfully.`);
   };
