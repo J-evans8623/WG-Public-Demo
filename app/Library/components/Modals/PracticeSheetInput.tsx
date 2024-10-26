@@ -24,8 +24,12 @@ const PracticeSheetInput: React.FC<PracticeSheetInputProps> = ({
   const [quizType, setQuizType] = useState<'matching' | 'multipleChoice' | 'wordProblem'>(
     practiceContent.quizType || 'matching'
   );
-  const [autofillText, setAutofillText] = useState<string>('');
-  const [pairs, setPairs] = useState<{ question: string; answer: string }[]>([{ question: '', answer: '' }]);
+  const [autofillText, setAutofillText] = useState<string>(() =>
+    practiceContent.quizContent ? practiceContent.quizContent +',' :'');
+    // Initialize pairs based on practiceContent.quizContent, parsing if it exists
+    const [pairs, setPairs] = useState<{ question: string; answer: string }[]>(() =>
+      practiceContent.quizContent ? parseQuizContent(practiceContent.quizContent) : [{ question: '', answer: '' }]
+    );
 
   const handleQuizTypeChange = (value: 'matching' | 'multipleChoice' | 'wordProblem') => {
     setQuizType(value);

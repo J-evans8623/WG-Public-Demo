@@ -374,15 +374,5 @@ function placeUndefinedPositionSubtree(
     return;
   }
 
-  // Generalized Case C: Balanced left/right subtrees (101X or 1001X)
-  if (totalWithUndefined % 2 === 1) {
-    // Default case: Add the new node to the right side
-    positions.set(undefinedPositionSubtree.nodeId, { x: cumulativeRightWidth!, y: verticalOffset });
-    cumulativeRightWidth! += (undefinedPositionSubtree.subtree.width + padding);
-  } else {
-    // Default case: Add the new node to the left side
-    positions.set(undefinedPositionSubtree.nodeId, { x: cumulativeLeftWidth!, y: verticalOffset });
-    cumulativeLeftWidth! -= (undefinedPositionSubtree.subtree.width + padding);
-  }
 }
 

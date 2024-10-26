@@ -158,6 +158,56 @@ export const nodesReducer = (
         return updatedState;
     }
 
+    case NodesActionType.DELETE_NODE: {
+      const { nodeId } = action.payload;
+
+      const nodeToDelete = state.get(nodeId);
+
+      if (!nodeToDelete) {
+        console.error(`Delete failed: Node with ID ${nodeId} does not exist.`);
+        return state;
+      }
+
+      // **Safeguard: Prevent deletion of the root node**
+      if (nodeToDelete.isRoot) {
+        console.error(`Delete failed: The root node cannot be deleted.`);
+        return state;
+      }
+
+      // **Check if the node is a leaf**
+      const isLeaf = !nodeToDelete.childrenNodeIds || nodeToDelete.childrenNodeIds.length === 0;
+
+      if (!isLeaf) {
+        console.error(`Delete failed: Node with ID ${nodeId} is not a leaf node.`);
+        return state;
+      }
+
+      const parentNodeId = nodeToDelete.parentNodeId;
+
+      if (!parentNodeId) {
+        console.error(`Delete failed: Node with ID ${nodeId} does not have a valid parent.`);
+        return state;
+      }
+
+      // Create a new Map to avoid mutating the original state
+      const updatedState = new Map(state);
+
+      // Remove the node from the nodes map
+      updatedState.delete(nodeId);
+
+      // Remove the node's ID from its parent's childrenNodeIds
+      const parentNode = updatedState.get(parentNodeId);
+      if (parentNode) {
+        const updatedParentNode = {
+          ...parentNode,
+          childrenNodeIds: parentNode.childrenNodeIds?.filter((id) => id !== nodeId),
+        };
+        updatedState.set(parentNodeId, updatedParentNode);
+      }
+
+      return updatedState;
+    }
+
     default:
       return state;
   }

@@ -33,6 +33,14 @@ interface ModernModalProps {
   initialCueCardContent?: string;
   initialBloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   initialSource?: string;
+  selectedResourceType?: 'cueCard' | 'picture' | 'practiceSheet';
+  initialPictureTitle?: string;
+  initialPictureDescription?: string;
+  initialPracticeSheetTitle?: string;
+  initialPracticeSheetContent?: {
+    quizType: 'matching' | 'multipleChoice' | 'wordProblem';
+    quizContent: string;
+};
 }
 
 const ModernModal: React.FC<ModernModalProps> = ({
@@ -45,6 +53,11 @@ const ModernModal: React.FC<ModernModalProps> = ({
   initialCueCardContent,
   initialBloomLevel,
   initialSource,
+  selectedResourceType,
+  initialPictureTitle,
+  initialPictureDescription,
+  initialPracticeSheetTitle,
+  initialPracticeSheetContent
 }) => {
   const [nodeTitle, setNodeTitle] = useState(initialNodeTitle || 'New Concept');
   const [cueCardTitle, setCueCardTitle] = useState(initialCueCardTitle || '');
@@ -54,13 +67,16 @@ const ModernModal: React.FC<ModernModalProps> = ({
   const [uploadedPicture, setUploadedPicture] = useState<File | null>(null);
   const [pictureDescription, setPictureDescription] = useState('');
   const [practiceSheetTitle, setPracticeSheetTitle] = useState('');
-  const [practiceContent, setPracticeContent] = useState<{ quizType: "matching" | "multipleChoice" | "wordProblem", quizContent: string }>({ quizType: 'matching', quizContent: '' });
-  const [activeTabKey, setActiveTabKey] = useState<'cueCard' | 'picture' | 'practiceSheet'>('cueCard');
+  const [practiceContent, setPracticeContent] = useState<{ quizType: "matching" | "multipleChoice" | "wordProblem", quizContent: string }>({ quizType: 'matching', quizContent: initialPracticeSheetContent?.quizContent||'' });
+  const [activeTabKey, setActiveTabKey] = useState<'cueCard' | 'picture' | 'practiceSheet'>(
+    selectedResourceType || 'cueCard'
+  );
   const [isEditingTitle, setIsEditingTitle] = useState(mode === 'addChild');
   const [source, setSource] = useState('');
-
+  
   const titleInputRef = useRef<InputRef>(null);
   const cueCardTitleRef = useRef<InputRef>(null);
+  
 
   const handleSave = () => {
     const isCueCardTitleEmpty = cueCardTitle.trim() === '';
@@ -106,19 +122,57 @@ const ModernModal: React.FC<ModernModalProps> = ({
     if (isOpen) {
       setNodeTitle(initialNodeTitle || 'New Concept');
       setIsEditingTitle(mode === 'addChild');
-      setCueCardTitle(mode === 'editCueCard' ? initialCueCardTitle || '' : '');
-      setCueCardContent(mode === 'editCueCard' ? initialCueCardContent || '' : '');
-      setBloomLevel(mode === 'editCueCard' ? initialBloomLevel || 1 : 1);
-      setSource(mode === 'editCueCard' ? initialSource || '' : '');
-      setUploadedPicture(null); // Reset picture for a new concept/resource
-
+      setActiveTabKey(selectedResourceType || 'cueCard');
+  
+      // Clear all fields on new resource addition
+      if (mode === 'addResource') {
+        setCueCardTitle('');
+        setCueCardContent('');
+        setBloomLevel(1);
+        setPictureTitle('');
+        setPictureDescription('');
+        setPracticeSheetTitle('');
+        setPracticeContent({ quizType: 'matching', quizContent: '' });
+      }
+  
+      // Set initial values for editing based on selectedResourceType
+      if (selectedResourceType === 'cueCard') {
+        setCueCardTitle(initialCueCardTitle || '');
+        setCueCardContent(initialCueCardContent || '');
+        setBloomLevel(initialBloomLevel || 1);
+        setSource(initialSource || '');
+      } else if (selectedResourceType === 'picture') {
+        setPictureTitle(initialPictureTitle || '');
+        setPictureDescription(initialPictureDescription || '');
+      } else if (selectedResourceType === 'practiceSheet' && initialPracticeSheetContent) {
+        // Set practice content only if initialPracticeSheetContent is defined
+        setPracticeSheetTitle(initialPracticeSheetTitle || '');
+        setPracticeContent(initialPracticeSheetContent);
+      }
+  
+      // Focus management
       if (mode === 'addChild') {
         titleInputRef.current?.focus();
       } else {
         cueCardTitleRef.current?.focus();
       }
     }
-  }, [isOpen, initialNodeTitle, mode, initialCueCardTitle, initialCueCardContent, initialBloomLevel, initialSource]);
+  }, [
+    isOpen,
+    initialNodeTitle,
+    mode,
+    selectedResourceType,
+    initialCueCardTitle,
+    initialCueCardContent,
+    initialBloomLevel,
+    initialSource,
+    initialPictureTitle,
+    initialPictureDescription,
+    initialPracticeSheetTitle,
+    initialPracticeSheetContent,  // include in dependency array
+  ]);
+  
+
 
   return (
     isOpen && (
@@ -150,35 +204,42 @@ const ModernModal: React.FC<ModernModalProps> = ({
         </div>
         <div className="modal-content">
           <Tabs activeKey={activeTabKey} onChange={(key) => setActiveTabKey(key as 'cueCard' | 'picture' | 'practiceSheet')}>
-            <TabPane tab="Cue Card" key="cueCard">
-              <CueCardInput
-                cueCardTitle={cueCardTitle}
-                cueCardContent={cueCardContent}
-                bloomLevel={bloomLevel}
-                setCueCardTitle={setCueCardTitle}
-                setCueCardContent={setCueCardContent}
-                setBloomLevel={setBloomLevel}
-                handlePictureUpload={setUploadedPicture}
-              />
-            </TabPane>
-            <TabPane tab="Picture" key="picture">
-              <PictureInput
-                pictureTitle={pictureTitle}
-                pictureDescription={pictureDescription}
-                uploadedPicture={uploadedPicture}
-                setPictureTitle={setPictureTitle}
-                setPictureDescription={setPictureDescription}
-                handlePictureUpload={setUploadedPicture}
-              />
-            </TabPane>
-            <TabPane tab="Practice Sheet" key="practiceSheet">
-              <PracticeSheetInput
-                practiceSheetTitle={practiceSheetTitle}
-                practiceContent={practiceContent}
-                setPracticeSheetTitle={setPracticeSheetTitle}
-                setPracticeContent={setPracticeContent}
-              />
-            </TabPane>
+            {/* Conditionally render tabs based on `selectedResourceType` */}
+            {(selectedResourceType === undefined || selectedResourceType === 'cueCard') && (
+              <TabPane tab="Cue Card" key="cueCard">
+                <CueCardInput
+                  cueCardTitle={cueCardTitle}
+                  cueCardContent={cueCardContent}
+                  bloomLevel={bloomLevel}
+                  setCueCardTitle={setCueCardTitle}
+                  setCueCardContent={setCueCardContent}
+                  setBloomLevel={setBloomLevel}
+                  handlePictureUpload={setUploadedPicture}
+                />
+              </TabPane>
+            )}
+            {(selectedResourceType === undefined || selectedResourceType === 'picture') && (
+              <TabPane tab="Picture" key="picture">
+                <PictureInput
+                  pictureTitle={pictureTitle}
+                  pictureDescription={pictureDescription}
+                  uploadedPicture={uploadedPicture}
+                  setPictureTitle={setPictureTitle}
+                  setPictureDescription={setPictureDescription}
+                  handlePictureUpload={setUploadedPicture}
+                />
+              </TabPane>
+            )}
+            {(selectedResourceType === undefined || selectedResourceType === 'practiceSheet') && (
+              <TabPane tab="Practice Sheet" key="practiceSheet">
+                <PracticeSheetInput
+                  practiceSheetTitle={practiceSheetTitle}
+                  practiceContent={practiceContent}
+                  setPracticeSheetTitle={setPracticeSheetTitle}
+                  setPracticeContent={setPracticeContent}
+                />
+              </TabPane>
+            )}
           </Tabs>
         </div>
         <div className="modal-footer">

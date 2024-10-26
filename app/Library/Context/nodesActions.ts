@@ -32,3 +32,8 @@ export const initNewDocument = (bloomDepth: number, mapWidth: number, mapHeight:
     type: NodesActionType.TRANSFER_NODE,
     payload: { sourceNodeId, targetNodeId },
   });
+
+  export const deleteNode = (nodeId: string): NodesAction => ({
+    type: NodesActionType.DELETE_NODE,
+    payload: { nodeId },
+  });

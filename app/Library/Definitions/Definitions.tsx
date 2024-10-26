@@ -233,6 +233,7 @@ export enum NodesActionType {
   RESET_NODES = 'RESET_NODES',
   INIT_NEW_DOCUMENT = 'INIT_NEW_DOCUMENT',
   TRANSFER_NODE = 'TRANSFER_NODE',
+  DELETE_NODE = 'DELETE_NODE',
 }
 
 export interface NodesAction {

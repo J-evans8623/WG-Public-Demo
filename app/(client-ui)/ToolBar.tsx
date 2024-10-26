@@ -9,7 +9,7 @@ import AddConceptIcon from '@/app/icons-custom/active/AddConceptActiveSq.svg';
 import AddCueCardIcon from '@/app/icons-custom/active/AddCueCard.svg';
 import AddPictureIcon from '@/app/icons-custom/active/AddPictureActive.svg';
 import AddQuizIcon from '@/app/icons-custom/active/quiz_tool_button.svg';
-import MergeIcon from '@/app/icons-custom/active/MergeBranch.svg';
+import MergeIcon from '@/app/icons-custom/active/MergeBranch1.svg';
 import EditIcon from '@mui/icons-material/Edit';
 import ContentCutOutlinedIcon from '@mui/icons-material/ContentCutOutlined';
 import ContentPasteIcon from '@mui/icons-material/ContentPaste';
