@@ -51,7 +51,6 @@ export const nodesReducer = (
         y: undefined,
         isRoot: false,
         depth: newDepth,
-        subtreeID: parentNode.subtreeID || parentNodeId,
       };
 
       const updatedParentNode = {
@@ -87,6 +86,7 @@ export const nodesReducer = (
         // Ensure that the source node exists and is not the root node
         const sourceNode = state.get(sourceNodeId);
         const targetNode = state.get(targetNodeId);
+
   
         if (!sourceNode || !targetNode || sourceNode.isRoot) {
           console.error(`Transfer failed: Invalid source or target node, or attempting to transfer the root node.`);
@@ -138,11 +138,12 @@ export const nodesReducer = (
           };
           updatedState.set(sourceParentId, updatedSourceParent);
         }
-  
+        const newDepth = (targetNode?.depth || 0) + 1;
         // Update the source node's parent to the new target node
         const updatedSourceNode = {
           ...sourceNode,
           parentNodeId: targetNodeId,
+          depth: newDepth,
         };
   
         // Update the target node's children list to include the source node

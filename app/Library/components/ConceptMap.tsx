@@ -16,16 +16,14 @@ import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 interface ConceptMapProps {
   groundWidth: number;
   centerPaneRef: React.RefObject<HTMLDivElement>;
-  onOpenCueCardModal: (nodeId: string) => void;
-  onOpenAddChildModal: (parentNodeId: string) => void;
-  onNodeClick: (nodeId: string) => void; // New prop
+  openModalWithResourceType: (nodeId: string | null, resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined, op: 'resource' | 'node') => void;
+  onNodeClick: (nodeId: string) => void;
 }
 
 const ConceptMap = ({
   groundWidth,
   centerPaneRef,
-  onOpenCueCardModal,
-  onOpenAddChildModal,
+  openModalWithResourceType,
   onNodeClick
 }: ConceptMapProps) => {
   // Use new context hooks
@@ -53,20 +51,6 @@ const ConceptMap = ({
     return Array.from(nodes.values()).find((node) => node.isRoot);
   }, [nodes]);
 
-  // Memoized handler functions to avoid unnecessary re-renders
-  const handleOpenCueCardModal = useCallback(
-    (nodeId: string) => {
-      onOpenCueCardModal(nodeId);
-    },
-    [onOpenCueCardModal]
-  );
-
-  const handleOpenAddChildModal = useCallback(
-    (parentNodeId: string) => {
-      onOpenAddChildModal(parentNodeId);
-    },
-    [onOpenAddChildModal]
-  );
 
   return (
     <div
@@ -99,8 +83,7 @@ const ConceptMap = ({
             <ConceptNode
               key={rootNode.id}
               node={rootNode}
-              onOpenCueCardModal={handleOpenCueCardModal}
-              onOpenAddChildModal={handleOpenAddChildModal}
+              openModalWithResourceType={openModalWithResourceType}
               onNodeClick={onNodeClick}
             />
           )}
@@ -126,8 +109,7 @@ const ConceptMap = ({
                   position={subtreeData.position}
                   width={subtreeData.width}
                   height={subtreeData.height}
-                  onOpenCueCardModal={handleOpenCueCardModal}
-                  onOpenAddChildModal={handleOpenAddChildModal}
+                  openModalWithResourceType={openModalWithResourceType}
                   onNodeClick={onNodeClick}
                   
                 />

@@ -14,8 +14,7 @@ interface SubtreeProps {
   position: { x: number; y: number };
   width: number;
   height: number;
-  onOpenCueCardModal: (nodeId: string) => void;
-  onOpenAddChildModal: (parentNodeId: string) => void;
+  openModalWithResourceType: (nodeId: string | null, resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined, op: 'resource' | 'node') => void;
   onNodeClick: (nodeId: string) => void;
 }
 
@@ -24,8 +23,7 @@ const Subtree: React.FC<SubtreeProps> = ({
   position,
   width,
   height,
-  onOpenCueCardModal,
-  onOpenAddChildModal,
+  openModalWithResourceType,
   onNodeClick,
 }) => {
   const { nodes } = useNodesContext();
@@ -138,8 +136,7 @@ const Subtree: React.FC<SubtreeProps> = ({
         <ConceptNode
           key={node.id}
           node={node}
-          onOpenCueCardModal={onOpenCueCardModal}
-          onOpenAddChildModal={onOpenAddChildModal}
+          openModalWithResourceType={openModalWithResourceType}
           onNodeClick={onNodeClick}
         />
       ))}

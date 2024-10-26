@@ -28,7 +28,7 @@ interface ToolBarProps {
   onUndo: () => void;
   onRedo: () => void;
   onOpenToolPane: (operation: 'cut-copy' | 'delete' | 'merge' | 'edit' | null, sourceNodeId: string) => void; // Trigger dynamic tool pane based on operation
-  openModalWithResourceType: (nodeId: string| null, resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined) => void;
+  openModalWithResourceType: (nodeId: string| null, resourceType: 'cueCard' | 'picture' | 'practiceSheet'|undefined, op : 'resource'| 'node') => void;
 }
 
 const ToolBar: React.FC<ToolBarProps> = ({
@@ -143,22 +143,22 @@ const ToolBar: React.FC<ToolBarProps> = ({
 
       {/* 8. Add New Concept */}
       <Tooltip title="Add New Concept">
-        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,undefined)} icon={<AddConceptIcon className="icon" />} />
+        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,undefined, 'node')} icon={<AddConceptIcon className="icon" />} />
       </Tooltip>
 
       {/* 9. Add Cue Card */}
       <Tooltip title="Add Cue Card">
-        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,'cueCard')} icon={<AddCueCardIcon className="icon" />} />
+        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,'cueCard', 'resource')} icon={<AddCueCardIcon className="icon" />} />
       </Tooltip>
 
       {/* 10. Add Picture */}
       <Tooltip title="Add Picture">
-        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,'picture')}  icon={<AddPictureIcon className="icon" />} />
+        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,'picture', 'resource')}  icon={<AddPictureIcon className="icon" />} />
       </Tooltip>
 
       {/* 11. Add Quiz */}
       <Tooltip title="Add Quiz">
-        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,'practiceSheet')} icon={<AddQuizIcon className="icon" />} />
+        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,'practiceSheet', 'resource')} icon={<AddQuizIcon className="icon" />} />
       </Tooltip>
 
       {/* 12. Edit */}

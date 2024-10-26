@@ -65,9 +65,9 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   const [sourceNodeId, setSourceNodeId] = useState<string | ''>('');
  const { toggleNodeSelection, setTargetNodeId,  clearSelection, selectNode } = useNodeSelection();
 
- const openModalWithResourceType = (nodeId: string, resourceType: 'cueCard' | 'picture' | 'practiceSheet') => {
+ const openModalWithResourceType = (nodeId: string| null, resourceType: 'cueCard' | 'picture' | 'practiceSheet'|undefined, op : 'resource'| 'node') => {
   setModalNodeId(nodeId); // Set the node ID for the resource
-  if (!resourceType){
+  if ( op === 'node'){
     setModalMode('addChild')
   } else {
     setModalMode('addResource');
@@ -388,8 +388,7 @@ const handleRedo = () => {
           <ConceptMap
             groundWidth={windowWidth}
             centerPaneRef={centerPaneRef}
-            onOpenCueCardModal={handleOpenCueCardModal}
-            onOpenAddChildModal={handleOpenAddChildModal}
+            openModalWithResourceType={openModalWithResourceType}
             onNodeClick={handleNodeClick} 
           />
         </div>
