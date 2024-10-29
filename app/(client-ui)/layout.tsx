@@ -60,7 +60,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   const [modalNodeId, setModalNodeId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'addChild' | 'addResource'>('addResource');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeOperation, setActiveOperation] = useState<'cut-copy' | 'delete' | 'merge' |'edit'| null>(null); // Track the active tool pane
+  const [activeOperation, setActiveOperation] = useState<'cut'| 'copy' | 'delete' | 'merge' |'edit'| null>(null); // Track the active tool pane
   const [toolPaneVisible, setToolPaneVisible] = useState(false);
   const [sourceNodeId, setSourceNodeId] = useState<string | ''>('');
  const { toggleNodeSelection, setTargetNodeId,  clearSelection, selectNode } = useNodeSelection();
@@ -77,7 +77,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   setIsModalOpen(true); // Finally, open the modal
 };
 const handleOpenToolPane = useCallback(
-  (operation: 'cut-copy' | 'delete' | 'merge' | 'edit' | null, sourceNode: string) => {
+  (operation: 'cut'| 'copy' | 'delete' | 'merge' | 'edit' | null, sourceNode: string) => {
     setSourceNodeId(sourceNode);
     setActiveOperation(operation);
     setToolPaneVisible(true);
@@ -240,7 +240,7 @@ const handleOpenToolPane = useCallback(
   const handleModalSave = useCallback((
     resourceType: ResourceType,
     nodeTitle: string,
-    cueCardTitle?: string,
+    Title?: string,
     cueCardContent?: string,
     bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6,
     image?: File | null,
@@ -258,14 +258,14 @@ const handleOpenToolPane = useCallback(
         nodesDispatch(createNewNode(nodeTitle || 'New Concept', modalNodeId, newNodeId));
         layoutDispatch(setGetLayout(true));
 
-        if (cueCardTitle || cueCardContent || image || practiceSheetContent) {
+        if (Title || cueCardContent || image || practiceSheetContent) {
           saveResource({
             resourceType,
             nodeId: newNodeId,
             addCueCard,
             addPicture,
             addPracticeSheet,
-            cueCardTitle,
+            Title,
             cueCardContent,
             bloomLevel,
             image,
@@ -275,14 +275,14 @@ const handleOpenToolPane = useCallback(
       } else if (modalMode === 'addResource') {
         nodesDispatch(updateNodeTitle(modalNodeId, nodeTitle));
 
-        if (cueCardTitle || cueCardContent || image || practiceSheetContent) {
+        if (Title || cueCardContent || image || practiceSheetContent) {
           saveResource({
             resourceType,
             nodeId: modalNodeId,
             addCueCard,
             addPicture,
             addPracticeSheet,
-            cueCardTitle,
+            Title,
             cueCardContent,
             bloomLevel,
             image,
@@ -303,7 +303,7 @@ const handleOpenToolPane = useCallback(
 
   const handleNodeClick = useCallback(
     (nodeId: string) => {
-      if (toolPaneVisible && (activeOperation === 'cut-copy' || activeOperation === 'merge')) {
+      if (toolPaneVisible && (activeOperation === 'cut' || activeOperation === 'copy' || activeOperation === 'merge')) {
         setTargetNodeId(nodeId);
       } else {
         // Normal node selection

@@ -10,9 +10,9 @@ import { setGetLayout } from '../Context/LayoutActions';
 import { useLayoutContext } from '../Context/LayoutProvider';
 
 const ToolPaneDeleteWindow = ({ nodeId }: { nodeId: string }) => {
-  const { selectCueCards, removeCueCard } = useCueCardContext();
-  const { selectPictures, removePicture } = usePictureContext();
-  const { selectPracticeSheets, removePracticeSheet } = usePracticeSheetContext();
+  const { selectResources: selectCueCards, removeResource: removeCueCard } = useCueCardContext();
+  const { selectResources: selectPictures, removeResource: removePicture } = usePictureContext();
+  const { selectResources: selectPracticeSheets, removeResource: removePracticeSheet } = usePracticeSheetContext();
   const { dispatch: nodesDispatch, nodes } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
 

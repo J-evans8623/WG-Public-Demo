@@ -34,9 +34,9 @@ interface CueCardDisplayProps {
 
 const CueCardDisplay: React.FC<CueCardDisplayProps> = memo(({ centerPaneRef, paneSizes }) => {
   const { getSelectedNodeIds, clearSelection, deselectNode } = useNodeSelection();
-  const { selectCueCards } = useCueCardContext();
-  const { selectPictures } = usePictureContext();
-  const { selectPracticeSheets } = usePracticeSheetContext();
+  const { selectResources: selectCueCards } = useCueCardContext();
+  const { selectResources: selectPictures } = usePictureContext();
+  const { selectResources: selectPracticeSheets } = usePracticeSheetContext();
 
   const [dismissedResourceIds, setDismissedResourceIds] = useState<Map<string, string[]>>(new Map());
   const [openedPictureModals, setOpenedPictureModals] = useState<{ id: string; content: React.ReactNode }[]>([]);

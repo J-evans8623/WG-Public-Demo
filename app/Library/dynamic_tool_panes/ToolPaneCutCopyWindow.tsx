@@ -1,77 +1,116 @@
-// ToolPaneCutCopyWindow.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
-import { useCueCardContext } from '@/app/Library/Context/CueCardContext'; // Import CueCard context
+import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
+import { usePictureContext } from '@/app/Library/Context/PictureContext';
+import { usePracticeSheetContext } from '@/app/Library/Context/PracticeSheetContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import CueCardEntry from '@/app/Library/ui/CueCardEntry'; // Reuse the CueCardEntry component
+import CardEntry from '@/app/Library/ui/CardEntry';
 
 interface ToolPaneCutCopyWindowProps {
   sourceNodeId: string;
+  command: 'cut' | 'copy';
 }
 
-
-
-const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNodeId }) => {
+const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNodeId, command }) => {
   const { nodes } = useNodesContext();
-  const { selectCueCards, transferCueCard } = useCueCardContext();
+  const cueCardContext = useCueCardContext();
+  const pictureContext = usePictureContext();
+  const practiceSheetContext = usePracticeSheetContext();
   const { targetNodeId } = useNodeSelection();
 
-  const [selectedCueCardId, setSelectedCueCardId] = useState<string | null>(null);
-  const [cutCueCardId, setCutCueCardId] = useState<string | null>(null);
-
-
-  // Fetch the source node's cue cards
-  const cueCards = selectCueCards(sourceNodeId);
-
-  // Fetch the target node's cue cards
-  const targetCueCards = targetNodeId ? selectCueCards(targetNodeId) : [];
+  const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
+  const [cutResourceIds, setCutResourceIds] = useState<string[]>([]);
 
   const sourceNode = nodes.get(sourceNodeId);
   const targetNode = targetNodeId ? nodes.get(targetNodeId) : null;
 
-  // Handle cue card selection
-  const handleCueCardSelect = (cueCardId: string) => {
-    setSelectedCueCardId(cueCardId);
-    setCutCueCardId(null); // Reset cut state if selecting a different card
+  // Helper function to get resources for a given node
+  const getResources = (nodeId: string) => [
+    {
+      type: 'cueCard',
+      data: cueCardContext.selectResources(nodeId),
+    },
+    {
+      type: 'picture',
+      data: pictureContext.selectResources(nodeId),
+    },
+    {
+      type: 'practiceSheet',
+      data: practiceSheetContext.selectResources(nodeId),
+    },
+  ];
+
+  const sourceResources = sourceNodeId ? getResources(sourceNodeId) : [];
+  const targetResources = targetNodeId ? getResources(targetNodeId) : [];
+
+  const handleResourceSelect = (resourceId: string) => {
+    setSelectedResourceIds((prev) =>
+      prev.includes(resourceId) ? prev.filter((id) => id !== resourceId) : [...prev, resourceId]
+    );
+    setCutResourceIds([]); // Reset cut state on new selection
   };
 
-  // Handle cue card cut operation
-  const handleCueCardCut = (cueCardId: string) => {
-    setCutCueCardId(cueCardId);
-    setSelectedCueCardId(cueCardId); // Mark the cue card for cutting
+  const handleMarkForCut = (resourceId: string) => {
+    setCutResourceIds((prev) =>
+      prev.includes(resourceId) ? prev.filter((id) => id !== resourceId) : [...prev, resourceId]
+    );
+    setSelectedResourceIds([resourceId]);
   };
 
-  // Handle paste operation
-  const handlePasteCueCard = () => {
-    if (cutCueCardId && targetNodeId) {
-      transferCueCard(sourceNodeId, targetNodeId, cutCueCardId);
-      setCutCueCardId(null); // Clear cut state after pasting
+  const executeTransfer = (resourceIds: string[]) => {
+    [...sourceResources].forEach(({ data, type }) => {
+      resourceIds.forEach((resourceId) => {
+        if (data.some((res) => res.id === resourceId)) {
+          const transfer = type === 'cueCard' ? cueCardContext.transferResource
+            : type === 'picture' ? pictureContext.transferResource
+            : practiceSheetContext.transferResource;
+          
+          transfer(sourceNodeId, targetNodeId!, resourceId);
+          if (command === 'cut') {
+            const remove = type === 'cueCard' ? cueCardContext.removeResource
+              : type === 'picture' ? pictureContext.removeResource
+              : practiceSheetContext.removeResource;
+            remove(sourceNodeId, resourceId);
+          }
+        }
+      });
+    });
+  };
+
+  const handlePasteResources = () => {
+    if (targetNodeId) {
+      executeTransfer(cutResourceIds.length ? cutResourceIds : selectedResourceIds);
+      setSelectedResourceIds([]);
+      setCutResourceIds([]);
     }
   };
 
-  // Display the selected node's title and cue cards
-
   return (
     <div className="tool-pane-window">
-      <h3>Cut/Copy Options</h3>
+      <h3>{command === 'copy' ? 'Copy' : 'Cut'}</h3>
       {sourceNode ? (
         <div>
           <h4>Source Node: {sourceNode.title}</h4>
-          {cueCards.length > 0 ? (
-            <div>
-              {cueCards.map((cueCard) => (
-                <CueCardEntry
-                  key={cueCard.id}
-                  cueCard={cueCard}
-                  isSelected={selectedCueCardId === cueCard.id}
-                  isCut={cutCueCardId === cueCard.id}
-                  onSelect={handleCueCardSelect}
-                  onCut={handleCueCardCut}
-                />
-              ))}
-            </div>
-          ) : (
-            <p>No resources available in this node.</p>
+          {sourceResources.map(({ type, data }) =>
+            data.length > 0 ? (
+              <div key={`source-${type}`}>
+                <h4>{type.charAt(0).toUpperCase() + type.slice(1) + 's'}</h4>
+                {data.map((resource) => (
+                  <CardEntry
+                    key={resource.id}
+                    resource={resource}
+                    resourceType={type as 'cueCard' | 'picture' | 'practiceSheet'}
+                    isSelected={selectedResourceIds.includes(resource.id)}
+                    isCut={cutResourceIds.includes(resource.id)}
+                    onSelect={handleResourceSelect}
+                    onCut={handleMarkForCut}
+                    command={command}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p key={`source-${type}`}>No {type}s associated with this node.</p>
+            )
           )}
         </div>
       ) : (
@@ -81,28 +120,35 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
       {targetNode ? (
         <div>
           <h4>Target Node: {targetNode.title}</h4>
-          {targetCueCards.length > 0 ? (
-            <div>
-              {targetCueCards.map((cueCard) => (
-                <CueCardEntry
-                  key={cueCard.id}
-                  cueCard={cueCard}
-                  isSelected={false}
-                  isCut={false}
-                  onSelect={() => {}}
-                  onCut={() => {}}
-                />
-              ))}
-            </div>
-          ) : (
-            <p>No resources in target node.</p>
+          {targetResources.map(({ type, data }) =>
+            data.length > 0 ? (
+              <div key={`target-${type}`}>
+                <h4>{type.charAt(0).toUpperCase() + type.slice(1) + 's'}</h4>
+                {data.map((resource) => (
+                  <CardEntry
+                    key={resource.id}
+                    resource={resource}
+                    resourceType={type as 'cueCard' | 'picture' | 'practiceSheet'}
+                    isSelected={selectedResourceIds.includes(resource.id)}
+                    isCut={cutResourceIds.includes(resource.id)}
+                    onSelect={handleResourceSelect}
+                    onCut={handleMarkForCut}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p key={`target-${type}`}>No {type}s associated with this node.</p>
+            )
           )}
         </div>
       ) : (
         <p>No target node selected.</p>
       )}
 
-      <button onClick={handlePasteCueCard} disabled={!cutCueCardId || !targetNodeId}>
+      <button
+        onClick={handlePasteResources}
+        disabled={!targetNodeId || (!cutResourceIds.length && !selectedResourceIds.length)}
+      >
         Paste
       </button>
     </div>

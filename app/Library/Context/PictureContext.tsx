@@ -1,6 +1,7 @@
 // bloom-maps/app/Library/Context/PictureContext.tsx
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 // Define the structure for a Picture
 export interface Picture {
@@ -13,12 +14,12 @@ export interface Picture {
 interface PictureContextType {
   pictures: Map<string, Picture[]>;
   addPicture: (nodeId: string, picture: Picture) => void;
-  removePicture: (nodeId: string, pictureId: string) => void;
-  selectPictures: (nodeId: string) => Picture[]; // Method to select pictures for a given nodeId
+  removeResource: (nodeId: string, pictureId: string) => void;
+  selectResources: (nodeId: string) => Picture[]; // Method to select pictures for a given nodeId
   resetPictures: () => void;
   setPictures: (newPictures: Map<string, Picture[]>) => void;
   editPicture: (nodeId: string, updatedPicture: Picture) => void;
-  transferPicture: (sourceNodeId: string, targetNodeId: string, pictureId: string) => void;
+  transferResource: (sourceNodeId: string, targetNodeId: string, pictureId: string) => void;
 }
 
 // Create the Picture context
@@ -55,7 +56,7 @@ export const PictureProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const removePicture = (nodeId: string, pictureId: string) => {
+  const removeResource = (nodeId: string, pictureId: string) => {
     setPicturesState((prev) => {
       const updatedPictures = new Map(prev);
       const nodePictures = updatedPictures.get(nodeId) || [];
@@ -64,7 +65,7 @@ export const PictureProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const selectPictures = (nodeId: string): Picture[] => {
+  const selectResources = (nodeId: string): Picture[] => {
     return pictures.get(nodeId) || [];
   };
 
@@ -88,20 +89,20 @@ export const PictureProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const transferPicture = (sourceNodeId: string, targetNodeId: string, pictureId: string) => {
+  const transferResource = (sourceNodeId: string, targetNodeId: string, pictureId: string) => {
     setPicturesState((prev) => {
       const updatedPictures = new Map(prev);
       const sourcePictures = updatedPictures.get(sourceNodeId) || [];
       const picture = sourcePictures.find((pic) => pic.id === pictureId);
       if (!picture) return prev;
-
-      // Remove from source
-      updatedPictures.set(sourceNodeId, sourcePictures.filter((pic) => pic.id !== pictureId));
-
-      // Add to target
+  
+      // Create a copy of the picture with a new unique ID
+      const newPicture = { ...picture, id: uuidv4() };
+  
+      // Add the new picture to the target node
       const targetPictures = updatedPictures.get(targetNodeId) || [];
-      updatedPictures.set(targetNodeId, [...targetPictures, picture]);
-
+      updatedPictures.set(targetNodeId, [...targetPictures, newPicture]);
+  
       return updatedPictures;
     });
   };
@@ -111,12 +112,12 @@ export const PictureProvider = ({ children }: { children: ReactNode }) => {
       value={{
         pictures,
         addPicture,
-        removePicture,
-        selectPictures,
+        removeResource,
+        selectResources,
         resetPictures,
         setPictures,
         editPicture,
-        transferPicture,
+        transferResource,
       }}
     >
       {children}

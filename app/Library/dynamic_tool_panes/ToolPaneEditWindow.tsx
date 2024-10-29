@@ -12,9 +12,9 @@ interface ToolPaneEditWindowProps {
 const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ nodeId }) => {
   // Import contexts for each resource
   const { nodes } = useNodesContext(); 
-  const { selectCueCards, editCueCard } = useCueCardContext();
-  const { selectPictures, editPicture } = usePictureContext();
-  const { selectPracticeSheets, editPracticeSheet } = usePracticeSheetContext();
+  const { selectResources: selectCueCards, editCueCard } = useCueCardContext();
+  const { selectResources: selectPictures, editPicture } = usePictureContext();
+  const { selectResources: selectPracticeSheets, editPracticeSheet } = usePracticeSheetContext();
 
   const node = nodes.get(nodeId); 
   const nodeTitle = node ? node.title : '';
@@ -26,7 +26,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ nodeId }) => {
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [resourceType, setResourceType] = useState<'cueCard' | 'picture' | 'practiceSheet' | undefined>(undefined);
+  const [resourceType, setResourceType] = useState<'cueCard' | 'picture' | 'practiceSheet'>('cueCard');
   const [initialData, setInitialData] = useState<any>(null);
 
   // Function to open the modal for editing based on the resource type
@@ -38,6 +38,7 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
   
     if (type === 'cueCard') {
       setInitialData({
+        id : data.id,
         title: data.title,
         content: data.content,
         bloomLevel: data.bloomLevel,
@@ -45,12 +46,14 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
       });
     } else if (type === 'picture') {
       setInitialData({
+        id : data.id,
         initialPictureTitle: data.title,
         initialPictureDescription: data.description || '',
         uploadedPicture: data.image || null,
       });
     } else if (type === 'practiceSheet') {
       setInitialData({
+        id : data.id,
         initialPracticeSheetTitle: data.title,
         initialPracticeSheetContent: data.content,
       });
@@ -122,7 +125,7 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
         onClose={() => setIsModalOpen(false)}
         onSave={handleSave}
         initialNodeTitle={nodeTitle}
-        mode={resourceType === 'cueCard' ? 'editCueCard' : 'addResource'}
+        mode= 'edit'
         initialCueCardTitle={resourceType === 'cueCard' ? initialData?.title : undefined}
         initialCueCardContent={resourceType === 'cueCard' ? initialData?.content : undefined}
         initialBloomLevel={resourceType === 'cueCard' ? initialData?.bloomLevel : undefined}

@@ -6,7 +6,7 @@ import ToolPaneMergeWindow from './ToolPaneMergeWindow';
 import ToolPaneEditWindow from './ToolPaneEditWindow'; 
 import './ToolPane.css';
 
-type OperationType = 'cut-copy' | 'delete' | 'merge' | 'edit' | null;
+type OperationType = 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null;
 
 interface ToolPaneProps {
   activeOperation: OperationType;
@@ -29,7 +29,7 @@ const ToolPane: React.FC<ToolPaneProps> = ({ activeOperation, onClose, visible, 
       style={{ position: 'absolute' }}
     >
       <div className="tool-pane">
-        {activeOperation === 'cut-copy' && <ToolPaneCutCopyWindow sourceNodeId={sourceNodeId} />}
+        {(activeOperation === 'cut' || activeOperation === 'copy') && <ToolPaneCutCopyWindow sourceNodeId={sourceNodeId} command= {activeOperation} />}
         {activeOperation === 'delete' && <ToolPaneDeleteWindow nodeId={sourceNodeId} />} {/* Pass nodeId */}
         {activeOperation === 'merge' && <ToolPaneMergeWindow sourceNodeId={sourceNodeId} />} {/* Pass sourceNodeId */}
         {activeOperation === 'edit' && <ToolPaneEditWindow nodeId={sourceNodeId} />} {/* Pass nodeId */}

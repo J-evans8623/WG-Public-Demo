@@ -28,7 +28,7 @@ interface ModernModalProps {
     }
   ) => void;
   initialNodeTitle: string;
-  mode: 'addChild' | 'addResource' | 'editCueCard';
+  mode: 'addChild' | 'addResource' | 'edit';
   initialCueCardTitle?: string;
   initialCueCardContent?: string;
   initialBloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
@@ -76,20 +76,24 @@ const ModernModal: React.FC<ModernModalProps> = ({
   
   const titleInputRef = useRef<InputRef>(null);
   const cueCardTitleRef = useRef<InputRef>(null);
+
+  const handleClose = () => {
+    onClose();
+    setCueCardTitle('');
+    setCueCardContent('');
+    setPictureTitle('');
+    setUploadedPicture(null);
+    setPictureDescription('');
+    setPracticeSheetTitle('');
+    setPracticeContent({ quizType: 'matching', quizContent: ''})
+  }
   
 
   const handleSave = () => {
     const isCueCardTitleEmpty = cueCardTitle.trim() === '';
     const isCueCardContentEmpty = cueCardContent.trim() === '';
 
-    // Handle 'addChild' mode - create a new concept node without requiring cue cards
-    if (mode === 'addChild') {
-      onSave('cueCard', nodeTitle); // Pass only the nodeTitle for creating a new concept
-      onClose();
-      return;
-    }
-
-    if (mode === 'addResource' || mode === 'editCueCard') {
+    if (mode) {
       if (activeTabKey === 'cueCard') {
         if (isCueCardTitleEmpty && isCueCardContentEmpty) {
           alert('Please fill in both the Cue Card Title and Content, or leave both empty.');
@@ -114,7 +118,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
         default:
           break;
       }
-      onClose();
+      handleClose();
     }
   };
 
@@ -169,7 +173,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
     initialPictureTitle,
     initialPictureDescription,
     initialPracticeSheetTitle,
-    initialPracticeSheetContent,  // include in dependency array
+    initialPracticeSheetContent, 
   ]);
   
 
@@ -244,7 +248,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
         </div>
         <div className="modal-footer">
           <Button onClick={handleSave}>Save</Button>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={handleClose}>Cancel</Button>
         </div>
       </div>
     )

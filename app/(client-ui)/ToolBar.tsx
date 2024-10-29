@@ -27,7 +27,7 @@ interface ToolBarProps {
   onSearch: () => void;
   onUndo: () => void;
   onRedo: () => void;
-  onOpenToolPane: (operation: 'cut-copy' | 'delete' | 'merge' | 'edit' | null, sourceNodeId: string) => void; // Trigger dynamic tool pane based on operation
+  onOpenToolPane: (operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null, sourceNodeId: string) => void; // Trigger dynamic tool pane based on operation
   openModalWithResourceType: (nodeId: string| null, resourceType: 'cueCard' | 'picture' | 'practiceSheet'|undefined, op : 'resource'| 'node') => void;
 }
 
@@ -175,7 +175,7 @@ const ToolBar: React.FC<ToolBarProps> = ({
       <Tooltip title="Cut">
         <Button
           className="tool-bar-button"
-          onClick={() => selectedNodeId && onOpenToolPane('cut-copy', selectedNodeId)}
+          onClick={() => selectedNodeId && onOpenToolPane('cut', selectedNodeId)}
           icon={<ContentCutOutlinedIcon />}
           disabled={!selectedNodeId}
         />
@@ -185,7 +185,7 @@ const ToolBar: React.FC<ToolBarProps> = ({
       <Tooltip title="Copy">
         <Button
           className="tool-bar-button"
-          onClick={() => selectedNodeId && onOpenToolPane('cut-copy', selectedNodeId)}
+          onClick={() => selectedNodeId && onOpenToolPane('copy', selectedNodeId)}
           disabled={!selectedNodeId}
         >
           Copy

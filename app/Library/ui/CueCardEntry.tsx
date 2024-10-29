@@ -9,9 +9,10 @@ interface CueCardEntryProps {
   isCut: boolean;
   onSelect: (cueCardId: string) => void;
   onCut: (cueCardId: string) => void; // New cut handler prop
+  command : 'cut' | 'copy';
 }
 
-const CueCardEntry: React.FC<CueCardEntryProps> = ({ cueCard, isSelected, isCut, onSelect, onCut }) => {
+const CueCardEntry: React.FC<CueCardEntryProps> = ({ cueCard, isSelected, isCut, onSelect, onCut, command }) => {
   const handleCueCardClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation(); // Prevent event propagation to parent node
@@ -41,7 +42,7 @@ const CueCardEntry: React.FC<CueCardEntryProps> = ({ cueCard, isSelected, isCut,
     <div style={cueCardStyle} onClick={handleCueCardClick}>
       <span>{cueCard.title}</span>
       <button onClick={handleCueCardCut} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer' }}>
-        Cut
+        {command}
       </button>
     </div>
   );

@@ -9,7 +9,7 @@ interface ResourceSaveParams {
   addCueCard: (nodeId: string, cueCard: CueCard) => void;
   addPicture: (nodeId: string, picture: Picture) => void;
   addPracticeSheet: (nodeId: string, practiceSheet: PracticeSheet) => void;
-  cueCardTitle?: string;
+  Title?: string;
   cueCardContent?: string;
   bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   image?: File | null;
@@ -25,7 +25,7 @@ export function saveResource({
   addCueCard,
   addPicture,
   addPracticeSheet,
-  cueCardTitle,
+  Title,
   cueCardContent,
   bloomLevel = 1,
   image = null,
@@ -34,10 +34,10 @@ export function saveResource({
 }: ResourceSaveParams) {
   switch (resourceType) {
     case 'cueCard':
-      if (cueCardTitle && cueCardContent) {
+      if (Title && cueCardContent) {
         const newCueCard: CueCard = {
           id: Date.now().toString(),
-          title: cueCardTitle,
+          title: Title,
           content: cueCardContent,
           bloomLevel,
         };
@@ -46,10 +46,10 @@ export function saveResource({
       break;
 
     case 'picture':
-      if (image && cueCardTitle) {
+      if (image && Title) {
         const newPicture: Picture = {
           id: Date.now().toString(),
-          title: cueCardTitle, // Reusing the title from modal input
+          title: Title, // Reusing the title from modal input
           image,
         };
         addPicture(nodeId, newPicture);
@@ -57,10 +57,10 @@ export function saveResource({
       break;
 
     case 'practiceSheet':
-      if (cueCardTitle && practiceSheetContent) {
+      if (Title && practiceSheetContent) {
         const newPracticeSheet: PracticeSheet = {
           id: Date.now().toString(),
-          title: cueCardTitle,
+          title: Title,
           // Directly assigning the object as the content
           content: {
             quizType: practiceSheetContent.quizType,

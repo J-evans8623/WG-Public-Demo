@@ -1,5 +1,6 @@
 // bloom-maps\app\Library\Context\PracticeSheetContext.tsx
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 // Define the structure for a PracticeSheet with quizType and quizContent fields
 export interface PracticeSheet {
@@ -15,11 +16,11 @@ export interface PracticeSheet {
 interface PracticeSheetContextType {
   practiceSheets: Map<string, PracticeSheet[]>;
   addPracticeSheet: (nodeId: string, practiceSheet: PracticeSheet) => void;
-  removePracticeSheet: (nodeId: string, practiceSheetId: string) => void;
-  selectPracticeSheets: (nodeId: string) => PracticeSheet[]; // Method to select practice sheets for a given nodeId
+  removeResource: (nodeId: string, practiceSheetId: string) => void;
+  selectResources: (nodeId: string) => PracticeSheet[]; // Method to select practice sheets for a given nodeId
   resetPracticeSheets: () => void;
   setPracticeSheets: (newPracticeSheets: Map<string, PracticeSheet[]>) => void;
-  transferPracticeSheet: (sourceNodeId: string, targetNodeId: string, practiceSheetId: string) => void;
+  transferResource: (sourceNodeId: string, targetNodeId: string, practiceSheetId: string) => void;
   editPracticeSheet: (nodeId: string, updatedPracticeSheet: PracticeSheet) => void;
 }
 
@@ -43,7 +44,7 @@ export const PracticeSheetProvider = ({ children }: { children: ReactNode }) => 
     });
   };
 
-  const removePracticeSheet = (nodeId: string, practiceSheetId: string) => {
+  const removeResource = (nodeId: string, practiceSheetId: string) => {
     setPracticeSheetsState((prev) => {
       const updatedPracticeSheets = new Map(prev);
       const nodePracticeSheets = updatedPracticeSheets.get(nodeId) || [];
@@ -52,7 +53,7 @@ export const PracticeSheetProvider = ({ children }: { children: ReactNode }) => 
     });
   };
 
-  const selectPracticeSheets = (nodeId: string): PracticeSheet[] => {
+  const selectResources = (nodeId: string): PracticeSheet[] => {
     return practiceSheets.get(nodeId) || [];
   };
 
@@ -64,23 +65,24 @@ export const PracticeSheetProvider = ({ children }: { children: ReactNode }) => 
     setPracticeSheetsState(newPracticeSheets);
   };
 
-  const transferPracticeSheet = (sourceNodeId: string, targetNodeId: string, practiceSheetId: string) => {
+  const transferResource = (sourceNodeId: string, targetNodeId: string, practiceSheetId: string) => {
     setPracticeSheetsState((prev) => {
       const updatedPracticeSheets = new Map(prev);
       const sourcePracticeSheets = updatedPracticeSheets.get(sourceNodeId) || [];
       const practiceSheet = sourcePracticeSheets.find((sheet) => sheet.id === practiceSheetId);
       if (!practiceSheet) return prev;
-
-      // Remove from source
-      updatedPracticeSheets.set(sourceNodeId, sourcePracticeSheets.filter((sheet) => sheet.id !== practiceSheetId));
-
-      // Add to target
+  
+      // Create a copy of the practice sheet with a new unique ID
+      const newPracticeSheet = { ...practiceSheet, id: uuidv4() };
+  
+      // Add the new practice sheet to the target node
       const targetPracticeSheets = updatedPracticeSheets.get(targetNodeId) || [];
-      updatedPracticeSheets.set(targetNodeId, [...targetPracticeSheets, practiceSheet]);
-
+      updatedPracticeSheets.set(targetNodeId, [...targetPracticeSheets, newPracticeSheet]);
+  
       return updatedPracticeSheets;
     });
   };
+  
 
   const editPracticeSheet = (nodeId: string, updatedPracticeSheet: PracticeSheet) => {
     setPracticeSheetsState((prev) => {
@@ -101,11 +103,11 @@ export const PracticeSheetProvider = ({ children }: { children: ReactNode }) => 
       value={{
         practiceSheets,
         addPracticeSheet,
-        removePracticeSheet,
-        selectPracticeSheets,
+        removeResource,
+        selectResources,
         resetPracticeSheets,
         setPracticeSheets,
-        transferPracticeSheet,
+        transferResource,
         editPracticeSheet,
       }}
     >

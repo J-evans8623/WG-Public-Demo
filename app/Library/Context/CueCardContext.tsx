@@ -2,17 +2,18 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { CueCard } from '@/app/Library/Definitions/Definitions';
+import { v4 as uuidv4 } from 'uuid';
 
 // Extend CueCardContextType to include the new selectCueCards method
 interface CueCardContextType {
   cueCards: Map<string, CueCard[]>;
   addCueCard: (nodeId: string, cueCard: CueCard) => void;
-  removeCueCard: (nodeId: string, cueCardId: string) => void;
-  selectCueCards: (nodeId: string) => CueCard[]; // New method to select cue cards for a given nodeId
+  removeResource: (nodeId: string, cueCardId: string) => void;
+  selectResources: (nodeId: string) => CueCard[]; // New method to select cue cards for a given nodeId
   resetCueCards: () => void; 
   setCueCards : (newCueCards: Map<string, CueCard[]>) => void; 
   editCueCard: (nodeId: string, updatedCueCard: CueCard) => void; // New function
-  transferCueCard: (sourceNodeId: string, targetNodeId: string, cueCardId: string) => void;
+  transferResource: (sourceNodeId: string, targetNodeId: string, cueCardId: string) => void;
 }
 
 // Create the CueCard context
@@ -34,7 +35,7 @@ export const CueCardProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const removeCueCard = (nodeId: string, cueCardId: string) => {
+  const removeResource = (nodeId: string, cueCardId: string) => {
     setCueCardsState((prev) => {
       const updatedCueCards = new Map(prev);
       const nodeCueCards = updatedCueCards.get(nodeId) || [];
@@ -44,7 +45,7 @@ export const CueCardProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // New function to select cue cards for a specific node
-  const selectCueCards = (nodeId: string): CueCard[] => {
+  const selectResources= (nodeId: string): CueCard[] => {
     return cueCards.get(nodeId) || [];
   };
 
@@ -68,22 +69,20 @@ export const CueCardProvider = ({ children }: { children: ReactNode }) => {
     });
   };
   
-  const transferCueCard = (sourceNodeId: string, targetNodeId: string, cueCardId: string) => {
+
+  const transferResource = (sourceNodeId: string, targetNodeId: string, cueCardId: string) => {
     setCueCardsState((prev) => {
       const updatedCueCards = new Map(prev);
       const sourceCueCards = updatedCueCards.get(sourceNodeId) || [];
       const cueCard = sourceCueCards.find((card) => card.id === cueCardId);
       if (!cueCard) return prev;
   
-      // Remove from source
-      updatedCueCards.set(
-        sourceNodeId,
-        sourceCueCards.filter((card) => card.id !== cueCardId)
-      );
+      // Create a copy of the cue card with a new unique ID
+      const newCueCard = { ...cueCard, id: uuidv4() };
   
-      // Add to target
+      // Add the new cue card to the target node
       const targetCueCards = updatedCueCards.get(targetNodeId) || [];
-      updatedCueCards.set(targetNodeId, [...targetCueCards, cueCard]);
+      updatedCueCards.set(targetNodeId, [...targetCueCards, newCueCard]);
   
       return updatedCueCards;
     });
@@ -93,12 +92,12 @@ export const CueCardProvider = ({ children }: { children: ReactNode }) => {
     <CueCardContext.Provider
     value={{ cueCards, 
       addCueCard, 
-      removeCueCard,
-      selectCueCards, 
+      removeResource,
+      selectResources, 
       resetCueCards, 
       setCueCards,
       editCueCard, 
-      transferCueCard,
+      transferResource,
      }}
   >
       {children}
