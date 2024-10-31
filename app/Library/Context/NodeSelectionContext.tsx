@@ -1,5 +1,5 @@
-// bloom-maps\app\Library\Context\NodeSelectionContext.tsx
-// NodeSelectionContext.tsx
+// bloom-maps/app/Library/Context/NodeSelectionContext.tsx
+
 import React, { createContext, useContext, useMemo, useState } from 'react';
 
 type NodeSelectionContextType = {
@@ -12,6 +12,8 @@ type NodeSelectionContextType = {
   targetNodeId: string | null;
   setTargetNodeId: (nodeId: string) => void;
   getTargetNodeId: () => string | null;
+  focusOnSelectedNode: () => string | null;
+  getFocusNode: () => string|null;
 };
 
 const NodeSelectionContext = createContext<NodeSelectionContextType | undefined>(undefined);
@@ -46,6 +48,23 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
 
   const getTargetNodeId = () => targetNodeId;
 
+/**
+ * focusOnSelectedNode
+ * Clears all selected nodes except the last selected node.
+ * Returns the ID of the focused node or null if no nodes are selected.
+ */
+const focusOnSelectedNode = (): string | null => {
+  if (selectedIDs.length === 0) return null;
+  const lastSelectedNode = selectedIDs[selectedIDs.length - 1];
+  setSelectedIDs([lastSelectedNode]);
+  return lastSelectedNode;
+};
+
+const getFocusNode = (): string|null =>{
+  if (selectedIDs.length === 0) return null;
+  return selectedIDs[selectedIDs.length-1];
+}
+
   const contextValue = useMemo(
     () => ({
       toggleNodeSelection,
@@ -57,6 +76,8 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
       setTargetNodeId,
       getTargetNodeId,
       targetNodeId,
+      focusOnSelectedNode,
+      getFocusNode,
     }),
     [selectedIDs, targetNodeId]
   );

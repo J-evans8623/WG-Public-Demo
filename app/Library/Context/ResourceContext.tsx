@@ -3,6 +3,15 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { ResourceCard, ResourceType, PictureResource, PracticeSheetResource, CueCardResource } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  initializeNodeHistory,
+  addToNodeHistory,
+  undoNodeHistory,
+  redoNodeHistory,
+  HistoryState,
+  canUndo,
+  canRedo, 
+} from '../utils/undoredo/historyutils' // Adjust the import path as necessary
 
 /**
  * Interface defining the methods available in the ResourceContext.
@@ -21,8 +30,12 @@ interface ResourceContextType {
   resetResources: () => void;
   getResourcesByType: (type: 'cueCard' | 'picture' | 'practiceSheet') => Map<string, ResourceCard[]>;
   setResourcesByMap: (resourceMap: Map<string, CueCardResource[] | PictureResource[] | PracticeSheetResource[]>) => void;
-}
+  undo: (nodeId: string) => void; // New undo method
+  redo: (nodeId: string) => void; // New redo method
+  undoAvailable:  (nodeId: string) => boolean;
+  redoAvailable:  (nodeId: string) => boolean;
 
+}
 
 /**
  * Create the ResourceContext with an undefined default value.
@@ -35,6 +48,9 @@ const ResourceContext = createContext<ResourceContextType | undefined>(undefined
 export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   // State holding all resources, keyed by nodeId.
   const [resources, setResourcesState] = useState<Map<string, ResourceCard[]>>(new Map());
+
+  // History map to track past and future states for each node
+  const [resourceHistoryMap, setResourceHistoryMap] = useState<Map<string, HistoryState<ResourceCard[]>>>(new Map());
 
   /**
    * Adds a new resource to a node.
@@ -74,63 +90,88 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(`Unknown resource type: ${(resource as any).type}`);
     }
   
+    const nodeId = newResource.nodeId;
+
+    // Get current resources for the node
+    const currentResources = resources.get(nodeId) || [];
+
+    // Update history: add current state to past
+    const currentHistory = resourceHistoryMap.get(nodeId) || initializeNodeHistory<ResourceCard[]>();
+    const updatedHistory = addToNodeHistory(currentHistory, currentResources);
+    const newHistoryMap = new Map(resourceHistoryMap);
+    newHistoryMap.set(nodeId, updatedHistory);
+    setResourceHistoryMap(newHistoryMap);
+
     // Update the resources state immutably
     setResourcesState((prev) => {
       const updatedResources = new Map(prev);
-      const nodeResources = updatedResources.get(newResource.nodeId) || [];
-      updatedResources.set(newResource.nodeId, [...nodeResources, newResource]);
-      
-      // Removed undo/redo action recording
-      // recordAction(newResource.nodeId);
-  
+      const nodeResources = updatedResources.get(nodeId) || [];
+      updatedResources.set(nodeId, [...nodeResources, newResource]);
       return updatedResources;
     });
-  }, []); // Removed dependency on recordAction
-  
+  }, [resources, resourceHistoryMap]);
+
   /**
    * Removes a resource from a node.
    * @param nodeId - The ID of the node.
    * @param resourceId - The ID of the resource to remove.
    */
   const removeResource = useCallback((nodeId: string, resourceId: string) => {
+    const currentResources = resources.get(nodeId) || [];
+    const resourceExists = currentResources.some(resource => resource.id === resourceId);
+
+    if (!resourceExists) {
+      // Resource not found; no action needed
+      return;
+    }
+
+    // Update history: add current state to past
+    const currentHistory = resourceHistoryMap.get(nodeId) || initializeNodeHistory<ResourceCard[]>();
+    const updatedHistory = addToNodeHistory(currentHistory, currentResources);
+    const newHistoryMap = new Map(resourceHistoryMap);
+    newHistoryMap.set(nodeId, updatedHistory);
+    setResourceHistoryMap(newHistoryMap);
+
+    // Update the resources state immutably
     setResourcesState((prev) => {
       const updatedResources = new Map(prev);
       const nodeResources = updatedResources.get(nodeId) || [];
-      const resourceExists = nodeResources.some(resource => resource.id === resourceId);
-  
-      if (resourceExists) {
-        updatedResources.set(nodeId, nodeResources.filter(resource => resource.id !== resourceId));
-        
-        // Removed undo/redo action recording
-        // recordAction(nodeId);
-      }
-  
+      updatedResources.set(nodeId, nodeResources.filter(resource => resource.id !== resourceId));
       return updatedResources;
     });
-  }, []); // Removed dependency on recordAction
-  
+  }, [resources, resourceHistoryMap]);
+
   /**
    * Edits an existing resource.
    * @param updatedResource - The resource with updated fields.
    */
   const editResource = useCallback((updatedResource: ResourceCard) => {
+    const nodeId = updatedResource.nodeId;
+    const currentResources = resources.get(nodeId) || [];
+    const resourceIndex = currentResources.findIndex(resource => resource.id === updatedResource.id);
+
+    if (resourceIndex === -1) {
+      // Resource not found; no action needed
+      return;
+    }
+
+    // Update history: add current state to past
+    const currentHistory = resourceHistoryMap.get(nodeId) || initializeNodeHistory<ResourceCard[]>();
+    const updatedHistory = addToNodeHistory(currentHistory, currentResources);
+    const newHistoryMap = new Map(resourceHistoryMap);
+    newHistoryMap.set(nodeId, updatedHistory);
+    setResourceHistoryMap(newHistoryMap);
+
+    // Update the resources state immutably
     setResourcesState((prev) => {
       const updatedResources = new Map(prev);
-      const nodeResources = updatedResources.get(updatedResource.nodeId) || [];
-      const resourceIndex = nodeResources.findIndex(resource => resource.id === updatedResource.id);
-  
-      if (resourceIndex !== -1) {
-        nodeResources[resourceIndex] = updatedResource;
-        updatedResources.set(updatedResource.nodeId, [...nodeResources]);
-        
-        // Removed undo/redo action recording
-        // recordAction(updatedResource.nodeId);
-      }
-  
+      const nodeResources = [...updatedResources.get(nodeId)!];
+      nodeResources[resourceIndex] = updatedResource;
+      updatedResources.set(nodeId, nodeResources);
       return updatedResources;
     });
-  }, []); // Removed dependency on recordAction
-  
+  }, [resources, resourceHistoryMap]);
+
   /**
    * Selects all resources associated with a specific node.
    * @param nodeId - The ID of the node.
@@ -139,7 +180,7 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   const selectResources = useCallback((nodeId: string): ResourceCard[] => {
     return resources.get(nodeId) || [];
   }, [resources]);
-  
+
   /**
    * Selects all cue cards associated with a specific node.
    * @param nodeId - The ID of the node.
@@ -150,7 +191,7 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
       (resource): resource is CueCardResource => resource.type === 'cueCard'
     );
   }, [resources]);
-  
+
   /**
    * Selects all pictures associated with a specific node.
    * @param nodeId - The ID of the node.
@@ -161,7 +202,7 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
       (resource): resource is PictureResource => resource.type === 'picture'
     );
   }, [resources]);
-  
+
   /**
    * Selects all practice sheets associated with a specific node.
    * @param nodeId - The ID of the node.
@@ -172,15 +213,16 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
       (resource): resource is PracticeSheetResource => resource.type === 'practiceSheet'
     );
   }, [resources]);
-  
+
   /**
    * Sets the entire resources map (useful for loading documents).
    * @param newResources - The new resources map.
    */
   const setResources = useCallback((newResources: Map<string, ResourceCard[]>) => {
     setResourcesState(newResources);
+    setResourceHistoryMap(new Map()); // Reset history when setting new resources
   }, []);
-  
+
   /**
    * Transfers a resource from one node to another.
    * @param sourceNodeId - The ID of the source node.
@@ -188,45 +230,62 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
    * @param resourceId - The ID of the resource to transfer.
    */
   const transferResource = useCallback((sourceNodeId: string, targetNodeId: string, resourceId: string) => {
+    const sourceResources = resources.get(sourceNodeId) || [];
+    const resourceIndex = sourceResources.findIndex(resource => resource.id === resourceId);
+
+    if (resourceIndex === -1) {
+      // Resource not found in source; no action needed
+      return;
+    }
+
+    const resourceToTransfer = sourceResources[resourceIndex];
+
+    // Update history for both source and target nodes
+    const sourceCurrentResources = sourceResources;
+    const targetCurrentResources = resources.get(targetNodeId) || [];
+
+    const sourceHistory = resourceHistoryMap.get(sourceNodeId) || initializeNodeHistory<ResourceCard[]>();
+    const updatedSourceHistory = addToNodeHistory(sourceHistory, sourceCurrentResources);
+    
+    const targetHistory = resourceHistoryMap.get(targetNodeId) || initializeNodeHistory<ResourceCard[]>();
+    const updatedTargetHistory = addToNodeHistory(targetHistory, targetCurrentResources);
+
+    const newHistoryMap = new Map(resourceHistoryMap);
+    newHistoryMap.set(sourceNodeId, updatedSourceHistory);
+    newHistoryMap.set(targetNodeId, updatedTargetHistory);
+    setResourceHistoryMap(newHistoryMap);
+
+    // Update the resources state immutably
     setResourcesState((prev) => {
       const updatedResources = new Map(prev);
-      const sourceResources = updatedResources.get(sourceNodeId) || [];
-      const resourceIndex = sourceResources.findIndex(resource => resource.id === resourceId);
-      
-      if (resourceIndex !== -1) {
-        const [resource] = sourceResources.splice(resourceIndex, 1);
-        updatedResources.set(sourceNodeId, [...sourceResources]);
-  
-        const targetResources = updatedResources.get(targetNodeId) || [];
-        const transferredResource = { ...resource, id: uuidv4(), nodeId: targetNodeId };
-        updatedResources.set(targetNodeId, [...targetResources, transferredResource]);
-        
-        // Removed undo/redo action recording
-        // recordAction(sourceNodeId);
-        // recordAction(targetNodeId);
-      }
-  
+
+      // Remove from source
+      const updatedSourceResources = sourceResources.filter(resource => resource.id !== resourceId);
+      updatedResources.set(sourceNodeId, updatedSourceResources);
+
+      // Add to target with a new ID
+      const transferredResource: ResourceCard = { ...resourceToTransfer, id: uuidv4(), nodeId: targetNodeId };
+      const updatedTargetResources = [...targetCurrentResources, transferredResource];
+      updatedResources.set(targetNodeId, updatedTargetResources);
+
       return updatedResources;
     });
-  }, []); // Removed dependency on recordAction
-  
+  }, [resources, resourceHistoryMap]);
+
   /**
    * Resets all resources (clears the map).
    */
   const resetResources = useCallback(() => {
     setResourcesState(new Map());
+    setResourceHistoryMap(new Map());
   }, []);
-  
+
   /**
-   * Serializes resources for saving.
-   * @returns Serialized resources data.
+   * Retrieves all resources of a specified type in a Map keyed by nodeId.
+   * @param type - The type of resource to retrieve ('cueCard' | 'picture' | 'practiceSheet').
+   * @returns Map of specified resource type arrays.
    */
-  /**
- * Retrieves all resources of a specified type in a Map keyed by nodeId.
- * @param type - The type of resource to retrieve ('cueCard' | 'picture' | 'practiceSheet').
- * @returns Map of specified resource type arrays.
- */
-const getResourcesByType = useCallback(
+  const getResourcesByType = useCallback(
     (type: 'cueCard' | 'picture' | 'practiceSheet') => {
       const resourceMap = new Map<string, ResourceCard[]>();
       resources.forEach((resourceArray, nodeId) => {
@@ -241,9 +300,9 @@ const getResourcesByType = useCallback(
   );
 
   /**
- * Sets resources in the ResourceContext by replacing entries with those from the provided map.
- * @param resourceMap - Map containing arrays of CueCardResource[], PictureResource[], or PracticeSheetResource[].
- */
+   * Sets resources in the ResourceContext by replacing entries with those from the provided map.
+   * @param resourceMap - Map containing arrays of CueCardResource[], PictureResource[], or PracticeSheetResource[].
+   */
   const setResourcesByMap = useCallback(
     (resourceMap: Map<string, CueCardResource[] | PictureResource[] | PracticeSheetResource[]>) => {
       setResourcesState((prev) => {
@@ -257,13 +316,86 @@ const getResourcesByType = useCallback(
           updatedResources.set(nodeId, [...existingResources, ...newResources]);
         });
   
+        // Reset history as resources have been replaced
+        setResourceHistoryMap(new Map());
+
         return updatedResources;
       });
     },
     []
   );
-  
-  
+
+  /**
+   * Performs the undo operation for a specific node.
+   * @param nodeId - The ID of the node to undo.
+   */
+  const undo = useCallback((nodeId: string) => {
+    const currentResources = resources.get(nodeId) || [];
+    const history = resourceHistoryMap.get(nodeId);
+
+    if (!history) {
+      // No history available for this node
+      return;
+    }
+
+    const { history: newHistory, newState } = undoNodeHistory(history, currentResources);
+
+    if (newState) {
+      // Update the history map
+      const newHistoryMap = new Map(resourceHistoryMap);
+      newHistoryMap.set(nodeId, newHistory);
+      setResourceHistoryMap(newHistoryMap);
+
+      // Update the resources state with the new state
+      setResourcesState((prev) => {
+        const updatedResources = new Map(prev);
+        updatedResources.set(nodeId, newState);
+        return updatedResources;
+      });
+    }
+  }, [resources, resourceHistoryMap]);
+
+  /**
+   * Performs the redo operation for a specific node.
+   * @param nodeId - The ID of the node to redo.
+   */
+  const redo = useCallback((nodeId: string) => {
+    const currentResources = resources.get(nodeId) || [];
+    const history = resourceHistoryMap.get(nodeId);
+
+    if (!history) {
+      // No history available for this node
+      return;
+    }
+
+    const { history: newHistory, newState } = redoNodeHistory(history, currentResources);
+
+    if (newState) {
+      // Update the history map
+      const newHistoryMap = new Map(resourceHistoryMap);
+      newHistoryMap.set(nodeId, newHistory);
+      setResourceHistoryMap(newHistoryMap);
+
+      // Update the resources state with the new state
+      setResourcesState((prev) => {
+        const updatedResources = new Map(prev);
+        updatedResources.set(nodeId, newState);
+        return updatedResources;
+      });
+    }
+  }, [resources, resourceHistoryMap]);
+
+const undoAvailable = useCallback((nodeId: string) => {
+  const history = resourceHistoryMap.get(nodeId);
+  return history ? canUndo(history) : false;
+}, [resourceHistoryMap]);
+
+const redoAvailable = useCallback((nodeId: string) => {
+  const history = resourceHistoryMap.get(nodeId);
+  return history ? canRedo(history) : false;
+}, [resourceHistoryMap]);
+
+
   return (
     <ResourceContext.Provider value={{
       resources,
@@ -279,6 +411,10 @@ const getResourcesByType = useCallback(
       resetResources,
       getResourcesByType,
       setResourcesByMap,
+      undo,
+      redo,
+      undoAvailable,
+      redoAvailable,
     }}>
       {children}
     </ResourceContext.Provider>

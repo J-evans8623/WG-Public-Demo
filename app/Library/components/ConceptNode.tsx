@@ -1,3 +1,5 @@
+// bloom-maps/app/Library/Components/ConceptNode.tsx
+
 import React, { memo, useCallback } from 'react';
 import { ConceptNode as NodeType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
@@ -7,9 +9,18 @@ import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 const DEFAULT_PRIMARY_COLOR = '#F7CAAB';
 const DEFAULT_BACKGROUND_COLOR = '#F7EBD1';
 
+// Define color constants for different node states
+const GENERAL_SELECTED_COLOR = '#3B82F6'; // Blue
+const CARET_COLOR = '#FF6500'; // Amber-Orange
+const TARGET_COLOR = '#28A745'; // lime Green
+
 interface ConceptNodeProps {
-  node : NodeType,
-  openModalWithResourceType: (nodeId: string| null, resourceType: 'cueCard' | 'picture' | 'practiceSheet'|undefined, op : 'resource'| 'node') => void;
+  node: NodeType;
+  openModalWithResourceType: (
+    nodeId: string | null,
+    resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined,
+    op: 'resource' | 'node'
+  ) => void;
   onNodeClick: (nodeId: string) => void;
 }
 
@@ -19,8 +30,15 @@ function ConceptNode({
   onNodeClick,
 }: ConceptNodeProps) {
   const { primaryColor = DEFAULT_PRIMARY_COLOR, backgroundColor = DEFAULT_BACKGROUND_COLOR } = useColorThemeContext();
-  const { isSelected, targetNodeId } = useNodeSelection();
-  const selected = isSelected(node.id) || node.id === targetNodeId;
+  const {
+    isSelected,
+    targetNodeId,
+    getFocusNode,
+  } = useNodeSelection(); // Destructure necessary functions
+
+  const focusNodeId = getFocusNode();
+  const currentTargetNodeId = targetNodeId;
+
   const { title, x, y, depth } = node;
 
   const handleNodeClick = useCallback(() => {
@@ -55,6 +73,24 @@ function ConceptNode({
 
   const nodeColor = depth === 1 ? primaryColor : backgroundColor;
 
+  // Determine the node's selection state
+  const selected = isSelected(node.id) || node.id === currentTargetNodeId;
+
+  // Determine if the node is the focus node (caret) or target node
+  const isCaretNode = node.id === focusNodeId;
+  const isTargetNode = node.id === currentTargetNodeId && node.id !== focusNodeId;
+
+  // Determine the ring color based on node type
+  let ringColor: string | null = null;
+  if (isCaretNode) {
+    ringColor = CARET_COLOR;
+  } else if (isTargetNode) {
+    ringColor = TARGET_COLOR;
+  } else if (selected) {
+    ringColor = GENERAL_SELECTED_COLOR;
+  }
+
+  // Determine container classes with conditional styling
   const containerClasses = `relative flex flex-col items-center cursor-pointer group rounded-md shadow-md transition-all duration-200 ${
     selected ? 'bg-blue-50 shadow-lg' : 'bg-white shadow-md'
   }`;
@@ -78,14 +114,24 @@ function ConceptNode({
       role="button"
       tabIndex={0}
     >
-      {selected && (
+      {selected && ringColor && (
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none"
           viewBox="0 0 325 125"
           preserveAspectRatio="none"
           style={{ zIndex: -1 }}
         >
-          <rect x="0" y="0" width="325" height="125" fill="none" stroke="#3B82F6" strokeWidth="8" strokeDasharray="10 10" className="animate-dash" />
+          <rect
+            x="0"
+            y="0"
+            width="325"
+            height="125"
+            fill="none"
+            stroke={ringColor}
+            strokeWidth="8"
+            strokeDasharray="10 10"
+            className="animate-dash"
+          />
         </svg>
       )}
 
@@ -112,8 +158,14 @@ function ConceptNode({
         title="Add Study Resource"
       >
         <div className="relative w-full h-full flex items-center justify-center">
-          <div className="absolute w-2/3 h-2/3 border border-black transform -translate-x-1 -translate-y-1" style={{ backgroundColor: nodeColor }} />
-          <div className="absolute w-2/3 h-2/3 border border-black transform -translate-x-0.5 -translate-y-0.5" style={{ backgroundColor: nodeColor }} />
+          <div
+            className="absolute w-2/3 h-2/3 border border-black transform -translate-x-1 -translate-y-1"
+            style={{ backgroundColor: nodeColor }}
+          />
+          <div
+            className="absolute w-2/3 h-2/3 border border-black transform -translate-x-0.5 -translate-y-0.5"
+            style={{ backgroundColor: nodeColor }}
+          />
           <div className="absolute w-2/3 h-2/3 border border-black" style={{ backgroundColor: nodeColor }} />
           <span className="absolute text-xs font-bold">+</span>
         </div>
@@ -124,13 +176,13 @@ function ConceptNode({
 
 ConceptNode.displayName = 'ConceptNode';
 
-export default memo(ConceptNode, (prevProps, nextProps) => {
-  return (
+export default memo(
+  ConceptNode,
+  (prevProps, nextProps) =>
     prevProps.node.id === nextProps.node.id &&
     prevProps.node.title === nextProps.node.title &&
     prevProps.node.x === nextProps.node.x &&
     prevProps.node.y === nextProps.node.y &&
     prevProps.node.isRoot === nextProps.node.isRoot &&
     prevProps.onNodeClick === nextProps.onNodeClick
-  );
-});
+);

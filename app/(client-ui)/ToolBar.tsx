@@ -1,3 +1,5 @@
+// bloom-maps/app/Library/Components/ToolBar.tsx
+
 import React from 'react';
 import { Button, Tooltip, Select } from 'antd';
 import { ZoomInOutlined, ZoomOutOutlined } from '@ant-design/icons';
@@ -20,14 +22,14 @@ import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { setPrimaryColor, setBackgroundColor } from '@/app/Library/Context/colorThemeActions';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-//import { useUndoRedoContext, UndoRedoActionType } from '@/app/Library/Context/UndoRedoContext'; 
+import { useResourceContext } from '@/app/Library/Context/ResourceContext'; // Import ResourceContext
 
 const { Option } = Select;
 
 interface ToolBarProps {
   onSearch: () => void;
-  onOpenToolPane: (operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null, sourceNodeId: string) => void; // Trigger dynamic tool pane based on operation
-  openModalWithResourceType: (nodeId: string| null, resourceType: 'cueCard' | 'picture' | 'practiceSheet'|undefined, op : 'resource'| 'node') => void;
+  onOpenToolPane: (operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null, sourceNodeId: string | null) => void; // Updated to accept null
+  openModalWithResourceType: (nodeId: string | null, resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined, op: 'resource' | 'node') => void;
 }
 
 const ToolBar: React.FC<ToolBarProps> = ({
@@ -37,14 +39,19 @@ const ToolBar: React.FC<ToolBarProps> = ({
 }) => {
   const { zoomLevel, baseZoomLevel, dispatch: zoomDispatch } = useZoomContext();
   const { primaryColor, backgroundColor, dispatch: colorThemeDispatch } = useColorThemeContext();
-  const { clearSelection, getSelectedNodeIds } = useNodeSelection();
-  //const { state: undoRedoState, dispatch: undoRedoDispatch } = useUndoRedoContext();
+  const { clearSelection, getSelectedNodeIds, focusOnSelectedNode } = useNodeSelection(); // Destructure focusOnSelectedNode
 
+  // Access the ResourceContext
+  const {
+    undo,
+    redo,
+    undoAvailable,
+    redoAvailable,
+  } = useResourceContext();
 
   // Get the selected node IDs and pick the first one for operations
   const selectedNodeIds = getSelectedNodeIds();
-  const selectedNodeId = selectedNodeIds.length > 0 ? selectedNodeIds[0] : null;
-  
+  const selectedNodeId = selectedNodeIds.length > 0 ? selectedNodeIds[selectedNodeIds.length -1] : null;
 
   // Define zoom levels and conversion from percentage
   const zoomLevels = [
@@ -57,31 +64,23 @@ const ToolBar: React.FC<ToolBarProps> = ({
   ];
 
   /**
-  const canUndo = selectedNodeId
-  ? (undoRedoState.undoStack.get(selectedNodeId) || []).length > 0
-  : false;
-const canRedo = selectedNodeId
-  ? (undoRedoState.redoStack.get(selectedNodeId) || []).length > 0
-  : false;    */ 
-
+   * Handler for undo action.
+   */
   const handleUndo = () => {
-    console.log('Testing')
-    /**if (selectedNodeId && canUndo) {
-      undoRedoDispatch({
-        type: UndoRedoActionType.UNDO,
-        payload: { nodeId: selectedNodeId },
-      });
-    }  */
+    const focusedNodeId = focusOnSelectedNode();
+    if (focusedNodeId && undoAvailable(focusedNodeId)) {
+      undo(focusedNodeId);
+    }
   };
 
+  /**
+   * Handler for redo action.
+   */
   const handleRedo = () => {
-    console.log('Testing')
-   /** if (selectedNodeId && canRedo) {
-      undoRedoDispatch({
-        type: UndoRedoActionType.REDO,
-        payload: { nodeId: selectedNodeId },
-      });
-    }  */
+    const focusedNodeId = focusOnSelectedNode();
+    if (focusedNodeId && redoAvailable(focusedNodeId)) {
+      redo(focusedNodeId);
+    }
   };
 
   const currentZoomPercentage = Math.round((zoomLevel / baseZoomLevel) * 100);
@@ -122,6 +121,22 @@ const canRedo = selectedNodeId
     { label: 'White', color: '#F5F5F5' }
   ];
 
+  /**
+   * Wrapper function to handle focusing on the last selected node and performing the operation.
+   */
+  const handleOperation = (operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null) => {
+    const focusedNodeId = focusOnSelectedNode();
+    onOpenToolPane(operation, focusedNodeId);
+  };
+
+  /**
+   * Wrapper function to handle adding resources with focused node.
+   */
+  const handleAddResource = (resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined, op: 'resource' | 'node') => {
+    const focusedNodeId = focusOnSelectedNode();
+    openModalWithResourceType(focusedNodeId, resourceType, op);
+  };
+
   return (
     <div className="tool-bar flex space-x-2">
       {/* 1. Search */}
@@ -142,7 +157,7 @@ const canRedo = selectedNodeId
       {/* 4. Zoom Level Dropdown */}
       <Select
         className="tool-bar-dropdown"
-        value={Math.round((zoomLevel / baseZoomLevel) * 100)}
+        value={currentZoomPercentage}
         onChange={handleZoomChange}
         style={{ width: '120px' }}
       >
@@ -155,12 +170,22 @@ const canRedo = selectedNodeId
 
       {/* 5. Undo */}
       <Tooltip title="Undo">
-        <Button className="tool-bar-button" onClick={handleUndo} icon={<UndoIcon className="icon" />} />
+        <Button 
+          className="tool-bar-button" 
+          onClick={handleUndo} 
+          icon={<UndoIcon className="icon" />} 
+          disabled={!selectedNodeId || !undoAvailable(selectedNodeId)}
+        />
       </Tooltip>
 
       {/* 6. Redo */}
       <Tooltip title="Redo">
-        <Button className="tool-bar-button" onClick={handleRedo} icon={<RedoIcon className="icon" />} />
+        <Button 
+          className="tool-bar-button" 
+          onClick={handleRedo} 
+          icon={<RedoIcon className="icon" />} 
+          disabled={!selectedNodeId || !redoAvailable(selectedNodeId)}
+        />
       </Tooltip>
 
       {/* 7. Deselect All */}
@@ -170,29 +195,45 @@ const canRedo = selectedNodeId
 
       {/* 8. Add New Concept */}
       <Tooltip title="Add New Concept">
-        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,undefined, 'node')} icon={<AddConceptIcon className="icon" />} />
+        <Button 
+          className="tool-bar-button" 
+          onClick={() => handleAddResource(undefined, 'node')} 
+          icon={<AddConceptIcon className="icon" />} 
+        />
       </Tooltip>
 
       {/* 9. Add Cue Card */}
       <Tooltip title="Add Cue Card">
-        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,'cueCard', 'resource')} icon={<AddCueCardIcon className="icon" />} />
+        <Button 
+          className="tool-bar-button" 
+          onClick={() => handleAddResource('cueCard', 'resource')} 
+          icon={<AddCueCardIcon className="icon" />} 
+        />
       </Tooltip>
 
       {/* 10. Add Picture */}
       <Tooltip title="Add Picture">
-        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,'picture', 'resource')}  icon={<AddPictureIcon className="icon" />} />
+        <Button 
+          className="tool-bar-button" 
+          onClick={() => handleAddResource('picture', 'resource')}  
+          icon={<AddPictureIcon className="icon" />} 
+        />
       </Tooltip>
 
       {/* 11. Add Quiz */}
       <Tooltip title="Add Quiz">
-        <Button className="tool-bar-button" onClick={() => openModalWithResourceType(selectedNodeId,'practiceSheet', 'resource')} icon={<AddQuizIcon className="icon" />} />
+        <Button 
+          className="tool-bar-button" 
+          onClick={() => handleAddResource('practiceSheet', 'resource')} 
+          icon={<AddQuizIcon className="icon" />} 
+        />
       </Tooltip>
 
       {/* 12. Edit */}
       <Tooltip title="Edit">
         <Button
           className="tool-bar-button"
-          onClick={() => selectedNodeId && onOpenToolPane('edit', selectedNodeId)}
+          onClick={() => handleOperation('edit')}
           icon={<EditIcon />}
           disabled={!selectedNodeId}
         />
@@ -202,7 +243,7 @@ const canRedo = selectedNodeId
       <Tooltip title="Cut">
         <Button
           className="tool-bar-button"
-          onClick={() => selectedNodeId && onOpenToolPane('cut', selectedNodeId)}
+          onClick={() => handleOperation('cut')}
           icon={<ContentCutOutlinedIcon />}
           disabled={!selectedNodeId}
         />
@@ -212,7 +253,7 @@ const canRedo = selectedNodeId
       <Tooltip title="Copy">
         <Button
           className="tool-bar-button"
-          onClick={() => selectedNodeId && onOpenToolPane('copy', selectedNodeId)}
+          onClick={() => handleOperation('copy')}
           disabled={!selectedNodeId}
         >
           Copy
@@ -228,7 +269,7 @@ const canRedo = selectedNodeId
       <Tooltip title="Merge">
         <Button
           className="tool-bar-button"
-          onClick={() => selectedNodeId && onOpenToolPane('merge', selectedNodeId)}
+          onClick={() => handleOperation('merge')}
           icon={<MergeIcon className="icon" />}
           disabled={!selectedNodeId}
         />
@@ -238,7 +279,7 @@ const canRedo = selectedNodeId
       <Tooltip title="Delete">
         <Button
           className="tool-bar-button"
-          onClick={() => selectedNodeId && onOpenToolPane('delete', selectedNodeId)}
+          onClick={() => handleOperation('delete')}
           icon={<DeleteIcon />}
           disabled={!selectedNodeId}
         />
