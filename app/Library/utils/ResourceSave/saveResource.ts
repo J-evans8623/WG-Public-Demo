@@ -1,73 +1,71 @@
-// bloom-maps\app\Library\utils\ResourceSave\saveResource.ts
-import { CueCard, Picture, PracticeSheet } from '@/app/Library/Definitions/Definitions';
+// bloom-maps/app/Library/utils/ResourceSave/saveResource.ts
 
-export type ResourceType = 'cueCard' | 'picture' | 'practiceSheet';
+import { ResourceType, CueCardResource, PictureResource, PracticeSheetResource, ResourceCard } from '@/app/Library/Definitions/Definitions';
 
 interface ResourceSaveParams {
   resourceType: ResourceType;
   nodeId: string;
-  addCueCard: (nodeId: string, cueCard: CueCard) => void;
-  addPicture: (nodeId: string, picture: Picture) => void;
-  addPracticeSheet: (nodeId: string, practiceSheet: PracticeSheet) => void;
+  addResource: (resource: Omit<ResourceCard, 'id'>) => void;
   Title?: string;
   cueCardContent?: string;
   bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   image?: File | null;
-  pictureDescription?: string;
-  practiceSheetContent?: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string }; // Updated structure
+  practiceSheetContent?: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string };
 }
 
-
-
+/**
+ * Saves a resource by adding it through the centralized ResourceContext's addResource method.
+ * Ensures all required fields are present based on the resource type.
+ * @param params - The parameters for the resource to save.
+ */
 export function saveResource({
   resourceType,
   nodeId,
-  addCueCard,
-  addPicture,
-  addPracticeSheet,
+  addResource,
   Title,
   cueCardContent,
   bloomLevel = 1,
   image = null,
-  pictureDescription = '',
   practiceSheetContent,
 }: ResourceSaveParams) {
   switch (resourceType) {
     case 'cueCard':
       if (Title && cueCardContent) {
-        const newCueCard: CueCard = {
-          id: Date.now().toString(),
+        addResource({
+          type: 'cueCard',
+          nodeId,
           title: Title,
           content: cueCardContent,
           bloomLevel,
-        };
-        addCueCard(nodeId, newCueCard);
+        } as CueCardResource);
+      } else {
+        console.error('Title and content are required for CueCard');
       }
       break;
 
     case 'picture':
       if (image && Title) {
-        const newPicture: Picture = {
-          id: Date.now().toString(),
-          title: Title, // Reusing the title from modal input
+        addResource({
+          type: 'picture',
+          nodeId,
+          title: Title,
           image,
-        };
-        addPicture(nodeId, newPicture);
+        } as PictureResource);
+      } else {
+        console.error('Title and image are required for Picture');
       }
       break;
 
     case 'practiceSheet':
       if (Title && practiceSheetContent) {
-        const newPracticeSheet: PracticeSheet = {
-          id: Date.now().toString(),
+        addResource({
+          type: 'practiceSheet',
+          nodeId,
           title: Title,
-          // Directly assigning the object as the content
-          content: {
-            quizType: practiceSheetContent.quizType,
-            quizContent: practiceSheetContent.quizContent,
-          },
-        };
-        addPracticeSheet(nodeId, newPracticeSheet);
+          content: practiceSheetContent,
+        } as PracticeSheetResource);
+      } else {
+        console.error('Title and practice sheet content are required for PracticeSheet');
       }
       break;
 

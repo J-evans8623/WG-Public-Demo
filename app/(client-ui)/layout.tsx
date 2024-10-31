@@ -1,3 +1,4 @@
+// bloom-maps\app\(client-ui)\layout.tsx
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
@@ -14,10 +15,12 @@ import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { PictureProvider, usePictureContext } from '@/app/Library/Context/PictureContext';
 import { PracticeSheetProvider, usePracticeSheetContext } from '@/app/Library/Context/PracticeSheetContext';
-import { saveResource, ResourceType } from '@/app/Library/utils/ResourceSave/saveResource';
+import { saveResource } from '@/app/Library/utils/ResourceSave/saveResource';
+import { ResourceType} from '@/app/Library/Definitions/Definitions';
 import MenuBar from '@/app/(client-ui)/MenuBar';
 import ToolBar from '@/app/(client-ui)/ToolBar';
 import '@/app/(client-ui)/ClientLayout.css';
+
 
 // Import new context providers and hooks
 import { NodesProvider, useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -25,6 +28,7 @@ import { ZoomProvider, useZoomContext } from '@/app/Library/Context/ZoomProvider
 import { LayoutProvider, useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { ColorThemeProvider, useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { FileProvider, useFileContext } from '@/app/Library/Context/FileProvider';
+import { ResourceProvider, useResourceContext } from '@/app/Library/Context/ResourceContext';
 
 // Import action creators
 import { createNewNode, updateNodeTitle } from '@/app/Library/Context/nodesActions';
@@ -43,15 +47,19 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
 
   // Use new context hooks
   const { nodes, dispatch: nodesDispatch } = useNodesContext();
-  const { zoomLevel, baseZoomLevel, dispatch: zoomDispatch } = useZoomContext();
+  const { zoomLevel, baseZoomLevel, dispatch: zoomDispatch } = useZoomContext();// remove
   const { dispatch: layoutDispatch } = useLayoutContext();
   const { dispatch: fileDispatch, fileName } = useFileContext();
   const { colorTheme, primaryColor, backgroundColor, dispatch: colorThemeDispatch } = useColorThemeContext();
   const { resetTreeDimensions } = useTreeDimensions();
   const { resetSubtrees, setSubtrees, subtrees } = useSubTreeContext();
-  const { addCueCard, resetCueCards, setCueCards, cueCards } = useCueCardContext();
-  const { addPicture, pictures, setPictures, resetPictures } = usePictureContext();
-  const { addPracticeSheet, practiceSheets, setPracticeSheets, resetPracticeSheets } = usePracticeSheetContext();
+
+
+   // Use new centralized ResourceContext hook
+   const { resources, addResource, resetResources, setResources, getResourcesByType, setResourcesByMap } = useResourceContext();
+ // const { addCueCard, resetCueCards, setCueCards, cueCards } = useCueCardContext();
+ // const { addPicture, pictures, setPictures, resetPictures } = usePictureContext();
+ // const { addPracticeSheet, practiceSheets, setPracticeSheets, resetPracticeSheets } = usePracticeSheetContext();
 
   const [paneSizes, setPaneSizes] = useState<number[]>([20, 60, 20]);
 
@@ -65,6 +73,8 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   const [sourceNodeId, setSourceNodeId] = useState<string | ''>('');
  const { toggleNodeSelection, setTargetNodeId,  clearSelection, selectNode } = useNodeSelection();
 
+ //const { trackNode} = useUndoRedoContext();
+
  const openModalWithResourceType = (nodeId: string| null, resourceType: 'cueCard' | 'picture' | 'practiceSheet'|undefined, op : 'resource'| 'node') => {
   setModalNodeId(nodeId); // Set the node ID for the resource
   if ( op === 'node'){
@@ -76,6 +86,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   setModalResourceType(resourceType); // Define which resource type is being added
   setIsModalOpen(true); // Finally, open the modal
 };
+
 const handleOpenToolPane = useCallback(
   (operation: 'cut'| 'copy' | 'delete' | 'merge' | 'edit' | null, sourceNode: string) => {
     setSourceNodeId(sourceNode);
@@ -109,6 +120,7 @@ const handleOpenToolPane = useCallback(
     return () => window.removeEventListener('resize', updateWindowSize);
   }, []);
 
+
   useEffect(() => {
     if (!isInitialized) {
       initializeNewDocument(
@@ -116,11 +128,9 @@ const handleOpenToolPane = useCallback(
         layoutDispatch,
         fileDispatch,
         colorThemeDispatch,
-        resetCueCards,
         resetTreeDimensions,
         resetSubtrees,
-        resetPictures,
-        resetPracticeSheets,
+        resetResources,       
         6,
         windowWidth,
         false
@@ -134,11 +144,9 @@ const handleOpenToolPane = useCallback(
     fileDispatch,
     colorThemeDispatch,
     windowWidth,
-    resetCueCards,
+    resetResources,
     resetTreeDimensions,
     resetSubtrees,
-    resetPictures,
-    resetPracticeSheets,
   ]);
 
   const handleCreateNewDocument = useCallback(() => {
@@ -147,11 +155,9 @@ const handleOpenToolPane = useCallback(
       layoutDispatch,
       fileDispatch,
       colorThemeDispatch,
-      resetCueCards,
+      resetResources,
       resetTreeDimensions,
       resetSubtrees,
-      resetPictures,
-      resetPracticeSheets,
       6,
       windowWidth,
       false
@@ -163,11 +169,9 @@ const handleOpenToolPane = useCallback(
     fileDispatch,
     colorThemeDispatch,
     windowWidth,
-    resetCueCards,
+    resetResources,
     resetTreeDimensions,
     resetSubtrees,
-    resetPictures,
-    resetPracticeSheets,
   ]);
 
   const handleTitleChange = useCallback((newTitle: string) => {
@@ -181,12 +185,13 @@ const handleOpenToolPane = useCallback(
       primaryColor,
       backgroundColor,
       fileName,
-      cueCards,
+      getResourcesByType('cueCard'),
       subtrees,
-      pictures,
-      practiceSheets
+      getResourcesByType('picture'),
+      getResourcesByType('practiceSheet'),
+      
     );
-  }, [nodes, colorTheme, primaryColor, backgroundColor, fileName, cueCards, subtrees, pictures, practiceSheets]);
+  }, [nodes, colorTheme, primaryColor, backgroundColor, fileName, resources, subtrees]);
 
   const handleOpenDocument = useCallback(() => {
     fileInputRef.current?.click();
@@ -198,21 +203,20 @@ const handleOpenToolPane = useCallback(
       await loadDocument(
         file,
         nodesDispatch,
-        setCueCards,
+        setResourcesByMap,
         setSubtrees,
-        setPictures,
-        setPracticeSheets,
         fileDispatch,
-        colorThemeDispatch
+        colorThemeDispatch,
+        resetTreeDimensions,
+        resetSubtrees,
+        resetResources 
       );
       layoutDispatch(setGetLayout(true)); // Trigger layout recalculation if necessary
     }
   }, [
     nodesDispatch,
-    setCueCards,
+    setResources,
     setSubtrees,
-    setPictures,
-    setPracticeSheets,
     fileDispatch,
     colorThemeDispatch,
     layoutDispatch
@@ -257,14 +261,13 @@ const handleOpenToolPane = useCallback(
         const newNodeId = uuidv4();
         nodesDispatch(createNewNode(nodeTitle || 'New Concept', modalNodeId, newNodeId));
         layoutDispatch(setGetLayout(true));
+        //trackNode(newNodeId);
 
         if (Title || cueCardContent || image || practiceSheetContent) {
           saveResource({
             resourceType,
             nodeId: newNodeId,
-            addCueCard,
-            addPicture,
-            addPracticeSheet,
+            addResource,
             Title,
             cueCardContent,
             bloomLevel,
@@ -279,9 +282,7 @@ const handleOpenToolPane = useCallback(
           saveResource({
             resourceType,
             nodeId: modalNodeId,
-            addCueCard,
-            addPicture,
-            addPracticeSheet,
+            addResource,
             Title,
             cueCardContent,
             bloomLevel,
@@ -292,7 +293,7 @@ const handleOpenToolPane = useCallback(
       }
     }
     setIsModalOpen(false);
-  }, [modalNodeId, modalMode, addCueCard, addPicture, addPracticeSheet]);
+  }, [modalNodeId, modalMode,addResource]);
 
   const [isCenterPaneMounted, setIsCenterPaneMounted] = useState<boolean>(false);
   useEffect(() => {
@@ -318,13 +319,6 @@ const handleSearch = () => {
   console.log('Search action triggered');
 };
 
-const handleUndo = () => {
-  console.log('Undo action triggered');
-};
-
-const handleRedo = () => {
-  console.log('Redo action triggered');
-};
 
   return (
     <>
@@ -352,8 +346,6 @@ const handleRedo = () => {
       />
 <ToolBar
   onSearch={handleSearch}
-  onUndo={handleUndo}
-  onRedo={handleRedo}
   onOpenToolPane={handleOpenToolPane}
   openModalWithResourceType={openModalWithResourceType}
 />
@@ -412,25 +404,21 @@ export default function ClientLayout() {
     <DndProvider backend={HTML5Backend}>
       <TreeDimensionsProvider>
         <NodeSelectionProvider>
-          <CueCardProvider>
-            <NodesProvider>
-              <ZoomProvider>
-                <LayoutProvider>
-                  <ColorThemeProvider>
-                    <FileProvider>
-                      <SubTreeProvider>
-                        <PictureProvider>
-                          <PracticeSheetProvider>
-                            <ClientLayoutContent />
-                          </PracticeSheetProvider>
-                        </PictureProvider>
-                      </SubTreeProvider>
-                    </FileProvider>
-                  </ColorThemeProvider>
-                </LayoutProvider>
-              </ZoomProvider>
-            </NodesProvider>
-          </CueCardProvider>
+            <ResourceProvider> {/* Wrap with centralized ResourceProvider */}
+              <NodesProvider>
+                <ZoomProvider>
+                  <LayoutProvider>
+                    <ColorThemeProvider>
+                      <FileProvider>
+                        <SubTreeProvider>
+                          <ClientLayoutContent />               
+                        </SubTreeProvider>
+                      </FileProvider>
+                    </ColorThemeProvider>
+                  </LayoutProvider>
+                </ZoomProvider>
+              </NodesProvider>
+            </ResourceProvider>
         </NodeSelectionProvider>
       </TreeDimensionsProvider>
     </DndProvider>

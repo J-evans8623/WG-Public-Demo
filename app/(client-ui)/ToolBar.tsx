@@ -20,32 +20,31 @@ import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { setPrimaryColor, setBackgroundColor } from '@/app/Library/Context/colorThemeActions';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
+//import { useUndoRedoContext, UndoRedoActionType } from '@/app/Library/Context/UndoRedoContext'; 
 
 const { Option } = Select;
 
 interface ToolBarProps {
   onSearch: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
   onOpenToolPane: (operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null, sourceNodeId: string) => void; // Trigger dynamic tool pane based on operation
   openModalWithResourceType: (nodeId: string| null, resourceType: 'cueCard' | 'picture' | 'practiceSheet'|undefined, op : 'resource'| 'node') => void;
 }
 
 const ToolBar: React.FC<ToolBarProps> = ({
   onSearch,
-  onUndo,
-  onRedo,
   onOpenToolPane,
   openModalWithResourceType
 }) => {
   const { zoomLevel, baseZoomLevel, dispatch: zoomDispatch } = useZoomContext();
   const { primaryColor, backgroundColor, dispatch: colorThemeDispatch } = useColorThemeContext();
   const { clearSelection, getSelectedNodeIds } = useNodeSelection();
+  //const { state: undoRedoState, dispatch: undoRedoDispatch } = useUndoRedoContext();
 
 
   // Get the selected node IDs and pick the first one for operations
   const selectedNodeIds = getSelectedNodeIds();
   const selectedNodeId = selectedNodeIds.length > 0 ? selectedNodeIds[0] : null;
+  
 
   // Define zoom levels and conversion from percentage
   const zoomLevels = [
@@ -56,6 +55,34 @@ const ToolBar: React.FC<ToolBarProps> = ({
     { label: '150%', value: 1.05 },
     { label: '200%', value: 1.4 },
   ];
+
+  /**
+  const canUndo = selectedNodeId
+  ? (undoRedoState.undoStack.get(selectedNodeId) || []).length > 0
+  : false;
+const canRedo = selectedNodeId
+  ? (undoRedoState.redoStack.get(selectedNodeId) || []).length > 0
+  : false;    */ 
+
+  const handleUndo = () => {
+    console.log('Testing')
+    /**if (selectedNodeId && canUndo) {
+      undoRedoDispatch({
+        type: UndoRedoActionType.UNDO,
+        payload: { nodeId: selectedNodeId },
+      });
+    }  */
+  };
+
+  const handleRedo = () => {
+    console.log('Testing')
+   /** if (selectedNodeId && canRedo) {
+      undoRedoDispatch({
+        type: UndoRedoActionType.REDO,
+        payload: { nodeId: selectedNodeId },
+      });
+    }  */
+  };
 
   const currentZoomPercentage = Math.round((zoomLevel / baseZoomLevel) * 100);
 
@@ -128,12 +155,12 @@ const ToolBar: React.FC<ToolBarProps> = ({
 
       {/* 5. Undo */}
       <Tooltip title="Undo">
-        <Button className="tool-bar-button" onClick={onUndo} icon={<UndoIcon className="icon" />} />
+        <Button className="tool-bar-button" onClick={handleUndo} icon={<UndoIcon className="icon" />} />
       </Tooltip>
 
       {/* 6. Redo */}
       <Tooltip title="Redo">
-        <Button className="tool-bar-button" onClick={onRedo} icon={<RedoIcon className="icon" />} />
+        <Button className="tool-bar-button" onClick={handleRedo} icon={<RedoIcon className="icon" />} />
       </Tooltip>
 
       {/* 7. Deselect All */}

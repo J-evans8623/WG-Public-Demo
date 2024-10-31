@@ -293,3 +293,54 @@ export interface SubtreeData {
   height: number;
   position?: { x: number; y: number };
 }
+
+
+
+// bloom-maps/app/Library/Definitions/ResourceDefinitions.ts
+
+// bloom-maps/app/Library/Definitions/ResourceCard.ts
+
+export type ResourceType = 'cueCard' | 'picture' | 'practiceSheet';
+
+/**
+ * Base interface for all resources.
+ */
+export interface BaseResource {
+  id: string;
+  title: string;
+  nodeId: string; // The node to which the resource is associated
+}
+
+/**
+ * Interface for CueCard resources.
+ */
+export interface CueCardResource extends BaseResource {
+  type: 'cueCard';
+  content: string;
+  bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
+  source?: string;
+}
+
+/**
+ * Interface for Picture resources.
+ */
+export interface PictureResource extends BaseResource {
+  type: 'picture';
+  image: File | null;
+}
+
+/**
+ * Interface for PracticeSheet resources.
+ */
+export interface PracticeSheetResource extends BaseResource {
+  type: 'practiceSheet';
+  content: {
+    quizType: 'matching' | 'multipleChoice' | 'wordProblem';
+    quizContent: string;
+  };
+}
+
+/**
+ * Discriminated union type for all resources.
+ */
+export type ResourceCard = CueCardResource | PictureResource | PracticeSheetResource;

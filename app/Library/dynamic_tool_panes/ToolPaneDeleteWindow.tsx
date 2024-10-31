@@ -1,39 +1,26 @@
 // bloom-maps/app/Library/components/ToolPaneDeleteWindow.tsx
 
 import React from 'react';
-import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
-import { usePictureContext } from '@/app/Library/Context/PictureContext';
-import { usePracticeSheetContext } from '@/app/Library/Context/PracticeSheetContext';
+import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { deleteNode } from '@/app/Library/Context/nodesActions';
 import { setGetLayout } from '../Context/LayoutActions';
 import { useLayoutContext } from '../Context/LayoutProvider';
+//import { useUndoRedoContext } from '@/app/Library/Context/UndoRedoContext';
 
 const ToolPaneDeleteWindow = ({ nodeId }: { nodeId: string }) => {
-  const { selectResources: selectCueCards, removeResource: removeCueCard } = useCueCardContext();
-  const { selectResources: selectPictures, removeResource: removePicture } = usePictureContext();
-  const { selectResources: selectPracticeSheets, removeResource: removePracticeSheet } = usePracticeSheetContext();
+  const { selectResources, removeResource } = useResourceContext();
   const { dispatch: nodesDispatch, nodes } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
+  //const { untrackNode } = useUndoRedoContext();
 
   // Fetch the current node to determine if it's a root node
   const currentNode = nodes.get(nodeId);
 
-  const cueCards = selectCueCards(nodeId);
-  const pictures = selectPictures(nodeId);
-  const practiceSheets = selectPracticeSheets(nodeId);
+  const resources = selectResources(nodeId);
 
-  const handleDeleteCueCard = (cueCardId: string) => {
-    removeCueCard(nodeId, cueCardId);
-    
-  };
-
-  const handleDeletePicture = (pictureId: string) => {
-    removePicture(nodeId, pictureId);
-  };
-
-  const handleDeletePracticeSheet = (practiceSheetId: string) => {
-    removePracticeSheet(nodeId, practiceSheetId);
+  const handleDeleteResource = (resourceId: string) => {
+    removeResource(nodeId, resourceId);
   };
 
   const handleDeleteNode = () => {
@@ -62,19 +49,9 @@ const ToolPaneDeleteWindow = ({ nodeId }: { nodeId: string }) => {
       return;
     }
 
-    // **Delete Associated Cue Cards**
-    cueCards.forEach((card) => {
-      handleDeleteCueCard(card.id);
-    });
-
-    // **Delete Associated Pictures**
-    pictures.forEach((picture) => {
-      handleDeletePicture(picture.id);
-    });
-
-    // **Delete Associated Practice Sheets**
-    practiceSheets.forEach((sheet) => {
-      handleDeletePracticeSheet(sheet.id);
+    // **Delete Associated Resources**
+    resources.forEach((resource) => {
+      handleDeleteResource(resource.id);
     });
 
     // **Dispatch Delete Node Action**
@@ -82,6 +59,7 @@ const ToolPaneDeleteWindow = ({ nodeId }: { nodeId: string }) => {
     layoutDispatch(setGetLayout(true));
 
     alert(`Node "${currentNode.title}" has been deleted successfully.`);
+    //untrackNode(nodeId);
   };
 
   return (
@@ -101,44 +79,15 @@ const ToolPaneDeleteWindow = ({ nodeId }: { nodeId: string }) => {
 
       {/* Existing Delete Options */}
       <div>
-        <h4>Cue Cards</h4>
-        {cueCards.length === 0 ? (
-          <p>No cue cards associated with this node.</p>
+        <h4>Resources</h4>
+        {resources.length === 0 ? (
+          <p>No resources associated with this node.</p>
         ) : (
           <ul>
-            {cueCards.map(card => (
-              <li key={card.id}>
-                {card.title} <button onClick={() => handleDeleteCueCard(card.id)}>Delete</button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div>
-        <h4>Pictures</h4>
-        {pictures.length === 0 ? (
-          <p>No pictures associated with this node.</p>
-        ) : (
-          <ul>
-            {pictures.map(picture => (
-              <li key={picture.id}>
-                {picture.title} <button onClick={() => handleDeletePicture(picture.id)}>Delete</button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div>
-        <h4>Practice Sheets</h4>
-        {practiceSheets.length === 0 ? (
-          <p>No practice sheets associated with this node.</p>
-        ) : (
-          <ul>
-            {practiceSheets.map(sheet => (
-              <li key={sheet.id}>
-                {sheet.title} <button onClick={() => handleDeletePracticeSheet(sheet.id)}>Delete</button>
+            {resources.map(resource => (
+              <li key={resource.id}>
+                {resource.title} 
+                <button onClick={() => handleDeleteResource(resource.id)}>Delete</button>
               </li>
             ))}
           </ul>

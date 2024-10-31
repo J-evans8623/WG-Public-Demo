@@ -1,8 +1,9 @@
 // bloom-maps/app/Library/Context/CueCardContext.tsx
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { CueCard } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
+import { useUndoRedoContext, UndoRedoActionType } from './UndoRedoContext'; 
 
 // Extend CueCardContextType to include the new selectCueCards method
 interface CueCardContextType {
@@ -14,6 +15,7 @@ interface CueCardContextType {
   setCueCards : (newCueCards: Map<string, CueCard[]>) => void; 
   editCueCard: (nodeId: string, updatedCueCard: CueCard) => void; // New function
   transferResource: (sourceNodeId: string, targetNodeId: string, cueCardId: string) => void;
+  setCueCardsState: React.Dispatch<React.SetStateAction<Map<string, CueCard[]>>>
 }
 
 // Create the CueCard context
@@ -25,12 +27,17 @@ export const serializeCueCards = (cueCards: Map<string, CueCard[]>): [string, Cu
 
 export const CueCardProvider = ({ children }: { children: ReactNode }) => {
   const [cueCards, setCueCardsState] = useState<Map<string, CueCard[]>>(new Map());
+  const { recordAction} = useUndoRedoContext();
 
+  
   const addCueCard = (nodeId: string, cueCard: CueCard) => {
     setCueCardsState((prev) => {
       const updatedCueCards = new Map(prev);
       const nodeCueCards = updatedCueCards.get(nodeId) || [];
       updatedCueCards.set(nodeId, [...nodeCueCards, cueCard]);
+
+      recordAction(nodeId);
+
       return updatedCueCards;
     });
   };
@@ -39,7 +46,13 @@ export const CueCardProvider = ({ children }: { children: ReactNode }) => {
     setCueCardsState((prev) => {
       const updatedCueCards = new Map(prev);
       const nodeCueCards = updatedCueCards.get(nodeId) || [];
+      const removedCueCard = nodeCueCards.find((card) => card.id === cueCardId);
+
       updatedCueCards.set(nodeId, nodeCueCards.filter((card) => card.id !== cueCardId));
+
+      if (removedCueCard) {
+        recordAction(nodeId);
+      }
       return updatedCueCards;
     });
   };
@@ -61,10 +74,16 @@ export const CueCardProvider = ({ children }: { children: ReactNode }) => {
     setCueCardsState((prev) => {
       const updatedCueCards = new Map(prev);
       const nodeCueCards = updatedCueCards.get(nodeId) || [];
+      const originalCueCard = nodeCueCards.find((card) => card.id === updatedCueCard.id);
+
       updatedCueCards.set(
         nodeId,
         nodeCueCards.map((card) => (card.id === updatedCueCard.id ? updatedCueCard : card))
       );
+      // Record the action for undo
+      if (originalCueCard) {
+        recordAction(nodeId);
+      }
       return updatedCueCards;
     });
   };
@@ -98,6 +117,7 @@ export const CueCardProvider = ({ children }: { children: ReactNode }) => {
       setCueCards,
       editCueCard, 
       transferResource,
+      setCueCardsState,
      }}
   >
       {children}

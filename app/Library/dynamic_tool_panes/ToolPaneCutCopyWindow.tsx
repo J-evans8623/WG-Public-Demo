@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+// bloom-maps/app/Library/components/ToolPaneCutCopyWindow.tsx
+
+import React, { useState } from 'react';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
-import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
-import { usePictureContext } from '@/app/Library/Context/PictureContext';
-import { usePracticeSheetContext } from '@/app/Library/Context/PracticeSheetContext';
+import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import CardEntry from '@/app/Library/ui/CardEntry';
 
@@ -13,9 +13,7 @@ interface ToolPaneCutCopyWindowProps {
 
 const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNodeId, command }) => {
   const { nodes } = useNodesContext();
-  const cueCardContext = useCueCardContext();
-  const pictureContext = usePictureContext();
-  const practiceSheetContext = usePracticeSheetContext();
+  const { selectResources, transferResource, removeResource } = useResourceContext();
   const { targetNodeId } = useNodeSelection();
 
   const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
@@ -25,20 +23,13 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
   const targetNode = targetNodeId ? nodes.get(targetNodeId) : null;
 
   // Helper function to get resources for a given node
-  const getResources = (nodeId: string) => [
-    {
-      type: 'cueCard',
-      data: cueCardContext.selectResources(nodeId),
-    },
-    {
-      type: 'picture',
-      data: pictureContext.selectResources(nodeId),
-    },
-    {
-      type: 'practiceSheet',
-      data: practiceSheetContext.selectResources(nodeId),
-    },
-  ];
+  const getResources = (nodeId: string) => {
+    const resources = selectResources(nodeId);
+    return resources.map(resource => ({
+      ...resource,
+      resourceType: resource.type,
+    }));
+  };
 
   const sourceResources = sourceNodeId ? getResources(sourceNodeId) : [];
   const targetResources = targetNodeId ? getResources(targetNodeId) : [];
@@ -58,22 +49,13 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
   };
 
   const executeTransfer = (resourceIds: string[]) => {
-    [...sourceResources].forEach(({ data, type }) => {
-      resourceIds.forEach((resourceId) => {
-        if (data.some((res) => res.id === resourceId)) {
-          const transfer = type === 'cueCard' ? cueCardContext.transferResource
-            : type === 'picture' ? pictureContext.transferResource
-            : practiceSheetContext.transferResource;
-          
-          transfer(sourceNodeId, targetNodeId!, resourceId);
-          if (command === 'cut') {
-            const remove = type === 'cueCard' ? cueCardContext.removeResource
-              : type === 'picture' ? pictureContext.removeResource
-              : practiceSheetContext.removeResource;
-            remove(sourceNodeId, resourceId);
-          }
+    sourceResources.forEach(({ id, resourceType }) => {
+      if (resourceIds.includes(id)) {
+        transferResource(sourceNodeId, targetNodeId!, id);
+        if (command === 'cut') {
+          removeResource(sourceNodeId, id);
         }
-      });
+      }
     });
   };
 
@@ -91,26 +73,21 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
       {sourceNode ? (
         <div>
           <h4>Source Node: {sourceNode.title}</h4>
-          {sourceResources.map(({ type, data }) =>
-            data.length > 0 ? (
-              <div key={`source-${type}`}>
-                <h4>{type.charAt(0).toUpperCase() + type.slice(1) + 's'}</h4>
-                {data.map((resource) => (
-                  <CardEntry
-                    key={resource.id}
-                    resource={resource}
-                    resourceType={type as 'cueCard' | 'picture' | 'practiceSheet'}
-                    isSelected={selectedResourceIds.includes(resource.id)}
-                    isCut={cutResourceIds.includes(resource.id)}
-                    onSelect={handleResourceSelect}
-                    onCut={handleMarkForCut}
-                    command={command}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p key={`source-${type}`}>No {type}s associated with this node.</p>
-            )
+          {sourceResources.length > 0 ? (
+            sourceResources.map((resource) => (
+              <CardEntry
+                key={resource.id}
+                resource={resource}
+                resourceType={resource.resourceType}
+                isSelected={selectedResourceIds.includes(resource.id)}
+                isCut={cutResourceIds.includes(resource.id)}
+                onSelect={handleResourceSelect}
+                onCut={handleMarkForCut}
+                command={command}
+              />
+            ))
+          ) : (
+            <p>No resources associated with this node.</p>
           )}
         </div>
       ) : (
@@ -120,25 +97,20 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
       {targetNode ? (
         <div>
           <h4>Target Node: {targetNode.title}</h4>
-          {targetResources.map(({ type, data }) =>
-            data.length > 0 ? (
-              <div key={`target-${type}`}>
-                <h4>{type.charAt(0).toUpperCase() + type.slice(1) + 's'}</h4>
-                {data.map((resource) => (
-                  <CardEntry
-                    key={resource.id}
-                    resource={resource}
-                    resourceType={type as 'cueCard' | 'picture' | 'practiceSheet'}
-                    isSelected={selectedResourceIds.includes(resource.id)}
-                    isCut={cutResourceIds.includes(resource.id)}
-                    onSelect={handleResourceSelect}
-                    onCut={handleMarkForCut}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p key={`target-${type}`}>No {type}s associated with this node.</p>
-            )
+          {targetResources.length > 0 ? (
+            targetResources.map((resource) => (
+              <CardEntry
+                key={resource.id}
+                resource={resource}
+                resourceType={resource.resourceType}
+                isSelected={selectedResourceIds.includes(resource.id)}
+                isCut={cutResourceIds.includes(resource.id)}
+                onSelect={handleResourceSelect}
+                onCut={handleMarkForCut}
+              />
+            ))
+          ) : (
+            <p>No resources associated with this node.</p>
           )}
         </div>
       ) : (

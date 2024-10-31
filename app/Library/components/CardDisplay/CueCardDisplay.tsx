@@ -5,9 +5,7 @@ import PictureCard from '@/app/Library/components/PictureCard';
 import PracticeSheetCard from '@/app/Library/components/PracticeSheetCard';
 import MatchingQuizModal from '@/app/Library/components/MatchingQuizModal';
 import { CueCard as CueCardInterface } from '@/app/Library/Definitions/Definitions';
-import { useCueCardContext } from '../../Context/CueCardContext';
-import { usePictureContext } from '../../Context/PictureContext';
-import { usePracticeSheetContext } from '../../Context/PracticeSheetContext';
+import { useResourceContext } from '../../Context/ResourceContext'; 
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 
 // Import new context
@@ -34,9 +32,7 @@ interface CueCardDisplayProps {
 
 const CueCardDisplay: React.FC<CueCardDisplayProps> = memo(({ centerPaneRef, paneSizes }) => {
   const { getSelectedNodeIds, clearSelection, deselectNode } = useNodeSelection();
-  const { selectResources: selectCueCards } = useCueCardContext();
-  const { selectResources: selectPictures } = usePictureContext();
-  const { selectResources: selectPracticeSheets } = usePracticeSheetContext();
+  const { selectCueCards, selectPictures, selectPracticeSheets } = useResourceContext();
 
   const [dismissedResourceIds, setDismissedResourceIds] = useState<Map<string, string[]>>(new Map());
   const [openedPictureModals, setOpenedPictureModals] = useState<{ id: string; content: React.ReactNode }[]>([]);

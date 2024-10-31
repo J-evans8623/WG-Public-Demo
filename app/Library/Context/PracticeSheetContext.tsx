@@ -1,6 +1,7 @@
 // bloom-maps\app\Library\Context\PracticeSheetContext.tsx
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useUndoRedoContext, UndoRedoActionType } from './UndoRedoContext'; 
 
 // Define the structure for a PracticeSheet with quizType and quizContent fields
 export interface PracticeSheet {
@@ -22,6 +23,7 @@ interface PracticeSheetContextType {
   setPracticeSheets: (newPracticeSheets: Map<string, PracticeSheet[]>) => void;
   transferResource: (sourceNodeId: string, targetNodeId: string, practiceSheetId: string) => void;
   editPracticeSheet: (nodeId: string, updatedPracticeSheet: PracticeSheet) => void;
+  setPracticeSheetsState: React.Dispatch<React.SetStateAction<Map<string, PracticeSheet[]>>>
 }
 
 // Create the PracticeSheet context
@@ -34,12 +36,16 @@ export const serializePracticeSheets = (practiceSheets: Map<string, PracticeShee
 
 export const PracticeSheetProvider = ({ children }: { children: ReactNode }) => {
   const [practiceSheets, setPracticeSheetsState] = useState<Map<string, PracticeSheet[]>>(new Map());
+  const { recordAction} = useUndoRedoContext();
 
   const addPracticeSheet = (nodeId: string, practiceSheet: PracticeSheet) => {
     setPracticeSheetsState((prev) => {
       const updatedPracticeSheets = new Map(prev);
       const nodePracticeSheets = updatedPracticeSheets.get(nodeId) || [];
       updatedPracticeSheets.set(nodeId, [...nodePracticeSheets, practiceSheet]);
+
+      recordAction(nodeId);
+
       return updatedPracticeSheets;
     });
   };
@@ -48,7 +54,14 @@ export const PracticeSheetProvider = ({ children }: { children: ReactNode }) => 
     setPracticeSheetsState((prev) => {
       const updatedPracticeSheets = new Map(prev);
       const nodePracticeSheets = updatedPracticeSheets.get(nodeId) || [];
+      const removedPracticeSheet = nodePracticeSheets.find((sheet) => sheet.id === practiceSheetId);
+
       updatedPracticeSheets.set(nodeId, nodePracticeSheets.filter((sheet) => sheet.id !== practiceSheetId));
+
+      // Record the action for undo
+      if (removedPracticeSheet) {
+        recordAction(nodeId);
+      }
       return updatedPracticeSheets;
     });
   };
@@ -88,12 +101,20 @@ export const PracticeSheetProvider = ({ children }: { children: ReactNode }) => 
     setPracticeSheetsState((prev) => {
       const updatedPracticeSheets = new Map(prev);
       const nodePracticeSheets = updatedPracticeSheets.get(nodeId) || [];
+      const originalPracticeSheet = nodePracticeSheets.find((sheet) => sheet.id === updatedPracticeSheet.id);
+
       updatedPracticeSheets.set(
         nodeId,
         nodePracticeSheets.map((sheet) =>
           sheet.id === updatedPracticeSheet.id ? updatedPracticeSheet : sheet
         )
       );
+
+      // Record the action for undo
+      if (originalPracticeSheet) {
+        recordAction(nodeId);
+      }
+      
       return updatedPracticeSheets;
     });
   };
@@ -109,6 +130,7 @@ export const PracticeSheetProvider = ({ children }: { children: ReactNode }) => 
         setPracticeSheets,
         transferResource,
         editPracticeSheet,
+        setPracticeSheetsState,
       }}
     >
       {children}

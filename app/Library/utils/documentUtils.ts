@@ -4,17 +4,42 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import {
   ConceptNode,
-  CueCard,
+  CueCardResource,
   SubtreeData,
-  Picture,
-  PracticeSheet,
+  PictureResource,
+  PracticeSheetResource,
   SerializedDocument,
   ColorTheme,
+  ResourceCard,
 } from '@/app/Library/Definitions/Definitions';
-import { serializeCueCards } from '@/app/Library/Context/CueCardContext';
+
 import { serializeSubtrees } from '@/app/Library/Context/SubTreeProvider';
-import { serializePictures } from '@/app/Library/Context/PictureContext';
-import { serializePracticeSheets } from '@/app/Library/Context/PracticeSheetContext';
+
+
+
+const serializeCueCards = (cueCards: Map<string, CueCardResource[]>): [string, CueCardResource[]][] => {
+  return Array.from(cueCards.entries());
+};
+
+// Serialization logic to handle the updated PracticeSheet structure
+ const serializePracticeSheets = (practiceSheets: Map<string, PracticeSheetResource[]>): [string, PracticeSheetResource[]][] => {
+  return Array.from(practiceSheets.entries());
+};
+
+const serializePictures = (
+  pictures: Map<string,  PictureResource[]>
+): [string, { id: string; title: string; imagePath: string }[]][] => {
+  const serialized: [string, { id: string; title: string; imagePath: string }[]][] = [];
+  pictures.forEach((pictureArray, nodeId) => {
+    const serializedPictures = pictureArray.map(pic => ({
+      id: pic.id,
+      title: pic.title,
+      imagePath: `document/images/${pic.id}_${pic.image?.name}`, // Updated path
+    }));
+    serialized.push([nodeId, serializedPictures]);
+  });
+  return serialized;
+};
 
 // Function to serialize document data
 export const serializeDocument = (
@@ -41,10 +66,10 @@ export const saveDocument = async (
   primaryColor: string,
   backgroundColor: string,
   fileName: string,
-  cueCards: Map<string, CueCard[]>,
+  cueCards: Map<string, ResourceCard[]>,  // Changed to ResourceCard[]
   subtrees: Map<string, SubtreeData>,
-  pictures: Map<string, Picture[]>,
-  practiceSheets: Map<string, PracticeSheet[]>
+  pictures: Map<string, ResourceCard[]>,  // Changed to ResourceCard[]
+  practiceSheets: Map<string, ResourceCard[]>  // Changed to ResourceCard[]
 ) => {
   const zip = new JSZip();
 
@@ -60,7 +85,7 @@ export const saveDocument = async (
   zip.file('document/document.json', documentJson);
 
   // Serialize cue cards
-  const serializedCueCards = serializeCueCards(cueCards);
+  const serializedCueCards = serializeCueCards(cueCards as Map<string, CueCardResource[]>);  // Type cast
   const cueCardsJson = JSON.stringify(serializedCueCards);
   zip.file('document/cuecards.json', cueCardsJson);
 
@@ -70,12 +95,12 @@ export const saveDocument = async (
   zip.file('document/subtrees.json', subtreesJson);
 
   // Serialize pictures metadata
-  const serializedPictures = serializePictures(pictures);
+  const serializedPictures = serializePictures(pictures as Map<string,  PictureResource[]>);  // Type cast
   const picturesJson = JSON.stringify(serializedPictures);
   zip.file('document/pictures.json', picturesJson);
 
   // Serialize practice sheets
-  const serializedPracticeSheets = serializePracticeSheets(practiceSheets);
+  const serializedPracticeSheets = serializePracticeSheets(practiceSheets as Map<string, PracticeSheetResource[]>);  // Type cast
   const practiceSheetsJson = JSON.stringify(serializedPracticeSheets);
   zip.file('document/practiceSheets.json', practiceSheetsJson);
 
@@ -90,7 +115,7 @@ export const saveDocument = async (
 
   // Add images to the ZIP under 'document/images/'
   for (const [nodeId, pictureArray] of pictures.entries()) {
-    for (const picture of pictureArray) {
+    for (const picture of pictureArray as  PictureResource[]) {  // Type cast ResourceCard to Picture
       if (picture.image) {
         try {
           const imageData = await picture.image.arrayBuffer();
@@ -111,16 +136,21 @@ export const saveDocument = async (
   }
 };
 
+
 export const loadDocument = async (
   file: File,
   nodesDispatch: React.Dispatch<any>,
-  setCueCards: (cueCards: Map<string, CueCard[]>) => void,
-  setSubtrees: (subtrees: Map<string, SubtreeData>) => void,
-  setPictures: (pictures: Map<string, Picture[]>) => void,
-  setPracticeSheets: (practiceSheets: Map<string, PracticeSheet[]>) => void,
+  setResourcesByMap: (resourceMap: Map<string, CueCardResource[] | PictureResource[] | PracticeSheetResource[]>) => void,
+  setSubtrees: (newSubtrees: Map<string, SubtreeData>) => void,
   fileDispatch: React.Dispatch<any>,
-  colorThemeDispatch: React.Dispatch<any>
+  colorThemeDispatch: React.Dispatch<any>,
+  resetTreeDimensions: () => void,
+  resetSubtrees: () => void,
+  resetResources: () => void,
 ) => {
+  resetTreeDimensions();
+  resetSubtrees();
+  resetResources();
   const zip = new JSZip();
   const content = await zip.loadAsync(file);
   const loadedFileName = file.name.replace(/\.[^/.]+$/, '');
@@ -143,9 +173,9 @@ export const loadDocument = async (
   const cueCardsFile = content.file('document/cuecards.json');
   if (cueCardsFile) {
     const cueCardsJson = await cueCardsFile.async('string');
-    const parsedCueCards = JSON.parse(cueCardsJson) as [string, CueCard[]][];
-    const cueCardsMap = new Map<string, CueCard[]>(parsedCueCards);
-    setCueCards(cueCardsMap);
+    const parsedCueCards = JSON.parse(cueCardsJson) as [string, CueCardResource[]][];
+    const cueCardsMap = new Map<string, CueCardResource[]>(parsedCueCards);
+    setResourcesByMap(cueCardsMap);
   }
 
   // Load subtrees.json
@@ -162,10 +192,10 @@ export const loadDocument = async (
   if (picturesFile) {
     const picturesJson = await picturesFile.async('string');
     const parsedPictures = JSON.parse(picturesJson) as [string, { id: string; title: string; imagePath: string }[]][];
-    const picturesMap = new Map<string, Picture[]>();
+    const picturesMap = new Map<string,  PictureResource[]>();
 
     for (const [nodeId, pictureArray] of parsedPictures) {
-      const reconstructedPictures: Picture[] = [];
+      const reconstructedPictures:  PictureResource[] = [];
       for (const pic of pictureArray) {
         const imageFile = content.file(pic.imagePath);
         if (imageFile) {
@@ -176,6 +206,8 @@ export const loadDocument = async (
               id: pic.id,
               title: pic.title,
               image: imageFileObject,
+              type: 'picture',
+              nodeId: nodeId
             });
           } catch (error) {
             console.error(`Error loading image ${pic.id}:`, error);
@@ -186,16 +218,16 @@ export const loadDocument = async (
       }
       picturesMap.set(nodeId, reconstructedPictures);
     }
-    setPictures(picturesMap);
+    setResourcesByMap(picturesMap);
   }
 
   // Load practiceSheets.json
   const practiceSheetsFile = content.file('document/practiceSheets.json');
   if (practiceSheetsFile) {
     const practiceSheetsJson = await practiceSheetsFile.async('string');
-    const parsedPracticeSheets = JSON.parse(practiceSheetsJson) as [string, PracticeSheet[]][];
-    const practiceSheetsMap = new Map<string, PracticeSheet[]>(parsedPracticeSheets);
-    setPracticeSheets(practiceSheetsMap);
+    const parsedPracticeSheets = JSON.parse(practiceSheetsJson) as [string, PracticeSheetResource[]][];
+    const practiceSheetsMap = new Map<string, PracticeSheetResource[]>(parsedPracticeSheets);
+    setResourcesByMap(practiceSheetsMap);
   }
 
   // Load styles.json
@@ -216,11 +248,9 @@ export const initializeNewDocument = (
   layoutDispatch: React.Dispatch<any>,
   fileDispatch: React.Dispatch<any>,
   colorThemeDispatch: React.Dispatch<any>,
-  resetCueCards: () => void,
   resetTreeDimensions: () => void,
   resetSubtrees: () => void,
-  resetPictures: () => void,
-  resetPracticeSheets: () => void,
+  resetResources: () => void,
   bloomDepth: 1 | 2 | 3 | 4 | 5 | 6 = 6,
   groundWidth: number,
   isInitialLoad: boolean,
@@ -229,11 +259,9 @@ export const initializeNewDocument = (
 ) => {
   if (!isInitialLoad) {
     nodesDispatch({ type: 'RESET_NODES' });
-    resetCueCards();
     resetTreeDimensions();
     resetSubtrees();
-    resetPictures();
-    resetPracticeSheets();
+    resetResources();
   }
 
   layoutDispatch({ type: 'SET_MAP_SIZE', payload: { groundWidth, mapWidth, mapHeight } });

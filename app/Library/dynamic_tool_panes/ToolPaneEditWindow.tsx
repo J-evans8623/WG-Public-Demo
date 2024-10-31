@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { useCueCardContext } from '@/app/Library/Context/CueCardContext';
-import { usePictureContext } from '@/app/Library/Context/PictureContext';
-import { usePracticeSheetContext } from '@/app/Library/Context/PracticeSheetContext';
+import { useResourceContext } from '@/app/Library/Context/ResourceContext';
+import { ResourceCard, PictureResource,PracticeSheetResource, CueCardResource } from '@/app/Library/Definitions/Definitions';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider'; 
 import ModernModal from '@/app/Library/components/Modals/ModernModal';
 
@@ -11,10 +10,9 @@ interface ToolPaneEditWindowProps {
 
 const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ nodeId }) => {
   // Import contexts for each resource
-  const { nodes } = useNodesContext(); 
-  const { selectResources: selectCueCards, editCueCard } = useCueCardContext();
-  const { selectResources: selectPictures, editPicture } = usePictureContext();
-  const { selectResources: selectPracticeSheets, editPracticeSheet } = usePracticeSheetContext();
+  const { nodes } = useNodesContext();
+  const { selectCueCards, selectPictures, selectPracticeSheets, editResource } = useResourceContext();
+  
 
   const node = nodes.get(nodeId); 
   const nodeTitle = node ? node.title : '';
@@ -32,13 +30,12 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ nodeId }) => {
   // Function to open the modal for editing based on the resource type
 // ToolPaneEditWindow.tsx
 
-
 const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any) => {
     setResourceType(type);
   
     if (type === 'cueCard') {
       setInitialData({
-        id : data.id,
+        id: data.id,
         title: data.title,
         content: data.content,
         bloomLevel: data.bloomLevel,
@@ -46,14 +43,14 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
       });
     } else if (type === 'picture') {
       setInitialData({
-        id : data.id,
+        id: data.id,
         initialPictureTitle: data.title,
         initialPictureDescription: data.description || '',
         uploadedPicture: data.image || null,
       });
     } else if (type === 'practiceSheet') {
       setInitialData({
-        id : data.id,
+        id: data.id,
         initialPracticeSheetTitle: data.title,
         initialPracticeSheetContent: data.content,
       });
@@ -61,6 +58,7 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
   
     setIsModalOpen(true);
   };
+  
   
   
 
@@ -76,15 +74,47 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
     pictureDescription?: string,
     practiceSheetContent?: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string }
   ) => {
-    if (resourceType === 'cueCard' && initialData) {
-      editCueCard(nodeId, { ...initialData, title: cueCardTitle, content: cueCardContent, bloomLevel });
-    } else if (resourceType === 'picture' && initialData) {
-      editPicture(nodeId, { ...initialData, title: cueCardTitle, image });
-    } else if (resourceType === 'practiceSheet' && initialData) {
-      editPracticeSheet(nodeId, { ...initialData, title: cueCardTitle, content: practiceSheetContent });
+    if (initialData) {
+      let updatedResource: ResourceCard;
+  
+      if (resourceType === 'cueCard') {
+        updatedResource = {
+          id: initialData.id,
+          nodeId,
+          type: 'cueCard',
+          title: cueCardTitle || initialData.title,
+          content: cueCardContent,
+          bloomLevel,
+          source,
+        } as CueCardResource;
+      } else if (resourceType === 'picture') {
+        updatedResource = {
+          id: initialData.id,
+          nodeId,
+          type: 'picture',
+          title: cueCardTitle || initialData.title,
+          image,
+          description: pictureDescription,
+        } as PictureResource;
+      } else if (resourceType === 'practiceSheet') {
+        updatedResource = {
+          id: initialData.id,
+          nodeId,
+          type: 'practiceSheet',
+          title: cueCardTitle || initialData.title,
+          content: practiceSheetContent,
+        } as PracticeSheetResource;
+      } else {
+        console.error("Unknown resource type");
+        return;
+      }
+  
+      editResource(updatedResource);
+      setIsModalOpen(false); // Close modal on save
     }
-    setIsModalOpen(false); // Close modal on save
   };
+  
+  
 
   return (
     <div>

@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useUndoRedoContext, UndoRedoActionType } from './UndoRedoContext';
+
 
 // Define the structure for a Picture
 export interface Picture {
@@ -20,6 +22,7 @@ interface PictureContextType {
   setPictures: (newPictures: Map<string, Picture[]>) => void;
   editPicture: (nodeId: string, updatedPicture: Picture) => void;
   transferResource: (sourceNodeId: string, targetNodeId: string, pictureId: string) => void;
+  setPicturesState: React.Dispatch<React.SetStateAction<Map<string, Picture[]>>>
 }
 
 // Create the Picture context
@@ -46,12 +49,16 @@ export const serializePictures = (
 
 export const PictureProvider = ({ children }: { children: ReactNode }) => {
   const [pictures, setPicturesState] = useState<Map<string, Picture[]>>(new Map());
+  const { recordAction} = useUndoRedoContext();
 
   const addPicture = (nodeId: string, picture: Picture) => {
     setPicturesState((prev) => {
       const updatedPictures = new Map(prev);
       const nodePictures = updatedPictures.get(nodeId) || [];
       updatedPictures.set(nodeId, [...nodePictures, picture]);
+
+      recordAction(nodeId);
+
       return updatedPictures;
     });
   };
@@ -60,7 +67,13 @@ export const PictureProvider = ({ children }: { children: ReactNode }) => {
     setPicturesState((prev) => {
       const updatedPictures = new Map(prev);
       const nodePictures = updatedPictures.get(nodeId) || [];
+
+      const removedPicture = nodePictures.find((pic) => pic.id === pictureId);
       updatedPictures.set(nodeId, nodePictures.filter((pic) => pic.id !== pictureId));
+
+      if (removedPicture) {
+        recordAction(nodeId);
+      }
       return updatedPictures;
     });
   };
@@ -81,10 +94,17 @@ export const PictureProvider = ({ children }: { children: ReactNode }) => {
     setPicturesState((prev) => {
       const updatedPictures = new Map(prev);
       const nodePictures = updatedPictures.get(nodeId) || [];
+      const originalPicture = nodePictures.find((pic) => pic.id === updatedPicture.id);
+
       updatedPictures.set(
         nodeId,
         nodePictures.map((pic) => (pic.id === updatedPicture.id ? updatedPicture : pic))
       );
+      if (originalPicture) {
+        recordAction(nodeId);
+      }
+
+
       return updatedPictures;
     });
   };
@@ -118,6 +138,7 @@ export const PictureProvider = ({ children }: { children: ReactNode }) => {
         setPictures,
         editPicture,
         transferResource,
+        setPicturesState,
       }}
     >
       {children}
