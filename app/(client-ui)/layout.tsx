@@ -223,17 +223,6 @@ const handleOpenToolPane = useCallback(
     layoutDispatch
   ]);
 
-  const handleOpenCueCardModal = useCallback((nodeId: string) => {
-    setModalNodeId(nodeId);
-    setModalMode('addResource');
-    setIsModalOpen(true);
-  }, []);
-
-  const handleOpenAddChildModal = useCallback((parentNodeId: string) => {
-    setModalNodeId(parentNodeId);
-    setModalMode('addChild');
-    setIsModalOpen(true);
-  }, []);
 
   const initialNodeTitle =
     modalMode === 'addChild'

@@ -65,7 +65,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {/* Menu Buttons */}
         <div className="menu-bar-buttons">
           <Button onClick={onNewDocument} className="menu-bar-button">
-            New Document
+            New 
           </Button>
           <Button onClick={onOpenDocument} className="menu-bar-button">
             Open

@@ -21,20 +21,16 @@ export interface CueStackProps {
   }
 
 
-// Interface for ConceptNodeProps
-// Interface for ConceptNodeProps
-export interface ConceptNodeProps {
-  node: ConceptNode; // The data representing a Concept-node
-  //onDragStart: (node: ConceptNode) => void; // Drag start function, kept as it is still needed
-   onOpenCueCardModal: (nodeId: string) => void;
-   onOpenAddChildModal: (parentNodeId: string) => void;
-}
+  interface ConceptNodeProps {
+    node: ConceptNode;
+    openModalWithResourceType: (
+      nodeId: string | null,
+      resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined,
+      op: 'resource' | 'node'
+    ) => void;
+    onNodeClick: (nodeId: string) => void;
+  }
 
-
-// Extended props for ConceptNode with additional context functions
-/**export interface ExtendedConceptNodeProps extends ConceptNodeProps {
-    onClick: (cueCards: CueCard[]) => void;
-  } */
 
   // Define the Concept-node interface
   export interface ConceptNode {
@@ -50,17 +46,8 @@ export interface ConceptNodeProps {
     subtreeID?: string;
   }
   
-  // Interface for a map of cue cards associated with concept nodes
-  export type CueCardMap = Map<string, CueCard[]>; // Keyed by ConceptNode ID
-  
-  // Interface for the CueCardContext
-  export interface CueCardContextType {
-    cueCardMap: CueCardMap; // The map storing cue cards keyed by ConceptNode ID
-    addCueCard: (nodeId: string, cueCard: CueCard) => void; // Function to add a cue card
-    removeCueCard: (nodeId: string, cueCardId: string) => void; // Function to remove a cue card
-    updateCueCard: (nodeId: string, cueCard: CueCard) => void; // Function to update a cue card
-    selectCueCards: (nodeId: string) => CueCard[]; // Function to select cue cards for a specific node
-  }
+
+
 
   // Color definitions
 export type ColorTheme = 'cool-spring' | 'warm-summer' | 'gray';
@@ -88,36 +75,6 @@ export const colorThemes: Record<ColorTheme, string[]> = {
   ],
 };
 
-export interface DocumentContextType {
-    nodes: Map<string, ConceptNode>;
-    selectedCueCards: CueCard[];
-    bloomDepth: 1 | 2 | 3 | 4 | 5 | 6;
-    setBloomDepth: (depth: 1 | 2 | 3 | 4 | 5 | 6) => void;
-    colorTheme: ColorTheme;
-    setColorTheme: (theme: ColorTheme) => void;
-    selectCueCards: (cueCards: CueCard[]) => void;
-    //resetDocument: () => void;
-    createNewNode: (title: string, parentNodeId: string) => void;
-    createSecondaryRootNode: (title: string, x: number, y: number) => void;
-    updateNodeTitle: (nodeId: string, newTitle: string) => void;
-    updateNode: (nodeId: string, updatedNode: Partial<ConceptNode>) => void;
-    initializeNewDocument: (bloomDepth: 1 | 2 | 3 | 4 | 5 | 6, groundWidth: number, isInitialLoad: boolean) => void;
-    primaryRootNode: (title: string, groundWidth: number) => void;
-    zoomLevel: number;
-    zoomIn: () => void;
-    zoomOut: () => void;
-    //updateScrollPosition: (left: number, top: number) => void;
-    defaultMapWidth: number;
-    defaultMapHeight: number;
-    getLayout: boolean;
-    setGetLayout: (bool: boolean) => void;
-    toggleResetMapSize: () => void;
-    //updateDefaultMapSize: (width: number, height: number) => void;
-    //scrollLeft: number; // Added scrollLeft to track horizontal scroll position
-    //scrollTop: number; // Added scrollTop to track vertical scroll position
-    //adjustScrollPosition: (newZoomLevel: number) => void; // Added adjustScrollPosition function
-  }
-  
   
   export default interface TreeSizeContextType {
     minX: number;
@@ -134,70 +91,7 @@ export interface DocumentContextType {
     setTreeHeight: (value: number) => void;
   }
 
-  //Document Reducer
-  export interface DocumentState {
-    nodes: Map<string, ConceptNode>; // A map of all concept nodes
-    selectedCueCards: CueCard[]; // An array of currently selected cue cards
-    bloomDepth: 1 | 2 | 3 | 4 | 5 | 6; // Represents the Bloom's Taxonomy depth
-    colorTheme: ColorTheme; // The current color theme
-    getLayout: boolean; // Flag to trigger layout computation
-    zoomLevel: number; // Add this line
-    baseZoomLevel: number;
-    defaultMapWidth: number;
-    defaultMapHeight: number;
-    groundWidth: number;
-    resetMapSize: boolean;
-    scrollLeft: number; // Add this line for horizontal scroll position
-    scrollTop: number; // Add this line for vertical scroll position
-    primaryColor: string; // New property
-    backgroundColor: string;
-    fileName: string;    
-    // Add other state properties as needed
-  }
-  export type DocumentAction =
-  | { type: DocumentActionType.UPDATE_NODE; payload: { nodeId: string; updatedNode: Partial<ConceptNode> } }
-  | { type: DocumentActionType.SELECT_CUE_CARDS; payload: CueCard[] }
-  | { type: DocumentActionType.SET_NODES; payload: Map<string, ConceptNode> }
-  | { type: DocumentActionType.SET_COLOR_THEME; payload: ColorTheme }
-  | { type: DocumentActionType.ADD_CUE_CARD_TO_NODE; payload: { nodeId: string; cueCard: CueCard } }
-  | { type: DocumentActionType.UPDATE_NODE_TITLE; payload: { nodeId: string; newTitle: string } }
-  | { type: DocumentActionType.SET_GET_LAYOUT; payload: boolean }
-  | { type: DocumentActionType.CREATE_NEW_NODE; payload: { title: string; parentNodeId: string; newNodeId: string } }
-  | { type: DocumentActionType.INIT_NEW_DOCUMENT; payload: { bloomDepth: 1 | 2 | 3 | 4 | 5 | 6; mapWidth: number; mapHeight: number } }
-  | { type: DocumentActionType.SET_MAP_SIZE; payload: { groundWidth: number; mapWidth: number; mapHeight: number } }
-  | { type: DocumentActionType.RESET_GLOBAL_DATA }
-  | { type: DocumentActionType.SET_ZOOM_LEVEL; payload: number }
-  | { type: DocumentActionType.ZOOM_IN }
-  | { type: DocumentActionType.ZOOM_OUT }
-  | { type: DocumentActionType.SET_PRIMARY_COLOR; payload: string } // New action type
-  | { type: DocumentActionType.SET_BACKGROUND_COLOR; payload: string }
-  | { type: DocumentActionType.TOGGLE_RESET_MAP_SIZE }
-  | { type: DocumentActionType.SET_FILE_NAME; payload: string } ;
-
-
-// Action Types
-export enum DocumentActionType {
-  SELECT_CUE_CARDS = 'SELECT_CUE_CARDS',
-  SET_NODES = 'SET_NODES',
-  SET_COLOR_THEME = 'SET_COLOR_THEME',
-  ADD_CUE_CARD_TO_NODE = 'ADD_CUE_CARD_TO_NODE', // New action type
-  UPDATE_NODE_TITLE = 'UPDATE_NODE_TITLE', // New action type
-  SET_GET_LAYOUT = 'SET_GET_LAYOUT', // New action type
-  CREATE_NEW_NODE = 'CREATE_NEW_NODE', // New action type
-  INIT_NEW_DOCUMENT = 'INIT_NEW_DOCUMENT', // New action for initializing a document
-  SET_MAP_SIZE = 'SET_MAP_SIZE', // Action to reset map size
-  RESET_GLOBAL_DATA = 'RESET_GLOBAL_DATA', // Action to reset global state
-  SET_ZOOM_LEVEL = 'SET_ZOOM_LEVEL',
-  ZOOM_IN = 'ZOOM_IN',
-  ZOOM_OUT = 'ZOOM_OUT',
-  UPDATE_NODE = 'UPDATE_NODE',
-  SET_PRIMARY_COLOR = 'SET_PRIMARY_COLOR',
-  SET_BACKGROUND_COLOR = 'SET_BACKGROUND_COLOR',
-  TOGGLE_RESET_MAP_SIZE = 'TOGGLE_RESET_MAP_SIZE',
-  SET_FILE_NAME = 'SET_FILE_NAME',
-  // Add other action types as needed
-}
-
+  
 
 export interface SerializedDocument {
   nodes: [string, ConceptNode][];
@@ -294,11 +188,6 @@ export interface SubtreeData {
   position?: { x: number; y: number };
 }
 
-
-
-// bloom-maps/app/Library/Definitions/ResourceDefinitions.ts
-
-// bloom-maps/app/Library/Definitions/ResourceCard.ts
 
 export type ResourceType = 'cueCard' | 'picture' | 'practiceSheet';
 

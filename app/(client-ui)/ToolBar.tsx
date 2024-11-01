@@ -43,7 +43,7 @@ const ToolBar: React.FC<ToolBarProps> = ({
 }) => {
   // Contexts for managing zoom, color themes, node selection, and resources
   const { zoomLevel, baseZoomLevel, dispatch: zoomDispatch } = useZoomContext();
-  const { primaryColor, backgroundColor, dispatch: colorThemeDispatch } = useColorThemeContext();
+  const { primaryColor: secondaryColor, backgroundColor, dispatch: colorThemeDispatch } = useColorThemeContext();
   const { clearSelection, getSelectedNodeIds, focusOnSelectedNode } = useNodeSelection();
   const { undo, redo, undoAvailable, redoAvailable } = useResourceContext();
 
@@ -99,7 +99,7 @@ const ToolBar: React.FC<ToolBarProps> = ({
   };
 
   // Handlers for setting primary and background colors
-  const handleSetPrimaryColor = (value: string) => {
+  const handleSetSecondaryColor = (value: string) => {
     colorThemeDispatch(setPrimaryColor(value));
   };
 
@@ -345,28 +345,12 @@ const ToolBar: React.FC<ToolBarProps> = ({
       {/* Separator between Editing/Resource Addition and Color Theme Customization */}
       <div className="separator"></div>
 
-      {/* 5. Color Theme Customization Group */}
-      <div className="tool-bar-group">
-        {/* Primary Color Selector */}
-        <div className="tool-bar-entry color-selector">
-          <h4 style={{ marginRight: '10px' }}>Primary Color</h4>
-          <Select
-            className="tool-bar-dropdown"
-            value={primaryColor}
-            onChange={handleSetPrimaryColor}
-            style={{ width: '120px' }}
-          >
-            {primaryColors.map((color) => (
-              <Option key={color.color} value={color.color}>
-                {color.label}
-              </Option>
-            ))}
-          </Select>
-        </div>
 
-        {/* Secondary Color Selector */}
-        <div className="tool-bar-entry color-selector">
-          <h4 style={{ marginRight: '10px' }}>Secondary Color</h4>
+      {/* 5. Color Theme Customization Group */}
+
+                    {/* Background Color Selector */}
+                    <div className="tool-bar-entry color-selector">
+          <h4 style={{ marginRight: '10px' }}>Primary Color</h4>
           <Select
             className="tool-bar-dropdown"
             value={backgroundColor}
@@ -380,6 +364,25 @@ const ToolBar: React.FC<ToolBarProps> = ({
             ))}
           </Select>
         </div>
+
+      <div className="tool-bar-group">
+        {/* Primary Color Selector */}
+        <div className="tool-bar-entry color-selector">
+          <h4 style={{ marginRight: '10px' }}>Secondary Color</h4>
+          <Select
+            className="tool-bar-dropdown"
+            value={secondaryColor}
+            onChange={handleSetSecondaryColor}
+            style={{ width: '120px' }}
+          >
+            {primaryColors.map((color) => (
+              <Option key={color.color} value={color.color}>
+                {color.label}
+              </Option>
+            ))}
+          </Select>
+        </div>
+
       </div>
 
       {/* Spacer to push items to the left */}
