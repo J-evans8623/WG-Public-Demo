@@ -19,7 +19,8 @@ import { saveResource } from '@/app/Library/utils/ResourceSave/saveResource';
 import { ResourceType} from '@/app/Library/Definitions/Definitions';
 import MenuBar from '@/app/(client-ui)/MenuBar';
 import ToolBar from '@/app/(client-ui)/ToolBar';
-import '@/app/(client-ui)/ClientLayout.css';
+import './ClientLayout.css';
+import './ToolBar.css';
 
 
 // Import new context providers and hooks
@@ -314,12 +315,6 @@ const handleOpenToolPane = useCallback(
     [toolPaneVisible, activeOperation, setTargetNodeId, toggleNodeSelection]
   );
 
-  // Temporary stub methods for onSearch, onUndo, and onRedo
-const handleSearch = () => {
-  console.log('Search action triggered');
-};
-
-
   return (
     <>
       <input
@@ -345,7 +340,6 @@ const handleSearch = () => {
         onHelp={() => console.log('Help clicked')}
       />
 <ToolBar
-  onSearch={handleSearch}
   onOpenToolPane={handleOpenToolPane}
   openModalWithResourceType={openModalWithResourceType}
 />

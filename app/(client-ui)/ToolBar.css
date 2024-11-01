@@ -1,45 +1,80 @@
 /* bloom-maps/app/(client-ui)/ToolBar.css */
 
 .tool-bar {
-    display: flex;
-    gap: 8px;
-  }
-  
-  .tool-bar-button {
-    background-color: #EDF2FA;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
-  }
-  
-  .tool-bar-button:hover {
-    background-color: #D3D3D3; /* Light gray color on hover */
-  }
-  
-  .tool-bar-button:focus {
-    outline: none; /* Remove button outline on focus */
-  }
-  /* bloom-maps/app/(client-ui)/ToolBar.css */
+  display: flex;
+  align-items: center;
+  background-color: #EDF2FA;
+  border-bottom: 1px solid #cbd5e0;
+  padding: 0px;
+  border-radius: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
 
-/* General styling for the closed select box */
-.tool-bar-dropdown .ant-select-selector {
-    background-color: #EDF2FA; /* Set the desired background color */
-    border: none; /* Remove border */
-    border-radius: 4px; /* Adjust border-radius if needed */
-  }
+/* Ensure consistent spacing between each entry */
+.tool-bar-entry {
+  margin-right: 30px; /* Adjust spacing between each entry */
+  flex-shrink: 0; /* Prevent entries from shrinking */
+}
 
-  .icon {
+.tool-bar-button {
+  background-color: #EDF2FA;
+  border: none;
+  padding: 8px 0px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  flex: none; /* Prevent buttons from stretching */
+}
+
+.tool-bar-button:hover {
+  background-color: #D3D3D3; /* Light gray color on hover */
+}
+
+.tool-bar-button:focus {
+  outline: none; /* Remove button outline on focus */
+}
+
+.tool-bar-dropdown {
+  width: 120px; /* Maintain fixed width */
+  flex: none; /* Prevent dropdown from stretching */
+}
+
+.icon {
   transition: opacity 0.3s ease;
 }
 
 .tool-bar-button:disabled .icon {
-  opacity: 0.5; /* Example of a dimmed effect for an inactive icon, you can imrpove the stling here*/
-  pointer-events: none; /* Prevent interaction */
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .color-selector {
   display: flex;
   align-items: center;
   margin-bottom: 8px;
+}
+
+/* Padding at the bottom to separate toolbar from other content */
+.toolbar-padding-bottom {
+  background-color: #F9FBFD;
+  height: 20px;
+  width: 100%;
+  margin-top: 10px;
+}
+/* Spacer element to push items to the left */
+.tool-bar .spacer {
+  margin-left: auto;
+}
+
+/* Separator between toolbar groups */
+.separator {
+  width: 1px;
+  background-color: #C7C7C7;
+  height: 30px; /* Adjust as needed */
+  margin: 0 15px; /* Spacing around the separator */
+}
+
+/* Grouping toolbar entries */
+.tool-bar-group {
+  display: flex;
+  align-items: center;
 }
