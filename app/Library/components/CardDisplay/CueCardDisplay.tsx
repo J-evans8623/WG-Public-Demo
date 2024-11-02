@@ -10,11 +10,9 @@ import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 
 // Import new context
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
-import { Layout } from 'antd';
 import { parseQuizContent, scrambleArray } from '@/app/Library/utils/QuizUtils';
 import ModalOverlayManager from '@/app/Library/components/CardDisplay/ModalOverlayManager';
 
-const { Sider } = Layout;
 
 const defaultCueCards: CueCardInterface[] = [
   {
@@ -27,10 +25,10 @@ const defaultCueCards: CueCardInterface[] = [
 
 interface CueCardDisplayProps {
   centerPaneRef: React.RefObject<HTMLDivElement>;
-  paneSizes: number[];
+
 }
 
-const CueCardDisplay: React.FC<CueCardDisplayProps> = memo(({ centerPaneRef, paneSizes }) => {
+const CueCardDisplay: React.FC<CueCardDisplayProps> = memo(({ centerPaneRef }) => {
   const { getSelectedNodeIds, clearSelection, deselectNode } = useNodeSelection();
   const { selectCueCards, selectPictures, selectPracticeSheets } = useResourceContext();
 
@@ -153,105 +151,103 @@ const CueCardDisplay: React.FC<CueCardDisplayProps> = memo(({ centerPaneRef, pan
   }, []);
 
   return (
-    <Sider
-      width="100%"
+    <div
+      className="flex flex-col space-y-2 pb-8"
       style={{
         backgroundColor: '#F9FBFD',
-        padding: '16px',
+        padding: '0px',
         overflowY: 'auto',
         height: '100%',
         minHeight: '400px',
       }}
+      data-testid="cue-card-display"
     >
-      <div className="flex flex-col space-y-2 pb-8" data-testid="cue-card-display">
-        <div className="flex justify-end">
-          <button
-            onClick={() => {
-              clearSelection();
-              setDismissedResourceIds(new Map());
-            }}
-            className="px-2 py-1 bg-gray-300 rounded hover:bg-gray-400 text-sm"
-          >
-            Clear All
-          </button>
-        </div>
+      <div className="flex justify-end">
+        <button
+          onClick={() => {
+            clearSelection();
+            setDismissedResourceIds(new Map());
+          }}
+          className="px-2 py-1 bg-gray-300 rounded hover:bg-gray-400 text-sm"
+        >
+          Clear All
+        </button>
+      </div>
 
-        {visibleCueCards.map((cueCard) => (
+      {visibleCueCards.map((cueCard) => (
+        <CueCard
+          key={cueCard.id}
+          title={cueCard.title}
+          content={cueCard.content}
+          bloomLevel={cueCard.bloomLevel || 1}
+          conceptNodeTitle={cueCard.conceptNodeTitle}
+          onDismiss={() => handleDismissResource(cueCard.id, cueCard.nodeId)}
+        />
+      ))}
+
+      {visiblePictures.map((picture) => (
+        <PictureCard
+          key={picture.id}
+          id={picture.id}
+          title={picture.title}
+          image={picture.image}
+          onOpenFullSize={() =>
+            handleOpenPictureModal(picture.id, (
+              <div>
+                <h2 className="text-xl font-bold mb-2">{picture.title}</h2>
+                {picture.image && (
+                  <img
+                    src={URL.createObjectURL(picture.image)}
+                    alt={picture.title}
+                    className="max-w-full h-auto mb-4"
+                  />
+                )}
+                <button
+                  onClick={() => handleClosePictureModal(picture.id)}
+                  className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Close
+                </button>
+              </div>
+            ))
+          }
+          onDismiss={() => handleDismissResource(picture.id, picture.nodeId)}
+        />
+      ))}
+
+      {visiblePracticeSheets.map((practiceSheet) => (
+        <PracticeSheetCard
+          key={practiceSheet.id}
+          id={practiceSheet.id}
+          title={practiceSheet.title}
+          quizType={practiceSheet.quizType}
+          quizContent={practiceSheet.quizContent}
+          onOpenFullSize={() => handleOpenQuizModal(practiceSheet.quizContent)}
+          onDismiss={() => handleDismissResource(practiceSheet.id, practiceSheet.nodeId)}
+        />
+      ))}
+
+      {visibleCueCards.length === 0 && visiblePictures.length === 0 && visiblePracticeSheets.length === 0 &&
+        defaultCueCards.map((cueCard) => (
           <CueCard
             key={cueCard.id}
             title={cueCard.title}
             content={cueCard.content}
             bloomLevel={cueCard.bloomLevel || 1}
-            conceptNodeTitle={cueCard.conceptNodeTitle}
-            onDismiss={() => handleDismissResource(cueCard.id, cueCard.nodeId)}
+            conceptNodeTitle="Welcome"
           />
-        ))}
+        ))
+      }
 
-        {visiblePictures.map((picture) => (
-          <PictureCard
-            key={picture.id}
-            id={picture.id}
-            title={picture.title}
-            image={picture.image}
-            onOpenFullSize={() =>
-              handleOpenPictureModal(picture.id, (
-                <div>
-                  <h2 className="text-xl font-bold mb-2">{picture.title}</h2>
-                  {picture.image && (
-                    <img
-                      src={URL.createObjectURL(picture.image)}
-                      alt={picture.title}
-                      className="max-w-full h-auto mb-4"
-                    />
-                  )}
-                  <button
-                    onClick={() => handleClosePictureModal(picture.id)}
-                    className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  >
-                    Close
-                  </button>
-                </div>
-              ))
-            }
-            onDismiss={() => handleDismissResource(picture.id, picture.nodeId)}
-          />
-        ))}
-
-        {visiblePracticeSheets.map((practiceSheet) => (
-          <PracticeSheetCard
-            key={practiceSheet.id}
-            id={practiceSheet.id}
-            title={practiceSheet.title}
-            quizType={practiceSheet.quizType}
-            quizContent={practiceSheet.quizContent}
-            onOpenFullSize={() => handleOpenQuizModal(practiceSheet.quizContent)}
-            onDismiss={() => handleDismissResource(practiceSheet.id, practiceSheet.nodeId)}
-          />
-        ))}
-
-        {visibleCueCards.length === 0 && visiblePictures.length === 0 && visiblePracticeSheets.length === 0 &&
-          defaultCueCards.map((cueCard) => (
-            <CueCard
-              key={cueCard.id}
-              title={cueCard.title}
-              content={cueCard.content}
-              bloomLevel={cueCard.bloomLevel || 1}
-              conceptNodeTitle="Welcome"
-            />
-          ))
-        }
-
-        {/* Render modal overlay using ModalOverlayManager */}
-        <ModalOverlayManager
-          centerPaneRef={centerPaneRef}
-          paneSizes={paneSizes}
-          overlayContent={overlayContent}
-          setOverlayContent={setOverlayContent}
-          openedPictureModals={openedPictureModals}
-          handleClosePictureModal={handleClosePictureModal}
-        />
-      </div>
-    </Sider>
+      {/* Render modal overlay using ModalOverlayManager */}
+      <ModalOverlayManager
+        centerPaneRef={centerPaneRef}
+        overlayContent={overlayContent}
+        setOverlayContent={setOverlayContent}
+        openedPictureModals={openedPictureModals}
+        handleClosePictureModal={handleClosePictureModal}
+      />
+    </div>
   );
 });
 

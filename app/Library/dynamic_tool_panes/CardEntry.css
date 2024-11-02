@@ -1,0 +1,189 @@
+/* bloom-maps/app/Library/ui/CardEntry.css */
+
+/* 
+  Card Entry Container
+  - Defines the overall layout and spacing
+  - Applies background color and border for distinction
+  - Implements hover and active states for interactivity
+*/
+.card-entry-container {
+    /* Background color for the card */
+    background-color: #ffffff;
+    
+    /* Padding for inner spacing */
+    padding: 12px 16px;
+    
+    /* Margin between cards */
+    margin-bottom: 12px;
+    
+    /* Border with subtle color for separation */
+    border: 1px solid #e0e0e0;
+    
+    /* Slight border-radius for smooth edges */
+    border-radius: 6px;
+    
+    /* Flex layout for alignment */
+    display: flex;
+    align-items: center;
+    
+    /* Cursor to indicate clickability */
+    cursor: pointer;
+    
+    /* Transition for smooth hover and active effects */
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  /* Card Entry Hover State */
+  .card-entry-container:hover {
+    /* Light background on hover */
+    background-color: #f5f5f5;
+    
+    /* Darker border on hover */
+    border-color: #cccccc;
+    
+    /* Subtle shadow to elevate the card */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Card Entry Selected State */
+  .card-entry-container.selected {
+    /* Distinct background for selected state */
+    background-color: #d5e6ed;
+    
+    /* Prominent border for selection */
+    border-color: #4caf50;
+    
+    /* Enhanced shadow for emphasis */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* Card Entry Cut State */
+  .card-entry-container.cut {
+    /* Reduced opacity to indicate cut state */
+    opacity: 0.6;
+    
+    /* Strikethrough text decoration */
+    text-decoration: line-through;
+  }
+  
+  /* Resource Type Icon */
+  .card-entry-icon {
+    /* Margin to separate icon from text */
+    margin-right: 12px;
+    
+    /* Font size for visibility */
+    font-size: 1.25rem;
+    
+    /* Color coding based on resource type */
+    color: #4caf50; /* Example color, can be dynamic */
+  }
+  
+  /* Resource Title */
+  .card-entry-title {
+    /* Flex-grow to take up remaining space */
+    flex-grow: 1;
+    
+    /* Font styling for hierarchy */
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333333;
+    
+    /* Prevent text from wrapping */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Action Buttons Container */
+  .card-entry-actions {
+    /* Flex layout for alignment */
+    display: flex;
+    align-items: center;
+    
+    /* Margin to separate from title */
+    margin-left: 12px;
+  }
+  
+  /* Action Button */
+  .card-entry-button {
+    /* Background color for buttons */
+    background-color: #e0e0e0;
+    
+    /* Border removal */
+    border: none;
+    
+    /* Padding for clickable area */
+    padding: 6px 10px;
+    
+    /* Border-radius for smooth edges */
+    border-radius: 4px;
+    
+    /* Font size and weight */
+    font-size: 0.875rem;
+    font-weight: 500;
+    
+    /* Text color */
+    color: #333333;
+    
+    /* Cursor to indicate interactivity */
+    cursor: pointer;
+    
+    /* Transition for smooth hover and active effects */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+  }
+  
+  /* Action Button Hover State */
+  .card-entry-button:hover {
+    /* Slightly darker background on hover */
+    background-color: #d5d5d5;
+    
+    /* Subtle lift effect */
+    transform: translateY(-1px);
+  }
+  
+  /* Action Button Active State */
+  .card-entry-button:active {
+    /* Even darker background when active */
+    background-color: #c0c0c0;
+    
+    /* Reset lift effect */
+    transform: translateY(0);
+  }
+  
+  /* Action Button Disabled State */
+  .card-entry-button:disabled {
+    /* Gray background for disabled state */
+    background-color: #f0f0f0;
+    
+    /* Cursor change */
+    cursor: not-allowed;
+    
+    /* No hover effects */
+    transform: none;
+  }
+  
+  /* Responsive Design for Small Screens */
+  @media (max-width: 600px) {
+    .card-entry-container {
+      /* Adjust padding for smaller screens */
+      padding: 10px 14px;
+    }
+    
+    .card-entry-icon {
+      /* Reduce icon size */
+      font-size: 1rem;
+      margin-right: 8px;
+    }
+    
+    .card-entry-title {
+      /* Smaller font size */
+      font-size: 0.9rem;
+    }
+    
+    .card-entry-button {
+      /* Smaller buttons */
+      padding: 4px 8px;
+      font-size: 0.8rem;
+    }
+  }
+  

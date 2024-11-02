@@ -3,54 +3,93 @@
 .menu-bar-container {
     display: flex;
     align-items: flex-start;
-    padding: 8px;
+    padding: 0px;
     background-color: #F9FBFD; /* Match your theme */
-  }
-  
-  .menu-bar-icon {
-    margin-right: 16px;
-  }
-  
-  .menu-bar-icon {
+}
+
+/* Consolidated .menu-bar-icon to span two rows */
+.menu-bar-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: 24px ;
-    margin-right: 0px;
     margin-left: 16px;
+    margin-top:24px;
     /* Adjust width and height of the icon container */
-    width: 36px; /* Match the icon's height if necessary */
-    height: 36px; /* You can tweak this height as needed */
-  }
-  
-  .menu-bar-content {
+    width: 40px; /* Double the original width to span two rows */
+    height: 40px; /* Double the original height to span two rows */
+}
+
+/* Content section arranged in two rows */
+.menu-bar-content {
     display: flex;
     flex-direction: column;
-  }
-  
+    justify-content: space-between; /* Space between title and menu */
+    margin-left: 0px; /* Space between AppIcon and content */
+    flex: 1; /* Take up remaining space */
+}
 
-  .menu-bar-title-text {
+/* Document Title styling */
+.menu-bar-document-title {
+    display: flex;
+    align-items: center;
+    margin-top: 16px;
     margin-left: 16px;
+    margin-bottom: 0px; /* Space between title and menu */
+}
+
+.menu-bar-title-text {
     cursor: pointer;
     font-size: 20px; /* Slightly increased size for visual hierarchy */
     color: #333; /* Match text color with the theme */
     font-weight: 500; /* Medium weight, slightly thicker without being fully bold */
-  }
+}
 
-  .menu-bar-title-input {
+.menu-bar-title-input {
     width: 300px;
-  }
-  
-  .menu-bar-button {
+}
+
+/* MenuBar (Dropdowns) styling */
+.menu-bar-dropdowns {
+    display: flex;
+    align-items: center;
+}
+
+/* Styling for Dropdown Buttons */
+.menu-bar-button {
     background-color: transparent; /* Match the background color */
     border: none; /* Remove border */
+    border-radius: 4px; /* Rounded corners */
     padding: 8px 12px; /* Add padding */
     color: #333; /* Match text color with the theme */
     font-size: 16px; /* Consistent font size */
     cursor: pointer;
     transition: background-color 0.2s ease; /* Subtle hover effect */
-  }
-  
-  .menu-bar-button:hover {
-    background-color: #e0e0e0; /* Light gray on hover for a subtle effect */
-  }
+    display: flex;
+    align-items: center;
+    margin-right: 8px; /* Space between buttons */
+    outline: none; /* Remove default outline */
+}
+
+/* Enhanced specificity to override Ant Design styles */
+.menu-bar-dropdowns .menu-bar-button.ant-btn {
+    background-color: transparent !important; /* Ensure transparency */
+    border: none !important; /* Remove border */
+    color: #333 !important; /* Ensure text color */
+}
+
+/* Hover effect with higher specificity and no quotes around color */
+.menu-bar-dropdowns .menu-bar-button.ant-btn:hover {
+    background-color: #E8EBEE !important; /* Apply hover background color */
+    border: none !important; /* Ensure no border on hover */
+    outline: none !important; /* Remove outline on hover */
+}
+
+/* Remove focus outline */
+.menu-bar-dropdowns .menu-bar-button.ant-btn:focus {
+    outline: none !important;
+}
+
+/* Ensure dropdown menus appear above other elements */
+.menu-bar-dropdowns .ant-dropdown-menu {
+    z-index: 1000;
+}

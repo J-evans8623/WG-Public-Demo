@@ -250,6 +250,19 @@ const ToolBar: React.FC<ToolBarProps> = ({
           </Tooltip>
         </div>
 
+              {/* 14. Copy */}
+      <div className="tool-bar-entry">
+        <Tooltip title="Copy">
+          <Button
+            className="tool-bar-button"
+            onClick={() => handleOperation('copy')}
+            disabled={!selectedNodeId}
+          >
+            Copy
+          </Button>
+        </Tooltip>
+      </div>
+
         {/* Merge Button */}
         <div className="tool-bar-entry">
           <Tooltip title="Merge">

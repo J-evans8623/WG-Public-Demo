@@ -4,12 +4,13 @@ import React, { useState } from 'react';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import CardEntry from '@/app/Library/ui/CardEntry';
+import CardEntry from '@/app/Library/dynamic_tool_panes/CardEntry';
 import {
   toggleResourceSelection,
   markForTransfer,
   handlePaste
 } from '@/app/Library/utils/copycutpaste/CutCopyPasteUtils';
+import './ToolPane.css';
 
 interface ToolPaneCutCopyWindowProps {
   sourceNodeId: string;
@@ -91,10 +92,9 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
 
   return (
     <div className="tool-pane-window">
-      <h3>{command === 'copy' ? 'Copy' : 'Cut'}</h3>
       {sourceNode ? (
         <div>
-          <h4>Source Node: {sourceNode.title}</h4>
+          <h2>Source: {sourceNode.title}</h2>
           {sourceResources.length > 0 ? (
             sourceResources.map((resource) => (
               <CardEntry
@@ -102,9 +102,8 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
                 resource={resource}
                 resourceType={resource.resourceType}
                 isSelected={selectedResourceIds.includes(resource.id)}
-                isCut={command === 'cut' && selectedResourceIds.includes(resource.id)}
+                isCut={selectedResourceIds.includes(resource.id)}
                 onSelect={() => handleResourceSelect(resource.id)}
-                onCut={() => handleAction([resource.id])}
                 command={command}
               />
             ))
@@ -118,7 +117,7 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
 
       {targetNode ? (
         <div>
-          <h4>Target Node: {targetNode.title}</h4>
+          <h2>Target: {targetNode.title}</h2>
           {targetResources.length > 0 ? (
             targetResources.map((resource) => (
               <CardEntry
@@ -128,8 +127,6 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
                 isSelected={selectedResourceIds.includes(resource.id)}
                 isCut={command === 'cut' && selectedResourceIds.includes(resource.id)}
                 onSelect={() => handleResourceSelect(resource.id)}
-                onCut={() => handleAction([resource.id])}
-                command={command}
               />
             ))
           ) : (

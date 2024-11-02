@@ -2,26 +2,21 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
-import Split from 'react-split';
 import CueCardDisplay from '@/app/Library/components/CardDisplay/CueCardDisplay';
 import ConceptMap from '@/app/Library/components/ConceptMap';
 import { NodeSelectionProvider, useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import { CueCardProvider, useCueCardContext } from '@/app/Library/Context/CueCardContext';
 import ModernModal from '@/app/Library/components/Modals/ModernModal';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 import { useSubTreeContext, SubTreeProvider } from '@/app/Library/Context/SubTreeProvider';
 import { v4 as uuidv4 } from 'uuid';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { PictureProvider, usePictureContext } from '@/app/Library/Context/PictureContext';
-import { PracticeSheetProvider, usePracticeSheetContext } from '@/app/Library/Context/PracticeSheetContext';
 import { saveResource } from '@/app/Library/utils/ResourceSave/saveResource';
 import { ResourceType} from '@/app/Library/Definitions/Definitions';
-import MenuBar from '@/app/(client-ui)/MenuBar';
-import ToolBar from '@/app/(client-ui)/ToolBar';
+import DocumentHeader from '@/app/Library/components/DocumentFile/DocumentHeader';
 import './ClientLayout.css';
 import './ToolBar.css';
-
+import './panelSize.css'
 
 // Import new context providers and hooks
 import { NodesProvider, useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -33,9 +28,9 @@ import { ResourceProvider, useResourceContext } from '@/app/Library/Context/Reso
 
 // Import action creators
 import { createNewNode, updateNodeTitle } from '@/app/Library/Context/nodesActions';
-import { setGetLayout, toggleResetMapSize } from '@/app/Library/Context/LayoutActions';
-import { setFileName } from '@/app/Library/Context/fileActions';
-import { saveDocument, loadDocument, initializeNewDocument } from '@/app/Library/utils/documentUtils'; 
+import { setGetLayout} from '@/app/Library/Context/LayoutActions';
+
+import {  initializeNewDocument } from '@/app/Library/utils/documentUtils'; 
 
 // Dynamic Tool Panes
 import ToolPane from '@/app/Library/dynamic_tool_panes/ToolPane';
@@ -48,33 +43,25 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
 
   // Use new context hooks
   const { nodes, dispatch: nodesDispatch } = useNodesContext();
-  const { zoomLevel, baseZoomLevel, dispatch: zoomDispatch } = useZoomContext();// remove
   const { dispatch: layoutDispatch } = useLayoutContext();
   const { dispatch: fileDispatch, fileName } = useFileContext();
-  const { colorTheme, primaryColor, backgroundColor, dispatch: colorThemeDispatch } = useColorThemeContext();
+  const { dispatch: colorThemeDispatch } = useColorThemeContext();
   const { resetTreeDimensions } = useTreeDimensions();
-  const { resetSubtrees, setSubtrees, subtrees } = useSubTreeContext();
+  const { resetSubtrees } = useSubTreeContext();
 
 
    // Use new centralized ResourceContext hook
-   const { resources, addResource, resetResources, setResources, getResourcesByType, setResourcesByMap } = useResourceContext();
- // const { addCueCard, resetCueCards, setCueCards, cueCards } = useCueCardContext();
- // const { addPicture, pictures, setPictures, resetPictures } = usePictureContext();
- // const { addPracticeSheet, practiceSheets, setPracticeSheets, resetPracticeSheets } = usePracticeSheetContext();
-
+  const {  addResource, resetResources } = useResourceContext();
   const [paneSizes, setPaneSizes] = useState<number[]>([20, 60, 20]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalResourceType, setModalResourceType] = useState<'cueCard' | 'picture' | 'practiceSheet' | undefined>(undefined);
   const [modalNodeId, setModalNodeId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'addChild' | 'addResource'>('addResource');
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeOperation, setActiveOperation] = useState<'cut'| 'copy' | 'delete' | 'merge' |'edit'| null>(null); // Track the active tool pane
   const [toolPaneVisible, setToolPaneVisible] = useState(false);
   const [sourceNodeId, setSourceNodeId] = useState<string | ''>('');
  const { toggleNodeSelection, setTargetNodeId,  clearSelection, selectNode } = useNodeSelection();
-
- //const { trackNode} = useUndoRedoContext();
 
  const openModalWithResourceType = (nodeId: string| null, resourceType: 'cueCard' | 'picture' | 'practiceSheet'|undefined, op : 'resource'| 'node') => {
   setModalNodeId(nodeId); // Set the node ID for the resource
@@ -150,80 +137,6 @@ const handleOpenToolPane = useCallback(
     resetSubtrees,
   ]);
 
-  const handleCreateNewDocument = useCallback(() => {
-    initializeNewDocument(
-      nodesDispatch,
-      layoutDispatch,
-      fileDispatch,
-      colorThemeDispatch,
-      resetResources,
-      resetTreeDimensions,
-      resetSubtrees,
-      6,
-      windowWidth,
-      false
-    );
-    layoutDispatch(toggleResetMapSize());
-  }, [
-    nodesDispatch,
-    layoutDispatch,
-    fileDispatch,
-    colorThemeDispatch,
-    windowWidth,
-    resetResources,
-    resetTreeDimensions,
-    resetSubtrees,
-  ]);
-
-  const handleTitleChange = useCallback((newTitle: string) => {
-    fileDispatch(setFileName(newTitle)); // Update the file name in the context
-  }, [fileDispatch]);
-
-  const handleSaveDocument = useCallback(async () => {
-    await saveDocument(
-      nodes,
-      colorTheme,
-      primaryColor,
-      backgroundColor,
-      fileName,
-      getResourcesByType('cueCard'),
-      subtrees,
-      getResourcesByType('picture'),
-      getResourcesByType('practiceSheet'),
-      
-    );
-  }, [nodes, colorTheme, primaryColor, backgroundColor, fileName, resources, subtrees]);
-
-  const handleOpenDocument = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      await loadDocument(
-        file,
-        nodesDispatch,
-        setResourcesByMap,
-        setSubtrees,
-        fileDispatch,
-        colorThemeDispatch,
-        resetTreeDimensions,
-        resetSubtrees,
-        resetResources 
-      );
-      layoutDispatch(setGetLayout(true)); // Trigger layout recalculation if necessary
-    }
-  }, [
-    nodesDispatch,
-    setResources,
-    setSubtrees,
-    fileDispatch,
-    colorThemeDispatch,
-    layoutDispatch
-  ]);
-
-
   const initialNodeTitle =
     modalMode === 'addChild'
       ? 'New Concept'
@@ -283,7 +196,7 @@ const handleOpenToolPane = useCallback(
       }
     }
     setIsModalOpen(false);
-  }, [modalNodeId, modalMode,addResource]);
+  }, [modalNodeId, modalMode, nodesDispatch, layoutDispatch, addResource]);
 
   const [isCenterPaneMounted, setIsCenterPaneMounted] = useState<boolean>(false);
   useEffect(() => {
@@ -306,13 +219,6 @@ const handleOpenToolPane = useCallback(
 
   return (
     <>
-      <input
-        type="file"
-        accept=".bloomdocx"
-        ref={fileInputRef}
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
       <ModernModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -321,38 +227,27 @@ const handleOpenToolPane = useCallback(
         mode={modalMode}
         selectedResourceType={modalResourceType}
       />
-      <MenuBar
-        onTitleChange={handleTitleChange}
-        onNewDocument={handleCreateNewDocument}
-        onOpenDocument={handleOpenDocument}
-        onSaveDocument={handleSaveDocument}
-        onHelp={() => console.log('Help clicked')}
+      <DocumentHeader
+        handleOpenToolPane={handleOpenToolPane}
+        openModalWithResourceType={openModalWithResourceType}
       />
-<ToolBar
-  onOpenToolPane={handleOpenToolPane}
-  openModalWithResourceType={openModalWithResourceType}
-/>
+      
       <div className="toolbar-padding-bottom"></div>
-      <Split
-        className="flex h-[calc(100vh-50px)]"
-        sizes={paneSizes}
-        minSize={[200, 400, 200]}
-        maxSize={[500, Infinity, 400]}
-        gutterSize={6}
-        direction="horizontal"
-        cursor="col-resize"
-        onDragEnd={(sizes) => setPaneSizes(sizes)}
-      >
-        <div className="flex flex-col space-y-2 bg-[#F9FBFD] p-4 shadow-lg rounded-lg overflow-y-auto">
+      {/* Updated Layout: Three Column Flex Container */}
+      <div className="flex h-[calc(100vh-50px)] gap-4">
+        {/* CueCardDisplay: Fixed Width */}
+        <div className="fixed-width-pane flex flex-col space-y-2 bg-[#F9FBFD]  rounded-lg overflow-y-auto">
           {isCenterPaneMounted && (
             <div className="flex flex-col space-y-2 pb-40">
-              <CueCardDisplay centerPaneRef={centerPaneRef} paneSizes={paneSizes} />
+              <CueCardDisplay centerPaneRef={centerPaneRef} />
             </div>
           )}
         </div>
+        
+        {/* ConceptMap: Flexible */}
         <div
           ref={centerPaneRef}
-          className="center-pane flex-1 bg-[#F9FBFD] p-4 shadow-lg rounded-lg overflow-auto"
+          className="flex-1 bg-[#FBFBFB] p-4 rounded-lg overflow-auto center-pane"
           style={{
             position: 'relative',
             overflowX: 'auto',
@@ -367,15 +262,15 @@ const handleOpenToolPane = useCallback(
             onNodeClick={handleNodeClick} 
           />
         </div>
-        <div className="relative bg-[#F9FBFD] p-4 shadow-lg rounded-lg overflow-auto">
+        
+        {/* ToolPane: Conditional Rendering */}
         <ToolPane
-  activeOperation={activeOperation}
-  visible={toolPaneVisible}
-  onClose={handleCloseToolPane}
-  sourceNodeId={sourceNodeId} // Add this prop to provide the selected source node
-/>
-        </div>
-      </Split>
+              activeOperation={activeOperation}
+              visible={toolPaneVisible}
+              onClose={handleCloseToolPane}
+              sourceNodeId={sourceNodeId}
+            />
+      </div>
     </>
   );
 });

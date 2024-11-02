@@ -4,6 +4,7 @@ import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { transferNode } from '@/app/Library/Context/nodesActions';
 import { useLayoutContext } from '../Context/LayoutProvider';
 import { setGetLayout } from '../Context/LayoutActions';
+import './ToolPane.css';
 
 interface ToolPaneMergeWindowProps {
   sourceNodeId: string;

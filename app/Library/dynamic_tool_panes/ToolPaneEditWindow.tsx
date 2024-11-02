@@ -3,32 +3,57 @@ import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { ResourceCard, PictureResource,PracticeSheetResource, CueCardResource } from '@/app/Library/Definitions/Definitions';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider'; 
 import ModernModal from '@/app/Library/components/Modals/ModernModal';
+import './ToolPane.css';
+import CardEntry from '@/app/Library/dynamic_tool_panes/CardEntry';
+import { toggleResourceSelection, } from '@/app/Library/utils/copycutpaste/CutCopyPasteUtils';
 
 interface ToolPaneEditWindowProps {
-  nodeId: string;
+  sourceNodeId: string;
 }
 
-const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ nodeId }) => {
+const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId }) => {
   // Import contexts for each resource
   const { nodes } = useNodesContext();
-  const { selectCueCards, selectPictures, selectPracticeSheets, editResource } = useResourceContext();
-  
+  const { selectCueCards, selectPictures, selectPracticeSheets, editResource, selectResources } = useResourceContext();
+  const command = 'edit';
 
-  const node = nodes.get(nodeId); 
-  const nodeTitle = node ? node.title : '';
+  const sourceNode = nodes.get(sourceNodeId); 
+  const nodeTitle = sourceNode ? sourceNode.title : '';
+  const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
 
   // Fetch resources for the selected node
-  const cueCards = selectCueCards(nodeId);
-  const pictures = selectPictures(nodeId);
-  const practiceSheets = selectPracticeSheets(nodeId);
+  const cueCards = selectCueCards(sourceNodeId);
+  const pictures = selectPictures(sourceNodeId);
+  const practiceSheets = selectPracticeSheets(sourceNodeId);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [resourceType, setResourceType] = useState<'cueCard' | 'picture' | 'practiceSheet'>('cueCard');
   const [initialData, setInitialData] = useState<any>(null);
 
+  const getResources = (nodeId: string) => {
+    const resources = selectResources(nodeId);
+    return resources.map(resource => ({
+      ...resource,
+      resourceType: resource.type,
+    }));
+  };
+
+  const sourceResources = sourceNodeId ? getResources(sourceNodeId) : [];
+
+  /**
+   * Handles the selection of a resource.
+   * Toggles the selection state of the resource.
+   *
+   * @param resourceId - The ID of the resource to select or deselect.
+   */
+  const handleResourceSelect = (resourceId: string) => {
+    const updatedSelection = toggleResourceSelection(resourceId, selectedResourceIds);
+    setSelectedResourceIds(updatedSelection);
+  };
+
   // Function to open the modal for editing based on the resource type
-// ToolPaneEditWindow.tsx
+
 
 const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any) => {
     setResourceType(type);
@@ -80,7 +105,7 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
       if (resourceType === 'cueCard') {
         updatedResource = {
           id: initialData.id,
-          nodeId,
+          nodeId: sourceNodeId,
           type: 'cueCard',
           title: cueCardTitle || initialData.title,
           content: cueCardContent,
@@ -90,7 +115,7 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
       } else if (resourceType === 'picture') {
         updatedResource = {
           id: initialData.id,
-          nodeId,
+          nodeId: sourceNodeId,
           type: 'picture',
           title: cueCardTitle || initialData.title,
           image,
@@ -99,7 +124,7 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
       } else if (resourceType === 'practiceSheet') {
         updatedResource = {
           id: initialData.id,
-          nodeId,
+          nodeId:sourceNodeId,
           type: 'practiceSheet',
           title: cueCardTitle || initialData.title,
           content: practiceSheetContent,
@@ -117,37 +142,29 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
   
 
   return (
-    <div>
-      <h3>Edit Options</h3>
-      <h4>Cue Cards</h4>
-      <ul>
-        {cueCards.map((card) => (
-          <li key={card.id}>
-            {card.title} 
-            <button onClick={() => openEditModal('cueCard', card)}>Edit</button>
-          </li>
-        ))}
-      </ul>
-      
-      <h4>Pictures</h4>
-      <ul>
-        {pictures.map((picture) => (
-          <li key={picture.id}>
-            {picture.title} 
-            <button onClick={() => openEditModal('picture', picture)}>Edit</button>
-          </li>
-        ))}
-      </ul>
-      
-      <h4>Practice Sheets</h4>
-      <ul>
-        {practiceSheets.map((sheet) => (
-          <li key={sheet.id}>
-            {sheet.title} 
-            <button onClick={() => openEditModal('practiceSheet', sheet)}>Edit</button>
-          </li>
-        ))}
-      </ul>
+    <div className="tool-pane-window">
+      {sourceNode ? (
+        <div>
+          <h2>Source: {sourceNode.title}</h2>
+          {sourceResources.length > 0 ? (
+            sourceResources.map((resource) => (
+              <CardEntry
+                key={resource.id}
+                resource={resource}
+                resourceType={resource.resourceType}
+                isSelected={selectedResourceIds.includes(resource.id)}
+                isCut={selectedResourceIds.includes(resource.id)}
+                onSelect={() => openEditModal(resource.resourceType, resource )}
+                command={command}
+              />
+            ))
+          ) : (
+            <p>No resources associated with this node.</p>
+          )}
+        </div>
+      ) : (
+        <p>No source node selected.</p>
+      )}
 
       {/* ModernModal component to edit selected resource */}
       <ModernModal

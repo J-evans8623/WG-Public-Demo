@@ -1,21 +1,219 @@
-.tool-pane {
-  background-color: #f5f5f5;
+/* bloom-maps/app/Library/dynamic_tool_panes/ToolPane.css */
+
+/* 
+  Tool Pane Container
+  - Maintains a fixed width to reserve space in the layout
+  - Controls visibility without altering the container's size
+  - Applies background, padding, and border-radius for aesthetics
+  - Utilizes flex layout for organized content structure
+*/
+.tool-pane-container {
+  /* Subtle gradient background for depth */
+  background: linear-gradient(to bottom, #ffffff, #f0f0f0);
+  
+  /* Padding for inner spacing */
   padding: 20px;
-  border-left: 1px solid #ddd;
-  height: 100%;
-  width: 100%;
+  
+  /* Soft shadow for separation */
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+  
+  /* Slight border-radius for a modern look */
+  border-radius: 0 8px 8px 0;
+  
+  /* Fixed width to reserve space */
+  width: 320px;
+  
+  /* Flex layout for columnar arrangement */
+  display: flex;
+  flex-direction: column;
+  
+  /* Smooth transition for interactive changes */
+  transition: opacity 0.3s ease;
+  
+  /* Positioning within the flex container */
+  position: relative;
 }
 
-.tool-pane-window {
-  margin-bottom: 20px;
+/* 
+  Hidden State for Tool Pane Container
+  - Hides the content by reducing opacity
+  - Disables pointer events to prevent interactions
+  - Maintains the container's reserved space
+*/
+.tool-pane-container.hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
-.tool-bar {
+/* 
+  Tool Pane Header
+  - Aligns title and close button horizontally
+  - Uses consistent typography for clarity
+  - Enhances visual hierarchy with larger, bolder text
+*/
+.tool-pane-header {
   display: flex;
   justify-content: space-between;
-  padding: 10px;
+  align-items: center;
+  
+  /* Margin for spacing below the header */
+  margin-bottom: 20px;
+  
+  /* Typography enhancements */
+  font-size: 1.25rem; /* Larger font for prominence */
+  font-weight: bold;
+  color: #333333; /* Darker text for better readability */
 }
 
-.tool-bar button {
-  margin-right: 10px;
+/* 
+  Close Button
+  - Enhances visibility with a circular background on hover
+  - Increases clickable area for better accessibility
+  - Adds subtle shadow to indicate interactivity
+*/
+.close-button {
+  background: none;
+  border: none;
+  
+  /* Increased font size for better visibility */
+  font-size: 24px;
+  
+  /* Cursor change to indicate clickability */
+  cursor: pointer;
+  
+  /* Transition for smooth hover effect */
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  
+  /* Padding to enlarge the clickable area */
+  padding: 5px;
+  
+  /* Border-radius for circular background on hover */
+  border-radius: 50%;
 }
+
+/* Close Button Hover State */
+.close-button:hover {
+  background-color: rgba(0, 0, 0, 0.05); /* Light background on hover */
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); /* Subtle shadow on hover */
+}
+
+/* 
+  Tool Pane Content
+  - Allows content to grow and fill available space
+  - Enables smooth scrolling within the tool pane
+  - Styles scrollbars for a modern appearance
+*/
+.tool-pane-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  
+  /* Custom scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: #cccccc #f0f0f0;
+}
+
+/* Webkit scrollbar styling for better cross-browser appearance */
+.tool-pane-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tool-pane-content::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+.tool-pane-content::-webkit-scrollbar-thumb {
+  background-color: #cccccc;
+  border-radius: 4px;
+  border: 2px solid #f0f0f0;
+}
+
+/* 
+  Action Buttons
+  - Consistent styling for all action buttons within the tool pane
+  - Uses neutral colors to maintain visual harmony
+  - Enhances interactivity with hover effects and transitions
+*/
+.tool-pane-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* Padding for clickable area */
+  padding: 10px 15px;
+  
+  /* Neutral background color */
+  background-color: #e0e0e0;
+  
+  /* Border for definition */
+  border: none;
+  
+  /* Slight border-radius for smooth edges */
+  border-radius: 4px;
+  
+  /* Font styling */
+  font-size: 1rem;
+  color: #333333;
+  
+  /* Cursor to indicate interactivity */
+  cursor: pointer;
+  
+  /* Transition for smooth hover effect */
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  
+  /* Margin for spacing between buttons */
+  margin: 5px 0;
+}
+
+/* Action Buttons Hover State */
+.tool-pane-button:hover {
+  background-color: #d5d5d5; /* Slightly darker on hover */
+  transform: translateY(-1px); /* Subtle lift on hover */
+}
+
+/* Action Buttons Active State */
+.tool-pane-button:active {
+  background-color: #c0c0c0; /* Even darker when active */
+  transform: translateY(0); /* Reset lift on active */
+}
+
+/* 
+  Active Tool Highlight
+  - Highlights the currently active tool for visual feedback
+  - Uses a distinct border to signify selection
+*/
+.tool-pane-button.active {
+  background-color: #cccccc; /* Different background for active state */
+  border-left: 4px solid #4caf50; /* Green border to indicate active tool */
+}
+
+/* 
+  Responsive Design Adjustments
+  - Ensures the tool pane adapts gracefully to different screen sizes
+  - Adjusts width and layout for smaller devices
+*/
+@media (max-width: 768px) {
+  .tool-pane-container {
+    width: 100%; /* Full width on smaller screens */
+    max-width: 100%;
+    border-left: none; /* Remove left border */
+    border-top: 1px solid #ddd; /* Add top border instead */
+    border-radius: 0 0 8px 8px; /* Rounded bottom corners */
+    bottom: 0;
+    top: auto;
+    
+    /* Adjust position to bottom on smaller screens */
+    position: absolute;
+  }
+  
+  .tool-pane-header {
+    justify-content: center; /* Center the header content */
+  }
+  
+  .close-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+}
+
+

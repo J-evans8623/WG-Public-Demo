@@ -3,7 +3,6 @@ import Draggable, { DraggableProps } from 'react-draggable';
 
 interface ModalOverlayManagerProps {
   centerPaneRef: React.RefObject<HTMLDivElement>;
-  paneSizes: number[];
   overlayContent: React.ReactNode | null;
   setOverlayContent: (content: React.ReactNode | null) => void;
   openedPictureModals: { id: string, content: React.ReactNode }[]; // Track opened picture modals
@@ -12,7 +11,6 @@ interface ModalOverlayManagerProps {
 
 const ModalOverlayManager: React.FC<ModalOverlayManagerProps> = ({
   centerPaneRef,
-  paneSizes,
   overlayContent,
   setOverlayContent,
   openedPictureModals,
@@ -23,24 +21,25 @@ const ModalOverlayManager: React.FC<ModalOverlayManagerProps> = ({
   const [initialPosition, setInitialPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
+  // Define fixed left pane width
+  const LEFT_PANE_WIDTH = 336; // in pixels
+
   // Dynamically update bounds based on pane sizes and window size
   useEffect(() => {
     const updateBounds = () => {
       if (centerPaneRef && centerPaneRef.current) {
         const centerPaneRect = centerPaneRef.current.getBoundingClientRect();
 
-        const leftPaneWidth = (window.innerWidth * paneSizes[0]) / 100; // Convert left pane size to pixels
-
         setBounds({
-          left: leftPaneWidth,
+          left: LEFT_PANE_WIDTH,
           top: 0,
-          right: centerPaneRect.width,
+          right: centerPaneRect.width - 200, // Adjust as needed
           bottom: centerPaneRect.height / 2, // Use half of the height for the bottom bound
         });
 
         // Set the initial position to start within the center pane
         setInitialPosition({
-          x: leftPaneWidth + 50, // Start 50px from the left bound
+          x: LEFT_PANE_WIDTH + 50, // Start 50px from the left bound
           y: centerPaneRect.height / 4, // Start at a quarter of the height
         });
 
@@ -56,7 +55,7 @@ const ModalOverlayManager: React.FC<ModalOverlayManagerProps> = ({
     return () => {
       window.removeEventListener('resize', updateBounds); // Cleanup listener on unmount
     };
-  }, [centerPaneRef, paneSizes, window.innerHeight, window.innerWidth]);
+  }, [centerPaneRef]);
 
   // Disable background scrolling when dragging starts
   const handleStart = () => {

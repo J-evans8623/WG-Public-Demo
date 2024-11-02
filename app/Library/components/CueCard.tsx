@@ -74,7 +74,7 @@ const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
     return (
       <>
         <div
-          className="bg-white p-4 border rounded shadow-sm min-w-[150px] h-60 flex flex-col relative cursor-pointer overflow-hidden"
+          className="bg-white p-4 border rounded shadow-sm w-full h-60 flex flex-col relative cursor-pointer overflow-hidden flex-shrink-0 min-w-full"
           onClick={handleClick}
           onContextMenu={handleContextMenu}
           ref={cueCardRef}

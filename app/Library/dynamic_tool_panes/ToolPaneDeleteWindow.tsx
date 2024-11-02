@@ -6,26 +6,39 @@ import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { deleteNode } from '@/app/Library/Context/nodesActions';
 import { setGetLayout } from '../Context/LayoutActions';
 import { useLayoutContext } from '../Context/LayoutProvider';
-//import { useUndoRedoContext } from '@/app/Library/Context/UndoRedoContext';
+import './ToolPane.css';
+import CardEntry from '@/app/Library/dynamic_tool_panes/CardEntry';
+import { useState } from 'react';
 
-const ToolPaneDeleteWindow = ({ nodeId }: { nodeId: string }) => {
+const ToolPaneDeleteWindow = ({ sourceNodeId }: { sourceNodeId: string }) => {
   const { selectResources, removeResource } = useResourceContext();
   const { dispatch: nodesDispatch, nodes } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
+  const command = 'delete';
   //const { untrackNode } = useUndoRedoContext();
 
   // Fetch the current node to determine if it's a root node
-  const currentNode = nodes.get(nodeId);
+  const currentNode = nodes.get(sourceNodeId);
+  const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
 
-  const resources = selectResources(nodeId);
+  const getResources = (nodeId: string) => {
+    const resources = selectResources(nodeId);
+    return resources.map(resource => ({
+      ...resource,
+      resourceType: resource.type,
+    }));
+  };
+
+  const resources = selectResources(sourceNodeId);
+  const sourceResources = sourceNodeId ? getResources(sourceNodeId) : [];
 
   const handleDeleteResource = (resourceId: string) => {
-    removeResource(nodeId, resourceId);
+    removeResource(sourceNodeId, resourceId);
   };
 
   const handleDeleteNode = () => {
     if (!currentNode) {
-      console.error(`Delete failed: Node with ID ${nodeId} not found.`);
+      console.error(`Delete failed: Node with ID ${sourceNodeId} not found.`);
       return;
     }
 
@@ -55,15 +68,15 @@ const ToolPaneDeleteWindow = ({ nodeId }: { nodeId: string }) => {
     });
 
     // **Dispatch Delete Node Action**
-    nodesDispatch(deleteNode(nodeId));
+    nodesDispatch(deleteNode(sourceNodeId));
     layoutDispatch(setGetLayout(true));
 
     alert(`Node "${currentNode.title}" has been deleted successfully.`);
-    //untrackNode(nodeId);
+    //untrackNode(sourceNodeId);
   };
 
   return (
-    <div>
+    <div className="tool-pane-window">
       <h3>Delete Options</h3>
 
       {/* Delete Entire Node */}
@@ -80,15 +93,20 @@ const ToolPaneDeleteWindow = ({ nodeId }: { nodeId: string }) => {
       {/* Existing Delete Options */}
       <div>
         <h4>Resources</h4>
-        {resources.length === 0 ? (
+        {sourceResources.length === 0 ? (
           <p>No resources associated with this node.</p>
         ) : (
           <ul>
-            {resources.map(resource => (
-              <li key={resource.id}>
-                {resource.title} 
-                <button onClick={() => handleDeleteResource(resource.id)}>Delete</button>
-              </li>
+            {sourceResources.map(resource => (
+              <CardEntry
+              key={resource.id}
+              resource={resource}
+              resourceType={resource.resourceType}
+              isSelected={selectedResourceIds.includes(resource.id)}
+              isCut={selectedResourceIds.includes(resource.id)}
+              onSelect={() => handleDeleteResource(resource.id)}
+              command={command}
+            />
             ))}
           </ul>
         )}
