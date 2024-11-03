@@ -31,12 +31,12 @@ const ToolPaneMergeWindow = ({ sourceNodeId }: { sourceNodeId: string }) => {
         <h3>Merge Options</h3>
         {sourceNode && (
           <div>
-            <h4>Source Node: {sourceNode.title}</h4>
+             <h2 className='multiline'>Source: {sourceNode.title}</h2>
           </div>
         )}
         {targetNode ? (
           <div>
-            <h4>Target Node: {targetNode.title}</h4>
+            <h2 className='multiline'>Target Node: {targetNode.title}</h2>
           </div>
         ) : (
           <p>No target node selected.</p>

@@ -1,0 +1,14 @@
+.TitleContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px; /* Padding on the sides */
+    width: 100%;
+    height: 100%;
+}
+
+.nodeTitle {
+    text-align: center;
+    font-weight: bold; /* Set font weight */
+    font-size: 1.15rem; /* Adjust font size */
+}

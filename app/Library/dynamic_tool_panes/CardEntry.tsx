@@ -59,7 +59,7 @@ const CardEntry: React.FC<CardEntryProps> = ({ resource, resourceType, isSelecte
       <span className="card-entry-icon">{getResourceIcon()}</span>
 
       {/* Resource Title */}
-      <span className="card-entry-title">{resource.title}</span>
+      <span className=" card-entry-title">{resource.title}</span>
 
       {/* Action Buttons */}
       <div className="card-entry-actions">

@@ -13,17 +13,37 @@ interface ToolPaneProps {
   onClose: () => void;
   visible: boolean;
   sourceNodeId: string; // Add the sourceNodeId prop here
-  targetNodeId?: string; // Optional targetNodeId for operations like Cut/Copy or Merge
+
 }
 
-const ToolPane: React.FC<ToolPaneProps> = ({ activeOperation, onClose, visible, sourceNodeId, targetNodeId }) => {
+const ToolPane: React.FC<ToolPaneProps> = ({ activeOperation, onClose, visible, sourceNodeId, }) => {
 
+
+
+  const getOperationTitle = (operation: OperationType): string => {
+    switch (operation) {
+      case 'cut':
+        return 'Cut Resource';
+      case 'copy':
+        return 'Copy Resource';
+      case 'delete':
+        return 'Delete Resource';
+      case 'merge':
+        return 'Merge Concept';
+      case 'edit':
+        return 'Edit Resource';
+      default:
+        return '';
+    }
+  };
+  
+  const currentTitle = getOperationTitle(activeOperation);
   const containerClasses = `tool-pane-container ${visible ? '' : 'hidden'}`;
 
   return (
     <div className={containerClasses}>
       <div className="tool-pane-header">
-        <h3>Tool Panel</h3>
+        <h3>{currentTitle}</h3>
         <button onClick={onClose} className="close-button">&times;</button>
       </div>
       <div className="tool-pane-content">

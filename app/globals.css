@@ -66,9 +66,20 @@ body {
   scrollbar-color: #888 #f1f1f1;
 }
 
-.tool-pane {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow-y: auto;
+
+/* styles.css or global.css */
+.truncate-multiline {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; /* Number of lines to show */
+  overflow: hidden;
 }
+
+.multiline{
+  width: 300;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+

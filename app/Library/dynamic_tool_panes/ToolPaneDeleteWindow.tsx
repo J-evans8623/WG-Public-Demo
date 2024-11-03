@@ -15,6 +15,7 @@ const ToolPaneDeleteWindow = ({ sourceNodeId }: { sourceNodeId: string }) => {
   const { dispatch: nodesDispatch, nodes } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
   const command = 'delete';
+  const sourceNode = nodes.get(sourceNodeId);
   //const { untrackNode } = useUndoRedoContext();
 
   // Fetch the current node to determine if it's a root node
@@ -78,6 +79,11 @@ const ToolPaneDeleteWindow = ({ sourceNodeId }: { sourceNodeId: string }) => {
   return (
     <div className="tool-pane-window">
       <h3>Delete Options</h3>
+      {sourceNode && (
+          <div>
+            <h2 className='multiline'>Source Node: {sourceNode.title}</h2>
+          </div>
+        )}
 
       {/* Delete Entire Node */}
       <div style={{ marginBottom: '20px' }}>

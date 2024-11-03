@@ -1,4 +1,7 @@
+// bloom-maps/app/Library/components/PictureCard.tsx
+
 import React from 'react';
+import '@/app/Library/components/CardDisplay/CardDisplaySlide.css' // Import the CSS file
 
 interface PictureCardProps {
   id: string;
@@ -11,7 +14,7 @@ interface PictureCardProps {
 
 const PictureCard: React.FC<PictureCardProps> = ({ title, description, image, onOpenFullSize, onDismiss }) => {
   return (
-    <div className="bg-[#D8EAF2] p-4 border rounded shadow-sm cursor-pointer" onClick={onOpenFullSize}>
+    <div className="card card-picture" onClick={onOpenFullSize}>
       <div className="flex justify-between">
         <p className="font-bold text-lg">{title}</p>
         {onDismiss && (

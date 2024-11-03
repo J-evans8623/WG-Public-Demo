@@ -1,12 +1,12 @@
 import React, { memo, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
-import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
+//import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
 import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
 import ConceptNode from '@/app/Library/components/ConceptNode';
 import Subtree from '@/app/Library/components/Subtree';
 import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
 import { useAutoMapResize } from '@/app/Library/hooks/useAutoMapResize';
-import { useTreePositioning } from '@/app/Library/hooks/useTreePositioning';
+//import { useTreePositioning } from '@/app/Library/hooks/useTreePositioning';
 
 // Import new contexts
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -36,13 +36,13 @@ const ConceptMap = ({
 
   useAutoMapResize(mapRef);
 
-  const { offset } = useTreePositioning(mapRef);
+  //const { offset } = useTreePositioning(mapRef);
 
-  useKeepMapInView({
+  /**useKeepMapInView({
     mapRef,
     centerPaneRef,
     zoomLevel,
-  });
+  }); */
 
   const laidOutNodes = useCompositeLayout(nodes || new Map());
 
@@ -52,17 +52,27 @@ const ConceptMap = ({
   }, [nodes]);
 
 
+  useEffect(() => {
+    if (centerPaneRef.current) {
+      const centerPane = centerPaneRef.current;
+      centerPane.scrollLeft = (centerPane.scrollWidth - centerPane.clientWidth) / 2;
+      centerPane.scrollTop = (centerPane.scrollHeight - centerPane.clientHeight) / 2 - 200;
+    }
+  }, [centerPaneRef]);
+
+
   return (
     <div
       ref={mapRef}
       className="relative bg-white overflow-hidden w-full h-full scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200"
       style={{
         transform: `scale(${zoomLevel})`,
-        transformOrigin: 'top left',
+        transformOrigin: 'center center',
         transition:
           'transform 0.3s ease, min-height 0.3s ease, min-width 0.3s ease',
         position: 'relative',
         display: 'flex',
+        boxShadow: '0px 4px 8px rgba(0, 0, 0, .5)',
       }}
     >
       <div style={{ flexGrow: 1, position: 'relative' }}>
@@ -71,8 +81,9 @@ const ConceptMap = ({
           style={{
             position: 'absolute',
             top: '200px',
-            left: '0px', // Keep left at 0
-            transform: `translateX(${offset}px)`, // Use transform for horizontal movement
+            left: '50%', // Keep left at 0
+            transform: 'translateX(-162.5px)',
+            //transform: `translateX(${offset}px)`, // Use transform for horizontal movement
             transition: 'transform 0.3s ease', // Add transition for smooth movement
             pointerEvents: 'auto',
             width: '100%',
@@ -95,7 +106,7 @@ const ConceptMap = ({
               overflow: 'visible',
             }}
           >
-            {drawHVStyleLines(laidOutNodes, subtrees, 4)}
+            {drawHVStyleLines(laidOutNodes, subtrees, 5)}
           </svg>
 
           {/* Render Subtree components */}

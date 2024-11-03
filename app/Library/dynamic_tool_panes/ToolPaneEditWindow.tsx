@@ -145,7 +145,7 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
     <div className="tool-pane-window">
       {sourceNode ? (
         <div>
-          <h2>Source: {sourceNode.title}</h2>
+          <h2 className='multiline'>Source: {sourceNode.title}</h2>
           {sourceResources.length > 0 ? (
             sourceResources.map((resource) => (
               <CardEntry

@@ -1,10 +1,10 @@
 /* bloom-maps\app\(client-ui)\MenuBar.css */
 
 .menu-bar-container {
-    display: flex;
-    align-items: flex-start;
-    padding: 0px;
-    background-color: #F9FBFD; /* Match your theme */
+  display: flex;
+  align-items: center;
+  padding-bottom: 6px;
+  background-color: #F9FBFD;
 }
 
 /* Consolidated .menu-bar-icon to span two rows */

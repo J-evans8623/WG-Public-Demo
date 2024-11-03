@@ -1,7 +1,9 @@
-// bloom-maps\app\Library\components\PracticeSheetCard.tsx
+// bloom-maps/app/Library/components/PracticeSheetCard.tsx
+
 import React from 'react';
 import QuizIcon from '@/app/icons-custom/Quiz.svg';
 import { parseQuizContent } from '@/app/Library/utils/QuizUtils'; // Import parseQuizContent
+import '@/app/Library/components/CardDisplay/CardDisplaySlide.css'// Import the CSS file
 
 interface PracticeSheetCardProps {
   id: string;
@@ -41,10 +43,7 @@ const PracticeSheetCard: React.FC<PracticeSheetCardProps> = ({
   };
 
   return (
-    <div
-      className="bg-gray-200 p-4 border rounded shadow-sm cursor-pointer relative min-w-[150px] h-60 flex flex-col"
-      onClick={onOpenFullSize}
-    >
+    <div className="card card-practice" onClick={onOpenFullSize}>
       {/* Dismiss Button */}
       {onDismiss && (
         <button

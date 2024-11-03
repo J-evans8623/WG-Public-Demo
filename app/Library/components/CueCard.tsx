@@ -1,10 +1,11 @@
-'use client';
-// bloom-maps\app\Library\Tests\components\CueCard.tsx
+// bloom-maps/app/Library/components/CueCard.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { CueCardProps, colorThemes } from '@/app/Library/Definitions/Definitions';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { FiX } from 'react-icons/fi';
-import { createPortal } from 'react-dom'; // Import createPortal
+import { createPortal } from 'react-dom';
+import '@/app/Library/components/CardDisplay/CardDisplaySlide.css'; // Import the CSS file
 
 interface CueCardPropsWithBloom extends CueCardProps {
   bloomLevel: 1 | 2 | 3 | 4 | 5 | 6;
@@ -74,7 +75,7 @@ const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
     return (
       <>
         <div
-          className="bg-white p-4 border rounded shadow-sm w-full h-60 flex flex-col relative cursor-pointer overflow-hidden flex-shrink-0 min-w-full"
+          className="card card-cue"
           onClick={handleClick}
           onContextMenu={handleContextMenu}
           ref={cueCardRef}
@@ -100,7 +101,7 @@ const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
               style={{ backgroundColor: bloomColor }}
               title={`Bloom Level: ${bloomLevelNames[bloomLevel]}`}
             ></div>
-            <span className="text-sm text-gray-800 font-medium">{conceptNodeTitle}</span>
+            <span className="multiline text-sm text-gray-800 font-medium">{conceptNodeTitle}</span>
           </div>
 
           {/* Content */}
@@ -108,7 +109,7 @@ const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
             {showTitle ? (
               // Front of the card (Title View)
               <div className="h-full flex items-center justify-center">
-                <h3 className="font-bold text-xl text-gray-800 text-center leading-tight font-sans break-words">
+                <h3 className=" font-bold text-xl text-gray-800 text-center leading-tight font-sans break-words">
                   {title}
                 </h3>
               </div>

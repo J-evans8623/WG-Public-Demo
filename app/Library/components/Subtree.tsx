@@ -128,7 +128,7 @@ const Subtree: React.FC<SubtreeProps> = ({
         height={height}
         style={{ overflow: 'visible', pointerEvents: 'none' }}
       >
-        {drawIndentedStyleLines(subtreeNodes, 4)}
+        {drawIndentedStyleLines(subtreeNodes, 5)}
       </svg>
 
       {/* **Step 4: Rendering each node within the subtree** */}

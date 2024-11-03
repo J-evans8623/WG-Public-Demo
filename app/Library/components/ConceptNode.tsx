@@ -5,6 +5,7 @@ import { ConceptNode as NodeType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import AddConceptIcon from '@/app/icons-custom/ConceptNodeAdd.svg';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
+import './ConceptNode.css';
 
 const DEFAULT_PRIMARY_COLOR = '#F7CAAB';
 const DEFAULT_BACKGROUND_COLOR = '#F7EBD1';
@@ -135,9 +136,20 @@ function ConceptNode({
         </svg>
       )}
 
-      <h2 className="absolute inset-0 flex items-center justify-center text-lg font-semibold text-gray-800 rounded">
-        {title}
-      </h2>
+<div className= "TitleContainer">
+< p className= 'multiline nodeTitle'  title={title} >
+      {title}
+</p>
+</div>  
+
+
+ {/**<h2
+  className="multiline absolute inset-0 flex items-center justify-center text-2xl font-bold text-gray-800 rounded px-4"
+  title={title}
+>
+  {title}
+</h2> */}
+
 
       <button
         onClick={handleAddChildNode}

@@ -52,8 +52,6 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
 
    // Use new centralized ResourceContext hook
   const {  addResource, resetResources } = useResourceContext();
-  const [paneSizes, setPaneSizes] = useState<number[]>([20, 60, 20]);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalResourceType, setModalResourceType] = useState<'cueCard' | 'picture' | 'practiceSheet' | undefined>(undefined);
   const [modalNodeId, setModalNodeId] = useState<string | null>(null);
@@ -199,11 +197,14 @@ const handleOpenToolPane = useCallback(
   }, [modalNodeId, modalMode, nodesDispatch, layoutDispatch, addResource]);
 
   const [isCenterPaneMounted, setIsCenterPaneMounted] = useState<boolean>(false);
+  
   useEffect(() => {
     if (centerPaneRef.current) {
       setIsCenterPaneMounted(true);
     }
   }, [centerPaneRef]);
+
+  
 
   const handleNodeClick = useCallback(
     (nodeId: string) => {
@@ -264,7 +265,7 @@ const handleOpenToolPane = useCallback(
         </div>
         
         {/* ToolPane: Conditional Rendering */}
-        <ToolPane
+            <ToolPane
               activeOperation={activeOperation}
               visible={toolPaneVisible}
               onClose={handleCloseToolPane}

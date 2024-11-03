@@ -139,7 +139,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       <Menu.Item key="open" onClick={onOpenDocument}>
         Open
       </Menu.Item>
-      <Menu.Item key="save" onClick={onSaveDocument} disabled={!isNodeSelected}>
+      <Menu.Item key="save" onClick={onSaveDocument}>
         Save
       </Menu.Item>
     </Menu>

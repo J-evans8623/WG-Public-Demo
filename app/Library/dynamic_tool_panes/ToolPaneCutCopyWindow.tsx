@@ -94,7 +94,7 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
     <div className="tool-pane-window">
       {sourceNode ? (
         <div>
-          <h2>Source: {sourceNode.title}</h2>
+          <h2 className='multiline'>Source: {sourceNode.title}</h2>
           {sourceResources.length > 0 ? (
             sourceResources.map((resource) => (
               <CardEntry
@@ -117,7 +117,7 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
 
       {targetNode ? (
         <div>
-          <h2>Target: {targetNode.title}</h2>
+          <h2 className='multiline'>Target: {targetNode.title}</h2>
           {targetResources.length > 0 ? (
             targetResources.map((resource) => (
               <CardEntry
