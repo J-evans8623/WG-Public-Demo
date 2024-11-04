@@ -1,11 +1,14 @@
+// bloom-maps/app/Library/components/CardDisplay/ModalOverlayManager.tsx
+
 import React, { useState, useEffect } from 'react';
 import Draggable, { DraggableProps } from 'react-draggable';
+import { calculateDraggableBounds, calculateInitialPosition } from './draggleBounds'; // Adjust the path as needed
 
 interface ModalOverlayManagerProps {
   centerPaneRef: React.RefObject<HTMLDivElement>;
   overlayContent: React.ReactNode | null;
   setOverlayContent: (content: React.ReactNode | null) => void;
-  openedPictureModals: { id: string, content: React.ReactNode }[]; // Track opened picture modals
+  openedPictureModals: { id: string; content: React.ReactNode }[]; // Track opened picture modals
   handleClosePictureModal: (pictureId: string) => void;
 }
 
@@ -14,7 +17,7 @@ const ModalOverlayManager: React.FC<ModalOverlayManagerProps> = ({
   overlayContent,
   setOverlayContent,
   openedPictureModals,
-  handleClosePictureModal
+  handleClosePictureModal,
 }) => {
   const [isCenterPaneReady, setIsCenterPaneReady] = useState<boolean>(false);
   const [bounds, setBounds] = useState<DraggableProps['bounds']>();
@@ -24,24 +27,22 @@ const ModalOverlayManager: React.FC<ModalOverlayManagerProps> = ({
   // Define fixed left pane width
   const LEFT_PANE_WIDTH = 336; // in pixels
 
+  // Define padding to prevent overlap with edges
+  const PADDING = 32; // in pixels
+
   // Dynamically update bounds based on pane sizes and window size
   useEffect(() => {
     const updateBounds = () => {
       if (centerPaneRef && centerPaneRef.current) {
         const centerPaneRect = centerPaneRef.current.getBoundingClientRect();
 
-        setBounds({
-          left: LEFT_PANE_WIDTH,
-          top: 0,
-          right: centerPaneRect.width - 200, // Adjust as needed
-          bottom: centerPaneRect.height / 2, // Use half of the height for the bottom bound
-        });
+        // Calculate new bounds with padding
+        const newBounds = calculateDraggableBounds(centerPaneRect, LEFT_PANE_WIDTH, 200, 0.5, PADDING);
+        setBounds(newBounds);
 
-        // Set the initial position to start within the center pane
-        setInitialPosition({
-          x: LEFT_PANE_WIDTH + 50, // Start 50px from the left bound
-          y: centerPaneRect.height / 4, // Start at a quarter of the height
-        });
+        // Calculate new initial position with padding
+        const newInitialPosition = calculateInitialPosition(centerPaneRect, LEFT_PANE_WIDTH, 50, 0.25, PADDING);
+        setInitialPosition(newInitialPosition);
 
         setIsCenterPaneReady(true);
       } else {
@@ -87,7 +88,8 @@ const ModalOverlayManager: React.FC<ModalOverlayManagerProps> = ({
           onStart={handleStart}
           onStop={handleStop}
         >
-          <div className="fixed z-[9999] pointer-events-auto bg-[#D8EAF2] p-6 shadow-lg rounded-lg max-w-[70%] w-auto">
+          {/* Modal container with styling */}
+          <div className="fixed z-[9999] pointer-events-auto rounded-lg shadow-lg max-w-[70%] w-auto">
             <div onDragStart={preventImageDrag}>
               {overlayContent}
             </div>
@@ -104,7 +106,8 @@ const ModalOverlayManager: React.FC<ModalOverlayManagerProps> = ({
           onStart={handleStart}
           onStop={handleStop}
         >
-          <div className="fixed z-[9999] pointer-events-auto bg-[#D8EAF2] p-6 shadow-lg rounded-lg max-w-[70%] w-auto">
+          {/* Modal container with styling */}
+          <div className="fixed z-[9999] pointer-events-auto rounded-lg shadow-lg max-w-[70%] w-auto">
             <div onDragStart={preventImageDrag}>
               {modal.content}
             </div>

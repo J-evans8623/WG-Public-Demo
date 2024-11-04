@@ -1,0 +1,92 @@
+/* bloom-maps/app/Library/dynamic_tool_panes/ToolPaneDeleteWindow.css */
+
+/* 
+  Delete Options Header
+  - Increased font size and weight for hierarchy
+*/
+.delete-options-header {
+  font-size: 1.5rem; /* Slightly larger font */
+  font-weight: bold; /* Increased weight */
+  color: #333333; /* Darker text color */
+  margin-bottom: 20px; /* Spacing below */
+}
+
+/* 
+  Delete Entire Node Section
+  - Styles the container for the "Delete Entire Node" operation
+*/
+.delete-node-section {
+  /* Background to distinguish from other sections */
+  background-color: #ffe6e6;
+  
+  /* Padding for inner spacing */
+  padding: 15px;
+  
+  /* Margin to separate from other sections */
+  margin-bottom: 20px;
+  
+  /* Border radius for smooth edges */
+  border-radius: 4px;
+  
+  /* Box shadow for subtle depth */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 
+  Delete Node Header
+  - Styles the header/title within the delete node section
+*/
+.delete-node-header {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #cc0000; /* Red color to indicate a destructive action */
+  margin-bottom: 10px;
+}
+
+/* 
+  Delete Node Error Message
+  - Styles the error message when attempting to delete the root node
+*/
+.delete-node-error {
+  color: #cc0000; /* Red text for error */
+  margin-top: 10px; /* Spacing above the message */
+}
+
+/* 
+  Delete Resources Header
+  - Increased font size and weight for hierarchy
+*/
+.delete-resources-header {
+  font-size: 1.25rem; /* Larger than resource list */
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 10px;
+}
+
+/* 
+  Global Delete Button Styling
+  - Extends the global .tool-pane-button with additional styles specific to global delete
+*/
+.global-delete-button {
+  
+  background-color: #ff4d4d; /* Bright red background */
+  color: #ffffff; /* White text for contrast */ 
+  /* Transition for smooth hover and active effects */
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.global-delete-button:hover {
+  background-color: #ff1a1a; /* Darker red on hover */
+  transform: translateY(-1px); /* Subtle lift on hover */
+}
+
+.global-delete-button:active {
+  background-color: #cc0000; /* Even darker red when active */
+  transform: translateY(0); /* Reset lift on active */
+}
+
+.global-delete-button:disabled {
+  background-color: #ffcccc; /* Lighter red when disabled */
+  cursor: not-allowed;
+  transform: none;
+}

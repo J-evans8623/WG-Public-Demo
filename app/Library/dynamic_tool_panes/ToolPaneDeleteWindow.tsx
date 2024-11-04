@@ -1,22 +1,26 @@
-// bloom-maps/app/Library/components/ToolPaneDeleteWindow.tsx
+// bloom-maps/app/Library/dynamic_tool_panes/ToolPaneDeleteWindow.tsx
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { deleteNode } from '@/app/Library/Context/nodesActions';
 import { setGetLayout } from '../Context/LayoutActions';
 import { useLayoutContext } from '../Context/LayoutProvider';
 import './ToolPane.css';
+import './ToolPaneDeleteWindow.css'; // Import the new CSS file
 import CardEntry from '@/app/Library/dynamic_tool_panes/CardEntry';
-import { useState } from 'react';
 
-const ToolPaneDeleteWindow = ({ sourceNodeId }: { sourceNodeId: string }) => {
+interface ToolPaneDeleteWindowProps {
+  sourceNodeId: string;
+  onClose: () => void; // New prop for closing the pane
+}
+
+const ToolPaneDeleteWindow: React.FC<ToolPaneDeleteWindowProps> = ({ sourceNodeId, onClose }) => {
   const { selectResources, removeResource } = useResourceContext();
   const { dispatch: nodesDispatch, nodes } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
   const command = 'delete';
   const sourceNode = nodes.get(sourceNodeId);
-  //const { untrackNode } = useUndoRedoContext();
 
   // Fetch the current node to determine if it's a root node
   const currentNode = nodes.get(sourceNodeId);
@@ -33,10 +37,48 @@ const ToolPaneDeleteWindow = ({ sourceNodeId }: { sourceNodeId: string }) => {
   const resources = selectResources(sourceNodeId);
   const sourceResources = sourceNodeId ? getResources(sourceNodeId) : [];
 
+  /**
+   * Handles the deletion of a single resource.
+   *
+   * @param resourceId - The ID of the resource to delete.
+   */
   const handleDeleteResource = (resourceId: string) => {
     removeResource(sourceNodeId, resourceId);
+    // Optionally, update the selectedResourceIds if the deleted resource was selected
+    setSelectedResourceIds(prev => prev.filter(id => id !== resourceId));
   };
 
+  /**
+   * Handles the deletion of selected resources.
+   */
+  const handleDeleteSelectedResources = () => {
+    if (selectedResourceIds.length === 0) {
+      alert('Please select at least one resource to delete.');
+      return;
+    }
+
+    // Confirm Deletion
+    const confirmDelete = window.confirm('Are you sure you want to delete the selected resource(s)? This action cannot be undone.');
+    if (!confirmDelete) {
+      return;
+    }
+
+    // Delete each selected resource
+    selectedResourceIds.forEach(resourceId => {
+      handleDeleteResource(resourceId);
+    });
+
+    // Clear the selection after deletion
+    setSelectedResourceIds([]);
+    alert('Selected resource(s) have been deleted successfully.');
+
+    // Automatically close the pane after deletion
+    onClose();
+  };
+
+  /**
+   * Handles the deletion of the entire node.
+   */
   const handleDeleteNode = () => {
     if (!currentNode) {
       console.error(`Delete failed: Node with ID ${sourceNodeId} not found.`);
@@ -73,50 +115,98 @@ const ToolPaneDeleteWindow = ({ sourceNodeId }: { sourceNodeId: string }) => {
     layoutDispatch(setGetLayout(true));
 
     alert(`Node "${currentNode.title}" has been deleted successfully.`);
-    //untrackNode(sourceNodeId);
+
+    // Automatically close the pane after node deletion
+    onClose();
   };
 
   return (
     <div className="tool-pane-window">
-      <h3>Delete Options</h3>
-      {sourceNode && (
-          <div>
-            <h2 className='multiline'>Source Node: {sourceNode.title}</h2>
-          </div>
-        )}
+      {/* Delete Options Header */}
+      {sourceNode ? (
+        <div>
+          {/* Source Node Title */}
+          <div className="multiline section-header">Concept : {sourceNode.title}</div>
 
-      {/* Delete Entire Node */}
-      <div style={{ marginBottom: '20px' }}>
-        <h4>Delete Entire Node</h4>
-        <button onClick={handleDeleteNode} disabled={currentNode?.isRoot}>
-          Delete Node
-        </button>
-        {currentNode?.isRoot && (
-          <p style={{ color: 'red' }}>Cannot delete the root node.</p>
-        )}
-      </div>
-
-      {/* Existing Delete Options */}
-      <div>
-        <h4>Resources</h4>
-        {sourceResources.length === 0 ? (
-          <p>No resources associated with this node.</p>
-        ) : (
-          <ul>
-            {sourceResources.map(resource => (
-              <CardEntry
-              key={resource.id}
-              resource={resource}
-              resourceType={resource.resourceType}
-              isSelected={selectedResourceIds.includes(resource.id)}
-              isCut={selectedResourceIds.includes(resource.id)}
-              onSelect={() => handleDeleteResource(resource.id)}
-              command={command}
+          {/* Delete Entire Node Section */}
+          <div className="delete-node-section">
+            <div className="delete-node-header">Delete Concept</div>
+            <CardEntry
+              resource={{
+                id: sourceNode.id,
+                title: sourceNode.title,
+              }}
+              resourceType="conceptNode"
+              isSelected={false} // Entire node deletion; no selection
+              isCut={false}
+              onSelect={() => { /* No selection needed for entire node */ }}
+              command="delete"
+              onDelete={handleDeleteNode} // Pass the node deletion handler
             />
-            ))}
-          </ul>
-        )}
+            {currentNode?.isRoot && (
+              <p className="delete-node-error">Cannot delete the root node.</p>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="section-divider"></div>
+
+          {/* Delete Resources Section */}
+          <div className="tool-pane-section">
+            {/* Delete Resources Header */}
+            <div className="section-header">Delete Resources</div>
+            {sourceResources.length === 0 ? (
+              <p>No resources associated with this node.</p>
+            ) : (
+              <ul style={{ listStyleType: 'none', padding: 0 }}>
+                {sourceResources.map(resource => (
+                  <CardEntry
+                    key={resource.id}
+                    resource={resource}
+                    resourceType={resource.resourceType}
+                    isSelected={selectedResourceIds.includes(resource.id)}
+                    isCut={selectedResourceIds.includes(resource.id)}
+                    onSelect={() => {
+                      // Toggle selection
+                      setSelectedResourceIds(prev => {
+                        if (prev.includes(resource.id)) {
+                          return prev.filter(id => id !== resource.id);
+                        } else {
+                          return [...prev, resource.id];
+                        }
+                      });
+                    }}
+                    command="delete"
+                    onDelete={() => handleDeleteResource(resource.id)}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+
+         {/* Button Container */}
+      <div className="button-container">
+        {/* Cancel Button */}
+        <button
+          className="cancel-button"
+          onClick={onClose}
+        >
+          Cancel
+        </button>
+
+        {/* Delete Button */}
+        <button
+          className="tool-pane-button global-delete-button"
+          onClick={handleDeleteSelectedResources}
+          disabled={selectedResourceIds.length === 0}
+        >
+          Delete
+        </button>
       </div>
+        </div>
+      ) : (
+        <p>No source node selected.</p>
+      )}
     </div>
   );
 };

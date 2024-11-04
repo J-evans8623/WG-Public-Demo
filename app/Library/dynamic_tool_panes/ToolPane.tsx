@@ -1,5 +1,5 @@
-// bloom-maps\app\Library\dynamic_tool_panes\ToolPane.tsx
-import React from 'react';
+// bloom-maps/app/Library/dynamic_tool_panes/ToolPane.tsx
+import React, { useEffect } from 'react';
 import ToolPaneCutCopyWindow from './ToolPaneCutCopyWindow';
 import ToolPaneDeleteWindow from './ToolPaneDeleteWindow';
 import ToolPaneMergeWindow from './ToolPaneMergeWindow';
@@ -12,14 +12,14 @@ interface ToolPaneProps {
   activeOperation: OperationType;
   onClose: () => void;
   visible: boolean;
-  sourceNodeId: string; // Add the sourceNodeId prop here
-
+  sourceNodeId: string; // Existing prop
 }
 
-const ToolPane: React.FC<ToolPaneProps> = ({ activeOperation, onClose, visible, sourceNodeId, }) => {
+const ToolPane: React.FC<ToolPaneProps> = ({ activeOperation, onClose, visible, sourceNodeId }) => {
 
+  
 
-
+  // Function to get the title based on the active operation
   const getOperationTitle = (operation: OperationType): string => {
     switch (operation) {
       case 'cut':
@@ -27,7 +27,7 @@ const ToolPane: React.FC<ToolPaneProps> = ({ activeOperation, onClose, visible, 
       case 'copy':
         return 'Copy Resource';
       case 'delete':
-        return 'Delete Resource';
+        return 'Delete Options';
       case 'merge':
         return 'Merge Concept';
       case 'edit':
@@ -47,10 +47,32 @@ const ToolPane: React.FC<ToolPaneProps> = ({ activeOperation, onClose, visible, 
         <button onClick={onClose} className="close-button">&times;</button>
       </div>
       <div className="tool-pane-content">
-        {(activeOperation === 'cut' || activeOperation === 'copy') && <ToolPaneCutCopyWindow sourceNodeId={sourceNodeId} command={activeOperation} />}
-        {activeOperation === 'delete' && <ToolPaneDeleteWindow sourceNodeId={sourceNodeId} />}
-        {activeOperation === 'merge' && <ToolPaneMergeWindow sourceNodeId={sourceNodeId} />}
-        {activeOperation === 'edit' && <ToolPaneEditWindow sourceNodeId={sourceNodeId} />}
+        {/* Passing down the onClose prop to each tool pane */}
+        {(activeOperation === 'cut' || activeOperation === 'copy') && (
+          <ToolPaneCutCopyWindow 
+            sourceNodeId={sourceNodeId} 
+            command={activeOperation} 
+            onClose={onClose} // New prop
+          />
+        )}
+        {activeOperation === 'delete' && (
+          <ToolPaneDeleteWindow 
+            sourceNodeId={sourceNodeId} 
+            onClose={onClose} // New prop
+          />
+        )}
+        {activeOperation === 'merge' && (
+          <ToolPaneMergeWindow 
+            sourceNodeId={sourceNodeId} 
+            onClose={onClose} // New prop
+          />
+        )}
+        {activeOperation === 'edit' && (
+          <ToolPaneEditWindow 
+            sourceNodeId={sourceNodeId} 
+            onClose={onClose} // New prop
+          />
+        )}
       </div>
     </div>
   );

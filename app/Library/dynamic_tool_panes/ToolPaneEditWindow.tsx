@@ -1,36 +1,44 @@
+// bloom-maps/app/Library/dynamic_tool_panes/ToolPaneEditWindow.tsx
+
 import React, { useState } from 'react';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
-import { ResourceCard, PictureResource,PracticeSheetResource, CueCardResource } from '@/app/Library/Definitions/Definitions';
+import { ResourceCard, PictureResource, PracticeSheetResource, CueCardResource } from '@/app/Library/Definitions/Definitions';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider'; 
 import ModernModal from '@/app/Library/components/Modals/ModernModal';
 import './ToolPane.css';
 import CardEntry from '@/app/Library/dynamic_tool_panes/CardEntry';
-import { toggleResourceSelection, } from '@/app/Library/utils/copycutpaste/CutCopyPasteUtils';
+import { toggleResourceSelection } from '@/app/Library/utils/copycutpaste/CutCopyPasteUtils';
 
 interface ToolPaneEditWindowProps {
   sourceNodeId: string;
+  onClose: () => void; // New prop for closing the pane
 }
 
-const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId }) => {
-  // Import contexts for each resource
+const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, onClose }) => {
+  // Import contexts for nodes and resources
   const { nodes } = useNodesContext();
   const { selectCueCards, selectPictures, selectPracticeSheets, editResource, selectResources } = useResourceContext();
+  
   const command = 'edit';
 
+  // Retrieve the source node
   const sourceNode = nodes.get(sourceNodeId); 
   const nodeTitle = sourceNode ? sourceNode.title : '';
+  
+  // State for selected resources
   const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
-
+  
   // Fetch resources for the selected node
   const cueCards = selectCueCards(sourceNodeId);
   const pictures = selectPictures(sourceNodeId);
   const practiceSheets = selectPracticeSheets(sourceNodeId);
-
+  
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [resourceType, setResourceType] = useState<'cueCard' | 'picture' | 'practiceSheet'>('cueCard');
   const [initialData, setInitialData] = useState<any>(null);
-
+  
+  // Helper function to get all resources for a given node
   const getResources = (nodeId: string) => {
     const resources = selectResources(nodeId);
     return resources.map(resource => ({
@@ -38,9 +46,9 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId })
       resourceType: resource.type,
     }));
   };
-
+  
   const sourceResources = sourceNodeId ? getResources(sourceNodeId) : [];
-
+  
   /**
    * Handles the selection of a resource.
    * Toggles the selection state of the resource.
@@ -52,10 +60,13 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId })
     setSelectedResourceIds(updatedSelection);
   };
 
-  // Function to open the modal for editing based on the resource type
-
-
-const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any) => {
+  /**
+   * Opens the modal for editing a specific resource type.
+   *
+   * @param type - The type of resource to edit ('cueCard', 'picture', 'practiceSheet').
+   * @param data - The data of the resource being edited.
+   */
+  const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any) => {
     setResourceType(type);
   
     if (type === 'cueCard') {
@@ -83,11 +94,15 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
   
     setIsModalOpen(true);
   };
-  
-  
-  
 
-  // Modal save handler for each resource type
+  /**
+   * Handles the save action from the modal.
+   * Updates the resource with the edited data.
+   *
+   * @param resourceType - The type of resource being edited.
+   * @param nodeTitle - The title of the node containing the resource.
+   * @param ...otherParams - Additional parameters based on the resource type.
+   */
   const handleSave = (
     resourceType: 'cueCard' | 'picture' | 'practiceSheet',
     nodeTitle: string,
@@ -101,7 +116,7 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
   ) => {
     if (initialData) {
       let updatedResource: ResourceCard;
-  
+
       if (resourceType === 'cueCard') {
         updatedResource = {
           id: initialData.id,
@@ -124,7 +139,7 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
       } else if (resourceType === 'practiceSheet') {
         updatedResource = {
           id: initialData.id,
-          nodeId:sourceNodeId,
+          nodeId: sourceNodeId,
           type: 'practiceSheet',
           title: cueCardTitle || initialData.title,
           content: practiceSheetContent,
@@ -133,19 +148,29 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
         console.error("Unknown resource type");
         return;
       }
-  
+
+      // Update the resource in context
       editResource(updatedResource);
-      setIsModalOpen(false); // Close modal on save
+      
+      // Close the modal after saving
+      setIsModalOpen(false);
+
+      // Automatically close the pane after saving edits
+      onClose();
     }
   };
-  
-  
 
   return (
     <div className="tool-pane-window">
-      {sourceNode ? (
-        <div>
-          <h2 className='multiline'>Source: {sourceNode.title}</h2>
+      <h3>Edit Options</h3>
+
+      {/* Source Section */}
+      <div className="tool-pane-section">
+        {/* Multiline title to handle long node names */}
+        <div className="multiline section-header">Concept: {sourceNode?.title || 'N/A'}</div>
+        
+        {/* Resource List */}
+        <div className="resource-list">
           {sourceResources.length > 0 ? (
             sourceResources.map((resource) => (
               <CardEntry
@@ -162,9 +187,19 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
             <p>No resources associated with this node.</p>
           )}
         </div>
-      ) : (
-        <p>No source node selected.</p>
-      )}
+      </div>
+
+      {/* Edit Button */}
+ {/* Button Container */}
+ <div className="button-container">
+        {/* Cancel Button */}
+        <button
+          className="cancel-button"
+          onClick={onClose}
+        >
+          Cancel
+        </button>
+      </div>
 
       {/* ModernModal component to edit selected resource */}
       <ModernModal
@@ -172,7 +207,7 @@ const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any)
         onClose={() => setIsModalOpen(false)}
         onSave={handleSave}
         initialNodeTitle={nodeTitle}
-        mode= 'edit'
+        mode='edit'
         initialCueCardTitle={resourceType === 'cueCard' ? initialData?.title : undefined}
         initialCueCardContent={resourceType === 'cueCard' ? initialData?.content : undefined}
         initialBloomLevel={resourceType === 'cueCard' ? initialData?.bloomLevel : undefined}

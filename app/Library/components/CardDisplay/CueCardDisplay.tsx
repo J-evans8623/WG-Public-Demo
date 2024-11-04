@@ -1,9 +1,11 @@
-//bloom-maps\app\Library\components\CardDisplay\CueCardDisplay.tsx
+// bloom-maps/app/Library/components/CardDisplay/CueCardDisplay.tsx
+
 import React, { useState, useCallback, useEffect, memo } from 'react';
 import CueCard from '@/app/Library/components/CueCard';
 import PictureCard from '@/app/Library/components/PictureCard';
 import PracticeSheetCard from '@/app/Library/components/PracticeSheetCard';
 import MatchingQuizModal from '@/app/Library/components/MatchingQuizModal';
+import ImageCard from '@/app/Library/components/CardDisplay/p1/ImageCard'; // Import the new ImageCard component
 import { CueCard as CueCardInterface } from '@/app/Library/Definitions/Definitions';
 import { useResourceContext } from '../../Context/ResourceContext'; 
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
@@ -12,7 +14,6 @@ import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { parseQuizContent, scrambleArray } from '@/app/Library/utils/QuizUtils';
 import ModalOverlayManager from '@/app/Library/components/CardDisplay/ModalOverlayManager';
-
 
 const defaultCueCards: CueCardInterface[] = [
   {
@@ -25,7 +26,6 @@ const defaultCueCards: CueCardInterface[] = [
 
 interface CueCardDisplayProps {
   centerPaneRef: React.RefObject<HTMLDivElement>;
-
 }
 
 const CueCardDisplay: React.FC<CueCardDisplayProps> = memo(({ centerPaneRef }) => {
@@ -193,22 +193,12 @@ const CueCardDisplay: React.FC<CueCardDisplayProps> = memo(({ centerPaneRef }) =
           image={picture.image}
           onOpenFullSize={() =>
             handleOpenPictureModal(picture.id, (
-              <div>
-                <h2 className="text-xl font-bold mb-2">{picture.title}</h2>
-                {picture.image && (
-                  <img
-                    src={URL.createObjectURL(picture.image)}
-                    alt={picture.title}
-                    className="max-w-full h-auto mb-4"
-                  />
-                )}
-                <button
-                  onClick={() => handleClosePictureModal(picture.id)}
-                  className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  Close
-                </button>
-              </div>
+              <ImageCard
+                title={picture.title}
+                description={picture.content} // Assuming description is part of picture object
+                image={picture.image}
+                onDismiss={() => handleClosePictureModal(picture.id)}
+              />
             ))
           }
           onDismiss={() => handleDismissResource(picture.id, picture.nodeId)}

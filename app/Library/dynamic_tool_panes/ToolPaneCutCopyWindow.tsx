@@ -15,9 +15,10 @@ import './ToolPane.css';
 interface ToolPaneCutCopyWindowProps {
   sourceNodeId: string;
   command: 'cut' | 'copy';
+  onClose: () => void; // New prop for closing the pane
 }
 
-const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNodeId, command }) => {
+const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNodeId, command, onClose }) => {
   const { nodes } = useNodesContext();
   const { selectResources, transferResource, removeResource } = useResourceContext();
   const { targetNodeId } = useNodeSelection();
@@ -37,7 +38,7 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
   };
 
   const sourceResources = sourceNodeId ? getResources(sourceNodeId) : [];
-  const targetResources = targetNodeId ? getResources(targetNodeId) : [];
+  // Removed targetResources as per user instruction
 
   /**
    * Handles the selection of a resource.
@@ -75,6 +76,7 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
         transferResource,
       );
       setSelectedResourceIds(updatedSelection);
+      onClose(); // Automatically close the pane after paste
     }
   };
 
@@ -90,11 +92,14 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
     }
   };
 
+  
+
   return (
     <div className="tool-pane-window">
-      {sourceNode ? (
-        <div>
-          <h2 className='multiline'>Source: {sourceNode.title}</h2>
+      {/* Source Section */}
+      <div className="tool-pane-section">
+        <div className="multiline section-header">Source Concept: {sourceNode?.title || 'N/A'}</div>
+        <div className="resource-list">
           {sourceResources.length > 0 ? (
             sourceResources.map((resource) => (
               <CardEntry
@@ -111,38 +116,55 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
             <p>No resources associated with this node.</p>
           )}
         </div>
-      ) : (
-        <p>No source node selected.</p>
-      )}
+      </div>
 
-      {targetNode ? (
-        <div>
-          <h2 className='multiline'>Target: {targetNode.title}</h2>
-          {targetResources.length > 0 ? (
-            targetResources.map((resource) => (
-              <CardEntry
-                key={resource.id}
-                resource={resource}
-                resourceType={resource.resourceType}
-                isSelected={selectedResourceIds.includes(resource.id)}
-                isCut={command === 'cut' && selectedResourceIds.includes(resource.id)}
-                onSelect={() => handleResourceSelect(resource.id)}
-              />
-            ))
+      {/* Divider */}
+      <div className="section-divider"></div>
+
+      {/* Target Section - Retaining Original Section Name */}
+      <div className="tool-pane-section">
+        <div className="multiline section-header">Target Concept: {targetNode?.title || 'N/A'}</div>
+        <div className="resource-list">
+          {targetNodeId && selectedResourceIds.length > 0 ? (
+            selectedResourceIds.map((resourceId) => {
+              const resource = sourceResources.find(res => res.id === resourceId);
+              if (!resource) return null;
+              return (
+                <CardEntry
+                  key={resource.id}
+                  resource={resource}
+                  resourceType={resource.resourceType}
+                  isSelected={true} // Always selected in target
+                  isCut={command === 'cut'}
+                  onSelect={() => handleResourceSelect(resource.id)}
+                />
+              );
+            })
           ) : (
-            <p>No resources associated with this node.</p>
+            <p>No resources selected for pasting.</p>
           )}
         </div>
-      ) : (
-        <p>No target node selected.</p>
-      )}
+      </div>
 
-      <button
-        onClick={handlePasteResources}
-        disabled={!targetNodeId || selectedResourceIds.length === 0}
-      >
-        Paste
-      </button>
+{/* Button Container */}
+<div className="button-container">
+        {/* Cancel Button */}
+        <button
+          className="cancel-button"
+          onClick={onClose}
+        >
+          Cancel
+        </button>
+
+        {/* Paste Button */}
+        <button
+          className="tool-pane-button"
+          onClick={handlePasteResources}
+          disabled={!targetNodeId || selectedResourceIds.length === 0}
+        >
+          Paste
+        </button>
+      </div>
     </div>
   );
 };

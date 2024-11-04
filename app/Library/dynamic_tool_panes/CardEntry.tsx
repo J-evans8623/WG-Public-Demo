@@ -1,7 +1,7 @@
 /* bloom-maps/app/Library/ui/CardEntry.tsx */
 
 import React, { useCallback } from 'react';
-import './CardEntry.css'; // Import the new CSS file
+import './CardEntry.css'; // Ensure this path is correct based on your project structure
 
 interface CardEntryProps {
   resource: {
@@ -9,47 +9,50 @@ interface CardEntryProps {
     title: string;
     // Optionally include other resource-specific fields, e.g., image for pictures, quiz type for practice sheets
   };
-  resourceType: 'cueCard' | 'picture' | 'practiceSheet';
+  resourceType: 'cueCard' | 'picture' | 'practiceSheet' | 'conceptNode'; // Added 'conceptNode'
   isSelected: boolean;
   isCut: boolean;
   onSelect: (resourceId: string) => void;
   command?: 'cut' | 'copy' | 'edit' | 'delete'; // Make command optional
+  onDelete?: (resourceId: string) => void; // Added onDelete for delete actions
 }
 
-const CardEntry: React.FC<CardEntryProps> = ({ resource, resourceType, isSelected, isCut, onSelect, command }) => {
+const CardEntry: React.FC<CardEntryProps> = ({
+  resource,
+  resourceType,
+  isSelected,
+  isCut,
+  onSelect,
+  command,
+  onDelete,
+}) => {
   // Handle resource click (selection)
   const handleResourceClick = useCallback(
     (e: React.MouseEvent) => {
-      e.stopPropagation(); // Prevent event propagation to parent node
-      onSelect(resource.id); // Call the onSelect handler with the resource ID
+      e.stopPropagation(); // Prevent event propagation to parent
+      onSelect(resource.id); // Trigger selection
     },
     [resource.id, onSelect]
   );
 
-  // Handle resource cut action
- /** const handleResourceCut = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation(); // Prevent event propagation to parent node
-      onCut(resource.id); // Call the onCut handler with the resource ID
-    },
-    [resource.id, onCut]
-  ); */
-
   // Determine classes based on state
-  const containerClasses = `card-entry-container ${isSelected ? 'selected' : ''} ${isCut ? 'cut' : ''}`;
+  // Determine classes based on state
+  const containerClasses = `card-entry-container ${
+    isSelected ? (command === 'delete' ? 'selected-delete' : 'selected') : ''
+  } ${isCut ? 'cut' : ''}`;
   const buttonClasses = 'card-entry-button';
 
   // Determine icon based on resource type
   const getResourceIcon = () => {
     switch (resourceType) {
       case 'cueCard':
-        return '📝'; // Example icon
+        return '📝'; // Icon for Cue Card
       case 'picture':
-        return '🖼️'; // Example icon
+        return '🖼️'; // Icon for Picture
       case 'practiceSheet':
-        return '📄'; // Example icon
+        return '📄'; // Icon for Practice Sheet
       default:
-        return '❓'; // Default icon
+        return ''; // Default icon
     }
   };
 
@@ -59,18 +62,32 @@ const CardEntry: React.FC<CardEntryProps> = ({ resource, resourceType, isSelecte
       <span className="card-entry-icon">{getResourceIcon()}</span>
 
       {/* Resource Title */}
-      <span className=" card-entry-title">{resource.title}</span>
+      <span className="card-entry-title">{resource.title}</span>
 
       {/* Action Buttons */}
       <div className="card-entry-actions">
-        {/* Conditionally render the Cut button if command is provided */}
-        {command && (
+        {/* Conditionally render the Delete button if command is 'delete' and onDelete is provided */}
+        {command === 'delete' && onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent triggering selection
+              onDelete(resource.id); // Trigger delete action
+            }}
+            className={`${buttonClasses} delete-action-button`}
+            aria-label={`Delete ${resource.title}`}
+          >
+            Delete
+          </button>
+        )}
+
+        {/* Conditionally render other action buttons based on command */}
+        {command && command !== 'delete' && (
           <button
             onClick={handleResourceClick}
             className={buttonClasses}
-            aria-label={`Cut ${resource.title}`}
+            aria-label={`${command.charAt(0).toUpperCase() + command.slice(1)} ${resource.title}`}
           >
-            {command}
+            {command.charAt(0).toUpperCase() + command.slice(1)}
           </button>
         )}
       </div>
