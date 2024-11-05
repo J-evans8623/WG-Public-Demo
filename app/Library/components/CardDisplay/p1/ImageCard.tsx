@@ -1,8 +1,9 @@
 // bloom-maps/app/Library/components/ImageCard.tsx
 
-import React, { useState, useRef } from 'react';
-import './ImageCard.css'; // Import the corresponding CSS file
-import { FaSearchPlus, FaSearchMinus, FaHandPaper, FaTimes, FaExpand, FaCompress } from 'react-icons/fa'; // Import icons for tools
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import ReactDOM from 'react-dom'; // Import ReactDOM for portals
+import './ImageCard.css';
+import { FaSearchPlus, FaSearchMinus, FaTimes, FaExpand, FaCompress } from 'react-icons/fa';
 
 interface ImageCardProps {
   title: string;
@@ -17,35 +18,35 @@ const ImageCard: React.FC<ImageCardProps> = ({ title, image, description, onDism
   const [isPanning, setIsPanning] = useState<boolean>(false);
   const [startPan, setStartPan] = useState<{ x: number; y: number } | null>(null);
   const [translate, setTranslate] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [isMaximized, setIsMaximized] = useState<boolean>(false); // New state for maximization
+  const [isMaximized, setIsMaximized] = useState<boolean>(false); // State for maximization
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
   // Handler to toggle zoom
-  const handleZoomIn = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation(); // Prevent event bubbling
-    e.preventDefault();  // Prevent default behavior
+  const handleZoomIn = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
     setZoomLevel((prev) => Math.min(prev + 0.5, 3)); // Max zoom level 3x
     setTranslate({ x: 0, y: 0 }); // Reset panning on zoom
-  };
+  }, []);
 
-  const handleZoomOut = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation(); // Prevent event bubbling
-    e.preventDefault();  // Prevent default behavior
+  const handleZoomOut = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
     setZoomLevel((prev) => Math.max(prev - 0.5, 1)); // Min zoom level 1x
     setTranslate({ x: 0, y: 0 }); // Reset panning on zoom
-  };
+  }, []);
 
   // Handlers for panning
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Stop event propagation to prevent dragging of the card
-    e.preventDefault();  // Prevent default behavior
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     if (zoomLevel <= 1) return; // Disable panning if not zoomed
     setIsPanning(true);
     setStartPan({ x: e.clientX - translate.x, y: e.clientY - translate.y });
-  };
+  }, [zoomLevel, translate]);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isPanning || !startPan) return;
     const newX = e.clientX - startPan.x;
     const newY = e.clientY - startPan.y;
@@ -54,44 +55,61 @@ const ImageCard: React.FC<ImageCardProps> = ({ title, image, description, onDism
     const container = imageContainerRef.current;
     if (container) {
       const { width, height } = container.getBoundingClientRect();
-      const maxTranslateX = (zoomLevel - 1) * width / 2;
-      const maxTranslateY = (zoomLevel - 1) * height / 2;
+      const maxTranslateX = ((zoomLevel - 1) * width) / 2;
+      const maxTranslateY = ((zoomLevel - 1) * height) / 2;
 
       setTranslate({
         x: Math.max(-maxTranslateX, Math.min(newX, maxTranslateX)),
         y: Math.max(-maxTranslateY, Math.min(newY, maxTranslateY)),
       });
     }
-  };
+  }, [isPanning, startPan, zoomLevel]);
 
-  const handleMouseUp = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Stop event propagation
-    e.preventDefault();  // Prevent default behavior
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     setIsPanning(false);
     setStartPan(null);
-  };
+  }, []);
 
-  const handleMouseLeave = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Stop event propagation
-    e.preventDefault();  // Prevent default behavior
+  const handleMouseLeave = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     setIsPanning(false);
     setStartPan(null);
-  };
+  }, []);
 
   // Handlers for maximizing and restoring the card
-  const handleMaximize = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation(); // Prevent event bubbling
-    e.preventDefault();  // Prevent default behavior
+  const handleMaximize = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
     setIsMaximized(true);
-  };
+  }, []);
 
-  const handleRestore = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation(); // Prevent event bubbling
-    e.preventDefault();  // Prevent default behavior
+  const handleRestore = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
     setIsMaximized(false);
-  };
+  }, []);
 
-  return (
+  // Handler to close the ImageCard when clicking on the backdrop
+  const handleBackdropClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsMaximized(false);
+  }, []);
+
+  // Prevent scrolling when maximized
+  useEffect(() => {
+    if (isMaximized) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  }, [isMaximized]);
+
+  // Card Content
+  const cardContent = (
     <div className={`image-card ${isMaximized ? 'maximized' : ''}`}>
       {/* Image Section */}
       <div
@@ -110,10 +128,11 @@ const ImageCard: React.FC<ImageCardProps> = ({ title, image, description, onDism
             src={URL.createObjectURL(image)}
             alt={title}
             className="card-image"
-            draggable={false} // Prevent default drag behavior
+            draggable={false}
             style={{
               transform: `scale(${zoomLevel}) translate(${translate.x / zoomLevel}px, ${translate.y / zoomLevel}px)`,
               transition: isPanning ? 'none' : 'transform 0.3s ease',
+              transformOrigin: 'center center',
             }}
           />
         ) : (
@@ -155,10 +174,27 @@ const ImageCard: React.FC<ImageCardProps> = ({ title, image, description, onDism
             <strong>{title}</strong> {description}
           </p>
         ) : (
-          <p className="placeholder-text">No description available. Add content to enhance this card.</p>
+          <p className="placeholder-text">
+            No description available. Add content to enhance this card.
+          </p>
         )}
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {isMaximized
+        ? ReactDOM.createPortal(
+            <>
+              {/* Backdrop when maximized */}
+              <div className="image-card-backdrop" onClick={handleBackdropClick}></div>
+              {cardContent}
+            </>,
+            document.body
+          )
+        : cardContent}
+    </>
   );
 };
 

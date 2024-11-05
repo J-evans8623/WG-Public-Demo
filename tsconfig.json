@@ -38,7 +38,7 @@
     "../Archived/utils/drawTreeLines.tsx",
     "../Archived/utils/blendedhvLayout.tsx",
     "../Archived/utils/Modal.tsx"
-, "../Archived/depreceated/ToolPane.tsx"  ],
+, "../Archived/depreceated/ToolPane.tsx", "../Archived/depreceated/ConceptBank.tsx", "../Archived/DocumentProvider.tsx", "../Archived/documentReducer.ts"  ],
   "exclude": [
     "node_modules"
   ]

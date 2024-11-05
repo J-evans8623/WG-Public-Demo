@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
 import Split from 'react-split';
 import CueCardDisplay from '@/app/Library/components/CardDisplay/CueCardDisplay';
-import ConceptMap from '@/app/Library/components/ConceptMap';
+import ConceptMap from '@/app/Library/components/map/ConceptMap';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
 import { CueCardProvider, useCueCardContext } from '@/app/Library/Context/CueCardContext';
 import ModernModal from '@/app/Library/components/Modals/ModernModal';

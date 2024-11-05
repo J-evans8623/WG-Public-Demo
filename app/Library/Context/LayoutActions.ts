@@ -6,9 +6,9 @@ export const setGetLayout = (getLayout: boolean): LayoutAction => ({
   payload: getLayout,
 });
 
-export const setMapSize = (groundWidth: number, mapWidth: number, mapHeight: number): LayoutAction => ({
+export const setMapSize = ( mapWidth: number, mapHeight: number): LayoutAction => ({
   type: LayoutActionType.SET_MAP_SIZE,
-  payload: { groundWidth, mapWidth, mapHeight },
+  payload: { mapWidth, mapHeight },
 });
 
 export const toggleResetMapSize = (): LayoutAction => ({

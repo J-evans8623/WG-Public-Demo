@@ -1,121 +1,166 @@
 // bloom-maps/app/Library/components/CardDisplay/ModalOverlayManager.tsx
 
-import React, { useState, useEffect } from 'react';
-import Draggable, { DraggableProps } from 'react-draggable';
-import { calculateDraggableBounds, calculateInitialPosition } from './draggleBounds'; // Adjust the path as needed
+import React, { useEffect, useState } from 'react';
+import Draggable from 'react-draggable';
+import ReactDOM from 'react-dom';
 
+/**
+ * Props for ModalOverlayManager component.
+ */
 interface ModalOverlayManagerProps {
-  centerPaneRef: React.RefObject<HTMLDivElement>;
   overlayContent: React.ReactNode | null;
   setOverlayContent: (content: React.ReactNode | null) => void;
-  openedPictureModals: { id: string; content: React.ReactNode }[]; // Track opened picture modals
+  openedPictureModals: { id: string; content: React.ReactNode }[];
   handleClosePictureModal: (pictureId: string) => void;
+  centerPaneRef: React.RefObject<HTMLDivElement>; // Reference to the center pane
+  toolPaneVisible: boolean; // Visibility state of the Tool Pane
 }
 
+/**
+ * ModalOverlayManager Component
+ *
+ * Renders draggable modals within the specified bounds.
+ * Adjusts bounds based on the visibility of the Tool Pane.
+ */
 const ModalOverlayManager: React.FC<ModalOverlayManagerProps> = ({
-  centerPaneRef,
   overlayContent,
   setOverlayContent,
   openedPictureModals,
   handleClosePictureModal,
+  centerPaneRef,
+  toolPaneVisible,
 }) => {
-  const [isCenterPaneReady, setIsCenterPaneReady] = useState<boolean>(false);
-  const [bounds, setBounds] = useState<DraggableProps['bounds']>();
-  const [initialPosition, setInitialPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState<boolean>(false);
+  // State to hold draggable bounds
+  const [bounds, setBounds] = useState<{
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  } | null>(null);
 
-  // Define fixed left pane width
-  const LEFT_PANE_WIDTH = 336; // in pixels
+  // State to hold initial position of the modal
+  const [initialPosition, setInitialPosition] = useState<{ x: number; y: number } | null>(null);
 
-  // Define padding to prevent overlap with edges
-  const PADDING = 32; // in pixels
-
-  // Dynamically update bounds based on pane sizes and window size
+  /**
+   * Effect to calculate draggable bounds based on Tool Pane visibility.
+   * Recalculates whenever toolPaneVisible or centerPaneRef changes.
+   */
   useEffect(() => {
-    const updateBounds = () => {
-      if (centerPaneRef && centerPaneRef.current) {
+    const calculateBounds = () => {
+      if (centerPaneRef.current) {
         const centerPaneRect = centerPaneRef.current.getBoundingClientRect();
+        const PADDING = 32; // Padding in pixels
+        const toolpaneWidth = centerPaneRect.width ;
 
-        // Calculate new bounds with padding
-        const newBounds = calculateDraggableBounds(centerPaneRect, LEFT_PANE_WIDTH, 200, 0.5, PADDING);
+        let newBounds;
+
+        if (toolPaneVisible) {
+          /**
+           * When Tool Pane is visible:
+           * Restrict bounds to the center pane's dimensions.
+           */
+          newBounds = {
+            left: centerPaneRect.left + PADDING,
+            top: centerPaneRect.top + PADDING,
+            right:  toolpaneWidth - PADDING,
+            bottom: centerPaneRect.bottom - PADDING,
+          };
+        } else {
+          /**
+           * When Tool Pane is hidden:
+           * Allow bounds to extend to the right edge of the viewport.
+           */
+          newBounds = {
+            left: centerPaneRect.left + PADDING,
+            top: centerPaneRect.top + PADDING,
+            right: window.innerWidth - PADDING,
+            bottom: centerPaneRect.bottom - PADDING,
+          };
+        }
+
         setBounds(newBounds);
 
-        // Calculate new initial position with padding
-        const newInitialPosition = calculateInitialPosition(centerPaneRect, LEFT_PANE_WIDTH, 50, 0.25, PADDING);
+        /**
+         * Calculate initial position to center the modal within the new bounds.
+         * Adjust offsets (-200, -150) based on modal's width and height.
+         */
+        const newInitialPosition = {
+          x: (newBounds.left + newBounds.right) / 2 - 200, // Center horizontally
+          y: (newBounds.top + newBounds.bottom) / 2 - 150, // Center vertically
+        };
         setInitialPosition(newInitialPosition);
-
-        setIsCenterPaneReady(true);
-      } else {
-        setIsCenterPaneReady(false);
       }
     };
 
-    window.addEventListener('resize', updateBounds);
-    updateBounds(); // Initial call
+    // Initial calculation
+    calculateBounds();
 
-    return () => {
-      window.removeEventListener('resize', updateBounds); // Cleanup listener on unmount
-    };
-  }, [centerPaneRef]);
+    // Recalculate bounds on window resize to maintain responsiveness
+    window.addEventListener('resize', calculateBounds);
+    return () => window.removeEventListener('resize', calculateBounds);
+  }, [toolPaneVisible, centerPaneRef]);
 
-  // Disable background scrolling when dragging starts
-  const handleStart = () => {
-    setIsDragging(true);
-    if (centerPaneRef.current) {
-      centerPaneRef.current.style.overflow = 'hidden'; // Disable scroll
-    }
-  };
-
-  // Re-enable scrolling when dragging stops
-  const handleStop = () => {
-    setIsDragging(false);
-    if (centerPaneRef.current) {
-      centerPaneRef.current.style.overflow = 'auto'; // Enable scroll
-    }
-  };
-
-  // Prevent default dragging behavior of images inside the modal
+  /**
+   * Prevents default dragging behavior of images inside the modal.
+   * This ensures that dragging the modal isn't interrupted by image drag events.
+   *
+   * @param e - The drag event on the image.
+   */
   const preventImageDrag = (e: React.DragEvent<HTMLImageElement>) => {
     e.preventDefault();
   };
 
-  return (
-    <>
-      {isCenterPaneReady && overlayContent && bounds && (
-        <Draggable
-          bounds={bounds}
-          defaultPosition={initialPosition}
-          onStart={handleStart}
-          onStop={handleStop}
-        >
-          {/* Modal container with styling */}
-          <div className="fixed z-[9999] pointer-events-auto rounded-lg shadow-lg max-w-[70%] w-auto">
-            <div onDragStart={preventImageDrag}>
-              {overlayContent}
-            </div>
-          </div>
-        </Draggable>
-      )}
+  /**
+   * Renders the modals using React Portal.
+   * Only renders if there is overlay content or open picture modals,
+   * and bounds and initialPosition are set.
+   */
+  const renderModals = () => {
+    if ((!overlayContent && openedPictureModals.length === 0) || !bounds || !initialPosition) {
+      return null;
+    }
 
-      {/* Render multiple picture modals */}
-      {openedPictureModals.map((modal) => (
-        <Draggable
-          key={modal.id}
-          bounds={bounds}
-          defaultPosition={initialPosition}
-          onStart={handleStart}
-          onStop={handleStop}
-        >
-          {/* Modal container with styling */}
-          <div className="fixed z-[9999] pointer-events-auto rounded-lg shadow-lg max-w-[70%] w-auto">
-            <div onDragStart={preventImageDrag}>
-              {modal.content}
+    return ReactDOM.createPortal(
+      <>
+        {/* Overlay Content Modal */}
+        {overlayContent && (
+          <Draggable bounds={bounds} defaultPosition={initialPosition}>
+            <div
+              className="modal-overlay fixed z-[9999] pointer-events-auto rounded-lg shadow-lg max-w-[70%] w-auto bg-white"
+              style={{
+                position: 'fixed',
+                top: 0, // Start at top-left for correct positioning
+                left: 0, // Start at top-left for correct positioning
+                cursor: 'move', // Change cursor to indicate draggable area
+              }}
+            >
+              <div onDragStart={preventImageDrag}>{overlayContent}</div>
             </div>
-          </div>
-        </Draggable>
-      ))}
-    </>
-  );
+          </Draggable>
+        )}
+
+        {/* Picture Modals */}
+        {openedPictureModals.map((modal) => (
+          <Draggable key={modal.id} bounds={bounds} defaultPosition={initialPosition}>
+            <div
+              className="modal-overlay fixed z-[9999] pointer-events-auto rounded-lg shadow-lg max-w-[70%] w-auto bg-white"
+              style={{
+                position: 'fixed',
+                top: 0, // Start at top-left for correct positioning
+                left: 0, // Start at top-left for correct positioning
+                cursor: 'move', // Change cursor to indicate draggable area
+              }}
+            >
+              <div onDragStart={preventImageDrag}>{modal.content}</div>
+            </div>
+          </Draggable>
+        ))}
+      </>,
+      document.body // Render modals at the root of the document
+    );
+  };
+
+  return <>{renderModals()}</>;
 };
 
 export default ModalOverlayManager;

@@ -15,6 +15,7 @@ import { useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider'
 import { saveDocument, loadDocument, initializeNewDocument } from '@/app/Library/utils/documentUtils';
 import { setFileName } from '@/app/Library/Context/fileActions';
 import { ColorTheme, ResourceType } from '@/app/Library/Definitions/Definitions';
+import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 
 
 interface DocumentHeaderProps {
@@ -34,15 +35,20 @@ interface DocumentHeaderProps {
     resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined,
     op: 'resource' | 'node'
   ) => void;
+  closeAllModals: () => void;
+  centerScroll: () => void;
 }
 
 const DocumentHeader: React.FC<DocumentHeaderProps> = ({
   handleOpenToolPane,
   openModalWithResourceType,
+  closeAllModals,
+  centerScroll,
 }) => {
   // Access necessary contexts
   const { fileName, dispatch: fileDispatch } = useFileContext();
   const { nodes, dispatch: nodesDispatch } = useNodesContext();
+  const {clearSelection} = useNodeSelection();
   const { colorTheme, primaryColor, backgroundColor, dispatch: colorThemeDispatch } = useColorThemeContext();
   const { resources, addResource, getResourcesByType , setResourcesByMap} = useResourceContext();
   const { subtrees, setSubtrees, resetSubtrees } = useSubTreeContext();
@@ -59,6 +65,8 @@ const DocumentHeader: React.FC<DocumentHeaderProps> = ({
    * Initializes the document state using existing utility functions.
    */
   const handleCreateNewDocument = useCallback(() => {
+    clearSelection();
+    closeAllModals();
     initializeNewDocument(
       nodesDispatch,
       layoutDispatch,
@@ -68,9 +76,9 @@ const DocumentHeader: React.FC<DocumentHeaderProps> = ({
       resetSubtrees,
       resetResources,
       6, // bloomDepth
-      window.innerWidth,
       false // isInitialLoad
     );
+    centerScroll();
     layoutDispatch(toggleResetMapSize());
   }, [
     nodesDispatch,
@@ -131,6 +139,8 @@ const DocumentHeader: React.FC<DocumentHeaderProps> = ({
   const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      closeAllModals();
+      clearSelection();
       await loadDocument(
         file,
         nodesDispatch,
@@ -143,6 +153,7 @@ const DocumentHeader: React.FC<DocumentHeaderProps> = ({
         resetResources 
       );
       layoutDispatch(setGetLayout(true)); // Trigger layout recalculation if necessary
+      centerScroll();
     }
   }, [
     nodesDispatch,

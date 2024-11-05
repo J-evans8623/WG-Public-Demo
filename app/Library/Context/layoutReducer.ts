@@ -6,7 +6,6 @@ export interface LayoutState {
   getLayout: boolean;
   defaultMapWidth: number;
   defaultMapHeight: number;
-  groundWidth: number;
   resetMapSize: boolean;
 }
 
@@ -14,7 +13,6 @@ export const initialLayoutState: LayoutState = {
   getLayout: false,
   defaultMapWidth: 1800,
   defaultMapHeight: 1800,
-  groundWidth: 0,
   resetMapSize: false,
 };
 
@@ -28,7 +26,6 @@ export const layoutReducer = (state: LayoutState, action: LayoutAction): LayoutS
 
     case LayoutActionType.SET_MAP_SIZE:
       if (
-        state.groundWidth === action.payload.groundWidth &&
         state.defaultMapWidth === action.payload.mapWidth &&
         state.defaultMapHeight === action.payload.mapHeight
       ) {
@@ -36,7 +33,6 @@ export const layoutReducer = (state: LayoutState, action: LayoutAction): LayoutS
       }
       return {
         ...state,
-        groundWidth: action.payload.groundWidth,
         defaultMapWidth: action.payload.mapWidth,
         defaultMapHeight: action.payload.mapHeight,
       };

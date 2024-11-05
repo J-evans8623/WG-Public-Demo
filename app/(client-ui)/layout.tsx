@@ -1,9 +1,10 @@
-// bloom-maps\app\(client-ui)\layout.tsx
+// bloom-maps/app/(client-ui)/layout.tsx
+
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
-import CueCardDisplay from '@/app/Library/components/CardDisplay/CueCardDisplay';
-import ConceptMap from '@/app/Library/components/ConceptMap';
+import CueCardDisplay, { CueCardDisplayRef } from '@/app/Library/components/CardDisplay/CueCardDisplay';
+import ConceptMap from '@/app/Library/components/map/ConceptMap';
 import { NodeSelectionProvider, useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import ModernModal from '@/app/Library/components/Modals/ModernModal';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
@@ -12,11 +13,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { saveResource } from '@/app/Library/utils/ResourceSave/saveResource';
-import { ResourceType} from '@/app/Library/Definitions/Definitions';
+import { ResourceType } from '@/app/Library/Definitions/Definitions';
 import DocumentHeader from '@/app/Library/components/DocumentFile/DocumentHeader';
 import './ClientLayout.css';
 import './ToolBar.css';
-import './panelSize.css'
+import './panelSize.css';
 
 // Import new context providers and hooks
 import { NodesProvider, useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -28,17 +29,25 @@ import { ResourceProvider, useResourceContext } from '@/app/Library/Context/Reso
 
 // Import action creators
 import { createNewNode, updateNodeTitle } from '@/app/Library/Context/nodesActions';
-import { setGetLayout} from '@/app/Library/Context/LayoutActions';
+import { setGetLayout } from '@/app/Library/Context/LayoutActions';
 
-import {  initializeNewDocument } from '@/app/Library/utils/documentUtils'; 
+import { initializeNewDocument } from '@/app/Library/utils/documentUtils'; 
 
 // Dynamic Tool Panes
 import ToolPane from '@/app/Library/dynamic_tool_panes/ToolPane';
 
+/**
+ * ClientLayoutContent Component
+ *
+ * Main layout component handling the overall structure,
+ * including CueCardDisplay, ConceptMap, and ToolPane.
+ */
 const ClientLayoutContent = memo(function ClientLayoutContent() {
   const centerPaneRef = useRef<HTMLDivElement>(null);
+  const toolPaneRef = useRef<HTMLDivElement>(null); // Reference to the Tool Pane
+  const cueCardDisplayRef = useRef<CueCardDisplayRef>(null); // Ref for CueCardDisplay
+
   const [windowWidth, setWindowWidth] = useState<number>(0);
-  const [windowHeight, setWindowHeight] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
   // Use new context hooks
@@ -50,54 +59,88 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   const { resetSubtrees } = useSubTreeContext();
 
 
-   // Use new centralized ResourceContext hook
-  const {  addResource, resetResources } = useResourceContext();
+  // Use new centralized ResourceContext hook
+  const { addResource, resetResources } = useResourceContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalResourceType, setModalResourceType] = useState<'cueCard' | 'picture' | 'practiceSheet' | undefined>(undefined);
   const [modalNodeId, setModalNodeId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'addChild' | 'addResource'>('addResource');
   const [activeOperation, setActiveOperation] = useState<'cut'| 'copy' | 'delete' | 'merge' |'edit'| null>(null); // Track the active tool pane
-  const [toolPaneVisible, setToolPaneVisible] = useState(false);
+  const [toolPaneVisible, setToolPaneVisible] = useState(false); // State to manage Tool Pane visibility
   const [sourceNodeId, setSourceNodeId] = useState<string | ''>('');
- const { toggleNodeSelection, setTargetNodeId,  clearSelection, selectNode } = useNodeSelection();
+  const { toggleNodeSelection, setTargetNodeId, clearSelection, selectNode } = useNodeSelection();
 
- const openModalWithResourceType = (nodeId: string| null, resourceType: 'cueCard' | 'picture' | 'practiceSheet'|undefined, op : 'resource'| 'node') => {
-  setModalNodeId(nodeId); // Set the node ID for the resource
-  if ( op === 'node'){
-    setModalMode('addChild')
-  } else {
-    setModalMode('addResource');
-  }
-   // Specify the mode to indicate it's an "add" operation
-  setModalResourceType(resourceType); // Define which resource type is being added
-  setIsModalOpen(true); // Finally, open the modal
-};
-
-const handleOpenToolPane = useCallback(
-  (operation: 'cut'| 'copy' | 'delete' | 'merge' | 'edit' | null, sourceNode: string) => {
-    setSourceNodeId(sourceNode);
-    setActiveOperation(operation);
-    setToolPaneVisible(true);
-    clearSelection(); // Clear previous selections
-    selectNode(sourceNode); // Select the source node
-  },
-  [clearSelection, selectNode]
-);
-
-  const handleCloseToolPane = () => {
-    setToolPaneVisible(false);
-    setSourceNodeId(''); // empty string
-    setActiveOperation(null);
-    setTargetNodeId(''); // Reset targetNodeId
-    clearSelection();
+  /**
+   * Opens the modal with the specified resource type and operation mode.
+   *
+   * @param nodeId - The ID of the node to associate with the resource.
+   * @param resourceType - The type of resource to add.
+   * @param op - The operation mode ('resource' or 'node').
+   */
+  const openModalWithResourceType = (nodeId: string | null, resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined, op: 'resource' | 'node') => {
+    setModalNodeId(nodeId); // Set the node ID for the resource
+    if (op === 'node') {
+      setModalMode('addChild');
+    } else {
+      setModalMode('addResource');
+    }
+    // Specify the mode to indicate it's an "add" operation
+    setModalResourceType(resourceType); // Define which resource type is being added
+    setIsModalOpen(true); // Finally, open the modal
   };
-  
 
-  // Update window dimensions on resize
+  /**
+   * Handles opening the Tool Pane with the specified operation and source node.
+   *
+   * @param operation - The operation to perform ('cut', 'copy', etc.).
+   * @param sourceNode - The ID of the source node.
+   */
+  const handleOpenToolPane = useCallback(
+    (operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null, sourceNode: string) => {
+      handleCloseAllModals();
+      setSourceNodeId(sourceNode);
+      setActiveOperation(operation);
+      setToolPaneVisible(true); // Show the Tool Pane
+      clearSelection(); // Clear previous selections
+      selectNode(sourceNode); // Select the source node
+    },
+    [clearSelection, selectNode]
+  );
+  /**
+   *  Close overlay manager in cue card display
+   */
+  const handleCloseAllModals = useCallback(() => {
+    if (cueCardDisplayRef.current) {
+      cueCardDisplayRef.current.closeAllModals();
+    }
+  }, [cueCardDisplayRef]);
+
+  /**
+   * Handles closing the Tool Pane and resetting related states.
+   */
+  const handleCloseToolPane = () => {
+    setToolPaneVisible(false); // Hide the Tool Pane
+    setSourceNodeId(''); // Reset source node ID
+    setActiveOperation(null); // Reset active operation
+    setTargetNodeId(''); // Reset target node ID
+    clearSelection(); // Clear any selections
+  };
+
+    // Define the centerScroll function using useCallback for stability
+    const centerScroll = useCallback(() => {
+      if (centerPaneRef.current) {
+        const centerPane = centerPaneRef.current;
+        centerPane.scrollLeft = (centerPane.scrollWidth - centerPane.clientWidth) / 2;
+        centerPane.scrollTop = (centerPane.scrollHeight - centerPane.clientHeight) / 2 - 200;
+      }
+    }, []);
+  
+  /**
+   * Updates window dimensions on resize to maintain responsive layout.
+   */
   useEffect(() => {
     const updateWindowSize = () => {
       setWindowWidth(window.innerWidth);
-      setWindowHeight(window.innerHeight);
     };
 
     updateWindowSize();
@@ -106,7 +149,9 @@ const handleOpenToolPane = useCallback(
     return () => window.removeEventListener('resize', updateWindowSize);
   }, []);
 
-
+  /**
+   * Initializes a new document on first render.
+   */
   useEffect(() => {
     if (!isInitialized) {
       initializeNewDocument(
@@ -118,10 +163,11 @@ const handleOpenToolPane = useCallback(
         resetSubtrees,
         resetResources,       
         6,
-        windowWidth,
         false
       );
       setIsInitialized(true);
+      centerScroll();
+      
     }
   }, [
     isInitialized,
@@ -133,8 +179,12 @@ const handleOpenToolPane = useCallback(
     resetResources,
     resetTreeDimensions,
     resetSubtrees,
+    cueCardDisplayRef
   ]);
 
+  /**
+   * Determines the initial node title based on modal mode and node ID.
+   */
   const initialNodeTitle =
     modalMode === 'addChild'
       ? 'New Concept'
@@ -142,6 +192,19 @@ const handleOpenToolPane = useCallback(
       ? nodes.get(modalNodeId)?.title || ''
       : '';
 
+  /**
+   * Handles saving the modal data and adding resources or nodes accordingly.
+   *
+   * @param resourceType - The type of resource to add.
+   * @param nodeTitle - The title of the node.
+   * @param Title - Additional title information (optional).
+   * @param cueCardContent - Content for cue cards (optional).
+   * @param bloomLevel - Bloom's taxonomy level (optional).
+   * @param image - Image file for picture cards (optional).
+   * @param source - Source information (optional).
+   * @param pictureDescription - Description for picture cards (optional).
+   * @param practiceSheetContent - Content for practice sheets (optional).
+   */
   const handleModalSave = useCallback((
     resourceType: ResourceType,
     nodeTitle: string,
@@ -162,7 +225,6 @@ const handleOpenToolPane = useCallback(
         const newNodeId = uuidv4();
         nodesDispatch(createNewNode(nodeTitle || 'New Concept', modalNodeId, newNodeId));
         layoutDispatch(setGetLayout(true));
-        //trackNode(newNodeId);
 
         if (Title || cueCardContent || image || practiceSheetContent) {
           saveResource({
@@ -193,9 +255,12 @@ const handleOpenToolPane = useCallback(
         }
       }
     }
-    setIsModalOpen(false);
+    setIsModalOpen(false); // Close the modal after saving
   }, [modalNodeId, modalMode, nodesDispatch, layoutDispatch, addResource]);
 
+  /**
+   * Tracks if the center pane has been mounted to ensure refs are available.
+   */
   const [isCenterPaneMounted, setIsCenterPaneMounted] = useState<boolean>(false);
   
   useEffect(() => {
@@ -204,8 +269,11 @@ const handleOpenToolPane = useCallback(
     }
   }, [centerPaneRef]);
 
-  
-
+  /**
+   * Handles node click events, managing tool pane interactions.
+   *
+   * @param nodeId - The ID of the clicked node.
+   */
   const handleNodeClick = useCallback(
     (nodeId: string) => {
       if (toolPaneVisible && (activeOperation === 'cut' || activeOperation === 'copy' || activeOperation === 'merge')) {
@@ -220,6 +288,7 @@ const handleOpenToolPane = useCallback(
 
   return (
     <>
+      {/* Modern Modal for Adding Resources or Nodes */}
       <ModernModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -228,19 +297,29 @@ const handleOpenToolPane = useCallback(
         mode={modalMode}
         selectedResourceType={modalResourceType}
       />
+
+      {/* Document Header with Actions */}
       <DocumentHeader
         handleOpenToolPane={handleOpenToolPane}
         openModalWithResourceType={openModalWithResourceType}
+        closeAllModals={handleCloseAllModals}
+        centerScroll={centerScroll}
       />
       
+      {/* Toolbar Padding */}
       <div className="toolbar-padding-bottom"></div>
-      {/* Updated Layout: Three Column Flex Container */}
+
+      {/* Main Layout: Three Column Flex Container */}
       <div className="flex h-[calc(100vh-50px)] gap-4">
         {/* CueCardDisplay: Fixed Width */}
-        <div className="fixed-width-pane flex flex-col space-y-2 bg-[#F9FBFD]  rounded-lg overflow-y-auto">
+        <div className="fixed-width-pane flex flex-col space-y-2 bg-[#F9FBFD] rounded-lg overflow-y-auto">
           {isCenterPaneMounted && (
             <div className="flex flex-col space-y-2 pb-40">
-              <CueCardDisplay centerPaneRef={centerPaneRef} />
+              <CueCardDisplay
+                ref={cueCardDisplayRef} // Attach ref to CueCardDisplay
+                centerPaneRef={centerPaneRef}
+                toolPaneVisible={toolPaneVisible}
+              />
             </div>
           )}
         </div>
@@ -257,20 +336,21 @@ const handleOpenToolPane = useCallback(
           }}
         >
           <ConceptMap
-            groundWidth={windowWidth}
             centerPaneRef={centerPaneRef}
             openModalWithResourceType={openModalWithResourceType}
             onNodeClick={handleNodeClick} 
           />
         </div>
         
-        {/* ToolPane: Conditional Rendering */}
-            <ToolPane
-              activeOperation={activeOperation}
-              visible={toolPaneVisible}
-              onClose={handleCloseToolPane}
-              sourceNodeId={sourceNodeId}
-            />
+        {/* ToolPane: Conditional Rendering with Ref */}
+        <div ref={toolPaneRef}> 
+          <ToolPane
+            activeOperation={activeOperation}
+            visible={toolPaneVisible}
+            onClose={handleCloseToolPane}
+            sourceNodeId={sourceNodeId}
+          />
+        </div>
       </div>
     </>
   );
@@ -278,26 +358,31 @@ const handleOpenToolPane = useCallback(
 
 ClientLayoutContent.displayName = 'ClientLayoutContent';
 
+/**
+ * ClientLayout Component
+ *
+ * Wraps the main layout with necessary providers.
+ */
 export default function ClientLayout() {
   return (
     <DndProvider backend={HTML5Backend}>
       <TreeDimensionsProvider>
         <NodeSelectionProvider>
-            <ResourceProvider> {/* Wrap with centralized ResourceProvider */}
-              <NodesProvider>
-                <ZoomProvider>
-                  <LayoutProvider>
-                    <ColorThemeProvider>
-                      <FileProvider>
-                        <SubTreeProvider>
-                          <ClientLayoutContent />               
-                        </SubTreeProvider>
-                      </FileProvider>
-                    </ColorThemeProvider>
-                  </LayoutProvider>
-                </ZoomProvider>
-              </NodesProvider>
-            </ResourceProvider>
+          <ResourceProvider> {/* Wrap with centralized ResourceProvider */}
+            <NodesProvider>
+              <ZoomProvider>
+                <LayoutProvider>
+                  <ColorThemeProvider>
+                    <FileProvider>
+                      <SubTreeProvider>
+                        <ClientLayoutContent />               
+                      </SubTreeProvider>
+                    </FileProvider>
+                  </ColorThemeProvider>
+                </LayoutProvider>
+              </ZoomProvider>
+            </NodesProvider>
+          </ResourceProvider>
         </NodeSelectionProvider>
       </TreeDimensionsProvider>
     </DndProvider>

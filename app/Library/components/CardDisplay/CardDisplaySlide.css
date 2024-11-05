@@ -23,13 +23,13 @@
   
   /* Specific styles for PictureCard */
   .card-picture {
-    background-color: #D8EAF2; /* Custom background color */
+    background-color: #EAF4FA; /* Custom background color */
     min-width: 150px; /* Minimum width as per PracticeSheetCard */
   }
   
   /* Specific styles for PracticeSheetCard */
   .card-practice {
-    background-color: #e2e8f0; /* Equivalent to Tailwind's bg-gray-200 */
+    background-color: #EAF4FA; /* Equivalent to Tailwind's bg-gray-200 */
     min-width: 150px; /* Ensures a consistent minimum width */
   }
   

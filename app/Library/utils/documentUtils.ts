@@ -170,13 +170,32 @@ export const loadDocument = async (
   }
 
   // Load cuecards.json
-  const cueCardsFile = content.file('document/cuecards.json');
-  if (cueCardsFile) {
-    const cueCardsJson = await cueCardsFile.async('string');
-    const parsedCueCards = JSON.parse(cueCardsJson) as [string, CueCardResource[]][];
-    const cueCardsMap = new Map<string, CueCardResource[]>(parsedCueCards);
-    setResourcesByMap(cueCardsMap);
-  }
+ // Load cuecards.json
+ const cueCardsFile = content.file('document/cuecards.json');
+ if (cueCardsFile) {
+   const cueCardsJson = await cueCardsFile.async('string');
+   let parsedCueCards: [string, any[]][] = JSON.parse(cueCardsJson);
+   
+   // Detect if old format (without 'type' field)
+   if (parsedCueCards.length > 0 && parsedCueCards[0][1].length > 0 && !('type' in parsedCueCards[0][1][0])) {
+     // Transform old CueCard to new ResourceCard format
+     parsedCueCards = parsedCueCards.map(([nodeId, cueCards]) => [
+       nodeId,
+       cueCards.map((card: any) => ({
+         type: 'cueCard',
+         nodeId: nodeId,
+         id: card.id,
+         title: card.title,
+         content: card.content,
+         bloomLevel: card.bloomLevel,
+         source: card.source || '',
+       })),
+     ]);
+   }
+
+   const cueCardsMap = new Map<string, CueCardResource[]>(parsedCueCards as [string, CueCardResource[]][]);
+   setResourcesByMap(cueCardsMap);
+ }
 
   // Load subtrees.json
   const subtreesFile = content.file('document/subtrees.json');
@@ -252,7 +271,6 @@ export const initializeNewDocument = (
   resetSubtrees: () => void,
   resetResources: () => void,
   bloomDepth: 1 | 2 | 3 | 4 | 5 | 6 = 6,
-  groundWidth: number,
   isInitialLoad: boolean,
   mapWidth: number = 1800,
   mapHeight: number = 1800
@@ -264,7 +282,7 @@ export const initializeNewDocument = (
     resetResources();
   }
 
-  layoutDispatch({ type: 'SET_MAP_SIZE', payload: { groundWidth, mapWidth, mapHeight } });
+  layoutDispatch({ type: 'SET_MAP_SIZE', payload: { mapWidth, mapHeight } });
   nodesDispatch({ type: 'INIT_NEW_DOCUMENT', payload: { bloomDepth, mapWidth, mapHeight } });
   fileDispatch({ type: 'SET_FILE_NAME', payload: 'Untitled Document' });
 };

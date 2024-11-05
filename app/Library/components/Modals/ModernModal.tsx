@@ -95,7 +95,8 @@ const ModernModal: React.FC<ModernModalProps> = ({
 
     if (mode) {
       if (activeTabKey === 'cueCard') {
-        if (isCueCardTitleEmpty && isCueCardContentEmpty) {
+        if ((isCueCardTitleEmpty && !isCueCardContentEmpty) || (!isCueCardTitleEmpty && isCueCardContentEmpty)) {
+
           alert('Please fill in both the Cue Card Title and Content, or leave both empty.');
           return;
         }

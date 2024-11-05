@@ -1,0 +1,224 @@
+/* MatchingQuizDesignProposal1.css */
+
+/* Backdrop */
+.quiz-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6); /* Slightly darker for better focus */
+  z-index: 999;
+}
+
+/* Container to center the modal */
+.quiz-modal-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  width: 80%;
+  max-width: 800px; /* Increased max-width for better content accommodation */
+  height: 80%;
+  max-height: 800px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Enhanced shadow for depth */
+}
+
+/* Modal Styling */
+.quiz-modal {
+  background-color: #ffffff;
+  padding: 24px 32px;
+  border-radius: 10px;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 24px; /* Increased gap for better separation */
+}
+
+/* Quiz Title */
+.quiz-title {
+  font-size: 2rem; /* Increased font size for prominence */
+  font-weight: 700; /* Bold for emphasis */
+  margin-bottom: 16px;
+  text-align: center;
+  color: #222222; /* Slightly darker for better readability */
+}
+
+/* Layout for the quiz content */
+.quiz-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px; /* Sufficient spacing between columns */
+  align-items: start;
+  flex-grow: 1; /* Allow the content to expand */
+}
+
+/* Questions and answers sections */
+.question-section,
+.answer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Increased gap for better separation */
+}
+
+/* Ensure equal weight for question and answer sections */
+.question-section {
+  flex: 1;
+}
+
+.answer-section {
+  flex: 1;
+}
+
+/* Question Item */
+.question-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  padding-right: 100px; /* Space for the dropdown */
+  min-height: 60px; /* Ensure minimum height for consistency */
+}
+
+/* Question Text */
+.question-text {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #333333;
+  word-wrap: break-word;
+  margin-bottom: 8px;
+}
+
+/* Answer Dropdown */
+.answer-dropdown {
+  border: 1px solid #cccccc;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 1rem;
+  width: 100px;
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: #f9f9f9;
+  appearance: none; /* Remove default arrow */
+  background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><polygon points="0,0 10,0 5,6" fill="%23333333"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 10px 6px;
+}
+
+/* Adjust dropdown for long content */
+.answer-dropdown option {
+  white-space: nowrap;
+}
+
+/* Answer Items */
+.answer-item {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #333333;
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  background-color: #f1f1f1;
+  border-radius: 6px;
+  word-wrap: break-word;
+}
+
+/* Buttons */
+.button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px; /* Increased gap for better separation */
+  margin-top: auto; /* Push buttons to the bottom */
+}
+
+.quiz-modal button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+/* Close Button */
+button.close-btn {
+  background-color: #e0e0e0;
+  color: #333333;
+}
+
+button.close-btn:hover {
+  background-color: #d5d5d5;
+}
+
+button.close-btn:active {
+  transform: scale(0.98);
+}
+
+/* Submit Button */
+button.submit-btn {
+  background-color: #007bff;
+  color: #ffffff;
+}
+
+button.submit-btn:hover {
+  background-color: #0069d9;
+}
+
+button.submit-btn:active {
+  transform: scale(0.98);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .quiz-modal-container {
+    width: 90%;
+    height: 90%;
+  }
+
+  .quiz-content {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .question-item {
+    padding-right: 0;
+  }
+
+  .answer-dropdown {
+    position: static;
+    width: 100%;
+    margin-top: 8px;
+    background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><polygon points="0,0 10,0 5,6" fill="%23333333"/></svg>');
+  }
+}
+
+@media (max-height: 700px) {
+  .quiz-modal-container {
+    height: 85%;
+  }
+}
+
+/* Scrollbar Styling for Modal Content */
+.quiz-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.quiz-modal::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.quiz-modal::-webkit-scrollbar-thumb {
+  background: #cccccc;
+  border-radius: 4px;
+}
+
+.quiz-modal::-webkit-scrollbar-thumb:hover {
+  background: #b3b3b3;
+}

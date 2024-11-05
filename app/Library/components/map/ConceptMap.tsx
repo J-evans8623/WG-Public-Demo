@@ -2,8 +2,8 @@ import React, { memo, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 //import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
 import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
-import ConceptNode from '@/app/Library/components/ConceptNode';
-import Subtree from '@/app/Library/components/Subtree';
+import ConceptNode from '@/app/Library/components/map/ConceptNode';
+import Subtree from './Subtree';
 import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
 import { useAutoMapResize } from '@/app/Library/hooks/useAutoMapResize';
 //import { useTreePositioning } from '@/app/Library/hooks/useTreePositioning';
@@ -14,14 +14,12 @@ import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 
 interface ConceptMapProps {
-  groundWidth: number;
   centerPaneRef: React.RefObject<HTMLDivElement>;
   openModalWithResourceType: (nodeId: string | null, resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined, op: 'resource' | 'node') => void;
   onNodeClick: (nodeId: string) => void;
 }
 
 const ConceptMap = ({
-  groundWidth,
   centerPaneRef,
   openModalWithResourceType,
   onNodeClick
@@ -36,29 +34,12 @@ const ConceptMap = ({
 
   useAutoMapResize(mapRef);
 
-  //const { offset } = useTreePositioning(mapRef);
-
-  /**useKeepMapInView({
-    mapRef,
-    centerPaneRef,
-    zoomLevel,
-  }); */
-
   const laidOutNodes = useCompositeLayout(nodes || new Map());
 
   // Ensure that nodes exist and have values
   const rootNode = useMemo(() => {
     return Array.from(nodes.values()).find((node) => node.isRoot);
   }, [nodes]);
-
-
-  useEffect(() => {
-    if (centerPaneRef.current) {
-      const centerPane = centerPaneRef.current;
-      centerPane.scrollLeft = (centerPane.scrollWidth - centerPane.clientWidth) / 2;
-      centerPane.scrollTop = (centerPane.scrollHeight - centerPane.clientHeight) / 2 - 200;
-    }
-  }, [centerPaneRef]);
 
 
   return (

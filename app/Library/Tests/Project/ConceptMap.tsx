@@ -6,7 +6,7 @@ import { useLayoutContext } from '../../Context/LayoutProvider';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
 import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
-import ConceptNode from '@/app/Library/components/ConceptNode';
+import ConceptNode from '@/app/Library/components/map/ConceptNode';
 import Subtree from '@/app/Library/components/Subtree';
 import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
 import { useAutoMapResize } from '@/app/Library/hooks/useAutoMapResize';

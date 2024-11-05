@@ -7,7 +7,7 @@ import { ConceptNode as ConceptNodeType } from '@/app/Library/Definitions/Defini
 import { drawIndentedStyleLines } from '@/app/Library/utils/drawIndentedStyleLines';
 import { useDrag, useDrop } from 'react-dnd';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
-import DashedRing from '@/app/Library/components/DashedRing';
+import DashedRing from '@/app/Library/components/map/DashedRing';
 
 interface SubtreeProps {
   rootNodeId: string;

@@ -8,7 +8,6 @@ interface LayoutContextValue {
   getLayout: boolean;
   defaultMapWidth: number;
   defaultMapHeight: number;
-  groundWidth: number;
   resetMapSize: boolean;
   dispatch: React.Dispatch<LayoutAction>;
 }
