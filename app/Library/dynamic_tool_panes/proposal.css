@@ -1,0 +1,56 @@
+/* Scheme 1: Soft Gray Elegance */
+
+/* Container for the inline title and edit icon */
+.proposal-scheme1-title-container {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  
+  /* Title Text */
+  .node-title-text {
+    flex: 1; /* Allow the title to take up available space */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: bold;
+  }
+  
+  /* Editable Input Field */
+  .proposal-scheme1-title-input {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    border: 1px solid #dcdcdc; /* Light gray border */
+    border-radius: 4px;
+    background-color: #f9f9f9; /* Light background */
+    color: #333333; /* Dark text for readability */
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  /* Focus State for Input Field */
+  .proposal-scheme1-title-input:focus {
+    border-color: #a0a0a0; /* Slightly darker gray */
+    box-shadow: 0 0 5px rgba(160, 160, 160, 0.5); /* Gentle shadow */
+  }
+  
+  /* Edit Icon */
+  .proposal-scheme1-edit-icon {
+    margin-left: 8px;
+    color: #666666; /* Medium gray */
+    cursor: pointer;
+    transition: color 0.2s ease;
+    flex-shrink: 0; /* Prevent the icon from shrinking */
+  }
+  
+  /* Hover State for Edit Icon */
+  .proposal-scheme1-edit-icon:hover {
+    color: #333333; /* Darker gray on hover */
+  }
+  
