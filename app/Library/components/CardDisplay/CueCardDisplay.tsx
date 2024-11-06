@@ -283,7 +283,7 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
             handleOpenPictureModal(picture.id, (
               <ImageCard
                 title={picture.title}
-                description={picture.content} // Assuming description is part of picture object
+                description={picture.description} // Assuming description is part of picture object
                 image={picture.image}
                 onDismiss={() => handleClosePictureModal(picture.id)}
               />

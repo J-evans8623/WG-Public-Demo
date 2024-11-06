@@ -167,18 +167,20 @@ const ImageCard: React.FC<ImageCardProps> = ({ title, image, description, onDism
         </div>
       </div>
 
-      {/* Text Section */}
-      <div className="text-section">
-        {description ? (
-          <p>
-            <strong>{title}</strong> {description}
-          </p>
-        ) : (
-          <p className="placeholder-text">
-            No description available. Add content to enhance this card.
-          </p>
-        )}
-      </div>
+{/* Text Section */}
+<div className="text-section">
+  {description ? (
+    <>
+      <h3 className="description-title">{title}</h3>
+      <p className="description-text">{description}</p>
+    </>
+  ) : (
+    <p className="placeholder-text">
+      No description available. Add content to enhance this card.
+    </p>
+  )}
+</div>
+
     </div>
   );
 

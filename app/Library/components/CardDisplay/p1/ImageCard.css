@@ -106,12 +106,26 @@
   background: rgba(255, 0, 0, 1);
 }
 
-/* Text Section */
+/* Hierarchical Typography Styles */
+.description-title {
+  font-size: 18px; /* Larger font size for the title */
+  font-weight: 700; /* Bold weight for emphasis */
+  color: #2c3e50; /* Darker color for contrast */
+  margin-bottom: 8px; /* Space below the title */
+}
+
+.description-text {
+  font-size: 14px; /* Standard font size for description */
+  color: #34495e; /* Slightly lighter color for readability */
+  line-height: 1.6; /* Increased line height for better spacing */
+}
+
+/* Existing Styles */
 .text-section {
   padding: 16px;
   height: 40%;
   display: flex;
-  align-items: center;
+  flex-direction: column; /* Stack elements vertically */
   justify-content: center;
 }
 
@@ -126,6 +140,7 @@
   color: #aaaaaa;
   font-style: italic;
 }
+
 
 /* Responsive Adjustments */
 @media (max-width: 400px) {

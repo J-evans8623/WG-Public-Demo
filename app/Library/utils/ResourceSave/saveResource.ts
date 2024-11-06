@@ -10,6 +10,7 @@ interface ResourceSaveParams {
   cueCardContent?: string;
   bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   image?: File | null;
+  pictureDescription?: string; // Added field
   practiceSheetContent?: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string };
 }
 
@@ -26,6 +27,7 @@ export function saveResource({
   cueCardContent,
   bloomLevel = 1,
   image = null,
+  pictureDescription = '', // Default value
   practiceSheetContent,
 }: ResourceSaveParams) {
   switch (resourceType) {
@@ -50,6 +52,7 @@ export function saveResource({
           nodeId,
           title: Title,
           image,
+          description: pictureDescription, // Pass the description
         } as PictureResource);
       } else {
         console.error('Title and image are required for Picture');

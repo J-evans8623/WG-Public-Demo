@@ -235,6 +235,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
             cueCardContent,
             bloomLevel,
             image,
+            pictureDescription,
             practiceSheetContent,
           });
         }
@@ -250,6 +251,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
             cueCardContent,
             bloomLevel,
             image,
+            pictureDescription,
             practiceSheetContent,
           });
         }
