@@ -7,8 +7,8 @@ import AddConceptIcon from '@/app/icons-custom/ConceptNodeAdd.svg';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import './ConceptNode.css';
 
-const DEFAULT_PRIMARY_COLOR = '#F7CAAB';
-const DEFAULT_BACKGROUND_COLOR = '#F7EBD1';
+//const DEFAULT_PRIMARY_COLOR = '#F7CAAB';
+//const DEFAULT_BACKGROUND_COLOR = '#F7EBD1';
 
 // Define color constants for different node states
 const GENERAL_SELECTED_COLOR = '#3B82F6'; // Blue
@@ -30,7 +30,7 @@ function ConceptNode({
   openModalWithResourceType, // Use the interface-defined prop
   onNodeClick,
 }: ConceptNodeProps) {
-  const { primaryColor = DEFAULT_PRIMARY_COLOR, backgroundColor = DEFAULT_BACKGROUND_COLOR } = useColorThemeContext();
+  const { primaryColor, backgroundColor} = useColorThemeContext();
   const {
     isSelected,
     targetNodeId,
@@ -141,15 +141,6 @@ function ConceptNode({
       {title}
 </p>
 </div>  
-
-
- {/**<h2
-  className="multiline absolute inset-0 flex items-center justify-center text-2xl font-bold text-gray-800 rounded px-4"
-  title={title}
->
-  {title}
-</h2> */}
-
 
       <button
         onClick={handleAddChildNode}

@@ -150,10 +150,15 @@ const DocumentHeader: React.FC<DocumentHeaderProps> = ({
         colorThemeDispatch,
         resetTreeDimensions,
         resetSubtrees,
-        resetResources 
+        resetResources
       );
       layoutDispatch(setGetLayout(true)); // Trigger layout recalculation if necessary
       centerScroll();
+  
+      // Clear the input value to allow the same file to be loaded again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   }, [
     nodesDispatch,
@@ -164,8 +169,12 @@ const DocumentHeader: React.FC<DocumentHeaderProps> = ({
     layoutDispatch,
     resetTreeDimensions,
     resetSubtrees,
-    resetResources
+    resetResources,
+    closeAllModals,
+    clearSelection,
+    centerScroll
   ]);
+  
 
   /**
    * Handler for help action.
@@ -186,7 +195,7 @@ const DocumentHeader: React.FC<DocumentHeaderProps> = ({
         ref={fileInputRef}
         style={{ display: 'none' }}
         onChange={handleFileChange}
-      />      
+      /> 
       {/* MenuBar handles document title and basic file operations */}
       <MenuBar
         onTitleChange={handleTitleChange}

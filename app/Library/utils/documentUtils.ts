@@ -14,6 +14,7 @@ import {
 } from '@/app/Library/Definitions/Definitions';
 
 import { serializeSubtrees } from '@/app/Library/Context/SubTreeProvider';
+import { resetColorTheme } from '@/app/Library/Context/colorThemeActions';
 
 
 
@@ -262,6 +263,9 @@ export const loadDocument = async (
   // You may need to dispatch an action to set layout state
 };
 
+// inside Document utils...
+
+
 export const initializeNewDocument = (
   nodesDispatch: React.Dispatch<any>,
   layoutDispatch: React.Dispatch<any>,
@@ -280,9 +284,11 @@ export const initializeNewDocument = (
     resetTreeDimensions();
     resetSubtrees();
     resetResources();
+    colorThemeDispatch(resetColorTheme()); // Reset the color theme to default
   }
 
   layoutDispatch({ type: 'SET_MAP_SIZE', payload: { mapWidth, mapHeight } });
   nodesDispatch({ type: 'INIT_NEW_DOCUMENT', payload: { bloomDepth, mapWidth, mapHeight } });
   fileDispatch({ type: 'SET_FILE_NAME', payload: 'Untitled Document' });
 };
+

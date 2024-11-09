@@ -163,6 +163,7 @@ export enum ColorThemeActionType {
   SET_COLOR_THEME = 'SET_COLOR_THEME',
   SET_PRIMARY_COLOR = 'SET_PRIMARY_COLOR',
   SET_BACKGROUND_COLOR = 'SET_BACKGROUND_COLOR',
+   RESET_COLOR_THEME = 'RESET_COLOR_THEME',
 }
 
 export interface ColorThemeAction {

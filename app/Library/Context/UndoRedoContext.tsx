@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { useNodeSelection } from './NodeSelectionContext';
 import { v4 as uuidv4 } from 'uuid';
-import { useCueCardContext } from './CueCardContext';
+import { useCueCardContext } from '../../../../Archived/depreceatedContext/CueCardContext';
 import { usePictureContext } from './PictureContext';
 import { usePracticeSheetContext } from './PracticeSheetContext';
 import { CueCard } from '@/app/Library/Definitions/Definitions';

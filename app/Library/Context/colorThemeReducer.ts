@@ -1,5 +1,9 @@
 // bloom-maps/app/Library/Context/colorThemeReducer.ts
-import { ColorThemeAction, ColorThemeActionType, ColorTheme } from '@/app/Library/Definitions/Definitions';
+import { 
+  ColorThemeAction, 
+  ColorThemeActionType, 
+  ColorTheme 
+} from '@/app/Library/Definitions/Definitions';
 
 export interface ColorThemeState {
   colorTheme: ColorTheme;
@@ -13,8 +17,10 @@ export const initialColorThemeState: ColorThemeState = {
   backgroundColor: '#F7EBD1',
 };
 
-
-export const colorThemeReducer = (state: ColorThemeState, action: ColorThemeAction): ColorThemeState => {
+export const colorThemeReducer = (
+  state: ColorThemeState, 
+  action: ColorThemeAction
+): ColorThemeState => {
   switch (action.type) {
     case ColorThemeActionType.SET_COLOR_THEME:
       if (state.colorTheme === action.payload) {
@@ -33,6 +39,9 @@ export const colorThemeReducer = (state: ColorThemeState, action: ColorThemeActi
         return state;
       }
       return { ...state, backgroundColor: action.payload };
+
+    case ColorThemeActionType.RESET_COLOR_THEME: // Handle reset
+      return { ...initialColorThemeState };
 
     default:
       return state;

@@ -12,16 +12,16 @@ import ConceptMap from '@/app/Library/components/map/ConceptMap';
 import { DocumentProvider, serializeDocument , useDocumentContext, setColorTheme as setNewColorTheme , initializeNewDocument, setPrimaryColor, setBackgroundColor, toggleResetMapSize, updateNodeTitle, createNewNode, setGetLayout, setNodes} from '@/app/Library/Context/DocumentProvider'; // Import the new provider
 import { CueCard, ConceptNode, SerializedDocument} from '@/app/Library/Definitions/Definitions';
 import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
-import { CueCardProvider } from '@/app/Library/Context/CueCardContext';
+import { CueCardProvider } from '@/app/Library/Context/depreceatedContext/CueCardContext';
 import ModernModal from '@/app/Library/Tests/backup/ModernModal';
-import { useCueCardContext, serializeCueCards } from '@/app/Library/Context/CueCardContext';
+import { useCueCardContext, serializeCueCards } from '@/app/Library/Context/depreceatedContext/CueCardContext';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 import { useSubTreeContext, SubTreeProvider, serializeSubtrees, SubtreeData} from '../Library/Context/SubTreeProvider'  
 import { v4 as uuidv4 } from 'uuid';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import ToolPane from '@/app/Library/ui/ToolPane';
+import ToolPane from '@/app/Library/ui/depreceatedui/ToolPane';
 import { PictureProvider } from '@/app/Library/Context/PictureContext'; // Import PictureProvider
 import { PracticeSheetProvider } from '@/app/Library/Context/PracticeSheetContext'; // Import PracticeSheetProvider
 
