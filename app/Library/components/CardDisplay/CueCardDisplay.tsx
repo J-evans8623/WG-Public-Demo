@@ -190,6 +190,7 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
    */
   const handleClosePictureModal = useCallback((pictureId: string) => {
     setOpenedPictureModals((prevModals) => prevModals.filter((modal) => modal.id !== pictureId));
+    handleCloseOverlay();
   }, []);
 
   /**
@@ -233,6 +234,16 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
   useImperativeHandle(ref, () => ({
     closeAllModals,
   }));
+
+  /**
+   * Handler to enter focus mode by setting overlayContent.
+   * This will render only the focused modal and hide others.
+   *
+   * @param content - The React node to set as the overlay content.
+   */
+  const handleOpenOverlay = useCallback((content: React.ReactNode) => {
+    setOverlayContent(content);
+  }, []);
 
   return (
     <div
@@ -286,6 +297,8 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
                 description={picture.description} // Assuming description is part of picture object
                 image={picture.image}
                 onDismiss={() => handleClosePictureModal(picture.id)}
+                onMaximize={(content) => handleOpenOverlay(content)} // New prop for maximizing
+                onMinimize={handleCloseOverlay} // New prop for minimizing
               />
             ))
           }

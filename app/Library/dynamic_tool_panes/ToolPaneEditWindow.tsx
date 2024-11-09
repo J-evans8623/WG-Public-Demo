@@ -145,7 +145,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
           nodeId: sourceNodeId,
           type: 'picture',
           title: cueCardTitle || initialData.title,
-          image,
+          image : image || initialData.uploadedPicture,
           description: pictureDescription,
         } as PictureResource;
       } else if (resourceType === 'practiceSheet') {
@@ -275,7 +275,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
           className="cancel-button"
           onClick={onClose}
         >
-          Cancel
+          Done
         </button>
       </div>
 
@@ -295,6 +295,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
         initialPracticeSheetTitle={resourceType === 'practiceSheet' ? initialData?.initialPracticeSheetTitle : undefined}
         initialPracticeSheetContent={resourceType === 'practiceSheet' ? initialData?.initialPracticeSheetContent : undefined}
         selectedResourceType={resourceType}
+        initialUploadedPicture={resourceType === 'picture' ? initialData?.uploadedPicture : undefined}
       />
     </div>
   );

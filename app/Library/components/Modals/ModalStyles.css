@@ -20,12 +20,19 @@
   .modal-header {
     display: flex;
     align-items: center;
-  }
+    justify-content: space-between; /* Ensure space for buttons or icons */
+    width: 100%; /* Allow it to take the full width */
+}
   
   .modal-header h2 {
     font-size: 1.25rem;
     font-weight: 600;
-  }
+    white-space: nowrap; /* Prevent the text from wrapping to the next line */
+    overflow: hidden; /* Hide any overflow text */
+    text-overflow: ellipsis; /* Display an ellipsis (...) when the text overflows */
+    max-width: 100%; /* Ensure the element respects the parent's width */
+}
+
   
   .modal-footer {
     margin-top: 16px;

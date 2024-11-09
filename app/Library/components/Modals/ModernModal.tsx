@@ -1,4 +1,5 @@
-// bloom-maps\app\Library\Tests\Modals\ModernModal.tsx
+// bloom-maps/app/Library/Tests/Modals/ModernModal.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Tabs, Button, Input, InputRef } from 'antd';
 import CueCardInput from './CueCardInput';
@@ -40,7 +41,8 @@ interface ModernModalProps {
   initialPracticeSheetContent?: {
     quizType: 'matching' | 'multipleChoice' | 'wordProblem';
     quizContent: string;
-};
+  };
+  initialUploadedPicture?: File | null; // New Prop
 }
 
 const ModernModal: React.FC<ModernModalProps> = ({
@@ -57,23 +59,24 @@ const ModernModal: React.FC<ModernModalProps> = ({
   initialPictureTitle,
   initialPictureDescription,
   initialPracticeSheetTitle,
-  initialPracticeSheetContent
+  initialPracticeSheetContent,
+  initialUploadedPicture, // Destructure the new prop
 }) => {
   const [nodeTitle, setNodeTitle] = useState(initialNodeTitle || 'New Concept');
   const [cueCardTitle, setCueCardTitle] = useState(initialCueCardTitle || '');
   const [cueCardContent, setCueCardContent] = useState(initialCueCardContent || '');
   const [bloomLevel, setBloomLevel] = useState(initialBloomLevel || 1);
-  const [pictureTitle, setPictureTitle] = useState('');
-  const [uploadedPicture, setUploadedPicture] = useState<File | null>(null);
-  const [pictureDescription, setPictureDescription] = useState('');
-  const [practiceSheetTitle, setPracticeSheetTitle] = useState('');
-  const [practiceContent, setPracticeContent] = useState<{ quizType: "matching" | "multipleChoice" | "wordProblem", quizContent: string }>({ quizType: 'matching', quizContent: initialPracticeSheetContent?.quizContent||'' });
+  const [pictureTitle, setPictureTitle] = useState(initialPictureTitle || '');
+  const [uploadedPicture, setUploadedPicture] = useState<File | null>(initialUploadedPicture || null); // Initialize with prop
+  const [pictureDescription, setPictureDescription] = useState(initialPictureDescription || '');
+  const [practiceSheetTitle, setPracticeSheetTitle] = useState(initialPracticeSheetTitle || '');
+  const [practiceContent, setPracticeContent] = useState<{ quizType: "matching" | "multipleChoice" | "wordProblem", quizContent: string }>({ quizType: 'matching', quizContent: initialPracticeSheetContent?.quizContent || '' });
   const [activeTabKey, setActiveTabKey] = useState<'cueCard' | 'picture' | 'practiceSheet'>(
     selectedResourceType || 'cueCard'
   );
   const [isEditingTitle, setIsEditingTitle] = useState(mode === 'addChild');
   const [source, setSource] = useState('');
-  
+
   const titleInputRef = useRef<InputRef>(null);
   const cueCardTitleRef = useRef<InputRef>(null);
 
@@ -85,9 +88,8 @@ const ModernModal: React.FC<ModernModalProps> = ({
     setUploadedPicture(null);
     setPictureDescription('');
     setPracticeSheetTitle('');
-    setPracticeContent({ quizType: 'matching', quizContent: ''})
+    setPracticeContent({ quizType: 'matching', quizContent: '' })
   }
-  
 
   const handleSave = () => {
     const isCueCardTitleEmpty = cueCardTitle.trim() === '';
@@ -96,7 +98,6 @@ const ModernModal: React.FC<ModernModalProps> = ({
     if (mode) {
       if (activeTabKey === 'cueCard') {
         if ((isCueCardTitleEmpty && !isCueCardContentEmpty) || (!isCueCardTitleEmpty && isCueCardContentEmpty)) {
-
           alert('Please fill in both the Cue Card Title and Content, or leave both empty.');
           return;
         }
@@ -114,7 +115,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
           }
           break;
         case 'practiceSheet':
-            onSave('practiceSheet', nodeTitle, practiceSheetTitle, '', 1, null, '', '', practiceContent);
+          onSave('practiceSheet', nodeTitle, practiceSheetTitle, '', 1, null, '', '', practiceContent);
           break;
         default:
           break;
@@ -128,7 +129,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
       setNodeTitle(initialNodeTitle || 'New Concept');
       setIsEditingTitle(mode === 'addChild');
       setActiveTabKey(selectedResourceType || 'cueCard');
-  
+
       // Clear all fields on new resource addition
       if (mode === 'addResource') {
         setCueCardTitle('');
@@ -139,7 +140,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
         setPracticeSheetTitle('');
         setPracticeContent({ quizType: 'matching', quizContent: '' });
       }
-  
+
       // Set initial values for editing based on selectedResourceType
       if (selectedResourceType === 'cueCard') {
         setCueCardTitle(initialCueCardTitle || '');
@@ -149,12 +150,13 @@ const ModernModal: React.FC<ModernModalProps> = ({
       } else if (selectedResourceType === 'picture') {
         setPictureTitle(initialPictureTitle || '');
         setPictureDescription(initialPictureDescription || '');
+        setUploadedPicture(initialUploadedPicture || null); // Ensure uploadedPicture is set
       } else if (selectedResourceType === 'practiceSheet' && initialPracticeSheetContent) {
         // Set practice content only if initialPracticeSheetContent is defined
         setPracticeSheetTitle(initialPracticeSheetTitle || '');
         setPracticeContent(initialPracticeSheetContent);
       }
-  
+
       // Focus management
       if (mode === 'addChild') {
         titleInputRef.current?.focus();
@@ -174,10 +176,9 @@ const ModernModal: React.FC<ModernModalProps> = ({
     initialPictureTitle,
     initialPictureDescription,
     initialPracticeSheetTitle,
-    initialPracticeSheetContent, 
+    initialPracticeSheetContent,
+    initialUploadedPicture, // Add to dependency array
   ]);
-  
-
 
   return (
     isOpen && (
@@ -192,7 +193,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
               className="input"
             />
           ) : (
-            <h2 className="w-full text-lg font-semibold p-2">{nodeTitle}</h2>
+            <h2 className="modal-title">{nodeTitle}</h2>
           )}
           {mode === 'addResource' && (
             <button
@@ -228,7 +229,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
                 <PictureInput
                   pictureTitle={pictureTitle}
                   pictureDescription={pictureDescription}
-                  uploadedPicture={uploadedPicture}
+                  uploadedPicture={uploadedPicture} // Pass the state
                   setPictureTitle={setPictureTitle}
                   setPictureDescription={setPictureDescription}
                   handlePictureUpload={setUploadedPicture}
