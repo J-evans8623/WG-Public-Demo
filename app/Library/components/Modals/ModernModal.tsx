@@ -216,10 +216,8 @@ const ModernModal: React.FC<ModernModalProps> = ({
                 <CueCardInput
                   cueCardTitle={cueCardTitle}
                   cueCardContent={cueCardContent}
-                  bloomLevel={bloomLevel}
                   setCueCardTitle={setCueCardTitle}
                   setCueCardContent={setCueCardContent}
-                  setBloomLevel={setBloomLevel}
                   handlePictureUpload={setUploadedPicture}
                 />
               </TabPane>

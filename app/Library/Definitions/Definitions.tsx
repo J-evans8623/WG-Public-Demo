@@ -5,7 +5,6 @@ export interface CueCard {
   content: string;
   createdDate?: Date;
   tags?: string[];
-  bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   source?: string; // New property
 }
   export interface CueCardProps {
@@ -207,7 +206,6 @@ export interface BaseResource {
 export interface CueCardResource extends BaseResource {
   type: 'cueCard';
   content: string;
-  bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   source?: string;
 }
 

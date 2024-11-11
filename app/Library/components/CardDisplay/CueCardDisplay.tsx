@@ -23,7 +23,6 @@ const defaultCueCards: CueCardInterface[] = [
     id: 'default',
     title: 'Add a new concept to get started!',
     content: 'Select a concept from the map',
-    bloomLevel: 1,
   },
 ];
 
@@ -277,7 +276,6 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
           key={cueCard.id}
           title={cueCard.title}
           content={cueCard.content}
-          bloomLevel={cueCard.bloomLevel || 1}
           conceptNodeTitle={cueCard.conceptNodeTitle}
           onDismiss={() => handleDismissResource(cueCard.id, cueCard.nodeId)}
         />
@@ -326,7 +324,6 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
             key={cueCard.id}
             title={cueCard.title}
             content={cueCard.content}
-            bloomLevel={cueCard.bloomLevel || 1}
             conceptNodeTitle="Welcome"
           />
         ))

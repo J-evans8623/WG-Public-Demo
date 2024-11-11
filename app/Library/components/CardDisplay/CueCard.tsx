@@ -8,7 +8,6 @@ import { createPortal } from 'react-dom';
 import '@/app/Library/components/CardDisplay/CardDisplaySlide.css'; // Import the CSS file
 
 interface CueCardPropsWithBloom extends CueCardProps {
-  bloomLevel: 1 | 2 | 3 | 4 | 5 | 6;
   conceptNodeTitle: string;
   onDismiss?: () => void;
   source?: string;
@@ -24,7 +23,7 @@ const bloomLevelNames = {
 };
 
 const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
-  ({ title, content, bloomLevel, conceptNodeTitle, onDismiss, source }) => {
+  ({ title, content, conceptNodeTitle, onDismiss, source }) => {
     const [showTitle, setShowTitle] = useState(true);
     const { colorTheme } = useColorThemeContext();
 
@@ -70,7 +69,7 @@ const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
 
     // Determine the color for the dot
     const themeColors = colorThemes[colorTheme];
-    const bloomColor = themeColors[bloomLevel - 1] || colorThemes['gray'][0];
+    const bloomColor = themeColors[1];
 
     return (
       <>
@@ -99,7 +98,6 @@ const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
             <div
               className="w-3 h-3 rounded-full mr-2"
               style={{ backgroundColor: bloomColor }}
-              title={`Bloom Level: ${bloomLevelNames[bloomLevel]}`}
             ></div>
             <span className="multiline text-sm text-gray-800 font-medium">{conceptNodeTitle}</span>
           </div>
