@@ -213,6 +213,7 @@ export interface CueCardResource extends BaseResource {
  * Interface for Picture resources.
  */
 export interface PictureResource extends BaseResource {
+  imageUrl: string;
   type: 'picture';
   image: File | null;
   description? : string;

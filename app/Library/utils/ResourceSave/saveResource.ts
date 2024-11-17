@@ -25,7 +25,6 @@ export function saveResource({
   addResource,
   Title,
   cueCardContent,
-  bloomLevel = 1,
   image = null,
   pictureDescription = '', // Default value
   practiceSheetContent,
@@ -38,7 +37,6 @@ export function saveResource({
           nodeId,
           title: Title,
           content: cueCardContent,
-          bloomLevel,
         } as CueCardResource);
       } else {
         console.error('Title and content are required for CueCard');

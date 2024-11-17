@@ -3,7 +3,6 @@
 import React from 'react';
 import { Button, Tooltip, Select } from 'antd';
 import { ZoomInOutlined, ZoomOutOutlined } from '@ant-design/icons';
-import SearchIcon from '@/app/icons-custom/search.svg';
 import UndoIcon from '@/app/icons-custom/active/undo.svg';
 import RedoIcon from '@/app/icons-custom/active/redo.svg';
 import DeselectAllIcon from '@/app/icons-custom/clear_all.svg';

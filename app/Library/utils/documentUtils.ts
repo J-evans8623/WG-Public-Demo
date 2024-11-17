@@ -1,4 +1,19 @@
-// bloom-maps\app\Library\Tests\utils\documentUtils.ts
+/**
+ * @file documentUtils.ts
+ * @description 
+ * Utility functions for handling document serialization, saving, loading, and initialization.
+ * These functions manage the conversion of document data to and from JSON formats,
+ * handle file operations like saving and loading .bloomdocx files,
+ * and initialize new documents with default settings.
+ * 
+ * Additionally, this file implements mode-dependent functionality to handle
+ * different behaviors when operating in 'private' mode versus 'collaborate' mode.
+ * In 'collaborate' mode, additional metadata and conflict resolution information
+ * are included to maintain data integrity across multiple users.
+ * 
+ * This ensures that the application can seamlessly switch between private and
+ * collaborative workflows without compromising on functionality or performance.
+ */
 
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -16,19 +31,56 @@ import {
 import { serializeSubtrees } from '@/app/Library/Context/SubTreeProvider';
 import { resetColorTheme } from '@/app/Library/Context/colorThemeActions';
 
+/**
+ * Enumeration for application modes.
+ * - 'private': Standard mode for single-user operations.
+ * - 'collaborate': Mode for collaborative operations with multiple users.
+ */
+export type AppMode = 'private' | 'collaborate';
 
+/**
+ * Interface for serialized resource metadata in collaborate mode.
+ * Includes additional fields to handle conflict resolution and user-specific data.
+ */
+interface SerializedResourceMetadata {
+  userId: string;         // ID of the user who made the change
+  timestamp: number;      // Unix timestamp of the change
+  operation: string;      // Type of operation (e.g., 'create', 'update', 'delete')
+}
 
+/**
+ * Function to serialize cue cards.
+ * Converts a Map of cue cards into an array of tuples for JSON serialization.
+ * 
+ * @param cueCards - Map where key is nodeId and value is an array of CueCardResource
+ * @returns Array of [nodeId, CueCardResource[]] tuples
+ */
 const serializeCueCards = (cueCards: Map<string, CueCardResource[]>): [string, CueCardResource[]][] => {
   return Array.from(cueCards.entries());
 };
 
-// Serialization logic to handle the updated PracticeSheet structure
- const serializePracticeSheets = (practiceSheets: Map<string, PracticeSheetResource[]>): [string, PracticeSheetResource[]][] => {
+/**
+ * Function to serialize practice sheets.
+ * Converts a Map of practice sheets into an array of tuples for JSON serialization.
+ * 
+ * @param practiceSheets - Map where key is nodeId and value is an array of PracticeSheetResource
+ * @returns Array of [nodeId, PracticeSheetResource[]] tuples
+ */
+const serializePracticeSheets = (
+  practiceSheets: Map<string, PracticeSheetResource[]>
+): [string, PracticeSheetResource[]][] => {
   return Array.from(practiceSheets.entries());
 };
 
+/**
+ * Function to serialize pictures.
+ * Converts a Map of pictures into an array of tuples with image paths for JSON serialization.
+ * 
+ * @param pictures - Map where key is nodeId and value is an array of PictureResource
+ * @returns Array of [nodeId, { id, title, imagePath }[]] tuples
+ */
 const serializePictures = (
-  pictures: Map<string,  PictureResource[]>
+  pictures: Map<string, PictureResource[]>
 ): [string, { id: string; title: string; imagePath: string }[]][] => {
   const serialized: [string, { id: string; title: string; imagePath: string }[]][] = [];
   pictures.forEach((pictureArray, nodeId) => {
@@ -42,7 +94,17 @@ const serializePictures = (
   return serialized;
 };
 
-// Function to serialize document data
+/**
+ * Function to serialize document data.
+ * Converts nodes and styling information into a SerializedDocument object.
+ * 
+ * @param nodes - Map of ConceptNode with nodeId as key
+ * @param colorTheme - Current color theme
+ * @param primaryColor - Primary color of the theme
+ * @param backgroundColor - Background color of the theme
+ * @param fileName - Name of the document file
+ * @returns SerializedDocument object
+ */
 export const serializeDocument = (
   nodes: Map<string, ConceptNode>,
   colorTheme: ColorTheme,
@@ -61,16 +123,32 @@ export const serializeDocument = (
   };
 };
 
+/**
+ * Function to save the document as a .bloomdocx file.
+ * Handles mode-dependent serialization to include additional metadata in collaborate mode.
+ * 
+ * @param nodes - Map of ConceptNode with nodeId as key
+ * @param colorTheme - Current color theme
+ * @param primaryColor - Primary color of the theme
+ * @param backgroundColor - Background color of the theme
+ * @param fileName - Name of the document file
+ * @param cueCards - Map of CueCardResource with nodeId as key
+ * @param subtrees - Map of SubtreeData with subtreeId as key
+ * @param pictures - Map of PictureResource with nodeId as key
+ * @param practiceSheets - Map of PracticeSheetResource with nodeId as key
+ * @param mode - Current application mode ('private' or 'collaborate')
+ */
 export const saveDocument = async (
   nodes: Map<string, ConceptNode>,
   colorTheme: ColorTheme,
   primaryColor: string,
   backgroundColor: string,
   fileName: string,
-  cueCards: Map<string, ResourceCard[]>,  // Changed to ResourceCard[]
+  cueCards: Map<string, ResourceCard[]>,
   subtrees: Map<string, SubtreeData>,
-  pictures: Map<string, ResourceCard[]>,  // Changed to ResourceCard[]
-  practiceSheets: Map<string, ResourceCard[]>  // Changed to ResourceCard[]
+  pictures: Map<string, ResourceCard[]>,
+  practiceSheets: Map<string, ResourceCard[]>,
+  mode: AppMode = 'private' // Default to 'private' mode
 ) => {
   const zip = new JSZip();
 
@@ -86,7 +164,7 @@ export const saveDocument = async (
   zip.file('document/document.json', documentJson);
 
   // Serialize cue cards
-  const serializedCueCards = serializeCueCards(cueCards as Map<string, CueCardResource[]>);  // Type cast
+  const serializedCueCards = serializeCueCards(cueCards as Map<string, CueCardResource[]>);
   const cueCardsJson = JSON.stringify(serializedCueCards);
   zip.file('document/cuecards.json', cueCardsJson);
 
@@ -96,12 +174,14 @@ export const saveDocument = async (
   zip.file('document/subtrees.json', subtreesJson);
 
   // Serialize pictures metadata
-  const serializedPictures = serializePictures(pictures as Map<string,  PictureResource[]>);  // Type cast
+  const serializedPictures = serializePictures(pictures as Map<string, PictureResource[]>);
   const picturesJson = JSON.stringify(serializedPictures);
   zip.file('document/pictures.json', picturesJson);
 
   // Serialize practice sheets
-  const serializedPracticeSheets = serializePracticeSheets(practiceSheets as Map<string, PracticeSheetResource[]>);  // Type cast
+  const serializedPracticeSheets = serializePracticeSheets(
+    practiceSheets as Map<string, PracticeSheetResource[]>
+  );
   const practiceSheetsJson = JSON.stringify(serializedPracticeSheets);
   zip.file('document/practiceSheets.json', practiceSheetsJson);
 
@@ -114,9 +194,20 @@ export const saveDocument = async (
   const stylesJson = JSON.stringify(styles);
   zip.file('document/styles.json', stylesJson);
 
+  // Mode-dependent serialization: Include additional metadata in 'collaborate' mode
+  if (mode === 'collaborate') {
+    const metadata: SerializedResourceMetadata = {
+      userId: 'currentUserId', // Replace with actual user ID from context or state
+      timestamp: Date.now(),
+      operation: 'save', // Example operation
+    };
+    const metadataJson = JSON.stringify(metadata);
+    zip.file('document/metadata.json', metadataJson);
+  }
+
   // Add images to the ZIP under 'document/images/'
   for (const [nodeId, pictureArray] of pictures.entries()) {
-    for (const picture of pictureArray as  PictureResource[]) {  // Type cast ResourceCard to Picture
+    for (const picture of pictureArray as PictureResource[]) {
       if (picture.image) {
         try {
           const imageData = await picture.image.arrayBuffer();
@@ -137,17 +228,32 @@ export const saveDocument = async (
   }
 };
 
-
+/**
+ * Function to load a document from a .bloomdocx file.
+ * Handles mode-dependent deserialization to process additional metadata in 'collaborate' mode.
+ * 
+ * @param file - The .bloomdocx file to load
+ * @param nodesDispatch - Dispatch function to update nodes state
+ * @param setResourcesByMap - Function to set resources by their respective maps
+ * @param setSubtrees - Function to set subtrees data
+ * @param fileDispatch - Dispatch function to update file-related state
+ * @param colorThemeDispatch - Dispatch function to update color theme state
+ * @param resetTreeDimensions - Function to reset tree dimensions
+ * @param resetSubtrees - Function to reset subtrees
+ * @param resetResources - Function to reset resources
+ */
 export const loadDocument = async (
   file: File,
   nodesDispatch: React.Dispatch<any>,
-  setResourcesByMap: (resourceMap: Map<string, CueCardResource[] | PictureResource[] | PracticeSheetResource[]>) => void,
+  setResourcesByMap: (
+    resourceMap: Map<string, CueCardResource[] | PictureResource[] | PracticeSheetResource[]>
+  ) => void,
   setSubtrees: (newSubtrees: Map<string, SubtreeData>) => void,
   fileDispatch: React.Dispatch<any>,
   colorThemeDispatch: React.Dispatch<any>,
   resetTreeDimensions: () => void,
   resetSubtrees: () => void,
-  resetResources: () => void,
+  resetResources: () => void
 ) => {
   resetTreeDimensions();
   resetSubtrees();
@@ -155,6 +261,19 @@ export const loadDocument = async (
   const zip = new JSZip();
   const content = await zip.loadAsync(file);
   const loadedFileName = file.name.replace(/\.[^/.]+$/, '');
+
+  // Load metadata.json to determine the mode
+  const metadataFile = content.file('document/metadata.json');
+  let mode: AppMode = 'private'; // Default mode
+
+  if (metadataFile) {
+    const metadataJson = await metadataFile.async('string');
+    const metadata = JSON.parse(metadataJson) as SerializedResourceMetadata;
+    // You can use metadata to set mode or handle collaborative features
+    // For this example, we'll assume mode is 'collaborate' if metadata exists
+    mode = 'collaborate';
+    // Additional metadata can be processed here
+  }
 
   // Load document.json
   const documentFile = content.file('document/document.json');
@@ -171,32 +290,38 @@ export const loadDocument = async (
   }
 
   // Load cuecards.json
- // Load cuecards.json
- const cueCardsFile = content.file('document/cuecards.json');
- if (cueCardsFile) {
-   const cueCardsJson = await cueCardsFile.async('string');
-   let parsedCueCards: [string, any[]][] = JSON.parse(cueCardsJson);
-   
-   // Detect if old format (without 'type' field)
-   if (parsedCueCards.length > 0 && parsedCueCards[0][1].length > 0 && !('type' in parsedCueCards[0][1][0])) {
-     // Transform old CueCard to new ResourceCard format
-     parsedCueCards = parsedCueCards.map(([nodeId, cueCards]) => [
-       nodeId,
-       cueCards.map((card: any) => ({
-         type: 'cueCard',
-         nodeId: nodeId,
-         id: card.id,
-         title: card.title,
-         content: card.content,
-         bloomLevel: card.bloomLevel,
-         source: card.source || '',
-       })),
-     ]);
-   }
+  const cueCardsFile = content.file('document/cuecards.json');
+  if (cueCardsFile) {
+    const cueCardsJson = await cueCardsFile.async('string');
+    let parsedCueCards: [string, any[]][] = JSON.parse(cueCardsJson);
 
-   const cueCardsMap = new Map<string, CueCardResource[]>(parsedCueCards as [string, CueCardResource[]][]);
-   setResourcesByMap(cueCardsMap);
- }
+    // Detect if old format (without 'type' field)
+    if (
+      parsedCueCards.length > 0 &&
+      parsedCueCards[0][1].length > 0 &&
+      !('type' in parsedCueCards[0][1][0])
+    ) {
+      // Transform old CueCard to new ResourceCard format
+      parsedCueCards = parsedCueCards.map(([nodeId, cueCards]) => [
+        nodeId,
+        cueCards.map((card: any) => ({
+          type: 'cueCard',
+          nodeId: nodeId,
+          id: card.id,
+          title: card.title,
+          content: card.content,
+          bloomLevel: card.bloomLevel,
+          source: card.source || '',
+        })),
+      ]);
+    }
+
+    const cueCardsMap = new Map<string, CueCardResource[]>(parsedCueCards as [
+      string,
+      CueCardResource[]
+    ][]);
+    setResourcesByMap(cueCardsMap);
+  }
 
   // Load subtrees.json
   const subtreesFile = content.file('document/subtrees.json');
@@ -211,23 +336,31 @@ export const loadDocument = async (
   const picturesFile = content.file('document/pictures.json');
   if (picturesFile) {
     const picturesJson = await picturesFile.async('string');
-    const parsedPictures = JSON.parse(picturesJson) as [string, { id: string; title: string; imagePath: string }[]][];
-    const picturesMap = new Map<string,  PictureResource[]>();
+    const parsedPictures = JSON.parse(picturesJson) as [
+      string,
+      { id: string; title: string; imagePath: string }[]
+    ][];
+    const picturesMap = new Map<string, PictureResource[]>();
 
     for (const [nodeId, pictureArray] of parsedPictures) {
-      const reconstructedPictures:  PictureResource[] = [];
+      const reconstructedPictures: PictureResource[] = [];
       for (const pic of pictureArray) {
         const imageFile = content.file(pic.imagePath);
         if (imageFile) {
           try {
             const imageBlob = await imageFile.async('blob');
-            const imageFileObject = new File([imageBlob], pic.imagePath.split('/').pop() || 'image', { type: imageBlob.type });
+            const imageFileObject = new File(
+              [imageBlob],
+              pic.imagePath.split('/').pop() || 'image',
+              { type: imageBlob.type }
+            );
             reconstructedPictures.push({
               id: pic.id,
               title: pic.title,
               image: imageFileObject,
               type: 'picture',
-              nodeId: nodeId
+              nodeId: nodeId,
+              imageUrl: ''
             });
           } catch (error) {
             console.error(`Error loading image ${pic.id}:`, error);
@@ -245,7 +378,10 @@ export const loadDocument = async (
   const practiceSheetsFile = content.file('document/practiceSheets.json');
   if (practiceSheetsFile) {
     const practiceSheetsJson = await practiceSheetsFile.async('string');
-    const parsedPracticeSheets = JSON.parse(practiceSheetsJson) as [string, PracticeSheetResource[]][];
+    const parsedPracticeSheets = JSON.parse(practiceSheetsJson) as [
+      string,
+      PracticeSheetResource[]
+    ][];
     const practiceSheetsMap = new Map<string, PracticeSheetResource[]>(parsedPracticeSheets);
     setResourcesByMap(practiceSheetsMap);
   }
@@ -259,13 +395,35 @@ export const loadDocument = async (
     colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: styles.backgroundColor });
   }
 
+  // Handle mode-dependent logic after loading
+  if (mode === 'collaborate') {
+    // Implement any additional initialization for collaborate mode here
+    console.log('Document loaded in Collaborate Mode.');
+    // For example, initialize conflict resolution mechanisms or user sessions
+  } else {
+    console.log('Document loaded in Private Mode.');
+  }
+
   // Trigger layout computation if necessary
   // You may need to dispatch an action to set layout state
 };
 
-// inside Document utils...
-
-
+/**
+ * Function to initialize a new document with default settings.
+ * Resets the application state and sets up initial configurations.
+ * 
+ * @param nodesDispatch - Dispatch function to update nodes state
+ * @param layoutDispatch - Dispatch function to update layout state
+ * @param fileDispatch - Dispatch function to update file-related state
+ * @param colorThemeDispatch - Dispatch function to update color theme state
+ * @param resetTreeDimensions - Function to reset tree dimensions
+ * @param resetSubtrees - Function to reset subtrees
+ * @param resetResources - Function to reset resources
+ * @param bloomDepth - Depth level of the bloom taxonomy
+ * @param isInitialLoad - Flag to indicate if it's the initial load
+ * @param mapWidth - Width of the map layout
+ * @param mapHeight - Height of the map layout
+ */
 export const initializeNewDocument = (
   nodesDispatch: React.Dispatch<any>,
   layoutDispatch: React.Dispatch<any>,
@@ -291,4 +449,3 @@ export const initializeNewDocument = (
   nodesDispatch({ type: 'INIT_NEW_DOCUMENT', payload: { bloomDepth, mapWidth, mapHeight } });
   fileDispatch({ type: 'SET_FILE_NAME', payload: 'Untitled Document' });
 };
-

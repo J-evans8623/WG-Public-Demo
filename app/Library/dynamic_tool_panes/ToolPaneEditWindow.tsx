@@ -86,7 +86,6 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
         id: data.id,
         title: data.title,
         content: data.content,
-        bloomLevel: data.bloomLevel,
         source: data.source,
       });
     } else if (type === 'picture') {
