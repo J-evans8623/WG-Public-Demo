@@ -25,7 +25,7 @@ import React, { useRef } from 'react';
 import { Input, Upload, Button } from 'antd';
 import { InputRef } from 'antd';
 import { Descendant } from 'slate';
-import RichTextEditor from './RichTextEditor-Test';
+import RichTextEditor from './RichTextEditor';
 
 interface CueCardInputProps {
   cueCardTitle: string;
