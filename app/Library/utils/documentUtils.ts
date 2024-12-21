@@ -91,7 +91,8 @@ const serializePictures = (
       // We keep imagePath reference; actual image binary goes separately.
       imagePath: `document/images/${pic.id}_${pic.image?.name}`,
       // Include the description directly as Descendant[]
-      description: pic.description || [{ type: 'paragraph', children: [{ text: '' }] }]
+      description: pic.description || [{ type: 'paragraph', children: [{ text: '' }] }],
+      source: pic.source || '',
     }));
     serialized.push([nodeId, serializedPictures]);
   });
@@ -318,7 +319,7 @@ export const loadDocument = async (
     const picturesJson = await picturesFile.async('string');
     const parsedPictures = JSON.parse(picturesJson) as [
       string,
-      { id: string; title: string; imagePath: string; description?: Descendant[] }[]
+      { id: string; title: string; imagePath: string; description?: Descendant[], source?:string }[]
     ][];
     const picturesMap = new Map<string, PictureResource[]>();
 
@@ -342,6 +343,7 @@ export const loadDocument = async (
               nodeId: nodeId,
               imageUrl: '',
               description: pic.description || [{ type: 'paragraph', children: [{ text: '' }] }],
+              source: pic.source || '',
             });
           } catch (error) {
             console.error(`Error loading image ${pic.id}:`, error);
