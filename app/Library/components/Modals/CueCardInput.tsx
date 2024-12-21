@@ -30,17 +30,19 @@ import RichTextEditor from './RichTextEditor';
 interface CueCardInputProps {
   cueCardTitle: string;
   cueCardContent: Descendant[];
+  source: string; // Added source
   setCueCardTitle: (title: string) => void;
   setCueCardContent: (content: Descendant[]) => void;
-  handlePictureUpload: (file: File) => void;
+  setSource: (source: string) => void; // Added setter for source
 }
 
 const CueCardInput: React.FC<CueCardInputProps> = ({
   cueCardTitle,
   cueCardContent,
+  source,
   setCueCardTitle,
   setCueCardContent,
-  handlePictureUpload
+  setSource,
 }) => {
   const titleInputRef = useRef<InputRef>(null);
 
@@ -51,15 +53,16 @@ const CueCardInput: React.FC<CueCardInputProps> = ({
 
   return (
     <>
+      {/* Title Input */}
       <Input
         ref={titleInputRef}
         placeholder="Cue Card Title"
         value={cueCardTitle}
         onChange={(e) => setCueCardTitle(e.target.value)}
-        style={{ backgroundColor: '#f5f5f5', borderRadius: '4px' }}
+        style={{ backgroundColor: '#f5f5f5', borderRadius: '4px', marginBottom: '10px' }}
       />
 
-      {/** Replace Input.TextArea with RichTextEditor */}
+      {/* Content Editor */}
       <div style={{ marginTop: '10px', background: '#fff', border: '1px solid #ccc', padding: '10px' }}>
         <RichTextEditor
           value={contentValue}
@@ -67,8 +70,16 @@ const CueCardInput: React.FC<CueCardInputProps> = ({
           defaultString='Add cue card content'
         />
       </div>
+            {/* Source Input */}
+            <Input
+        placeholder="Source (e.g., Chapter 3, Page 84)"
+        value={source}
+        onChange={(e) => setSource(e.target.value)}
+        style={{ backgroundColor: '#f5f5f5', borderRadius: '4px', marginBottom: '10px', marginTop:'10px'}}
+      />
     </>
   );
 };
 
 export default CueCardInput;
+

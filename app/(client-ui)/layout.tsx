@@ -235,10 +235,10 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
             addResource,
             Title,
             cueCardContent,
-            bloomLevel,
             image,
             pictureDescription,
             practiceSheetContent,
+            source,
           });
         }
       } else if (modalMode === 'addResource') {
@@ -251,10 +251,10 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
             addResource,
             Title,
             cueCardContent,
-            bloomLevel,
             image,
             pictureDescription,
             practiceSheetContent,
+            source,
           });
         }
       }

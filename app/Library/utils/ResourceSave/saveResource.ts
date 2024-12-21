@@ -9,10 +9,10 @@ interface ResourceSaveParams {
   addResource: (resource: Omit<ResourceCard, 'id'>) => void;
   Title?: string;
   cueCardContent?: Descendant[];
-  bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   image?: File | null;
   pictureDescription?: Descendant[]; // Added field
   practiceSheetContent?: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string };
+  source?: string,
 }
 
 /**
@@ -29,6 +29,7 @@ export function saveResource({
   image = null,
   pictureDescription, // Default value
   practiceSheetContent,
+  source,
 }: ResourceSaveParams) {
   switch (resourceType) {
     case 'cueCard':
@@ -38,6 +39,7 @@ export function saveResource({
           nodeId,
           title: Title,
           content: cueCardContent,
+          source,
         } as CueCardResource);
       } else {
         console.error('Title and content are required for CueCard');

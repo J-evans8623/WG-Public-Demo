@@ -286,6 +286,7 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
           title={cueCard.title}
           content={cueCard.content}
           conceptNodeTitle={cueCard.conceptNodeTitle}
+          source={cueCard.source}
           onDismiss={() => handleDismissResource(cueCard.id, cueCard.nodeId)}
         />
       ))}

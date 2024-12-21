@@ -117,7 +117,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
 
       switch (activeTabKey) {
         case 'cueCard':
-          onSave('cueCard', nodeTitle, cueCardTitle, cueCardContent, bloomLevel, uploadedPicture, initialSource);
+          onSave('cueCard', nodeTitle, cueCardTitle, cueCardContent, bloomLevel, uploadedPicture, initialSource || source);
           break;
         case 'picture':
           if (uploadedPicture) {
@@ -225,13 +225,14 @@ const ModernModal: React.FC<ModernModalProps> = ({
             {/* Conditionally render tabs based on `selectedResourceType` */}
             {(selectedResourceType === undefined || selectedResourceType === 'cueCard') && (
               <TabPane tab="Cue Card" key="cueCard">
-                <CueCardInput
-                  cueCardTitle={cueCardTitle}
-                  cueCardContent={cueCardContent}
-                  setCueCardTitle={setCueCardTitle}
-                  setCueCardContent={setCueCardContent}
-                  handlePictureUpload={setUploadedPicture}
-                />
+                  <CueCardInput
+                    cueCardTitle={cueCardTitle}
+                    cueCardContent={cueCardContent}
+                    source={source} // Pass source
+                    setCueCardTitle={setCueCardTitle}
+                    setCueCardContent={setCueCardContent}
+                    setSource={setSource} // Pass setSource
+                  />
               </TabPane>
             )}
             {(selectedResourceType === undefined || selectedResourceType === 'picture') && (
