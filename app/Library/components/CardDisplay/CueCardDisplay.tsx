@@ -298,6 +298,7 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
           id={picture.id}
           title={picture.title}
           image={picture.image}
+          source={picture.source || ''}
           onOpenFullSize={() =>
             handleOpenPictureModal(picture.id, (
               <ImageCard

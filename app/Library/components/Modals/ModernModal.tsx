@@ -121,7 +121,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
           break;
         case 'picture':
           if (uploadedPicture) {
-            onSave('picture', nodeTitle, pictureTitle,  [{ type: 'paragraph', children: [{ text: '' }] }] , 1, uploadedPicture, '', pictureDescription);
+            onSave('picture', nodeTitle, pictureTitle,  [{ type: 'paragraph', children: [{ text: '' }] }] , 1, uploadedPicture, source, pictureDescription);
           } else {
             alert('Please upload a picture.');
           }
@@ -151,18 +151,19 @@ const ModernModal: React.FC<ModernModalProps> = ({
         setPictureDescription(initialPictureDescription && initialPictureDescription.length > 0 ? initialPictureDescription : [{ type: 'paragraph', children: [{ text: '' }] }]);
         setPracticeSheetTitle('');
         setPracticeContent({ quizType: 'matching', quizContent: '' });
+        setSource('');
       }
 
       // Set initial values for editing based on selectedResourceType
       if (selectedResourceType === 'cueCard') {
         setCueCardTitle(initialCueCardTitle || '');
         setCueCardContent(initialCueCardContent || [{ type: 'paragraph', children: [{ text: '' }] }] );
-        setBloomLevel(initialBloomLevel || 1);
         setSource(initialSource || '');
       } else if (selectedResourceType === 'picture') {
         setPictureTitle(initialPictureTitle || '');
         setPictureDescription(initialPictureDescription ||  [{ type: 'paragraph', children: [{ text: '' }] }] );
         setUploadedPicture(initialUploadedPicture || null); // Ensure uploadedPicture is set
+        setSource(initialSource || '');
       } else if (selectedResourceType === 'practiceSheet' && initialPracticeSheetContent) {
         // Set practice content only if initialPracticeSheetContent is defined
         setPracticeSheetTitle(initialPracticeSheetTitle || '');
@@ -241,9 +242,11 @@ const ModernModal: React.FC<ModernModalProps> = ({
                   pictureTitle={pictureTitle}
                   pictureDescription={pictureDescription}
                   uploadedPicture={uploadedPicture} // Pass the state
+                  source={source}
                   setPictureTitle={setPictureTitle}
                   setPictureDescription={setPictureDescription}
                   handlePictureUpload={setUploadedPicture}
+                  setSource={setSource}
                 />
               </TabPane>
             )}

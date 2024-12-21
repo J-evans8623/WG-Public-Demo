@@ -97,6 +97,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
         initialPictureTitle: pic.title,
         initialPictureDescription: pic.description || [{ type: 'paragraph', children: [{ text: '' }] }],
         uploadedPicture: pic.image || null,
+        source: pic.source,
       });
     } else if (type === 'practiceSheet') {
       const ps = data as PracticeSheetResource;
@@ -149,6 +150,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
           title: cueCardTitle || initialData.title,
           image : image || initialData.uploadedPicture,
           description: pictureDescription,
+          source, 
         } as PictureResource;
       } else if (resourceType === 'practiceSheet') {
         updatedResource = {
@@ -291,7 +293,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
         initialCueCardTitle={resourceType === 'cueCard' ? initialData?.title : undefined}
         initialCueCardContent={resourceType === 'cueCard' ? initialData?.content : undefined}
         initialBloomLevel={resourceType === 'cueCard' ? initialData?.bloomLevel : undefined}
-        initialSource={resourceType === 'cueCard' ? initialData?.source : undefined}
+        initialSource={resourceType === 'cueCard' || resourceType === 'picture' ? initialData?.source : undefined}
         initialPictureTitle={resourceType === 'picture' ? initialData?.initialPictureTitle : undefined}
         initialPictureDescription={resourceType === 'picture' ? initialData?.initialPictureDescription : undefined}
         initialPracticeSheetTitle={resourceType === 'practiceSheet' ? initialData?.initialPracticeSheetTitle : undefined}

@@ -54,6 +54,7 @@ export function saveResource({
           title: Title,
           image,
           description: pictureDescription, // Pass the description
+          source,
         } as PictureResource);
       } else {
         console.error('Title and image are required for Picture');

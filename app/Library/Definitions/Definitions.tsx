@@ -200,6 +200,7 @@ export interface BaseResource {
   id: string;
   title: string;
   nodeId: string; // The node to which the resource is associated
+  source?: string;
 }
 
 /**
@@ -208,7 +209,6 @@ export interface BaseResource {
 export interface CueCardResource extends BaseResource {
   type: 'cueCard';
   content: Descendant[];
-  source?: string;
 }
 
 /**

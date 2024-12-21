@@ -12,7 +12,7 @@
     border: 1px solid #ccc;
     display: flex;
     flex-direction: column;
-    max-height: 550px; /* Ensure modal stays within this height */
+    max-height: 575px; /* Ensure modal stays within this height */
     min-height: 450px;
     overflow: hidden; /* Remove any outer scroll */
   }

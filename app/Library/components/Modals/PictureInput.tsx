@@ -34,18 +34,22 @@ interface PictureInputProps {
   pictureTitle: string;
   pictureDescription: Descendant[];
   uploadedPicture: File | null;
+  source: string; 
   setPictureTitle: (title: string) => void;
   setPictureDescription: (description: Descendant[]) => void;
   handlePictureUpload: (file: File) => void;
+  setSource: (source: string) => void;
 }
 
 const PictureInput: React.FC<PictureInputProps> = ({
   pictureTitle,
   pictureDescription,
   uploadedPicture,
+  source,
   setPictureTitle,
   setPictureDescription,
   handlePictureUpload,
+  setSource,
 }) => {
   const [pastedImage, setPastedImage] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
@@ -184,6 +188,13 @@ const PictureInput: React.FC<PictureInputProps> = ({
         defaultString='Add description for picture'
       />
     </div>
+
+    <Input
+        placeholder="Source (e.g., Chapter 5, Page 12)"
+        value={source}
+        onChange={(e) => setSource(e.target.value)}
+        style={{ marginTop: '10px' }}
+      />
   </div>
   
   );
