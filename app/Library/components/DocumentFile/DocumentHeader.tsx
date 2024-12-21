@@ -95,8 +95,13 @@ const DocumentHeader: React.FC<DocumentHeaderProps> = ({
    * Updates the file name in the FileContext.
    */
   const handleTitleChange = useCallback((newTitle: string) => {
-    fileDispatch(setFileName(newTitle));
+    if (!newTitle.trim()) {
+      fileDispatch(setFileName('Untitled Document'));
+    } else {
+      fileDispatch(setFileName(newTitle));
+    }
   }, [fileDispatch]);
+  
 
   /**
    * Handler for saving the document.
