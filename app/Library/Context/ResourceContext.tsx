@@ -16,6 +16,7 @@ import {
   createBinaryCompoundEntries,
   generateOperationId,
 } from '../utils/undoredo/historyutils'; // Adjust the import path as necessary
+import { Descendant } from 'slate';
 
 /**
  * Interface defining the methods available in the ResourceContext.

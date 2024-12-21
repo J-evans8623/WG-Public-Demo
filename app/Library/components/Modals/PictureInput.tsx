@@ -1,14 +1,39 @@
+/**
+ * @file PictureInput.tsx
+ * @description
+ * This file handles inputs for adding or editing a picture resource.
+ * It replaces the string-based description input field with a RichTextEditor,
+ * allowing rich text formatting for the picture description.
+ * 
+ * Responsibilities:
+ * - Render inputs for picture title (plain string).
+ * - Render a RichTextEditor for the picture description (Descendant[]).
+ * - Handle picture uploads.
+ * 
+ * Inputs:
+ * - pictureTitle: string
+ * - pictureDescription: Descendant[]
+ * - uploadedPicture: File | null
+ * - setPictureTitle: (title: string) => void
+ * - setPictureDescription: (description: Descendant[]) => void
+ * - handlePictureUpload: (file: File) => void
+ * 
+ * Outputs:
+ * - Updated title, description, and uploaded picture states in the parent component.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Input, Upload, Button } from 'antd';
-import { handlePaste } from './pasteImageUtils'; // Import the utility function
-import './proposal/picturelayout.css'
+import { handlePaste } from './pasteImageUtils';
+import { Descendant } from 'slate';
+import RichTextEditor from './RichTextEditor';
 
 interface PictureInputProps {
   pictureTitle: string;
-  pictureDescription: string;
+  pictureDescription: Descendant[];
   uploadedPicture: File | null;
   setPictureTitle: (title: string) => void;
-  setPictureDescription: (description: string) => void;
+  setPictureDescription: (description: Descendant[]) => void;
   handlePictureUpload: (file: File) => void;
 }
 
@@ -20,9 +45,8 @@ const PictureInput: React.FC<PictureInputProps> = ({
   setPictureDescription,
   handlePictureUpload,
 }) => {
-  const [pastedImage, setPastedImage] = useState<File | null>(null);  // State to store pasted image
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null); // State for image preview
-
+  const [pastedImage, setPastedImage] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const validImageTypes = [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
     'image/svg+xml', 'image/bmp', 'image/tiff',
@@ -32,7 +56,7 @@ const PictureInput: React.FC<PictureInputProps> = ({
     if (uploadedPicture) {
       const url = URL.createObjectURL(uploadedPicture);
       setImagePreviewUrl(url);
-      return () => URL.revokeObjectURL(url); // Clean up on unmount or when image changes
+      return () => URL.revokeObjectURL(url);
     } else {
       setImagePreviewUrl(null);
     }
@@ -41,17 +65,17 @@ const PictureInput: React.FC<PictureInputProps> = ({
   const beforeUpload = (file: File) => {
     if (validImageTypes.includes(file.type)) {
       handlePictureUpload(file);
-      setPastedImage(null);  // Reset pasted image when uploading manually
+      setPastedImage(null);
     } else {
-      alert('Please upload a valid image file (JPEG, PNG, GIF, WebP, SVG, BMP, or TIFF).');
+      alert('Please upload a valid image file.');
     }
     return false;
   };
 
-  const handlePastedImageUpload = (file: File) => {
-    handlePictureUpload(file);  // Call existing upload handler
-    setPastedImage(file);       // Set pasted image in state
-  };
+  // Initialize description if empty
+  const descriptionValue: Descendant[] = pictureDescription.length > 0 ? pictureDescription : [
+    { type: 'paragraph', children: [{ text: '' }] }
+  ];
 
   return (
     <div className="picture-input-modal">
@@ -65,13 +89,10 @@ const PictureInput: React.FC<PictureInputProps> = ({
           <Button>Upload Picture</Button>
         </Upload>
       </div>
-      {/* Display the preloaded image if available */}
+
       {imagePreviewUrl ? (
         <div className="picture-preview">
-          <img
-            src={imagePreviewUrl}
-            alt={pictureTitle}
-          />
+          <img src={imagePreviewUrl} alt={pictureTitle} />
         </div>
       ) : pastedImage ? (
         <p>Pasted Image: {pastedImage.name}</p>
@@ -79,14 +100,18 @@ const PictureInput: React.FC<PictureInputProps> = ({
         <p>Selected File: {uploadedPicture.name}</p>
       ) : null}
 
-      <Input.TextArea
-        className="picture-description"
-        placeholder="Optional Description or Paste Image Here"
-        value={pictureDescription}
-        onChange={(e) => setPictureDescription(e.target.value)}
-        onPaste={(e) => handlePaste(e, validImageTypes, handlePastedImageUpload)}  // Attach the paste handler
-        rows={4}
-      />
+      {/**
+       * Replace Input.TextArea with RichTextEditor for pictureDescription.
+       * Attach onPaste for image handling if needed (currently for text only).
+       */}
+      <div className="description-editor" style={{ marginTop: '10px', background: '#fff', border: '1px solid #ccc', padding: '10px' }}
+        onPaste={(e) => handlePaste(e, validImageTypes, (file) => { handlePictureUpload(file); setPastedImage(file); })}
+      >
+        <RichTextEditor
+          value={descriptionValue}
+          onChange={(newDesc) => setPictureDescription(newDesc)}
+        />
+      </div>
     </div>
   );
 };

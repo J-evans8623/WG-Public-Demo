@@ -8,6 +8,7 @@ import PracticeSheetInput from './PracticeSheetInput';
 import { FaPencilAlt } from 'react-icons/fa';
 import './ModalStyles.css';
 import './InputStyles.css';
+import { Descendant, Node } from 'slate';
 
 const { TabPane } = Tabs;
 
@@ -18,11 +19,11 @@ interface ModernModalProps {
     resourceType: 'cueCard' | 'picture' | 'practiceSheet',
     nodeTitle: string,
     cueCardTitle?: string,
-    cueCardContent?: string,
+    cueCardContent?: Descendant[],
     bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6,
     image?: File | null,
     source?: string,
-    pictureDescription?: string,
+    pictureDescription?: Descendant[],
     practiceSheetContent?: {
       quizType: 'matching' | 'multipleChoice' | 'wordProblem',
       quizContent: string
@@ -31,12 +32,12 @@ interface ModernModalProps {
   initialNodeTitle: string;
   mode: 'addChild' | 'addResource' | 'edit';
   initialCueCardTitle?: string;
-  initialCueCardContent?: string;
+  initialCueCardContent?: Descendant[];
   initialBloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   initialSource?: string;
   selectedResourceType?: 'cueCard' | 'picture' | 'practiceSheet';
   initialPictureTitle?: string;
-  initialPictureDescription?: string;
+  initialPictureDescription?: Descendant[];
   initialPracticeSheetTitle?: string;
   initialPracticeSheetContent?: {
     quizType: 'matching' | 'multipleChoice' | 'wordProblem';
@@ -64,11 +65,19 @@ const ModernModal: React.FC<ModernModalProps> = ({
 }) => {
   const [nodeTitle, setNodeTitle] = useState(initialNodeTitle || 'New Concept');
   const [cueCardTitle, setCueCardTitle] = useState(initialCueCardTitle || '');
-  const [cueCardContent, setCueCardContent] = useState(initialCueCardContent || '');
+  const [cueCardContent, setCueCardContent] = useState<Descendant[]>(
+    initialCueCardContent && initialCueCardContent.length > 0
+      ? initialCueCardContent
+      : [{ type: 'paragraph', children: [{ text: '' }] }]
+  );
   const [bloomLevel, setBloomLevel] = useState(initialBloomLevel || 1);
   const [pictureTitle, setPictureTitle] = useState(initialPictureTitle || '');
   const [uploadedPicture, setUploadedPicture] = useState<File | null>(initialUploadedPicture || null); // Initialize with prop
-  const [pictureDescription, setPictureDescription] = useState(initialPictureDescription || '');
+  const [pictureDescription, setPictureDescription] = useState<Descendant[]>(
+    initialPictureDescription && initialPictureDescription.length > 0
+      ? initialPictureDescription
+      : [{ type: 'paragraph', children: [{ text: '' }] }]
+  );
   const [practiceSheetTitle, setPracticeSheetTitle] = useState(initialPracticeSheetTitle || '');
   const [practiceContent, setPracticeContent] = useState<{ quizType: "matching" | "multipleChoice" | "wordProblem", quizContent: string }>({ quizType: 'matching', quizContent: initialPracticeSheetContent?.quizContent || '' });
   const [activeTabKey, setActiveTabKey] = useState<'cueCard' | 'picture' | 'practiceSheet'>(
@@ -83,17 +92,20 @@ const ModernModal: React.FC<ModernModalProps> = ({
   const handleClose = () => {
     onClose();
     setCueCardTitle('');
-    setCueCardContent('');
+    setCueCardContent([{ type: 'paragraph', children: [{ text: '' }] }]);
     setPictureTitle('');
     setUploadedPicture(null);
-    setPictureDescription('');
+    setPictureDescription([{ type: 'paragraph', children: [{ text: '' }] }]);
     setPracticeSheetTitle('');
     setPracticeContent({ quizType: 'matching', quizContent: '' })
   }
 
   const handleSave = () => {
     const isCueCardTitleEmpty = cueCardTitle.trim() === '';
-    const isCueCardContentEmpty = cueCardContent.trim() === '';
+    const isCueCardContentEmpty = cueCardContent
+  .map((node) => Node.string(node).trim())
+  .join('') === '';
+
 
     if (mode) {
       if (activeTabKey === 'cueCard') {
@@ -109,13 +121,13 @@ const ModernModal: React.FC<ModernModalProps> = ({
           break;
         case 'picture':
           if (uploadedPicture) {
-            onSave('picture', nodeTitle, pictureTitle, '', 1, uploadedPicture, '', pictureDescription);
+            onSave('picture', nodeTitle, pictureTitle,  [{ type: 'paragraph', children: [{ text: '' }] }] , 1, uploadedPicture, '', pictureDescription);
           } else {
             alert('Please upload a picture.');
           }
           break;
         case 'practiceSheet':
-          onSave('practiceSheet', nodeTitle, practiceSheetTitle, '', 1, null, '', '', practiceContent);
+          onSave('practiceSheet', nodeTitle, practiceSheetTitle,  [{ type: 'paragraph', children: [{ text: '' }] }] , 1, null, '',  [{ type: 'paragraph', children: [{ text: '' }] }] , practiceContent);
           break;
         default:
           break;
@@ -133,10 +145,10 @@ const ModernModal: React.FC<ModernModalProps> = ({
       // Clear all fields on new resource addition
       if (mode === 'addResource') {
         setCueCardTitle('');
-        setCueCardContent('');
+        setCueCardContent(initialCueCardContent && initialCueCardContent.length > 0 ? initialCueCardContent : [{ type: 'paragraph', children: [{ text: '' }] }]);
         setBloomLevel(1);
         setPictureTitle('');
-        setPictureDescription('');
+        setPictureDescription(initialPictureDescription && initialPictureDescription.length > 0 ? initialPictureDescription : [{ type: 'paragraph', children: [{ text: '' }] }]);
         setPracticeSheetTitle('');
         setPracticeContent({ quizType: 'matching', quizContent: '' });
       }
@@ -144,12 +156,12 @@ const ModernModal: React.FC<ModernModalProps> = ({
       // Set initial values for editing based on selectedResourceType
       if (selectedResourceType === 'cueCard') {
         setCueCardTitle(initialCueCardTitle || '');
-        setCueCardContent(initialCueCardContent || '');
+        setCueCardContent(initialCueCardContent || [{ type: 'paragraph', children: [{ text: '' }] }] );
         setBloomLevel(initialBloomLevel || 1);
         setSource(initialSource || '');
       } else if (selectedResourceType === 'picture') {
         setPictureTitle(initialPictureTitle || '');
-        setPictureDescription(initialPictureDescription || '');
+        setPictureDescription(initialPictureDescription ||  [{ type: 'paragraph', children: [{ text: '' }] }] );
         setUploadedPicture(initialUploadedPicture || null); // Ensure uploadedPicture is set
       } else if (selectedResourceType === 'practiceSheet' && initialPracticeSheetContent) {
         // Set practice content only if initialPracticeSheetContent is defined
@@ -177,7 +189,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
     initialPictureDescription,
     initialPracticeSheetTitle,
     initialPracticeSheetContent,
-    initialUploadedPicture, // Add to dependency array
+    initialUploadedPicture,
   ]);
 
   return (

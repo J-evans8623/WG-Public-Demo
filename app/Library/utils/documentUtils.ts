@@ -30,6 +30,7 @@ import {
 
 import { serializeSubtrees } from '@/app/Library/Context/SubTreeProvider';
 import { resetColorTheme } from '@/app/Library/Context/colorThemeActions';
+import { Descendant } from 'slate';
 
 /**
  * Enumeration for application modes.
@@ -77,17 +78,20 @@ const serializePracticeSheets = (
  * Converts a Map of pictures into an array of tuples with image paths for JSON serialization.
  * 
  * @param pictures - Map where key is nodeId and value is an array of PictureResource
- * @returns Array of [nodeId, { id, title, imagePath }[]] tuples
+ * @returns Array of [nodeId, { id, title, imagePath, description }[]] tuples
  */
 const serializePictures = (
   pictures: Map<string, PictureResource[]>
-): [string, { id: string; title: string; imagePath: string }[]][] => {
-  const serialized: [string, { id: string; title: string; imagePath: string }[]][] = [];
+): [string, { id: string; title: string; imagePath: string; description?: Descendant[] }[]][] => {
+  const serialized: [string, { id: string; title: string; imagePath: string; description?: Descendant[] }[]][] = [];
   pictures.forEach((pictureArray, nodeId) => {
     const serializedPictures = pictureArray.map(pic => ({
       id: pic.id,
       title: pic.title,
-      imagePath: `document/images/${pic.id}_${pic.image?.name}`, // Updated path
+      // We keep imagePath reference; actual image binary goes separately.
+      imagePath: `document/images/${pic.id}_${pic.image?.name}`,
+      // Include the description directly as Descendant[]
+      description: pic.description || [{ type: 'paragraph', children: [{ text: '' }] }]
     }));
     serialized.push([nodeId, serializedPictures]);
   });
@@ -293,36 +297,12 @@ export const loadDocument = async (
   const cueCardsFile = content.file('document/cuecards.json');
   if (cueCardsFile) {
     const cueCardsJson = await cueCardsFile.async('string');
-    let parsedCueCards: [string, any[]][] = JSON.parse(cueCardsJson);
-
-    // Detect if old format (without 'type' field)
-    if (
-      parsedCueCards.length > 0 &&
-      parsedCueCards[0][1].length > 0 &&
-      !('type' in parsedCueCards[0][1][0])
-    ) {
-      // Transform old CueCard to new ResourceCard format
-      parsedCueCards = parsedCueCards.map(([nodeId, cueCards]) => [
-        nodeId,
-        cueCards.map((card: any) => ({
-          type: 'cueCard',
-          nodeId: nodeId,
-          id: card.id,
-          title: card.title,
-          content: card.content,
-          bloomLevel: card.bloomLevel,
-          source: card.source || '',
-        })),
-      ]);
-    }
-
-    const cueCardsMap = new Map<string, CueCardResource[]>(parsedCueCards as [
-      string,
-      CueCardResource[]
-    ][]);
+    let parsedCueCards: [string, CueCardResource[]][] = JSON.parse(cueCardsJson);
+    // parsedCueCards is now [nodeId, CueCardResource[]]
+    // Each CueCardResource has content as Descendant[]. No conversion needed.
+    const cueCardsMap = new Map<string, CueCardResource[]>(parsedCueCards);
     setResourcesByMap(cueCardsMap);
   }
-
   // Load subtrees.json
   const subtreesFile = content.file('document/subtrees.json');
   if (subtreesFile) {
@@ -338,7 +318,7 @@ export const loadDocument = async (
     const picturesJson = await picturesFile.async('string');
     const parsedPictures = JSON.parse(picturesJson) as [
       string,
-      { id: string; title: string; imagePath: string }[]
+      { id: string; title: string; imagePath: string; description?: Descendant[] }[]
     ][];
     const picturesMap = new Map<string, PictureResource[]>();
 
@@ -360,7 +340,8 @@ export const loadDocument = async (
               image: imageFileObject,
               type: 'picture',
               nodeId: nodeId,
-              imageUrl: ''
+              imageUrl: '',
+              description: pic.description || [{ type: 'paragraph', children: [{ text: '' }] }],
             });
           } catch (error) {
             console.error(`Error loading image ${pic.id}:`, error);

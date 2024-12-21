@@ -1,13 +1,37 @@
-// bloom-maps\app\Library\Tests\Modals\CueCardInput.tsx
+/**
+ * @file CueCardInput.tsx
+ * @description 
+ * This file handles the input for creating or editing a cue card.
+ * It now uses the RichTextEditor to capture content as Descendant[] 
+ * instead of a plain string, enabling rich text formatting.
+ * 
+ * Responsibilities:
+ * - Render an input for the cue card title (plain string).
+ * - Render a RichTextEditor for the cue card content (Descendant[]).
+ * - Invoke setCueCardTitle and setCueCardContent callbacks on changes.
+ * 
+ * Inputs:
+ * - cueCardTitle: string
+ * - cueCardContent: Descendant[]
+ * - setCueCardTitle: (title: string) => void
+ * - setCueCardContent: (content: Descendant[]) => void
+ * - handlePictureUpload: (file: File) => void (unchanged)
+ * 
+ * Outputs:
+ * - Updated title and content states in the parent component.
+ */
+
 import React, { useRef } from 'react';
-import { Input, Radio, Upload, Button } from 'antd';
+import { Input, Upload, Button } from 'antd';
 import { InputRef } from 'antd';
+import { Descendant } from 'slate';
+import RichTextEditor from './RichTextEditor-Test';
 
 interface CueCardInputProps {
   cueCardTitle: string;
-  cueCardContent: string;
+  cueCardContent: Descendant[];
   setCueCardTitle: (title: string) => void;
-  setCueCardContent: (content: string) => void;
+  setCueCardContent: (content: Descendant[]) => void;
   handlePictureUpload: (file: File) => void;
 }
 
@@ -19,7 +43,11 @@ const CueCardInput: React.FC<CueCardInputProps> = ({
   handlePictureUpload
 }) => {
   const titleInputRef = useRef<InputRef>(null);
-  const cueCardContentRef = useRef<InputRef>(null);
+
+  // Ensure cueCardContent is initialized to an empty paragraph if it's empty
+  const contentValue: Descendant[] = cueCardContent.length > 0 ? cueCardContent : [
+    { type: 'paragraph', children: [{ text: '' }], },
+  ];
 
   return (
     <>
@@ -30,16 +58,17 @@ const CueCardInput: React.FC<CueCardInputProps> = ({
         onChange={(e) => setCueCardTitle(e.target.value)}
         style={{ backgroundColor: '#f5f5f5', borderRadius: '4px' }}
       />
-      <Input.TextArea
-        ref={cueCardContentRef}
-        placeholder="Cue Card Content"
-        value={cueCardContent}
-        onChange={(e) => setCueCardContent(e.target.value)}
-        rows={4}
-        style={{ backgroundColor: '#f5f5f5', borderRadius: '4px', marginTop: '10px' }}
-      />
-      <Upload beforeUpload={handlePictureUpload} showUploadList={false}>
-        <Button>Upload Picture</Button>
+
+      {/** Replace Input.TextArea with RichTextEditor */}
+      <div style={{ marginTop: '10px', background: '#fff', border: '1px solid #ccc', padding: '10px' }}>
+        <RichTextEditor
+          value={contentValue}
+          onChange={(newValue) => setCueCardContent(newValue)}
+        />
+      </div>
+
+      <Upload beforeUpload={(file) => { handlePictureUpload(file); return false; }} showUploadList={false}>
+        <Button style={{ marginTop: '10px' }}>Upload Picture</Button>
       </Upload>
     </>
   );

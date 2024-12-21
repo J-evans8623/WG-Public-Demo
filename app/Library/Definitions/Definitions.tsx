@@ -1,4 +1,6 @@
 //bloom-maps\app\Library\Definitions\Definitions.tsx
+import { Descendant } from 'slate';
+
 export interface CueCard {
   id: string;
   title: string;
@@ -205,7 +207,7 @@ export interface BaseResource {
  */
 export interface CueCardResource extends BaseResource {
   type: 'cueCard';
-  content: string;
+  content: Descendant[];
   source?: string;
 }
 
@@ -216,7 +218,7 @@ export interface PictureResource extends BaseResource {
   imageUrl: string;
   type: 'picture';
   image: File | null;
-  description? : string;
+  description? : Descendant[];
 }
 
 /**

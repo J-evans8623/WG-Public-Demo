@@ -4,11 +4,13 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import ReactDOM from 'react-dom'; // Import ReactDOM for portals
 import './ImageCard.css';
 import { FaSearchPlus, FaSearchMinus, FaTimes, FaExpand, FaCompress } from 'react-icons/fa';
+import { Descendant } from 'slate';
+import ReadOnlyRichTextRenderer from '../ReadOnlyRichTextRenderer';
 
 interface ImageCardProps {
   title: string;
   image: File | null;
-  description?: string;
+  description?: Descendant[];
   onDismiss?: () => void;
   onMaximize?: (content: React.ReactNode) => void; // Prop to handle maximization
   onMinimize?: () => void; // Prop to handle minimization
@@ -225,7 +227,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
       {/* Text Section */}
       <div className="text-section">
         {description ? (
-          <p> {description}</p>
+          <ReadOnlyRichTextRenderer value={description} />
         ) : (
           <p className="placeholder-text">
             No description available. Add content to enhance this card.

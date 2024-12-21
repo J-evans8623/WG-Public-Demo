@@ -1,16 +1,17 @@
 // bloom-maps/app/Library/utils/ResourceSave/saveResource.ts
 
 import { ResourceType, CueCardResource, PictureResource, PracticeSheetResource, ResourceCard } from '@/app/Library/Definitions/Definitions';
+import { Descendant } from 'slate';
 
 interface ResourceSaveParams {
   resourceType: ResourceType;
   nodeId: string;
   addResource: (resource: Omit<ResourceCard, 'id'>) => void;
   Title?: string;
-  cueCardContent?: string;
+  cueCardContent?: Descendant[];
   bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   image?: File | null;
-  pictureDescription?: string; // Added field
+  pictureDescription?: Descendant[]; // Added field
   practiceSheetContent?: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string };
 }
 
@@ -26,7 +27,7 @@ export function saveResource({
   Title,
   cueCardContent,
   image = null,
-  pictureDescription = '', // Default value
+  pictureDescription, // Default value
   practiceSheetContent,
 }: ResourceSaveParams) {
   switch (resourceType) {

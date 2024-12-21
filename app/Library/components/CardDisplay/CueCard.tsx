@@ -6,21 +6,16 @@ import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { FiX } from 'react-icons/fi';
 import { createPortal } from 'react-dom';
 import '@/app/Library/components/CardDisplay/CardDisplaySlide.css'; // Import the CSS file
+import { Descendant } from 'slate';
+import ReadOnlyRichTextRenderer from './ReadOnlyRichTextRenderer';
 
-interface CueCardPropsWithBloom extends CueCardProps {
+interface CueCardPropsWithBloom {
+  title: string;
+  content: Descendant[]; 
   conceptNodeTitle: string;
   onDismiss?: () => void;
   source?: string;
 }
-
-const bloomLevelNames = {
-  1: 'Remember',
-  2: 'Understand',
-  3: 'Apply',
-  4: 'Analyze',
-  5: 'Evaluate',
-  6: 'Create',
-};
 
 const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
   ({ title, content, conceptNodeTitle, onDismiss, source }) => {
@@ -115,7 +110,7 @@ const CueCard: React.FC<CueCardPropsWithBloom> = React.memo(
               // Back of the card (Content View)
               <div className="py-2">
                 <p className="text-xl text-gray-600 text-left leading-relaxed font-sans break-words">
-                  {content}
+                <ReadOnlyRichTextRenderer value={content} />
                 </p>
               </div>
             )}

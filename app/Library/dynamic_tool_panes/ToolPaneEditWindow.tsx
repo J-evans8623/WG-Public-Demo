@@ -11,6 +11,7 @@ import CardEntry from '@/app/Library/dynamic_tool_panes/CardEntry';
 import { toggleResourceSelection } from '@/app/Library/utils/copycutpaste/CutCopyPasteUtils';
 import EditIcon from '@mui/icons-material/Edit'; // Importing EditIcon
 import { updateNodeTitle } from '@/app/Library/Context/nodesActions'; // Importing the action creator
+import { Descendant } from 'slate';
 
 interface ToolPaneEditWindowProps {
   sourceNodeId: string;
@@ -78,28 +79,31 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
    * @param type - The type of resource to edit ('cueCard', 'picture', 'practiceSheet').
    * @param data - The data of the resource being edited.
    */
-  const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: any) => {
+  const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: ResourceCard) => {
     setResourceType(type);
   
     if (type === 'cueCard') {
+      const cue = data as CueCardResource;
       setInitialData({
-        id: data.id,
-        title: data.title,
-        content: data.content,
-        source: data.source,
+        id: cue.id,
+        title: cue.title,
+        content: cue.content ,
+        source: cue.source,
       });
     } else if (type === 'picture') {
+      const pic = data as PictureResource;
       setInitialData({
-        id: data.id,
-        initialPictureTitle: data.title,
-        initialPictureDescription: data.description || '',
-        uploadedPicture: data.image || null,
+        id: pic.id,
+        initialPictureTitle: pic.title,
+        initialPictureDescription: pic.description || [{ type: 'paragraph', children: [{ text: '' }] }],
+        uploadedPicture: pic.image || null,
       });
     } else if (type === 'practiceSheet') {
+      const ps = data as PracticeSheetResource;
       setInitialData({
-        id: data.id,
-        initialPracticeSheetTitle: data.title,
-        initialPracticeSheetContent: data.content,
+        id: ps.id,
+        initialPracticeSheetTitle: ps.title,
+        initialPracticeSheetContent: ps.content,
       });
     }
   
@@ -118,11 +122,11 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
     resourceType: 'cueCard' | 'picture' | 'practiceSheet',
     nodeTitle: string,
     cueCardTitle?: string,
-    cueCardContent?: string,
+    cueCardContent?: Descendant[],
     bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6,
     image?: File | null,
     source?: string,
-    pictureDescription?: string,
+    pictureDescription?: Descendant[],
     practiceSheetContent?: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string }
   ) => {
     if (initialData) {
@@ -135,7 +139,6 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
           type: 'cueCard',
           title: cueCardTitle || initialData.title,
           content: cueCardContent,
-          bloomLevel,
           source,
         } as CueCardResource;
       } else if (resourceType === 'picture') {

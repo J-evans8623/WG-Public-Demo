@@ -18,6 +18,7 @@ import DocumentHeader from '@/app/Library/components/DocumentFile/DocumentHeader
 import './ClientLayout.css';
 import './ToolBar.css';
 import './panelSize.css';
+import { Descendant } from 'slate';
 
 // Import new context providers and hooks
 import { NodesProvider, useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -43,6 +44,7 @@ import ToolPane from '@/app/Library/dynamic_tool_panes/ToolPane';
  * including CueCardDisplay, ConceptMap, and ToolPane.
  */
 const ClientLayoutContent = memo(function ClientLayoutContent() {
+  
   const centerPaneRef = useRef<HTMLDivElement>(null);
   const toolPaneRef = useRef<HTMLDivElement>(null); // Reference to the Tool Pane
   const cueCardDisplayRef = useRef<CueCardDisplayRef>(null); // Ref for CueCardDisplay
@@ -209,11 +211,11 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     resourceType: ResourceType,
     nodeTitle: string,
     Title?: string,
-    cueCardContent?: string,
+    cueCardContent?: Descendant[],
     bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6,
     image?: File | null,
     source?: string,
-    pictureDescription?: string,
+    pictureDescription?: Descendant[],
     practiceSheetContent?: {
       quizType: 'matching' | 'multipleChoice' | 'wordProblem';
       quizContent: string;
