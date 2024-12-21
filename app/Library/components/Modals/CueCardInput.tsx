@@ -64,6 +64,7 @@ const CueCardInput: React.FC<CueCardInputProps> = ({
         <RichTextEditor
           value={contentValue}
           onChange={(newValue) => setCueCardContent(newValue)}
+          defaultString='Add cue card content'
         />
       </div>
     </>

@@ -6,7 +6,7 @@ import PictureCard from './PictureCard';
 import PracticeSheetCard from './PracticeSheetCard';
 import MatchingQuizModal from './MatchingQuizModal';
 import ImageCard from '@/app/Library/components/CardDisplay/p1/ImageCard'; // Import the new ImageCard component
-import { CueCard as CueCardInterface } from '@/app/Library/Definitions/Definitions';
+import { CueCardResource  } from '@/app/Library/Definitions/Definitions';
 import { useResourceContext } from '../../Context/ResourceContext'; 
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 
@@ -14,17 +14,26 @@ import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { parseQuizContent, scrambleArray } from '@/app/Library/utils/QuizUtils';
 import ModalOverlayManager from '@/app/Library/components/CardDisplay/ModalOverlayManager';
+import { Descendant } from 'slate';
 
 /**
  * Default Cue Cards to display when no resources are visible.
  */
-const defaultCueCards: CueCardInterface[] = [
+const defaultCueCards: CueCardResource [] = [
   {
-    id: 'default',
     title: 'Add a new concept to get started!',
-    content: 'Select a concept from the map',
+    content: [
+      {
+        type: 'paragraph',
+        children: [{ text: 'Select a concept from the map' }],
+      },
+    ] as Descendant[],
+    type: 'cueCard',
+    id: '',
+    nodeId: ''
   },
 ];
+
 
 /**
  * Props for CueCardDisplay component.

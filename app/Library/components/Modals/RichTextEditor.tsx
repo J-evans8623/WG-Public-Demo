@@ -47,9 +47,10 @@ const LIST_TYPES = ['numbered-list', 'bulleted-list'];
 interface RichTextEditorProps {
   value: Descendant[];
   onChange: (value: Descendant[]) => void;
+  defaultString: string;
 }
 
-const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange }) => {
+const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, defaultString }) => {
   // Initialize the editor with React and History plugins
   const editor = useMemo(() => withHistory(withReact(createEditor())), []);
 
@@ -238,7 +239,7 @@ const toggleBlock = (editor: Editor, format: BlockFormat) => {
         <Editable
           renderLeaf={renderLeaf}
           renderElement={renderElement}
-          placeholder="Type here..."
+          placeholder={defaultString}
           spellCheck
           autoFocus
           onKeyDown={event => {

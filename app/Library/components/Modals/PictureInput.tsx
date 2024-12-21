@@ -181,6 +181,7 @@ const PictureInput: React.FC<PictureInputProps> = ({
       <RichTextEditor
         value={descriptionValue}
         onChange={(newDesc) => setPictureDescription(newDesc)}
+        defaultString='Add description for picture'
       />
     </div>
   </div>
