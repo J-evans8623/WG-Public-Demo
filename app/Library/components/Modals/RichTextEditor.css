@@ -11,7 +11,7 @@
   .rte-editor {
     padding: 8px;
     border: 1px solid #ccc;
-    min-height: 200px;
+    min-height: 100px;
     background: #fff;
     border-radius: 4px;
   }

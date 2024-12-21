@@ -27,6 +27,7 @@ import { Input, Upload, Button } from 'antd';
 import { handlePaste } from './pasteImageUtils';
 import { Descendant } from 'slate';
 import RichTextEditor from './RichTextEditor';
+import Image from 'next/image';
 
 interface PictureInputProps {
   pictureTitle: string;
@@ -92,7 +93,13 @@ const PictureInput: React.FC<PictureInputProps> = ({
 
       {imagePreviewUrl ? (
         <div className="picture-preview">
-          <img src={imagePreviewUrl} alt={pictureTitle} />
+              <Image 
+      src={imagePreviewUrl} 
+      alt={pictureTitle} 
+      width={125} // Specify width in pixels or a variable
+      height={125} // Specify height in pixels or a variable
+      layout="fixed" // Optional: use layout options like 'fixed', 'intrinsic', or 'responsive'
+    />
         </div>
       ) : pastedImage ? (
         <p>Pasted Image: {pastedImage.name}</p>

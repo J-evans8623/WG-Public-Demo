@@ -66,10 +66,6 @@ const CueCardInput: React.FC<CueCardInputProps> = ({
           onChange={(newValue) => setCueCardContent(newValue)}
         />
       </div>
-
-      <Upload beforeUpload={(file) => { handlePictureUpload(file); return false; }} showUploadList={false}>
-        <Button style={{ marginTop: '10px' }}>Upload Picture</Button>
-      </Upload>
     </>
   );
 };
