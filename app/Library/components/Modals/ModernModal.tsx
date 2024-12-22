@@ -98,6 +98,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
     setPictureDescription([{ type: 'paragraph', children: [{ text: '' }] }]);
     setPracticeSheetTitle('');
     setPracticeContent({ quizType: 'matching', quizContent: '' })
+    setSource('');
   }
 
   const handleSave = () => {
@@ -143,7 +144,7 @@ const ModernModal: React.FC<ModernModalProps> = ({
       setActiveTabKey(selectedResourceType || 'cueCard');
 
       // Clear all fields on new resource addition
-      if (mode === 'addResource') {
+      if (mode) {
         setCueCardTitle('');
         setCueCardContent(initialCueCardContent && initialCueCardContent.length > 0 ? initialCueCardContent : [{ type: 'paragraph', children: [{ text: '' }] }]);
         setBloomLevel(1);

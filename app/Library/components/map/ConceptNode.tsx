@@ -1,4 +1,4 @@
-// bloom-maps/app/Library/Components/ConceptNode.tsx
+// ConceptNode.tsx
 
 import React, { memo, useCallback } from 'react';
 import { ConceptNode as NodeType } from '@/app/Library/Definitions/Definitions';
@@ -7,13 +7,11 @@ import AddConceptIcon from '@/app/icons-custom/ConceptNodeAdd.svg';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import './ConceptNode.css';
 
-//const DEFAULT_PRIMARY_COLOR = '#F7CAAB';
-//const DEFAULT_BACKGROUND_COLOR = '#F7EBD1';
-
 // Define color constants for different node states
 const GENERAL_SELECTED_COLOR = '#3B82F6'; // Blue
 const CARET_COLOR = '#FF6500'; // Amber-Orange
-const TARGET_COLOR = '#28A745'; // lime Green
+const TARGET_COLOR = '#28A745'; // Lime Green
+const OUTLINE_COLOR = '#6e6e6e'; // Solid Outline Color
 
 interface ConceptNodeProps {
   node: NodeType;
@@ -30,7 +28,7 @@ function ConceptNode({
   openModalWithResourceType, // Use the interface-defined prop
   onNodeClick,
 }: ConceptNodeProps) {
-  const { primaryColor, backgroundColor} = useColorThemeContext();
+  const { primaryColor, backgroundColor } = useColorThemeContext();
   const {
     isSelected,
     targetNodeId,
@@ -107,6 +105,10 @@ function ConceptNode({
         top: `${y}px`,
         backgroundColor: nodeColor,
         zIndex: selected ? 10 : 1,
+        // Apply solid outline when not selected
+        border: selected ? 'none' : `5px solid ${OUTLINE_COLOR}`,
+        boxSizing: 'border-box', // Ensure border does not affect size
+        transition: 'none',
       }}
       onClick={handleNodeClick}
       onKeyDown={handleKeyDown}
@@ -136,11 +138,11 @@ function ConceptNode({
         </svg>
       )}
 
-<div className= "TitleContainer">
-< p className= 'multiline nodeTitle'  title={title} >
-      {title}
-</p>
-</div>  
+      <div className="TitleContainer">
+        <p className="multiline nodeTitle" title={title}>
+          {title}
+        </p>
+      </div>
 
       <button
         onClick={handleAddChildNode}
