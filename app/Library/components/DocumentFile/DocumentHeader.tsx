@@ -1,6 +1,6 @@
 //bloom-maps\app\Library\components\DocumentFile\DocumentHeader.tsx
 
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useContext } from 'react';
 import MenuBar from '@/app/(client-ui)/MenuBar';
 import ToolBar from '@/app/(client-ui)/ToolBar';
 import { useFileContext } from '@/app/Library/Context/FileProvider';
@@ -16,7 +16,7 @@ import { saveDocument, loadDocument, initializeNewDocument } from '@/app/Library
 import { setFileName } from '@/app/Library/Context/fileActions';
 import { ColorTheme, ResourceType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-
+import { AuthContext } from '@/app/src/context/AuthContext';
 
 interface DocumentHeaderProps {
   /**
@@ -37,6 +37,8 @@ interface DocumentHeaderProps {
   ) => void;
   closeAllModals: () => void;
   centerScroll: () => void;
+
+  onAuthButtonClick: () => void;
 }
 
 const DocumentHeader: React.FC<DocumentHeaderProps> = ({
@@ -44,6 +46,7 @@ const DocumentHeader: React.FC<DocumentHeaderProps> = ({
   openModalWithResourceType,
   closeAllModals,
   centerScroll,
+  onAuthButtonClick,
 }) => {
   // Access necessary contexts
   const { fileName, dispatch: fileDispatch } = useFileContext();
@@ -56,9 +59,12 @@ const DocumentHeader: React.FC<DocumentHeaderProps> = ({
   const { resetTreeDimensions } = useTreeDimensions();
   const { zoomLevel, baseZoomLevel, dispatch: zoomDispatch } = useZoomContext();
   const { resetResources } = useResourceContext();
+  
+
 
   // Ref for the hidden file input
   const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   /**
    * Handler for creating a new document.
@@ -210,8 +216,8 @@ const DocumentHeader: React.FC<DocumentHeaderProps> = ({
         onHelp={handleHelp}
         onOpenToolPane={handleOpenToolPane}
         openModalWithResourceType={openModalWithResourceType}
-      />
-      
+        onAuthButtonClick={onAuthButtonClick}
+      />    
       {/* ToolBar handles additional operations like zoom, undo/redo, and resource management */}
       <ToolBar
         onOpenToolPane={handleOpenToolPane}

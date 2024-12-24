@@ -1,12 +1,13 @@
 // bloom-maps\app\Library\components\MenuBar\MenuBar.tsx
 
-import React, { useState } from 'react';
+import React, { useState,useContext } from 'react';
 import { Menu, Dropdown, Input, Button } from 'antd';
 import { useFileContext } from '@/app/Library/Context/FileProvider';
 import AppIcon from '@/app/icons-custom/AppIcon.svg';
 import '@/app/(client-ui)/MenuBar.css';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext'; // Import ResourceContext
+import { AuthContext } from '@/app/src/context/AuthContext'; // Import AuthContext
 
 interface MenuBarProps {
   onTitleChange: (newTitle: string) => void;
@@ -23,6 +24,7 @@ interface MenuBarProps {
     resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined,
     op: 'resource' | 'node'
   ) => void;
+  onAuthButtonClick: () => void;
 }
 
 const MenuBar: React.FC<MenuBarProps> = ({
@@ -33,6 +35,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   onHelp,
   onOpenToolPane,
   openModalWithResourceType,
+  onAuthButtonClick,
 }) => {
   const { fileName } = useFileContext();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -45,6 +48,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // Retrieve selected node ID for enabling/disabling actions
   const selectedNodeIds = getSelectedNodeIds();
   const selectedNodeId = selectedNodeIds.length > 0 ? selectedNodeIds[selectedNodeIds.length - 1] : null;
+
+  // Access AuthContext
+  const { isAuthenticated, signOut } = useContext(AuthContext);
 
   /**
    * Handles the click event to enable title editing.
@@ -205,6 +211,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
     </Menu>
   );
 
+
+    /**
+   * Handles Sign In/Sign Out button click.
+   */
+    const handleAuthButtonClick = () => {
+      if (isAuthenticated) {
+        signOut();
+      } else {
+        onAuthButtonClick(); // Open the AuthPromptModal
+      }
+    };
+
   return (
     <div className="menu-bar-container">
       {/* Application Icon */}
@@ -260,6 +278,16 @@ const MenuBar: React.FC<MenuBarProps> = ({
               Help 
             </Button>
           </Dropdown>
+
+           {/* Spacer to push Auth button to the right */}
+           <div className="flex-grow"></div>
+                     {/* Sign In/Sign Out Button */}
+          <Button
+            onClick={handleAuthButtonClick}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+          >
+            {isAuthenticated ? 'Sign Out' : 'Sign In'}
+          </Button>
         </div>
       </div>
     </div>

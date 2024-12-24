@@ -1,8 +1,21 @@
 import express, { Request, Response, NextFunction } from 'express';
+import dotenv from 'dotenv';
+import cors from 'cors';
 import authRoutes from './routes/authRoutes';
 import connectDB from './config/db';
 
+// Load environment variables from .env file
+dotenv.config();
+
 const app = express();
+
+// CORS Configuration
+const allowedOrigins = [process.env.CLIENT_ORIGIN || 'http://localhost:3000'];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true, // Allow cookies if needed
+}));
 
 // Connect to MongoDB
 connectDB();

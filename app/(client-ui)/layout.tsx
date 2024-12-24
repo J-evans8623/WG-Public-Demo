@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, memo, useContext} from 'react';
 import CueCardDisplay, { CueCardDisplayRef } from '@/app/Library/components/CardDisplay/CueCardDisplay';
 import ConceptMap from '@/app/Library/components/map/ConceptMap';
 import { NodeSelectionProvider, useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
@@ -19,7 +19,8 @@ import './ClientLayout.css';
 import './ToolBar.css';
 import './panelSize.css';
 import { Descendant } from 'slate';
-
+import { AuthContext, AuthProvider } from '@/app/src/context/AuthContext';
+import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
 // Import new context providers and hooks
 import { NodesProvider, useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { ZoomProvider, useZoomContext } from '@/app/Library/Context/ZoomProvider';
@@ -36,6 +37,13 @@ import { initializeNewDocument } from '@/app/Library/utils/documentUtils';
 
 // Dynamic Tool Panes
 import ToolPane from '@/app/Library/dynamic_tool_panes/ToolPane';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { LoadingProvider } from '@/app/Library/Context/LoadingContext';
+import { useLoading } from '@/app/Library/Context/LoadingContext'; // Import the loading hook
+import GlobalLoadingScreen from '@/app/Library/components/loading-screen/GlobalLoadingScreen';
+
+const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+const apiServerUrl = process.env.NEXT_PUBLIC_API_SERVER_URL || 'http://localhost:5000';
 
 /**
  * ClientLayoutContent Component
@@ -44,11 +52,12 @@ import ToolPane from '@/app/Library/dynamic_tool_panes/ToolPane';
  * including CueCardDisplay, ConceptMap, and ToolPane.
  */
 const ClientLayoutContent = memo(function ClientLayoutContent() {
-  
+  const { isAuthenticated, isGuest, skipAuth, signIn } = useContext(AuthContext);  
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(true);
   const centerPaneRef = useRef<HTMLDivElement>(null);
   const toolPaneRef = useRef<HTMLDivElement>(null); // Reference to the Tool Pane
   const cueCardDisplayRef = useRef<CueCardDisplayRef>(null); // Ref for CueCardDisplay
-
+  const { isLoading, setLoading } = useLoading();
   const [windowWidth, setWindowWidth] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
@@ -71,7 +80,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   const [toolPaneVisible, setToolPaneVisible] = useState(false); // State to manage Tool Pane visibility
   const [sourceNodeId, setSourceNodeId] = useState<string | ''>('');
   const { toggleNodeSelection, setTargetNodeId, clearSelection, selectNode } = useNodeSelection();
-
+  
   /**
    * Opens the modal with the specified resource type and operation mode.
    *
@@ -155,34 +164,68 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
    * Initializes a new document on first render.
    */
   useEffect(() => {
-    if (!isInitialized) {
-      initializeNewDocument(
-        nodesDispatch,
-        layoutDispatch,
-        fileDispatch,
-        colorThemeDispatch,
-        resetTreeDimensions,
-        resetSubtrees,
-        resetResources,       
-        6,
-        false
-      );
-      setIsInitialized(true);
-      centerScroll();
-      
+    const initializeApp = async () => {
+      try {
+        await initializeNewDocument(
+          nodesDispatch,
+          layoutDispatch,
+          fileDispatch,
+          colorThemeDispatch,
+          resetTreeDimensions,
+          resetSubtrees,
+          resetResources,
+          6,
+          false
+        );
+        centerScroll();
+      } catch (error) {
+        console.error('Initialization Error:', error);
+        // Optionally, handle initialization errors here
+      } finally {
+        setLoading(false); // Mark initialization as complete
+      }
+    };
+
+    initializeApp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSignInSuccess = async (credentialResponse: any) => {
+    const token = credentialResponse.credential;
+    try {
+      const response = await fetch(`${apiServerUrl}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        signIn(data.token);
+        setIsAuthModalOpen(false);
+      } else {
+        alert(data.message || 'Authentication failed.');
+      }
+    } catch (error) {
+      console.error('Login Error:', error);
+      alert('An error occurred during authentication.');
     }
-  }, [
-    isInitialized,
-    nodesDispatch,
-    layoutDispatch,
-    fileDispatch,
-    colorThemeDispatch,
-    windowWidth,
-    resetResources,
-    resetTreeDimensions,
-    resetSubtrees,
-    cueCardDisplayRef
-  ]);
+  };
+
+  const handleSignInFailure = () => {
+    alert('Google login failed.');
+  };
+
+  const handleSkipAuth = () => {
+    skipAuth();
+    setIsAuthModalOpen(false);
+  };
+
+    /**
+   * Handler to open the AuthPromptModal from MenuBar.
+   */
+    const handleAuthButtonClick = () => {
+      setIsAuthModalOpen(true);
+    };
 
   /**
    * Determines the initial node title based on modal mode and node ID.
@@ -290,8 +333,19 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     [toolPaneVisible, activeOperation, setTargetNodeId, toggleNodeSelection]
   );
 
+  
   return (
     <>
+          {/* Overlay the loading screen */}
+          {isLoading && <GlobalLoadingScreen />}
+    
+          {/* Authentication Modal */}
+          <AuthPromptModal
+        isOpen={isAuthModalOpen}
+        onSignInSuccess={handleSignInSuccess}
+        onSignInFailure={handleSignInFailure}
+        onSkip={handleSkipAuth}
+      />
       {/* Modern Modal for Adding Resources or Nodes */}
       <ModernModal
         isOpen={isModalOpen}
@@ -308,6 +362,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
         openModalWithResourceType={openModalWithResourceType}
         closeAllModals={handleCloseAllModals}
         centerScroll={centerScroll}
+        onAuthButtonClick={handleAuthButtonClick}
       />
       
       {/* Toolbar Padding */}
@@ -369,6 +424,9 @@ ClientLayoutContent.displayName = 'ClientLayoutContent';
  */
 export default function ClientLayout() {
   return (
+    <LoadingProvider>
+    <GoogleOAuthProvider clientId={clientId}>
+    <AuthProvider>
     <DndProvider backend={HTML5Backend}>
       <TreeDimensionsProvider>
         <NodeSelectionProvider>
@@ -390,5 +448,8 @@ export default function ClientLayout() {
         </NodeSelectionProvider>
       </TreeDimensionsProvider>
     </DndProvider>
+    </AuthProvider>
+    </GoogleOAuthProvider>
+    </LoadingProvider>
   );
 }
