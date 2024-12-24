@@ -1,17 +1,35 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'jest-environment-jsdom', // Necessary for testing React components
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
-  moduleNameMapper: {
-    // Handle CSS modules (if using)
-    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-    // Handle module aliases (if any)
-    '^@/(.*)$': '<rootDir>/app/$1',
-  },
-  transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', { tsconfig: './tsconfig.json' }],
-  },
-  // Optionally, specify test file extensions
-  testMatch: ['**/?(*.)+(spec|test).[jt]s?(x)'],
+  projects: [
+    {
+      displayName: 'node',
+      preset: 'ts-jest',
+      testEnvironment: 'node',
+      moduleFileExtensions: ['js', 'ts'],
+      transform: {
+        '^.+\\.ts?$': [
+          'ts-jest',
+          {
+            tsconfig: './app/tsconfig.jest.json',
+          },
+        ],
+      },
+      testMatch: ['**/__tests__/**/*.test.ts'],
+    },
+    {
+      displayName: 'jsdom',
+      preset: 'ts-jest',
+      testEnvironment: 'jsdom',
+      moduleFileExtensions: ['js', 'ts', 'tsx'],
+      transform: {
+        '^.+\\.tsx?$': [
+          'ts-jest',
+          {
+            tsconfig: './app/tsconfig.jest.json',
+          },
+        ],
+      },
+      testMatch: ['**/__tests__/**/*.test.tsx'],
+    },
+  ],
 };
