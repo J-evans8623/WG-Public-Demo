@@ -1,6 +1,6 @@
 // bloom-maps/app/Library/utils/ResourceSave/saveResource.ts
 
-import { ResourceType, CueCardResource, PictureResource, PracticeSheetResource, ResourceCard } from '@/app/Library/Definitions/Definitions';
+import { ResourceType, IQuizQuestion, CueCardResource, PictureResource, PracticeSheetResource, ResourceCard } from '@/app/Library/Definitions/Definitions';
 import { Descendant } from 'slate';
 
 interface ResourceSaveParams {
@@ -11,7 +11,7 @@ interface ResourceSaveParams {
   cueCardContent?: Descendant[];
   image?: File | null;
   pictureDescription?: Descendant[]; // Added field
-  practiceSheetContent?: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string };
+  practiceSheetContent?: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: IQuizQuestion[] };
   source?: string,
 }
 
@@ -67,8 +67,11 @@ export function saveResource({
           type: 'practiceSheet',
           nodeId,
           title: Title,
-          content: practiceSheetContent,
-        } as PracticeSheetResource);
+          content:{
+            quizType : practiceSheetContent.quizType,
+            quizContent :practiceSheetContent.quizContent,
+          } ,
+        }  as  Omit<PracticeSheetResource, 'id'>);
       } else {
         console.error('Title and practice sheet content are required for PracticeSheet');
       }

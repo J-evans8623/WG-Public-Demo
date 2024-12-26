@@ -1,16 +1,19 @@
+// bloom-maps/app/Library/components/PracticeSheetInput.tsx
+
 import React, { useState, useEffect } from 'react';
 import { Input, Select, Divider, Button } from 'antd';
 import QuizInput from './QuizInput';
 import './PracticeSheetStyles.css';
-import { parseQuizContent, encodeQuizContent } from '@/app/Library/utils/QuizUtils'; // Import utility functions
+import { IQuizQuestion, QuizType } from '@/app/Library/Definitions/Definitions'; // Import the interface
+import { v4 as uuidv4 } from 'uuid';
 
 const { Option } = Select;
 
 interface PracticeSheetInputProps {
   practiceSheetTitle: string;
-  practiceContent: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string };
+  practiceContent: { quizType: QuizType; quizContent: IQuizQuestion[] };
   setPracticeSheetTitle: (title: string) => void;
-  setPracticeContent: (content: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string }) => void;
+  setPracticeContent: (content: { quizType: QuizType; quizContent: IQuizQuestion[] }) => void;
 }
 
 const MAX_ENTRIES = 10;
@@ -21,68 +24,49 @@ const PracticeSheetInput: React.FC<PracticeSheetInputProps> = ({
   setPracticeSheetTitle,
   setPracticeContent,
 }) => {
-  const [quizType, setQuizType] = useState<'matching' | 'multipleChoice' | 'wordProblem'>(
+  const [quizType, setQuizType] = useState<QuizType>(
     practiceContent.quizType || 'matching'
   );
-  const [autofillText, setAutofillText] = useState<string>(() =>
-    practiceContent.quizContent ? practiceContent.quizContent +',' :'');
-    // Initialize pairs based on practiceContent.quizContent, parsing if it exists
-    const [pairs, setPairs] = useState<{ question: string; answer: string }[]>(() =>
-      practiceContent.quizContent ? parseQuizContent(practiceContent.quizContent) : [{ question: '', answer: '' }]
-    );
 
-  const handleQuizTypeChange = (value: 'matching' | 'multipleChoice' | 'wordProblem') => {
+  // Initialize quizContent based on practiceContent or default to one empty question
+  const [quizContent, setQuizContent] = useState<IQuizQuestion[]>(() =>
+    Array.isArray(practiceContent.quizContent) && practiceContent.quizContent.length > 0
+      ? practiceContent.quizContent
+      : [{ id: uuidv4(), type: 'matching', question: '', correctAnswer: '' }]
+  );
+  
+
+  const handleQuizTypeChange = (value: QuizType) => {
     setQuizType(value);
-    setPairs([{ question: '', answer: '' }]); // Reset pairs if the quiz type changes
-    setAutofillText(''); // Clear autofill text
+    setQuizContent([{ id: uuidv4(), type: value, question: '', correctAnswer: '' }]); // Reset questions
   };
 
-  const handleAutofillChange = (text: string) => {
-    // Ensure that text ends with a comma
-    let updatedText = text;
-    if (!text.endsWith(',')) {
-      updatedText += ',';
+  const handleAddQuestion = () => {
+    if (quizContent.length >= MAX_ENTRIES) {
+      return; // Optionally, display an error message
     }
-    setAutofillText(updatedText);
-
-    // Parse the text and update pairs
-    if (updatedText) {
-      const newPairs = parseQuizContent(updatedText);
-      setPairs(newPairs.slice(0, MAX_ENTRIES)); // Enforce MAX_ENTRIES limit
-    } else {
-      setPairs([{ question: '', answer: '' }]); // Reset pairs if autofillText is empty
-    }
+    setQuizContent([...quizContent, { id: uuidv4(), type: quizType, question: '', correctAnswer: '' }]);
   };
 
-  const handleAddPair = () => {
-    if (pairs.length >= MAX_ENTRIES) {
-      return; // You can show an error message here if needed
-    }
-    setPairs([...pairs, { question: '', answer: '' }]);
+  const handleRemoveQuestion = (id: string) => {
+    const updatedQuestions = quizContent.filter((q) => q.id !== id);
+    setQuizContent(updatedQuestions);
+    // Update the practice content in parent component
+    setPracticeContent({ quizType, quizContent: updatedQuestions });
   };
 
-  const handleRemovePair = (index: number) => {
-    const updatedPairs = pairs.filter((_, i) => i !== index);
-    setPairs(updatedPairs);
-    // Update the autofillText accordingly
-    const formattedAutofillText = encodeQuizContent(updatedPairs);
-    setAutofillText(formattedAutofillText ? formattedAutofillText + ',' : '');
-  };
-
-  const handleInputChange = (index: number, key: 'question' | 'answer', value: string) => {
-    const updatedPairs = [...pairs];
-    updatedPairs[index][key] = value;
-    setPairs(updatedPairs);
-    // Update the autofillText accordingly
-    const formattedAutofillText = encodeQuizContent(updatedPairs);
-    setAutofillText(formattedAutofillText ? formattedAutofillText + ',' : '');
+  const handleInputChange = (id: string, key: keyof IQuizQuestion, value: string) => {
+    const updatedQuestions = quizContent.map((q) =>
+      q.id === id ? { ...q, [key]: value } : q
+    );
+    setQuizContent(updatedQuestions);
+    // Update the practice content in parent component
+    setPracticeContent({ quizType, quizContent: updatedQuestions });
   };
 
   useEffect(() => {
-    const formattedContent = encodeQuizContent(pairs);
-    setPracticeContent({ quizType, quizContent: formattedContent });
-    // Do not update setAutofillText(formattedContent);
-  }, [pairs, quizType, setPracticeContent]);
+    setPracticeContent({ quizType, quizContent });
+  }, [quizType, quizContent, setPracticeContent]);
 
   return (
     <div className="practice-sheet-container">
@@ -105,8 +89,8 @@ const PracticeSheetInput: React.FC<PracticeSheetInputProps> = ({
       <div className="scrollable-quiz-content">
         {quizType === 'matching' && (
           <QuizInput
-            pairs={pairs}
-            onRemovePair={handleRemovePair}
+            quizContent={quizContent}
+            onRemoveQuestion={handleRemoveQuestion}
             onInputChange={handleInputChange}
           />
         )}
@@ -116,20 +100,9 @@ const PracticeSheetInput: React.FC<PracticeSheetInputProps> = ({
 
       {/* "Add Question" button */}
       <div className="add-question-btn">
-        <Button type="dashed" onClick={handleAddPair} style={{ marginBottom: '10px' }}>
+        <Button type="dashed" onClick={handleAddQuestion} style={{ marginBottom: '10px' }}>
           Add Question
         </Button>
-      </div>
-
-      {/* Autofill text input at the bottom */}
-      <div className="autofill-field">
-        <label htmlFor="autofill-text">Autofill Text</label>
-        <Input
-          id="autofill-text"
-          placeholder="Enter autofill text (e.g., Q1@A1,Q2@A2)"
-          value={autofillText}
-          onChange={(e) => handleAutofillChange(e.target.value)}
-        />
       </div>
     </div>
   );

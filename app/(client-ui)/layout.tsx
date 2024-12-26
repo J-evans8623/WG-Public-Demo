@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { saveResource } from '@/app/Library/utils/ResourceSave/saveResource';
-import { ResourceType } from '@/app/Library/Definitions/Definitions';
+import { IQuizQuestion, ResourceType } from '@/app/Library/Definitions/Definitions';
 import DocumentHeader from '@/app/Library/components/DocumentFile/DocumentHeader';
 import './ClientLayout.css';
 import './ToolBar.css';
@@ -80,7 +80,8 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   const [toolPaneVisible, setToolPaneVisible] = useState(false); // State to manage Tool Pane visibility
   const [sourceNodeId, setSourceNodeId] = useState<string | ''>('');
   const { toggleNodeSelection, setTargetNodeId, clearSelection, selectNode } = useNodeSelection();
-  
+  const [modalKey, setModalKey] = useState<string>('');
+
   /**
    * Opens the modal with the specified resource type and operation mode.
    *
@@ -97,6 +98,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     }
     // Specify the mode to indicate it's an "add" operation
     setModalResourceType(resourceType); // Define which resource type is being added
+    setModalKey(uuidv4());
     setIsModalOpen(true); // Finally, open the modal
   };
 
@@ -261,7 +263,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     pictureDescription?: Descendant[],
     practiceSheetContent?: {
       quizType: 'matching' | 'multipleChoice' | 'wordProblem';
-      quizContent: string;
+      quizContent: IQuizQuestion[];
     }
   ) => {
     console.log('handleModalSave called');
@@ -348,6 +350,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
       />
       {/* Modern Modal for Adding Resources or Nodes */}
       <ModernModal
+        key={modalKey}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleModalSave}

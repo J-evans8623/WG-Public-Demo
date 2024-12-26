@@ -1,15 +1,19 @@
-// bloom-maps/app/Library/components/PracticeSheetCard.tsx
-
 import React from 'react';
 import QuizIcon from '@/app/icons-custom/Quiz.svg';
-import { parseQuizContent } from '@/app/Library/utils/QuizUtils'; // Import parseQuizContent
-import '@/app/Library/components/CardDisplay/CardDisplaySlide.css'// Import the CSS file
+import '@/app/Library/components/CardDisplay/CardDisplaySlide.css'; // Import the CSS file
+
+interface IQuizQuestion {
+  id: string;
+  type: 'matching' | 'multipleChoice' | 'wordProblem';
+  question: string;
+  correctAnswer: string;
+}
 
 interface PracticeSheetCardProps {
   id: string;
   title: string;
   quizType: 'matching' | 'multipleChoice' | 'wordProblem';
-  quizContent: string;
+  quizQuestions: IQuizQuestion[];
   onOpenFullSize: () => void;
   onDismiss?: () => void;
 }
@@ -17,15 +21,14 @@ interface PracticeSheetCardProps {
 const PracticeSheetCard: React.FC<PracticeSheetCardProps> = ({
   title,
   quizType,
-  quizContent,
+  quizQuestions,
   onOpenFullSize,
   onDismiss,
 }) => {
-  // Parse quiz content to extract a preview
-  const parsedQuiz = parseQuizContent(quizContent);
+  // Generate a preview of the first question
   const preview =
-    quizType === 'matching' && parsedQuiz.length > 0
-      ? `${parsedQuiz[0].question}@${parsedQuiz[0].answer}`
+    quizType === 'matching' && quizQuestions.length > 0
+      ? `${quizQuestions[0].question} - ${quizQuestions[0].correctAnswer}`
       : 'No content available';
 
   // Define descriptions for each quiz type

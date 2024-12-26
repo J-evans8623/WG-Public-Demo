@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, KeyboardEvent } from 'react';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
-import { ResourceCard, PictureResource, PracticeSheetResource, CueCardResource } from '@/app/Library/Definitions/Definitions';
+import { ResourceCard, PictureResource, PracticeSheetResource, CueCardResource, IQuizQuestion, QuizType } from '@/app/Library/Definitions/Definitions';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider'; 
 import ModernModal from '@/app/Library/components/Modals/ModernModal';
 import './ToolPane.css';
@@ -12,6 +12,7 @@ import { toggleResourceSelection } from '@/app/Library/utils/copycutpaste/CutCop
 import EditIcon from '@mui/icons-material/Edit'; // Importing EditIcon
 import { updateNodeTitle } from '@/app/Library/Context/nodesActions'; // Importing the action creator
 import { Descendant } from 'slate';
+import { v4 as uuidv4 } from 'uuid';
 
 interface ToolPaneEditWindowProps {
   sourceNodeId: string;
@@ -50,6 +51,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [resourceType, setResourceType] = useState<'cueCard' | 'picture' | 'practiceSheet'>('cueCard');
   const [initialData, setInitialData] = useState<any>(null);
+  const [modalKey, setModalKey] = useState<string>('');
 
   // Helper function to get all resources for a given node
   const getResources = (nodeId: string) => {
@@ -104,10 +106,13 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
       setInitialData({
         id: ps.id,
         initialPracticeSheetTitle: ps.title,
-        initialPracticeSheetContent: ps.content,
+        initialPracticeSheetContent: {
+          quizType: ps.content.quizType,
+          quizContent: ps.content.quizContent || [], // Match the new data shape
+        },
       });
     }
-  
+    setModalKey(uuidv4());
     setIsModalOpen(true);
   };
 
@@ -128,7 +133,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
     image?: File | null,
     source?: string,
     pictureDescription?: Descendant[],
-    practiceSheetContent?: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: string }
+    practiceSheetContent?: { quizType: QuizType; quizContent: IQuizQuestion[] }
   ) => {
     if (initialData) {
       let updatedResource: ResourceCard;
@@ -157,8 +162,11 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
           id: initialData.id,
           nodeId: sourceNodeId,
           type: 'practiceSheet',
-          title: cueCardTitle || initialData.title,
-          content: practiceSheetContent,
+          title: cueCardTitle || initialData.title, // Corrected to practiceSheetTitle
+          content: {
+            quizType: practiceSheetContent?.quizType || initialData.initialPracticeSheetContent.quizType,
+            quizContent: practiceSheetContent?.quizContent || initialData.initialPracticeSheetContent.quizContent,
+          },
         } as PracticeSheetResource;
       } else {
         console.error("Unknown resource type");
@@ -285,6 +293,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
 
       {/* ModernModal component to edit selected resource */}
       <ModernModal
+        key={modalKey}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSave}

@@ -6,13 +6,13 @@ import PictureCard from './PictureCard';
 import PracticeSheetCard from './PracticeSheetCard';
 import MatchingQuizModal from './MatchingQuizModal';
 import ImageCard from '@/app/Library/components/CardDisplay/p1/ImageCard'; // Import the new ImageCard component
-import { CueCardResource  } from '@/app/Library/Definitions/Definitions';
+import { CueCardResource, IQuizQuestion  } from '@/app/Library/Definitions/Definitions';
 import { useResourceContext } from '../../Context/ResourceContext'; 
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 
 // Import new context
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
-import { parseQuizContent, scrambleArray } from '@/app/Library/utils/QuizUtils';
+import { scrambleArray } from '@/app/Library/utils/QuizUtils';
 import ModalOverlayManager from '@/app/Library/components/CardDisplay/ModalOverlayManager';
 import { Descendant } from 'slate';
 
@@ -207,13 +207,12 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
    * @param quizTitle - The title of the quiz.
    * @param quizContent - The raw quiz content string.
    */
-  const handleOpenQuizModal = useCallback((quizTitle: string, quizContent: string) => {
-    const parsedQuiz = parseQuizContent(quizContent);
-    const scrambledAnswers = scrambleArray(parsedQuiz.map((q) => q.answer));
+  const handleOpenQuizModal = useCallback((quizTitle: string, quizQuestions: IQuizQuestion[]) => {
+    const scrambledAnswers = scrambleArray(quizQuestions.map((q) => q.correctAnswer));
     setOverlayContent(
       <MatchingQuizModal
-        title={quizTitle} // Pass the quiz title
-        quiz={parsedQuiz}
+        title={quizTitle}
+        quiz={quizQuestions} // Pass questions directly
         scrambledAnswers={scrambledAnswers}
         onClose={handleCloseOverlay}
       />
@@ -318,14 +317,14 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
       {/* Render Practice Sheet Cards */}
       {visiblePracticeSheets.map((practiceSheet) => (
         <PracticeSheetCard
-          key={practiceSheet.id}
-          id={practiceSheet.id}
-          title={practiceSheet.title}
-          quizType={practiceSheet.quizType}
-          quizContent={practiceSheet.quizContent}
-          onOpenFullSize={() => handleOpenQuizModal(practiceSheet.title, practiceSheet.quizContent)} // Pass title
-          onDismiss={() => handleDismissResource(practiceSheet.id, practiceSheet.nodeId)}
-        />
+    key={practiceSheet.id}
+    id={practiceSheet.id}
+    title={practiceSheet.title}
+    quizType={practiceSheet.quizType}
+    quizQuestions={practiceSheet.quizContent} // Updated to use `quizQuestions`
+    onOpenFullSize={() => handleOpenQuizModal(practiceSheet.title, practiceSheet.quizContent)} // Pass title and questions
+    onDismiss={() => handleDismissResource(practiceSheet.id, practiceSheet.nodeId)}
+  />
       ))}
 
       {/* Render Default Cue Cards if No Resources are Visible */}

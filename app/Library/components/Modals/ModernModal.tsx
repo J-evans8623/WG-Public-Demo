@@ -1,6 +1,6 @@
 // bloom-maps/app/Library/Tests/Modals/ModernModal.tsx
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Tabs, Button, Input, InputRef } from 'antd';
 import CueCardInput from './CueCardInput';
 import PictureInput from './PictureInput';
@@ -9,6 +9,7 @@ import { FaPencilAlt } from 'react-icons/fa';
 import './ModalStyles.css';
 import './InputStyles.css';
 import { Descendant, Node } from 'slate';
+import { IQuizQuestion, QuizType } from '../../Definitions/Definitions';
 
 const { TabPane } = Tabs;
 
@@ -25,8 +26,8 @@ interface ModernModalProps {
     source?: string,
     pictureDescription?: Descendant[],
     practiceSheetContent?: {
-      quizType: 'matching' | 'multipleChoice' | 'wordProblem',
-      quizContent: string
+      quizType: 'matching' | 'multipleChoice' | 'wordProblem';
+      quizContent: IQuizQuestion[];
     }
   ) => void;
   initialNodeTitle: string;
@@ -41,7 +42,7 @@ interface ModernModalProps {
   initialPracticeSheetTitle?: string;
   initialPracticeSheetContent?: {
     quizType: 'matching' | 'multipleChoice' | 'wordProblem';
-    quizContent: string;
+    quizContent: IQuizQuestion[];
   };
   initialUploadedPicture?: File | null; // New Prop
 }
@@ -72,14 +73,21 @@ const ModernModal: React.FC<ModernModalProps> = ({
   );
   const [bloomLevel, setBloomLevel] = useState(initialBloomLevel || 1);
   const [pictureTitle, setPictureTitle] = useState(initialPictureTitle || '');
-  const [uploadedPicture, setUploadedPicture] = useState<File | null>(initialUploadedPicture || null); // Initialize with prop
+  const [uploadedPicture, setUploadedPicture] = useState<File | null>(initialUploadedPicture || null); 
   const [pictureDescription, setPictureDescription] = useState<Descendant[]>(
     initialPictureDescription && initialPictureDescription.length > 0
       ? initialPictureDescription
       : [{ type: 'paragraph', children: [{ text: '' }] }]
   );
   const [practiceSheetTitle, setPracticeSheetTitle] = useState(initialPracticeSheetTitle || '');
-  const [practiceContent, setPracticeContent] = useState<{ quizType: "matching" | "multipleChoice" | "wordProblem", quizContent: string }>({ quizType: 'matching', quizContent: initialPracticeSheetContent?.quizContent || '' });
+  const [practiceContent, setPracticeContent] = useState<{ 
+    quizType: QuizType; 
+    quizContent: IQuizQuestion[]; 
+  }>({
+    quizType: 'matching',
+    quizContent: initialPracticeSheetContent?.quizContent || [],
+  });
+  
   const [activeTabKey, setActiveTabKey] = useState<'cueCard' | 'picture' | 'practiceSheet'>(
     selectedResourceType || 'cueCard'
   );
@@ -87,18 +95,8 @@ const ModernModal: React.FC<ModernModalProps> = ({
   const [source, setSource] = useState('');
 
   const titleInputRef = useRef<InputRef>(null);
-  const cueCardTitleRef = useRef<InputRef>(null);
-
   const handleClose = () => {
     onClose();
-    setCueCardTitle('');
-    setCueCardContent([{ type: 'paragraph', children: [{ text: '' }] }]);
-    setPictureTitle('');
-    setUploadedPicture(null);
-    setPictureDescription([{ type: 'paragraph', children: [{ text: '' }] }]);
-    setPracticeSheetTitle('');
-    setPracticeContent({ quizType: 'matching', quizContent: '' })
-    setSource('');
   }
 
   const handleSave = () => {
@@ -136,63 +134,6 @@ const ModernModal: React.FC<ModernModalProps> = ({
       handleClose();
     }
   };
-
-  useEffect(() => {
-    if (isOpen) {
-      setNodeTitle(initialNodeTitle || 'New Concept');
-      setIsEditingTitle(mode === 'addChild');
-      setActiveTabKey(selectedResourceType || 'cueCard');
-
-      // Clear all fields on new resource addition
-      if (mode) {
-        setCueCardTitle('');
-        setCueCardContent(initialCueCardContent && initialCueCardContent.length > 0 ? initialCueCardContent : [{ type: 'paragraph', children: [{ text: '' }] }]);
-        setBloomLevel(1);
-        setPictureTitle('');
-        setPictureDescription(initialPictureDescription && initialPictureDescription.length > 0 ? initialPictureDescription : [{ type: 'paragraph', children: [{ text: '' }] }]);
-        setPracticeSheetTitle('');
-        setPracticeContent({ quizType: 'matching', quizContent: '' });
-        setSource('');
-      }
-
-      // Set initial values for editing based on selectedResourceType
-      if (selectedResourceType === 'cueCard') {
-        setCueCardTitle(initialCueCardTitle || '');
-        setCueCardContent(initialCueCardContent || [{ type: 'paragraph', children: [{ text: '' }] }] );
-        setSource(initialSource || '');
-      } else if (selectedResourceType === 'picture') {
-        setPictureTitle(initialPictureTitle || '');
-        setPictureDescription(initialPictureDescription ||  [{ type: 'paragraph', children: [{ text: '' }] }] );
-        setUploadedPicture(initialUploadedPicture || null); // Ensure uploadedPicture is set
-        setSource(initialSource || '');
-      } else if (selectedResourceType === 'practiceSheet' && initialPracticeSheetContent) {
-        // Set practice content only if initialPracticeSheetContent is defined
-        setPracticeSheetTitle(initialPracticeSheetTitle || '');
-        setPracticeContent(initialPracticeSheetContent);
-      }
-
-      // Focus management
-      if (mode === 'addChild') {
-        titleInputRef.current?.focus();
-      } else {
-        cueCardTitleRef.current?.focus();
-      }
-    }
-  }, [
-    isOpen,
-    initialNodeTitle,
-    mode,
-    selectedResourceType,
-    initialCueCardTitle,
-    initialCueCardContent,
-    initialBloomLevel,
-    initialSource,
-    initialPictureTitle,
-    initialPictureDescription,
-    initialPracticeSheetTitle,
-    initialPracticeSheetContent,
-    initialUploadedPicture,
-  ]);
 
   return (
     isOpen && (

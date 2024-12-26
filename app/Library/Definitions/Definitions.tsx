@@ -109,15 +109,6 @@ export interface Picture {
   image: File | null; // The image file, if provided
 }
 
-// PracticeSheet Definition
-export interface PracticeSheet {
-  id: string;
-  title: string;
-  content: {
-    quizType: 'matching' | 'multipleChoice' | 'wordProblem'; // New field for quiz type
-    quizContent: string; // New field for actual content of the quiz
-  };
-}
 
 // New definitions for new context
 // bloom-maps/app/Library/Definitions/Definitions.ts
@@ -221,6 +212,15 @@ export interface PictureResource extends BaseResource {
   description? : Descendant[];
 }
 
+export type QuizType = 'matching' | 'multipleChoice' | 'wordProblem';
+
+export interface IQuizQuestion {
+  id: string;
+  type: QuizType;
+  question: string;
+  correctAnswer: string;
+}
+
 /**
  * Interface for PracticeSheet resources.
  */
@@ -228,7 +228,7 @@ export interface PracticeSheetResource extends BaseResource {
   type: 'practiceSheet';
   content: {
     quizType: 'matching' | 'multipleChoice' | 'wordProblem';
-    quizContent: string;
+    quizContent: IQuizQuestion[];
   };
 }
 

@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom'; // Import ReactDOM for portals
 import './MatchingQuizModal.css';
+import { IQuizQuestion } from '../../Definitions/Definitions';
 
 interface MatchingQuizModalProps {
   title: string; // New prop for the quiz title
-  quiz: { question: string; answer: string }[];
+  quiz: IQuizQuestion[];
   scrambledAnswers: string[];
   onClose: () => void;
 }
@@ -28,7 +29,7 @@ const MatchingQuizModal: React.FC<MatchingQuizModalProps> = ({ title, quiz, scra
       if (userAnswer) {
         const selectedIndex = userAnswer.charCodeAt(0) - 65; // 'A' -> 0
         const selectedAnswer = scrambledAnswers[selectedIndex];
-        if (selectedAnswer === quiz[index].answer) {
+        if (selectedAnswer === quiz[index].correctAnswer) {
           score++;
         }
       }
