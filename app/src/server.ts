@@ -2,20 +2,30 @@ import express, { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import authRoutes from './routes/authRoutes';
+import aiRoutes from './routes/aiRoutes'; // Import AI routes
+import RateLimiter from './middleware/rateLimiter'; // Import RateLimiter middleware
 import connectDB from './config/db';
 
-// Load environment variables from .env file
-dotenv.config();
+import path from 'path';
+
+// Adjust the path to point to your root directory
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Add debug logging
+console.log('Environment variables loaded:');
+console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
+console.log('OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length || 0);
 
 const app = express();
 
 // CORS Configuration
 const allowedOrigins = [process.env.CLIENT_ORIGIN || 'http://localhost:3000'];
 
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true, // Allow cookies if needed
-}));
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true, // Allow cookies if needed
+  })
+);
 
 // Connect to MongoDB
 connectDB();
@@ -25,6 +35,7 @@ app.use(express.json());
 
 // API routes
 app.use('/api', authRoutes);
+app.use('/api', RateLimiter, aiRoutes); // Apply rate limiter and integrate AI routes
 
 // Error-handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
@@ -34,4 +45,8 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
 // Start the server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`)
+});
+
+

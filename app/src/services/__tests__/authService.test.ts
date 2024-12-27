@@ -12,7 +12,7 @@
  * - Google API client for OAuth token validation.
  */
 import UserModel, { IUser } from '../../models/userModel';
-import JwtUtils from '../utils/jwtUtils';
+import JwtUtils from '../../utils/jwtUtils';
 import { OAuth2Client } from 'google-auth-library';
 
 class AuthService {
