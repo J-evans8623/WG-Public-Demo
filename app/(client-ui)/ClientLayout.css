@@ -72,14 +72,4 @@ Hidden State for Tool Pane Container
   pointer-events: none;
 }
 
-/* ClientLayout.css */
-
-/* Optional: Additional styles for the modal can be added here if not using Tailwind CSS */
-.auth-prompt-overlay {
-    /* Tailwind classes are used, so additional styles are minimal */
-  }
-  
-  .auth-prompt-modal {
-    /* Tailwind classes are used, so additional styles are minimal */
-  }
   

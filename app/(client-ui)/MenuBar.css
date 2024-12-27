@@ -5,6 +5,7 @@
   align-items: center;
   padding-bottom: 6px;
   background-color: #F9FBFD;
+  border-bottom: 2px solid #e0e0e0;
 }
 
 /* Consolidated .menu-bar-icon to span two rows */

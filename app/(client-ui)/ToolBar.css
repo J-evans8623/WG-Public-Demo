@@ -1,80 +1,93 @@
-/* bloom-maps/app/(client-ui)/ToolBar.css */
-
 .tool-bar {
   display: flex;
   align-items: center;
-  background-color: #EDF2FA;
-  border-bottom: 1px solid #cbd5e0;
-  padding: 6px 0px;
-  border-radius: 30px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  justify-content: space-between;
+  background-color: #f5f5f5; /* Lighter background */
+  border-bottom: 2px solid #e0e0e0; /* Subtle separator line */
+  padding: 8px 16px;
+  box-shadow: none; /* Remove shadows for flat design */
+  border-top: 1px solid white;
 }
 
-/* Ensure consistent spacing between each entry */
 .tool-bar-entry {
-  margin-right: 30px; /* Adjust spacing between each entry */
-  flex-shrink: 0; /* Prevent entries from shrinking */
+  margin-right: 16px; /* Smaller spacing for compact design */
+  flex-shrink: 0;
 }
 
 .tool-bar-button {
-  background-color: #EDF2FA;
-  border: none;
-  padding: 8px 0px;
+  background-color: #ffffff; /* Flat white button background */
+  border: 1px solid #d1d1d1; /* Subtle border for buttons */
+  padding: 6px 12px;
   border-radius: 4px;
-  transition: background-color 0.2s ease;
-  flex: none; /* Prevent buttons from stretching */
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
 }
 
 .tool-bar-button:hover {
-  background-color: #D3D3D3; /* Light gray color on hover */
+  background-color: #f0f0f0; /* Light gray hover effect */
+  border-color: #c0c0c0; /* Slightly darker border on hover */
 }
 
 .tool-bar-button:focus {
-  outline: none; /* Remove button outline on focus */
+  outline: none;
+  background-color: #e0e0e0; /* Focused state */
+  border-color: #b0b0b0;
 }
 
-.tool-bar-dropdown {
-  width: 120px; /* Maintain fixed width */
-  flex: none; /* Prevent dropdown from stretching */
+.tool-bar-button:disabled {
+  background-color: #f9f9f9; /* Disabled state */
+  border-color: #e0e0e0;
+  color: #a0a0a0;
+  cursor: not-allowed;
 }
 
-.icon {
-  transition: opacity 0.3s ease;
-}
-
-.tool-bar-button:disabled .icon {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.color-selector {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-/* Padding at the bottom to separate toolbar from other content */
-.toolbar-padding-bottom {
-  background-color: #F9FBFD;
-  height: 20px;
-  width: 100%;
-  margin-top: 10px;
-}
-/* Spacer element to push items to the left */
-.tool-bar .spacer {
-  margin-left: auto;
-}
-
-/* Separator between toolbar groups */
 .separator {
   width: 1px;
-  background-color: #C7C7C7;
-  height: 30px; /* Adjust as needed */
-  margin: 0 15px; /* Spacing around the separator */
+  background-color: #dcdcdc; /* Subtle separator color */
+  height: 32px;
+  margin: 0 16px; /* Space around the separator */
 }
 
-/* Grouping toolbar entries */
 .tool-bar-group {
   display: flex;
   align-items: center;
+  gap: 8px; /* Even spacing between group items */
+}
+
+.tool-bar-dropdown {
+  width: 140px; /* Adjusted width for better fit */
+  background-color: #ffffff; /* Flat white background */
+  border: 1px solid #dcdcdc; /* Subtle border for dropdown */
+  padding: 4px 8px;
+  border-radius: 4px; /* Rounded corners for modern look */
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.tool-bar-dropdown:hover {
+  background-color: #f7f7f7; /* Slight hover effect */
+  border-color: #c0c0c0; /* Darker border on hover */
+}
+
+.custom-dropdown {
+  background-color: #f9fafb; /* Slightly lighter gray background for dropdown menu */
+  border: 1px solid #e5e7eb; /* Subtle border */
+  border-radius: 4px; /* Rounded corners for dropdown menu */
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  padding: 4px 0; /* Padding around items */
+}
+
+.custom-dropdown .ant-select-item {
+  padding: 6px 12px; /* Consistent padding for items */
+  color: #374151; /* Neutral dark gray text */
+  transition: background-color 0.2s ease;
+}
+
+.custom-dropdown .ant-select-item:hover {
+  background-color: #e5e7eb; /* Slightly darker gray on hover */
+  color: #111827; /* Ensure legibility */
+}
+
+.custom-dropdown .ant-select-item-selected {
+  background-color: #dbeafe; /* Highlight selected item */
+  font-weight: 500; /* Slightly bolder text for selection */
 }

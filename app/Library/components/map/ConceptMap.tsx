@@ -53,7 +53,6 @@ const ConceptMap = ({
           'transform 0.3s ease, min-height 0.3s ease, min-width 0.3s ease',
         position: 'relative',
         display: 'flex',
-        boxShadow: '0px 4px 8px rgba(0, 0, 0, .5)',
       }}
     >
       <div style={{ flexGrow: 1, position: 'relative' }}>
