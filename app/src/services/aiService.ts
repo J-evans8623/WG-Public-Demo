@@ -29,7 +29,7 @@ class AIService {
       
       // Using chat completion instead of the deprecated completions endpoint
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-3.5-turbo', // Updated to use current model
+        model: 'gpt-4o-mini', // Updated to use current model
         messages: [
           {
             role: 'system',
@@ -40,7 +40,7 @@ class AIService {
             content: prompt
           }
         ],
-        max_tokens: 500,
+        max_tokens: 1000,
         temperature: 0.7,
       });
 

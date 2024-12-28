@@ -11,9 +11,15 @@
 // routes/aiRoutes.ts
 import express from 'express';
 import AIController from '../controllers/aiController';
+import multer from 'multer';
 
 const router = express.Router();
 
+// Set up multer for handling PDF uploads
+const upload = multer({ dest: 'uploads/' });
+
+
 router.post('/generate-ai', AIController.generateAI);
+router.post('/generate-ai-pdf', upload.single('pdf'), AIController.generateAIWithPDF);
 
 export default router;

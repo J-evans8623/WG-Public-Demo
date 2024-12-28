@@ -3,9 +3,11 @@ import ToolPaneCutCopyWindow from './ToolPaneCutCopyWindow';
 import ToolPaneDeleteWindow from './ToolPaneDeleteWindow';
 import ToolPaneMergeWindow from './ToolPaneMergeWindow';
 import ToolPaneEditWindow from './ToolPaneEditWindow';
+import GenerateAIForm from '../components/AI/GenerateAIForm';
 import './ToolPane-test.css';
 
-type OperationType = 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null;
+
+type OperationType = 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | 'generateAI' | null;
 
 interface ToolPaneProps {
   activeOperation: OperationType;
@@ -32,6 +34,8 @@ const ToolPaneTest: React.FC<ToolPaneProps> = ({
         return 'Merge Concept';
       case 'edit':
         return 'Edit Resource';
+      case 'generateAI':
+        return 'Generate AI Resource';
       default:
         return '';
     }
@@ -58,6 +62,9 @@ const ToolPaneTest: React.FC<ToolPaneProps> = ({
         )}
         {activeOperation === 'edit' && (
           <ToolPaneEditWindow sourceNodeId={sourceNodeId} onClose={onClose} />
+        )}
+        {activeOperation === 'generateAI' && (
+          <GenerateAIForm sourceNodeId={sourceNodeId} onClose={onClose} />
         )}
       </div>
     </div>

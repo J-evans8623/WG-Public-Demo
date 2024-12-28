@@ -236,3 +236,20 @@ export interface PracticeSheetResource extends BaseResource {
  * Discriminated union type for all resources.
  */
 export type ResourceCard = CueCardResource | PictureResource | PracticeSheetResource;
+
+
+/**
+ * Interface for AI-generated Concept Hierarchy.
+ */
+export interface AIConceptHierarchy {
+  title: string;
+  subtreeRoot: boolean;
+  parent: string | null;
+  children: AIConceptHierarchy[]; // Recursion for nested concepts
+  resources: Array<{
+    type: 'cueCard' | 'practiceSheet';
+    title: string;
+    text?: string; // Text for a cue card 
+    quizData?: any; // Quiz data for practice sheets
+  }>;
+}

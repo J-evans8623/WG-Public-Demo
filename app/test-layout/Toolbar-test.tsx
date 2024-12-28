@@ -30,12 +30,13 @@ import { setPrimaryColor, setBackgroundColor } from '@/app/Library/Context/color
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext'; // Import ResourceContext
+import AIIcon from '@/app/icons-custom/ai-icon.svg';
 
 const { Option } = Select;
 
 interface ToolBarProps {
   onOpenToolPane: (
-    operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null,
+    operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | 'generateAI' | null,
     sourceNodeId: string
   ) => void; // Updated to accept null
   openModalWithResourceType: (
@@ -153,6 +154,16 @@ const ToolBar: React.FC<ToolBarProps> = ({
     const focusedNodeId = focusOnSelectedNode();
     openModalWithResourceType(focusedNodeId, resourceType, op);
   };
+
+    /**
+   * Handler for AI button click.
+   * Opens the AI tool pane with 'generateAI' operation.
+   */
+    const handleAIButtonClick = () => {
+      const nodeId = focusOnSelectedNode();
+      if (!nodeId) return;
+      onOpenToolPane('generateAI', nodeId);
+    };
 
   return (
     <div className="tool-bar">
@@ -298,6 +309,15 @@ const ToolBar: React.FC<ToolBarProps> = ({
           <Button
             icon={<AddQuizIcon className="icon" />}
             onClick={() => handleAddResource('practiceSheet', 'resource')}
+            disabled={!selectedNodeId}
+            className="tool-bar-button"
+          />
+        </Tooltip>
+                {/* 5. AI Button */}
+                <Tooltip title="Generate AI Content">
+          <Button
+            icon={<AIIcon className="icon" />} 
+            onClick={handleAIButtonClick}
             disabled={!selectedNodeId}
             className="tool-bar-button"
           />
