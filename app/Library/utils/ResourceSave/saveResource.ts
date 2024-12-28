@@ -1,6 +1,6 @@
 // bloom-maps/app/Library/utils/ResourceSave/saveResource.ts
 
-import { ResourceType, IQuizQuestion, CueCardResource, PictureResource, PracticeSheetResource, ResourceCard } from '@/app/Library/Definitions/Definitions';
+import { ResourceType, IQuizQuestion, CueCardResource, PictureResource, PracticeSheetResource, ResourceCard, QuizType } from '@/app/Library/Definitions/Definitions';
 import { Descendant } from 'slate';
 
 interface ResourceSaveParams {
@@ -11,7 +11,7 @@ interface ResourceSaveParams {
   cueCardContent?: Descendant[];
   image?: File | null;
   pictureDescription?: Descendant[]; // Added field
-  practiceSheetContent?: { quizType: 'matching' | 'multipleChoice' | 'wordProblem'; quizContent: IQuizQuestion[] };
+  practiceSheetContent?: { quizType: QuizType; quizContent: IQuizQuestion[] };
   source?: string,
 }
 

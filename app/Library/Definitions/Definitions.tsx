@@ -212,14 +212,41 @@ export interface PictureResource extends BaseResource {
   description? : Descendant[];
 }
 
-export type QuizType = 'matching' | 'multipleChoice' | 'wordProblem';
+export type QuizType = 'matching' | 'multipleChoice' | 'true-false' | 'FIB'; 
 
 export interface IQuizQuestion {
   id: string;
   type: QuizType;
   question: string;
+  correctAnswer: string | string[] | Boolean;
+}
+
+// Multiple choice specific interface
+export interface IMultipleChoiceQuestion extends IQuizQuestion {
+  type: 'multipleChoice';
+  options: string[];
+  correctAnswer: string[];  // Array with single correct answer
+}
+
+// True/False specific interface
+export interface ITrueFalseQuestion extends IQuizQuestion {
+  type: 'true-false';
+  correctAnswer: Boolean;
+}
+
+export interface IBlank {
+  id: string; // e.g. {{Blank-1}} , this maps to a {{blank}} placeholder inside the question text field.
   correctAnswer: string;
 }
+
+// Fill in the Blank specific interface
+export interface IFillInBlankQuestion extends IQuizQuestion {
+  type: 'FIB';
+  questionText: string;  // Text with special markers for blanks, e.g., "The {{blank-1}} jumped over the {{blank-2}}"
+  blanks: IBlank[];  // Array of blank definitions, each posessing an id field that maps a blank placed holder to the correct answer.
+}
+
+
 
 /**
  * Interface for PracticeSheet resources.
@@ -227,7 +254,7 @@ export interface IQuizQuestion {
 export interface PracticeSheetResource extends BaseResource {
   type: 'practiceSheet';
   content: {
-    quizType: 'matching' | 'multipleChoice' | 'wordProblem';
+    quizType: QuizType;
     quizContent: IQuizQuestion[];
   };
 }
@@ -241,7 +268,7 @@ export type ResourceCard = CueCardResource | PictureResource | PracticeSheetReso
 /**
  * Interface for AI-generated Concept Hierarchy.
  */
-export interface AIConceptHierarchy {
+/**export interface AIConceptHierarchy {
   title: string;
   subtreeRoot: boolean;
   parent: string | null;
@@ -251,5 +278,6 @@ export interface AIConceptHierarchy {
     title: string;
     text?: string; // Text for a cue card 
     quizData?: any; // Quiz data for practice sheets
-  }>;
-}
+  }>; 
+  
+}**/

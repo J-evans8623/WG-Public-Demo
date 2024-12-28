@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { saveResource } from '@/app/Library/utils/ResourceSave/saveResource';
-import { IQuizQuestion, ResourceType } from '@/app/Library/Definitions/Definitions';
+import { IQuizQuestion, ResourceType, QuizType } from '@/app/Library/Definitions/Definitions';
 import DocumentHeader from '@/app/Library/components/DocumentFile/DocumentHeader';
 import './ClientLayout.css';
 import './ToolBar.css';
@@ -262,7 +262,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     source?: string,
     pictureDescription?: Descendant[],
     practiceSheetContent?: {
-      quizType: 'matching' | 'multipleChoice' | 'wordProblem';
+      quizType:QuizType;
       quizContent: IQuizQuestion[];
     }
   ) => {

@@ -1,6 +1,7 @@
 // bloom-maps/app/Library/Tests/Modals/ModernModal.tsx
 
 import React, { useState, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { Tabs, Button, Input, InputRef } from 'antd';
 import CueCardInput from './CueCardInput';
 import PictureInput from './PictureInput';
@@ -26,7 +27,7 @@ interface ModernModalProps {
     source?: string,
     pictureDescription?: Descendant[],
     practiceSheetContent?: {
-      quizType: 'matching' | 'multipleChoice' | 'wordProblem';
+      quizType: QuizType,
       quizContent: IQuizQuestion[];
     }
   ) => void;
@@ -41,7 +42,7 @@ interface ModernModalProps {
   initialPictureDescription?: Descendant[];
   initialPracticeSheetTitle?: string;
   initialPracticeSheetContent?: {
-    quizType: 'matching' | 'multipleChoice' | 'wordProblem';
+    quizType: QuizType;
     quizContent: IQuizQuestion[];
   };
   initialUploadedPicture?: File | null; // New Prop
@@ -135,82 +136,82 @@ const ModernModal: React.FC<ModernModalProps> = ({
     }
   };
 
-  return (
-    isOpen && (
-      <div className="modal">
-        <div className="modal-header">
-          {isEditingTitle ? (
-            <Input
-              ref={titleInputRef}
-              placeholder="Node Title"
-              value={nodeTitle}
-              onChange={(e) => setNodeTitle(e.target.value)}
-              className="input"
-            />
-          ) : (
-            <h2 className="modal-title">{nodeTitle}</h2>
-          )}
-          {mode === 'addResource' && (
-            <button
-              onClick={() => {
-                setIsEditingTitle(true);
-                titleInputRef.current?.focus();
-              }}
-              className="ml-2 text-gray-600 hover:text-gray-800"
-              title="Edit Title"
-            >
-              <FaPencilAlt />
-            </button>
-          )}
-        </div>
-        <div className="modal-content">
-          <Tabs activeKey={activeTabKey} onChange={(key) => setActiveTabKey(key as 'cueCard' | 'picture' | 'practiceSheet')}>
-            {/* Conditionally render tabs based on `selectedResourceType` */}
-            {(selectedResourceType === undefined || selectedResourceType === 'cueCard') && (
-              <TabPane tab="Cue Card" key="cueCard">
-                  <CueCardInput
-                    cueCardTitle={cueCardTitle}
-                    cueCardContent={cueCardContent}
-                    source={source} // Pass source
-                    setCueCardTitle={setCueCardTitle}
-                    setCueCardContent={setCueCardContent}
-                    setSource={setSource} // Pass setSource
-                  />
-              </TabPane>
-            )}
-            {(selectedResourceType === undefined || selectedResourceType === 'picture') && (
-              <TabPane tab="Picture" key="picture">
-                <PictureInput
-                  pictureTitle={pictureTitle}
-                  pictureDescription={pictureDescription}
-                  uploadedPicture={uploadedPicture} // Pass the state
-                  source={source}
-                  setPictureTitle={setPictureTitle}
-                  setPictureDescription={setPictureDescription}
-                  handlePictureUpload={setUploadedPicture}
-                  setSource={setSource}
-                />
-              </TabPane>
-            )}
-            {(selectedResourceType === undefined || selectedResourceType === 'practiceSheet') && (
-              <TabPane tab="Practice Sheet" key="practiceSheet">
-                <PracticeSheetInput
-                  practiceSheetTitle={practiceSheetTitle}
-                  practiceContent={practiceContent}
-                  setPracticeSheetTitle={setPracticeSheetTitle}
-                  setPracticeContent={setPracticeContent}
-                />
-              </TabPane>
-            )}
-          </Tabs>
-        </div>
-        <div className="modal-footer">
-          <Button onClick={handleSave}>Save</Button>
-          <Button onClick={handleClose}>Cancel</Button>
-        </div>
+  const modalContent = (
+    <div className="modal">
+      <div className="modal-header">
+        {isEditingTitle ? (
+          <Input
+            ref={titleInputRef}
+            placeholder="Node Title"
+            value={nodeTitle}
+            onChange={(e) => setNodeTitle(e.target.value)}
+            className="input"
+          />
+        ) : (
+          <h2 className="modal-title">{nodeTitle}</h2>
+        )}
+        {mode === 'addResource' && (
+          <button
+            onClick={() => {
+              setIsEditingTitle(true);
+              titleInputRef.current?.focus();
+            }}
+            className="ml-2 text-gray-600 hover:text-gray-800"
+            title="Edit Title"
+          >
+            <FaPencilAlt />
+          </button>
+        )}
       </div>
-    )
+      <div className="modal-content">
+        <Tabs activeKey={activeTabKey} onChange={(key) => setActiveTabKey(key as 'cueCard' | 'picture' | 'practiceSheet')}>
+          {/* Conditionally render tabs based on `selectedResourceType` */}
+          {(selectedResourceType === undefined || selectedResourceType === 'cueCard') && (
+            <TabPane tab="Cue Card" key="cueCard">
+                <CueCardInput
+                  cueCardTitle={cueCardTitle}
+                  cueCardContent={cueCardContent}
+                  source={source} // Pass source
+                  setCueCardTitle={setCueCardTitle}
+                  setCueCardContent={setCueCardContent}
+                  setSource={setSource} // Pass setSource
+                />
+            </TabPane>
+          )}
+          {(selectedResourceType === undefined || selectedResourceType === 'picture') && (
+            <TabPane tab="Picture" key="picture">
+              <PictureInput
+                pictureTitle={pictureTitle}
+                pictureDescription={pictureDescription}
+                uploadedPicture={uploadedPicture} // Pass the state
+                source={source}
+                setPictureTitle={setPictureTitle}
+                setPictureDescription={setPictureDescription}
+                handlePictureUpload={setUploadedPicture}
+                setSource={setSource}
+              />
+            </TabPane>
+          )}
+          {(selectedResourceType === undefined || selectedResourceType === 'practiceSheet') && (
+            <TabPane tab="Practice Sheet" key="practiceSheet">
+              <PracticeSheetInput
+                practiceSheetTitle={practiceSheetTitle}
+                practiceContent={practiceContent}
+                setPracticeSheetTitle={setPracticeSheetTitle}
+                setPracticeContent={setPracticeContent}
+              />
+            </TabPane>
+          )}
+        </Tabs>
+      </div>
+      <div className="modal-footer">
+        <Button onClick={handleSave}>Save</Button>
+        <Button onClick={handleClose}>Cancel</Button>
+      </div>
+    </div>
   );
+
+  return  isOpen ? ReactDOM.createPortal(modalContent, document.body) : null;
 };
 
 export default ModernModal;
