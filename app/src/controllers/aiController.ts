@@ -1,36 +1,38 @@
 /**
  * controllers/aiController.ts
- * 
+ *
  * Handles API requests related to AI services.
- * 
+ *
  * Responsibilities:
- * - Accepts user input from HTTP requests.
- * - Maps user-selected options to predefined prompts.
- * - Invokes AI Service methods for processing.
+ * - Accepts user input from HTTP requests or PDF uploads.
+ * - Maps user-selected options to predefined prompts and schemas.
+ * - Invokes AI Service methods for processing structured responses.
  * - Handles success and error responses.
+ *
+ * Dependencies:
+ * - `aiService.ts` for AI operations.
+ * - `predefined-prompts.ts` for predefined prompts.
+ * - `schemas` for structured output validation.
  */
 
-import { Request, Response } from 'express';
-import AIService from '../services/aiService';
-import predefinedPrompts from '../config/predefined-prompts';
-import OpenAIClient from '../config/openai';
-import multer from 'multer';
-import pdfParse from 'pdf-parse';
-import fs from 'fs';
+import { Request, Response } from "express";
+import AIService from "../services/aiService";
+import predefinedPrompts from "../config/predefined-prompts";
+import OpenAIClient from "../config/openai";
+import { LessonSchema } from "../schemas/lessonSchema";
+import { QuizSchema } from "../schemas/quizSchema";
+import { IStructuredLessonResponse, IStructuredQuizResponse } from "../ai-definitions/Definitions";
+import multer from "multer";
+import pdfParse from "pdf-parse";
+import fs from "fs";
 
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: "uploads/" });
 
 class AIController {
   private static aiService: AIService | null = null;
 
   /**
    * Lazily initializes and retrieves the AIService instance.
-   * 
-   * Responsibilities:
-   * - Ensures the AIService is initialized only once.
-   * - Reuses the same instance of AIService for all subsequent requests.
-   * 
-   * @returns {AIService} The initialized AIService instance.
    */
   private static getAIService(): AIService {
     if (!this.aiService) {
@@ -41,110 +43,80 @@ class AIController {
   }
 
   /**
-   * Handles the `POST /generate-ai` endpoint for generating AI content.
-   * 
-   * Responsibilities:
-   * - Validates the incoming request for required fields (`text` and `option`).
-   * - Maps the user-selected `option` to a predefined prompt.
-   * - Uses AIService to process user input and retrieve AI-generated content.
-   * - Sends a successful response with the generated content or an appropriate error message.
-   * 
-   * @param req - Express Request object containing user input and selected option.
-   * @param res - Express Response object to send back AI-generated content or error responses.
+   * Extracts text from a PDF file or uses the `text` field from the request body.
    */
-  public static async generateAI(req: Request, res: Response): Promise<void> {
+  private static async extractText(req: Request): Promise<string> {
+    if (req.file) {
+      const pdfBuffer = await fs.promises.readFile(req.file.path);
+      const pdfData = await pdfParse(pdfBuffer);
+      return pdfData.text.trim();
+    }
+    return req.body.text;
+  }
+
+  /**
+   * Handles the `POST /generate-lesson` endpoint for generating structured lessons.
+   */
+  public static async generateLesson(req: Request, res: Response): Promise<void> {
     try {
-      console.log('Request received:', req.body); // Debug log
+      console.log("Lesson generation request received:", req.body);
 
-      const { text, option } = req.body;
+      const text = await AIController.extractText(req);
 
-      // Validate request input
-      if (!text || !option) {
-        res.status(400).json({ error: 'Invalid input. Both text and option are required.' });
+      if (!text) {
+        res.status(400).json({ error: "Invalid input. Text or a valid PDF is required." });
         return;
       }
 
-      // Map option to predefined prompt
-      const predefinedPrompt = predefinedPrompts[option];
-      if (!predefinedPrompt) {
-        res.status(400).json({ error: 'Invalid option selected.' });
-        return;
-      }
-
-      // Initialize AIService
       const aiService = AIController.getAIService();
-      console.log('AI Service initialized'); // Debug log
+      console.log("AI Service initialized");
 
-      // Process user input and generate AI content
-      const aiResponse = await aiService.processUserInput(text, predefinedPrompt);
-      console.log('AI Response received:', aiResponse); // Debug log
+      const structuredResponse = (await aiService.generateStructuredOutput(
+        LessonSchema,
+        text,
+        "lesson_schema"
+      )) as IStructuredLessonResponse;
 
-      // Send successful response with AI-generated content
-      res.status(200).json({ content: aiResponse });
+      console.log("Structured lesson response received:", structuredResponse);
+
+      res.status(200).json(structuredResponse);
     } catch (error) {
-      console.error('Detailed error in generateAI:', error);
-      res.status(500).json({ error: 'Failed to generate AI content.' });
+      console.error("Error in generateLesson:", error);
+      res.status(500).json({ error: "Failed to generate structured lesson." });
     }
   }
 
   /**
-   * Handles the `POST /generate-ai-pdf` endpoint for generating AI content from PDF uploads.
+   * Handles the `POST /generate-quiz` endpoint for generating structured quizzes.
    */
-  public static async generateAIWithPDF(req: Request, res: Response): Promise<void> {
+  public static async generateQuiz(req: Request, res: Response): Promise<void> {
     try {
-      console.log('PDF-based AI Request received:', req.body); // Debug log
+      console.log("Quiz generation request received:", req.body);
 
-      const { option } = req.body;
+      const text = await AIController.extractText(req);
 
-      // Validate request input
-      if (!option) {
-        res.status(400).json({ error: 'Invalid input. Option is required.' });
+      if (!text) {
+        res.status(400).json({ error: "Invalid input. Text or a valid PDF is required." });
         return;
       }
 
-      // Ensure a file is uploaded
-      if (!req.file) {
-        res.status(400).json({ error: 'No PDF file uploaded.' });
-        return;
-      }
-
-      // Validate option
-      const predefinedPrompt = predefinedPrompts[option];
-      if (!predefinedPrompt) {
-        res.status(400).json({ error: 'Invalid option selected.' });
-        return;
-      }
-
-      // Extract text from PDF
-      const pdfBuffer = await fs.promises.readFile(req.file.path);
-      const pdfData = await pdfParse(pdfBuffer);
-      const extractedText = pdfData.text;
-
-      if (!extractedText.trim()) {
-        res.status(400).json({ error: 'PDF contains no extractable text.' });
-        return;
-      }
-
-      // Initialize AIService
       const aiService = AIController.getAIService();
-      console.log('AI Service initialized'); // Debug log
+      console.log("AI Service initialized");
 
-      // Process extracted text and generate AI content
-      const aiResponse = await aiService.processUserInput(extractedText, predefinedPrompt);
-      console.log('AI Response received:', aiResponse); // Debug log
+      const structuredResponse = (await aiService.generateStructuredOutput(
+        QuizSchema,
+        text,
+        "quiz_schema"
+      )) as IStructuredQuizResponse;
 
-      // Send successful response with AI-generated content
-      res.status(200).json({ content: aiResponse });
+      console.log("Structured quiz response received:", structuredResponse);
+
+      res.status(200).json(structuredResponse);
     } catch (error) {
-      console.error('Detailed error in generateAIWithPDF:', error);
-      res.status(500).json({ error: 'Failed to generate AI content from PDF.' });
+      console.error("Error in generateQuiz:", error);
+      res.status(500).json({ error: "Failed to generate structured quiz." });
     }
   }
-
 }
 
-
-
-
-// Export the class itself, not an instance
 export default AIController;

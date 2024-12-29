@@ -6,20 +6,28 @@
  * Responsibilities:
  * - Sets up Express routes for AI services.
  * - Associates routes with corresponding controller methods and middleware.
+ * - Handles both text and PDF inputs for lesson and quiz generation.
  */
 
-// routes/aiRoutes.ts
 import express from 'express';
-import AIController from '../controllers/aiController';
 import multer from 'multer';
+import AIController from '../controllers/aiController';
 
 const router = express.Router();
 
 // Set up multer for handling PDF uploads
 const upload = multer({ dest: 'uploads/' });
 
+/**
+ * Route for generating structured lessons.
+ * - Handles both text input and PDF uploads.
+ */
+router.post('/generate-lesson', upload.single('pdf'), AIController.generateLesson);
 
-router.post('/generate-ai', AIController.generateAI);
-router.post('/generate-ai-pdf', upload.single('pdf'), AIController.generateAIWithPDF);
+/**
+ * Route for generating structured quizzes.
+ * - Handles both text input and PDF uploads.
+ */
+router.post('/generate-quiz', upload.single('pdf'), AIController.generateQuiz);
 
 export default router;

@@ -6,10 +6,16 @@
  * Responsibilities:
  * - Receives raw user input (textbook pages, etc.) and predefined backend prompts.
  * - Sanitizes the user input to ensure safety and coherence.
- * - Combines sanitized user input with a predefined backend prompt to create a structured prompt.
+ * - Combines sanitized user input with a predefined backend prompt to create structured prompts.
+ * - Incorporates schema details to ensure AI responses adhere to predefined structures.
+ * 
+ * Dependencies:
+ * - `sanitize-html` for input sanitization.
+ * - `zod` for schema validation and description extraction.
  */
 
-import sanitizeHtml from 'sanitize-html';
+import sanitizeHtml from "sanitize-html";
+import { z } from "zod";
 
 class PromptEngineering {
   /**
@@ -26,14 +32,21 @@ class PromptEngineering {
   }
 
   /**
-   * Combines a predefined backend prompt with sanitized user input to construct a complete prompt for the OpenAI API.
+   * Combines a predefined backend prompt with sanitized user input to construct a structured prompt for the OpenAI API.
    * 
-   * @param sanitizedInput - The sanitized text input provided by the user.
+   * @param schema - A Zod schema defining the structure of the expected response.
+   * @param input - Sanitized text input provided by the user.
    * @param predefinedPrompt - A predefined backend prompt describing the task.
-   * @returns string - A well-structured prompt for OpenAI API.
+   * @returns string - A well-structured prompt incorporating the schema and user input.
    */
-  public createPrompt(sanitizedInput: string, predefinedPrompt: string): string {
-    return `${predefinedPrompt}\n\nInput Text:\n${sanitizedInput}`;
+  public createStructuredPrompt(
+    schema: z.ZodSchema,
+    input: string,
+    predefinedPrompt: string
+  ): string {
+    return `${predefinedPrompt}\nSchema: ${JSON.stringify(
+      schema.describe("Schema description for AI prompt")
+    )}\nInput: ${input}`;
   }
 }
 
