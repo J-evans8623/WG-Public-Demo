@@ -1,5 +1,5 @@
 // bloom-maps\app\Library\Context\NodesProvider.tsx
-import React, { createContext, useReducer, useContext, useMemo, ReactNode } from 'react';
+import React, { createContext, useReducer, useContext, useMemo, ReactNode, useEffect } from 'react';
 import { nodesReducer, initialNodesState } from './nodesReducer';
 import { ConceptNode, NodesAction } from '@/app/Library/Definitions/Definitions';
 
@@ -13,6 +13,10 @@ const NodesContext = createContext<NodesContextValue | undefined>(undefined);
 export const NodesProvider = ({ children }: { children: ReactNode }) => {
   const [nodes, dispatch] = useReducer(nodesReducer, initialNodesState);
   const contextValue = useMemo(() => ({ nodes, dispatch }), [nodes]);
+
+  useEffect(() => {
+    //console.log('Context state updated-nodes:', nodes);
+  }, [nodes]);
 
   return (
     <NodesContext.Provider value={contextValue}>

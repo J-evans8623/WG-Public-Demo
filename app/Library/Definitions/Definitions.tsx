@@ -225,7 +225,7 @@ export interface IQuizQuestion {
 export interface IMultipleChoiceQuestion extends IQuizQuestion {
   type: 'multipleChoice';
   options: string[];
-  correctAnswer: string[];  // Array with single correct answer
+  correctAnswer: string;  // Array with single correct answer
 }
 
 // True/False specific interface
@@ -234,16 +234,11 @@ export interface ITrueFalseQuestion extends IQuizQuestion {
   correctAnswer: Boolean;
 }
 
-export interface IBlank {
-  id: string; // e.g. {{Blank-1}} , this maps to a {{blank}} placeholder inside the question text field.
-  correctAnswer: string;
-}
-
 // Fill in the Blank specific interface
 export interface IFillInBlankQuestion extends IQuizQuestion {
   type: 'FIB';
   questionText: string;  // Text with special markers for blanks, e.g., "The {{blank-1}} jumped over the {{blank-2}}"
-  blanks: IBlank[];  // Array of blank definitions, each posessing an id field that maps a blank placed holder to the correct answer.
+  correctAnswer: string;  // Array of blank definitions, each posessing an id field that maps a blank placed holder to the correct answer.
 }
 
 
@@ -265,19 +260,3 @@ export interface PracticeSheetResource extends BaseResource {
 export type ResourceCard = CueCardResource | PictureResource | PracticeSheetResource;
 
 
-/**
- * Interface for AI-generated Concept Hierarchy.
- */
-/**export interface AIConceptHierarchy {
-  title: string;
-  subtreeRoot: boolean;
-  parent: string | null;
-  children: AIConceptHierarchy[]; // Recursion for nested concepts
-  resources: Array<{
-    type: 'cueCard' | 'practiceSheet';
-    title: string;
-    text?: string; // Text for a cue card 
-    quizData?: any; // Quiz data for practice sheets
-  }>; 
-  
-}**/

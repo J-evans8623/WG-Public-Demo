@@ -14,7 +14,6 @@ import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { saveResource } from '@/app/Library/utils/ResourceSave/saveResource';
 import { IQuizQuestion, ResourceType, QuizType } from '@/app/Library/Definitions/Definitions';
-import DocumentHeader from '@/app/Library/components/DocumentFile/DocumentHeader';
 import { Descendant } from 'slate';
 import { AuthContext, AuthProvider } from '@/app/src/context/AuthContext';
 import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
@@ -33,7 +32,6 @@ import { setGetLayout } from '@/app/Library/Context/LayoutActions';
 import { initializeNewDocument } from '@/app/Library/utils/documentUtils'; 
 
 // Dynamic Tool Panes
-import ToolPane from '@/app/Library/dynamic_tool_panes/ToolPane';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { LoadingProvider } from '@/app/Library/Context/LoadingContext';
 import { useLoading } from '@/app/Library/Context/LoadingContext'; // Import the loading hook

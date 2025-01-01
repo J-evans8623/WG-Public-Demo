@@ -1,6 +1,6 @@
 // bloom-maps/app/Library/Context/ResourceContext.tsx
 
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import { ResourceCard, ResourceType, PictureResource, PracticeSheetResource, CueCardResource } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -57,6 +57,10 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   const [resourceHistoryMap, setResourceHistoryMap] = useState<Map<string, HistoryState>>(
     new Map()
   );
+
+    useEffect(() => {
+      console.log('Context state updated-resources:', resources);
+    }, [resources]);
 
   /**
    * Adds a new resource to a node.

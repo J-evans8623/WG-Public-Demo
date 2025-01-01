@@ -49,10 +49,11 @@ class AIService {
             content: input,
           },
         ],
+        max_tokens: 2000,
         response_format: zodResponseFormat(schema, schemaName),
       });
 
-      console.log("Structured response received from OpenAI:", response);
+      console.log("Structured lesson response received:", JSON.stringify(response, null, 2));
 
       return response.choices[0].message.parsed;
     } catch (error) {

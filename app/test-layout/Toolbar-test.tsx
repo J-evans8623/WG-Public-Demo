@@ -17,7 +17,7 @@ import {
 import UndoIcon from '@/app/icons-custom/active/undo.svg';
 import RedoIcon from '@/app/icons-custom/active/redo.svg';
 import DeselectAllIcon from '@/app/icons-custom/clear_all.svg';
-import AddConceptIcon from '@/app/icons-custom/active/AddConceptActiveSq.svg';
+import  AddConceptIcon from '@/app/icons-custom/active/add-concept-new.svg';
 import AddCueCardIcon from '@/app/icons-custom/active/AddCueCard.svg';
 import AddPictureIcon from '@/app/icons-custom/active/AddPictureActive.svg';
 import AddQuizIcon from '@/app/icons-custom/active/quiz_tool_button.svg';

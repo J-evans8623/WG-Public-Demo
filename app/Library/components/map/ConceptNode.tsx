@@ -3,7 +3,8 @@
 import React, { memo, useCallback } from 'react';
 import { ConceptNode as NodeType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import AddConceptIcon from '@/app/icons-custom/ConceptNodeAdd.svg';
+import AddConceptIcon from '@/app/icons-custom/active/add-concept-new.svg';
+import AddCueCardIcon from '@/app/icons-custom/active/AddCueCard.svg';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import './ConceptNode.css';
 
@@ -161,19 +162,13 @@ function ConceptNode({
         onClick={handleOpenGeneralModal}
         className="absolute bottom-2 right-10 text-black rounded-full w-6 h-6 flex items-center justify-center transition-colors duration-200"
         title="Add Study Resource"
+        style={{
+          width: '28px',
+          height: '28px',
+          padding: '2px',
+        }}
       >
-        <div className="relative w-full h-full flex items-center justify-center">
-          <div
-            className="absolute w-2/3 h-2/3 border border-black transform -translate-x-1 -translate-y-1"
-            style={{ backgroundColor: nodeColor }}
-          />
-          <div
-            className="absolute w-2/3 h-2/3 border border-black transform -translate-x-0.5 -translate-y-0.5"
-            style={{ backgroundColor: nodeColor }}
-          />
-          <div className="absolute w-2/3 h-2/3 border border-black" style={{ backgroundColor: nodeColor }} />
-          <span className="absolute text-xs font-bold">+</span>
-        </div>
+          <AddCueCardIcon className="w-full h-full" />
       </button>
     </div>
   );

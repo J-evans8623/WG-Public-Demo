@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useReducer, useContext, ReactNode, useMemo } from 'react';
+import React, { createContext, useReducer, useContext, ReactNode, useMemo, useEffect } from 'react';
 import { layoutReducer, initialLayoutState } from './layoutReducer';
 import { LayoutAction } from '@/app/Library/Definitions/Definitions';
 
@@ -21,6 +21,10 @@ export const LayoutProvider = ({ children }: { children: ReactNode }) => {
     ...state,
     dispatch,
   }), [state]);
+
+    useEffect(() => {
+      //console.log('Context state updated-layout:', state);
+    }, [state]);
 
   return (
     <LayoutContext.Provider value={contextValue}>

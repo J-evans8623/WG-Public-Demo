@@ -14,15 +14,59 @@
 
 import { z } from "zod";
 
-export const QuizSchema = z.object({
+
+const BaseQuizSchema = z.object({
   id: z.string(), // Unique identifier for the quiz.
   title: z.string(), // Title of the quiz.
+});
+
+
+export const MultipleChoiceSchema = BaseQuizSchema.extend({
   questions: z.array(
     z.object({
       id: z.string(), // Unique identifier for each question.
       question: z.string(), // The question text.
       options: z.array(z.string()), // Multiple-choice options.
-      correctAnswer: z.array(z.string()), // Array of correct answers.
+      correctAnswer: z.string(), // Single correct answer.
+    })
+  ),
+});
+
+
+// Schema for True/False quizzes
+export const TrueFalseSchema = BaseQuizSchema.extend({
+  questions: z.array(
+    z.object({
+      id: z.string(), // Unique identifier for each question.
+      type: z.literal('true-false'), // Specific quiz type.
+      question: z.string(), // The question text.
+      correctAnswer: z.boolean(), // Boolean value for correct answer (true/false).
+    })
+  ),
+});
+
+
+// Schema for Fill in the Blank quizzes
+export const FillInBlankSchema = BaseQuizSchema.extend({
+  questions: z.array(
+    z.object({
+      id: z.string(), // Unique identifier for each question.
+      type: z.literal('FIB'), // Specific quiz type.
+      questionText: z.string(), // Text with placeholders for blanks, e.g., "The {{blank-1}} jumped over the {{blank-2}}."
+      correctAnswer: z.string(),
+    })
+  ),
+});
+
+
+// Updated Matching Quiz Schema
+export const MatchingQuizSchema = BaseQuizSchema.extend({
+  questions: z.array(
+    z.object({
+      id: z.string(), // Unique identifier for each question.
+      type: z.literal('matching'), // Specific quiz type.
+      matchingTerm: z.string(), // The question text or prompt for the matching.
+      matchingAnswer: z.string(), // Single correct answer as a string.
     })
   ),
 });

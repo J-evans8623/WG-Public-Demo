@@ -30,6 +30,7 @@ export interface IStructuredLessonResponse {
     /**
      * Represents the structure of a quiz response.
      */
+    quizType:string,
     id: string; // Unique identifier for the quiz.
     title: string; // Title of the quiz.
     questions: Array<{

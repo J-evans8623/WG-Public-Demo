@@ -1,12 +1,10 @@
 import React, { memo, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
-//import useKeepMapInView from '@/app/Library/hooks/useKeepMapInView';
 import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
 import ConceptNode from '@/app/Library/components/map/ConceptNode';
 import Subtree from './Subtree';
 import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
 import { useAutoMapResize } from '@/app/Library/hooks/useAutoMapResize';
-//import { useTreePositioning } from '@/app/Library/hooks/useTreePositioning';
 
 // Import new contexts
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';

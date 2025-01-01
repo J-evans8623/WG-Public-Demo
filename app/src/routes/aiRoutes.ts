@@ -28,6 +28,9 @@ router.post('/generate-lesson', upload.single('pdf'), AIController.generateLesso
  * Route for generating structured quizzes.
  * - Handles both text input and PDF uploads.
  */
-router.post('/generate-quiz', upload.single('pdf'), AIController.generateQuiz);
+router.post('/generate-quiz/multipleChoice', upload.single('pdf'), AIController.generateQuiz_multipleChoice);
+router.post('/generate-quiz/matching', upload.single('pdf'), AIController.generateQuiz_matching);
+router.post('/generate-quiz/FIB', upload.single('pdf'), AIController.generateQuiz_fillInBlank);
+router.post('/generate-quiz/true-false', upload.single('pdf'), AIController.generateQuiz_trueFalse);
 
 export default router;

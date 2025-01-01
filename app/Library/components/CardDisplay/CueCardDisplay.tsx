@@ -6,7 +6,7 @@ import PictureCard from './PictureCard';
 import PracticeSheetCard from './PracticeSheetCard';
 import MatchingQuizModal from './MatchingQuizModal';
 import ImageCard from '@/app/Library/components/CardDisplay/p1/ImageCard'; // Import the new ImageCard component
-import { CueCardResource, IQuizQuestion  } from '@/app/Library/Definitions/Definitions';
+import { CueCardResource, IFillInBlankQuestion, IMultipleChoiceQuestion, IQuizQuestion, ITrueFalseQuestion, QuizType  } from '@/app/Library/Definitions/Definitions';
 import { useResourceContext } from '../../Context/ResourceContext'; 
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 
@@ -15,6 +15,9 @@ import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { scrambleArray } from '@/app/Library/utils/QuizUtils';
 import ModalOverlayManager from '@/app/Library/components/CardDisplay/ModalOverlayManager';
 import { Descendant } from 'slate';
+import FillInBlankQuiz from './quiz/FillInBlankQuiz';
+import MultipleChoiceQuiz from './quiz/MultipleChoiceQuiz';
+import TrueFalseQuiz from './quiz/TrueFalseQuiz';
 
 /**
  * Default Cue Cards to display when no resources are visible.
@@ -207,17 +210,101 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
    * @param quizTitle - The title of the quiz.
    * @param quizContent - The raw quiz content string.
    */
-  const handleOpenQuizModal = useCallback((quizTitle: string, quizQuestions: IQuizQuestion[]) => {
-    const scrambledAnswers = scrambleArray(quizQuestions.map((q) => q.correctAnswer));
-    setOverlayContent(
-      <MatchingQuizModal
-        title={quizTitle}
-        quiz={quizQuestions} // Pass questions directly
-        scrambledAnswers={scrambledAnswers}
-        onClose={handleCloseOverlay}
-      />
-    );
-  }, []);
+/**
+ * CueCardDisplay.tsx - Extended Quiz Modal Handler
+ * 
+ * Responsibilities:
+ * - Renders different types of quiz modals based on the quiz type
+ * - Manages quiz modal state through the ModalOverlayManager
+ * - Handles quiz completion and scoring
+ * 
+ * Dependencies:
+ * - FillInBlankQuiz.tsx: Renders fill-in-blank type quizzes
+ * - MultipleChoiceQuiz.tsx: Renders multiple choice type quizzes
+ * - TrueFalseQuiz.tsx: Renders true/false type quizzes
+ * - MatchingQuizModal.tsx: Renders matching type quizzes (existing)
+ * - ModalOverlayManager.tsx: Manages the modal display and state
+ */
+
+/**
+ * Handles opening quiz modals of different types.
+ * 
+ * @param quizTitle - The title of the quiz to be displayed
+ * @param quizQuestions - Array of quiz questions specific to the quiz type
+ * @param quizType - The type of quiz to be rendered ('matching', 'fillInBlank', 'multipleChoice', 'trueFalse')
+ * 
+ * @example
+ * // Opening a fill-in-blank quiz
+ * handleOpenQuizModal(
+ *   "Geography Quiz",
+ *   [{id: "1", questionText: "The capital of France is {{blank1}}", correctAnswers: {blank1: "Paris"}}],
+ *   "fillInBlank"
+ * );
+ */
+const handleOpenQuizModal = useCallback((
+  quizTitle: string, 
+  quizQuestions: IQuizQuestion[], 
+  quizType: QuizType
+) => {
+  let QuizComponent;
+  
+  switch (quizType) {
+    case 'FIB':
+      QuizComponent = (
+        <FillInBlankQuiz
+          title={quizTitle}
+          questions={quizQuestions as IFillInBlankQuestion[]}
+          onClose={handleCloseOverlay}
+          onComplete={(score) => {
+            alert(`Your score: ${score}/${quizQuestions.length}`);
+            handleCloseOverlay();
+          }}
+        />
+      );
+      break;
+
+    case 'multipleChoice':
+      QuizComponent = (
+        <MultipleChoiceQuiz
+          title={quizTitle}
+          questions={quizQuestions as IMultipleChoiceQuestion[]}
+          onClose={handleCloseOverlay}
+          onComplete={(score) => {
+            alert(`Your score: ${score}/${quizQuestions.length}`);
+            handleCloseOverlay();
+          }}
+        />
+      );
+      break;
+
+    case 'true-false':
+      QuizComponent = (
+        <TrueFalseQuiz
+          title={quizTitle}
+          questions={quizQuestions as ITrueFalseQuestion[]}
+          onClose={handleCloseOverlay}
+          onComplete={(score) => {
+            alert(`Your score: ${score}/${quizQuestions.length}`);
+            handleCloseOverlay();
+          }}
+        />
+      );
+      break;
+
+    case 'matching':
+    default:
+      QuizComponent = (
+        <MatchingQuizModal
+          title={quizTitle}
+          quiz={quizQuestions}
+          scrambledAnswers={scrambleArray(quizQuestions.map((q) => q.correctAnswer)) as string[]}
+          onClose={handleCloseOverlay}
+        />
+      );
+  }
+
+  setOverlayContent(QuizComponent);
+}, []);
 
   /**
    * Closes the overlay content modal.
@@ -322,7 +409,7 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
     title={practiceSheet.title}
     quizType={practiceSheet.quizType}
     quizQuestions={practiceSheet.quizContent} // Updated to use `quizQuestions`
-    onOpenFullSize={() => handleOpenQuizModal(practiceSheet.title, practiceSheet.quizContent)} // Pass title and questions
+    onOpenFullSize={() => handleOpenQuizModal(practiceSheet.title, practiceSheet.quizContent, practiceSheet.quizType)} // Pass title and questions
     onDismiss={() => handleDismissResource(practiceSheet.id, practiceSheet.nodeId)}
   />
       ))}

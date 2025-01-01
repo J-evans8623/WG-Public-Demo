@@ -34,6 +34,12 @@ export function useCompositeLayout(
       return;
     }
 
+        // Log initial state
+        console.log('--- Initial state ---');
+        console.log('Nodes:', Array.from(updatedNodes.entries()));
+        console.log('Subtrees:', Array.from(localSubtrees.entries()));
+        console.log('----------------------');
+
     // Get the current depth 1 node IDs (children of the root node)
     const currentDepthOneNodeIds = new Set(rootNode.childrenNodeIds || []);
 
@@ -63,7 +69,7 @@ export function useCompositeLayout(
       };
       extractSubtree(childId);
 
-      // Apply indented layout
+      // Use loop to Apply indented layout for each id
       const {
         updatedNodes: laidOutSubtreeNodes,
         subtreeDimension,
@@ -77,6 +83,7 @@ export function useCompositeLayout(
       // Create SubtreeData to access the width, height, and position of each subtree
       const existingPosition = localSubtrees.get(childId)?.position;
       
+      // After indented layout was applied we can compute the new dimensions of pre-existing subtrees
       const subtreeData: SubtreeData = {
         minX: subtreeDimension.minX,
         maxX: subtreeDimension.maxX,
@@ -113,6 +120,10 @@ export function useCompositeLayout(
     layoutDispatch(setGetLayout(false));
     nodesDispatch(setNodes(updatedNodes));
 
+    console.log('--- Final state ---');
+    console.log('Nodes:', Array.from(updatedNodes.entries()));
+    console.log('Subtrees:', Array.from(localSubtrees.entries()));
+    console.log('-------------------');
   }, [
     nodes,
     getLayout,

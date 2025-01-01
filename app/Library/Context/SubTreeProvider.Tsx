@@ -35,10 +35,11 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
   const [targetSubtreeId, setTargetSubtreeId] = useState<string | null>(null);
 
 
+
  // Initialize the sentinel node's data (invisible reference point at x=0, y=0)
  useMemo(() => {
   const sentinelNodeId = 'sentinel-node'; // Sentinel node ID
-  console.log('Initializing sentinel node in SubTreeProvider');
+  ////console.log('Initializing sentinel node in SubTreeProvider');
   const sentinelSubtree: SubtreeData = {
     minX: 0,
     maxX: 0,
@@ -56,9 +57,9 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     // Safeguard: Check if the sentinel node already exists
     if (!updatedSubtrees.has(sentinelNodeId)) {
       updatedSubtrees.set(sentinelNodeId, sentinelSubtree); // Add the sentinel node if not already present
-      console.log('Sentinel node added.');
+      ////console.log('Sentinel node added.');
     } else {
-      console.log('Sentinel node already exists, skipping insertion.');
+      ////console.log('Sentinel node already exists, skipping insertion.');
     }
 
     return updatedSubtrees;
@@ -118,6 +119,7 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
       if (subtree) {
         updatedSubtrees.set(nodeId, { ...subtree, position });
       }
+      //////console.log('Context state updated-subtrees-position:', updatedSubtrees);
       return updatedSubtrees;
     });
   }, []);
@@ -128,7 +130,7 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
       const sentinelNodeId = 'sentinel-node';
       
       // Re-add the sentinel node after resetting
-      console.log('Reinitializing sentinel node after reset in resetSubtrees');
+      //////console.log('Reinitializing sentinel node after reset in resetSubtrees');
       
       const sentinelSubtree: SubtreeData = {
         minX: 0,
@@ -161,10 +163,10 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
   
     // Safeguard: Check if the sentinel node exists in newSubtrees, if not, add it
     if (!newSubtrees.has(sentinelNodeId)) {
-      console.log('Sentinel node is missing in the new subtree map, adding it.');
+      //////console.log('Sentinel node is missing in the new subtree map, adding it.');
       newSubtrees.set(sentinelNodeId, sentinelSubtree); // Add the sentinel node if not present
     }
-  
+    //////console.log('Context state newSubtrees:', newSubtrees);
     setSubtreesState(newSubtrees); // Update state with the modified subtrees
   }, []);
   

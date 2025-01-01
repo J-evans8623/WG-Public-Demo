@@ -1,18 +1,14 @@
 import React from 'react';
 import QuizIcon from '@/app/icons-custom/Quiz.svg';
 import '@/app/Library/components/CardDisplay/CardDisplaySlide.css'; // Import the CSS file
+import { QuizType, IQuizQuestion } from '../../Definitions/Definitions';
 
-interface IQuizQuestion {
-  id: string;
-  type: 'matching' | 'multipleChoice' | 'wordProblem';
-  question: string;
-  correctAnswer: string;
-}
+
 
 interface PracticeSheetCardProps {
   id: string;
   title: string;
-  quizType: 'matching' | 'multipleChoice' | 'wordProblem';
+  quizType: QuizType;
   quizQuestions: IQuizQuestion[];
   onOpenFullSize: () => void;
   onDismiss?: () => void;
@@ -25,6 +21,11 @@ const PracticeSheetCard: React.FC<PracticeSheetCardProps> = ({
   onOpenFullSize,
   onDismiss,
 }) => {
+  console.log('Practice Sheet Data:', {
+    title,
+    quizType,
+    quizQuestions
+  });
   // Generate a preview of the first question
   const preview =
     quizType === 'matching' && quizQuestions.length > 0
@@ -32,14 +33,16 @@ const PracticeSheetCard: React.FC<PracticeSheetCardProps> = ({
       : 'No content available';
 
   // Define descriptions for each quiz type
-  const quizTypeLabel = (type: 'matching' | 'multipleChoice' | 'wordProblem') => {
+  const quizTypeLabel = (type: QuizType): string => {
     switch (type) {
       case 'matching':
         return 'Matching Quiz';
+      case 'FIB':
+        return 'Fill in the Blank Quiz';
       case 'multipleChoice':
         return 'Multiple Choice Quiz';
-      case 'wordProblem':
-        return 'Word Problem';
+      case 'true-false':
+        return 'True/False Quiz';
       default:
         return 'Unknown Quiz Type';
     }

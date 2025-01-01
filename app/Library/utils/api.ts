@@ -6,82 +6,114 @@
  * Handles API requests to the backend, including attaching JWTs to requests.
  */
 
+// api.ts
 import axios from 'axios';
 
-/**
- * Interface for AI Content Generation Request
- */
-interface GenerateAIContentRequest {
-  option: 'Lesson' | 'Quiz';
-  inputType: 'text' | 'pdf';
-  text?: string;
-  pdf?: File;
+export enum QuizType {
+  MULTIPLE_CHOICE = 'multipleChoice',
+  MATCHING = 'matching',
+  FILL_IN_BLANK = 'FIB',
+  TRUE_FALSE = 'true-false'
 }
 
-/**
- * Interface for AI Content Generation Response
- */
-interface GenerateAIContentResponse {
-  status: 'success' | 'error';
-  content?: string; // AI-generated text for Lesson or Quiz
-  message?: string; // Error message if any
+
+const apiServerUrl = process.env.NEXT_PUBLIC_API_SERVER_URL || 'http://localhost:5000';
+
+interface BaseAIRequest {
+  type: 'text' | 'pdf';
+  token: string;
 }
 
-/**
- * Generates AI content by sending user input to the backend.
- * 
- * @param data - The AI generation request data.
- * @param token - The user's JWT token for authentication.
- * @returns The response data from the backend.
- */
-export const generateAIContent = async (
-  data: GenerateAIContentRequest,
-  token: string
-): Promise<GenerateAIContentResponse> => {
+interface TextAIRequest extends BaseAIRequest {
+  type: 'text';
+  text: string; // Changed from 'content' to 'text' to match backend
+}
+
+interface PDFAIRequest extends BaseAIRequest {
+  type: 'pdf';
+  file: File;
+}
+
+type AIRequest = TextAIRequest | PDFAIRequest;
+
+async function makeAIRequest(
+  endpoint: string,
+  request: AIRequest
+): Promise<any> {
   try {
     let response;
+    const headers = {
+      'Authorization': `Bearer ${request.token}`
+    };
 
-    if (data.inputType === 'text') {
-      // Send JSON payload for text input
-      response = await axios.post<GenerateAIContentResponse>(
-        '/api/generate-ai',
-        {
-          option: data.option,
-          text: data.text,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
-    } else if (data.inputType === 'pdf' && data.pdf) {
-      // Send multipart/form-data for PDF upload
-      const formData = new FormData();
-      formData.append('option', data.option);
-      formData.append('pdf', data.pdf);
-
-      response = await axios.post<GenerateAIContentResponse>(
-        '/api/generate-ai',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            'Authorization': `Bearer ${token}`,
-          },
-        }
+    if (request.type === 'text') {
+      response = await axios.post(
+        endpoint,
+        { text: request.text }, // Changed to match backend expectation
+        { headers: { ...headers, 'Content-Type': 'application/json' } }
       );
     } else {
-      throw new Error('Invalid input data.');
+      const formData = new FormData();
+      formData.append('file', request.file);
+      response = await axios.post(
+        endpoint,
+        formData,
+        { headers: { ...headers, 'Content-Type': 'multipart/form-data' } }
+      );
     }
 
+    // Return the raw response data without wrapping
     return response.data;
   } catch (error: any) {
-    console.error('Error in generateAIContent:', error);
-    return {
-      status: 'error',
-      message: error.response?.data?.error || 'Failed to generate AI content.',
-    };
+    console.error(`AI Service Error (${endpoint}):`, error);
+    throw new Error(error.response?.data?.message || 'Failed to process request');
   }
+}
+
+function createAIRequest(
+  input: string | File,
+  type: 'text' | 'pdf',
+  token: string
+): AIRequest {
+  if (type === 'text') {
+    if (typeof input !== 'string') {
+      throw new Error('Text input must be a string');
+    }
+    return {
+      type: 'text',
+      text: input, // Changed from 'content' to 'text'
+      token
+    } as TextAIRequest;
+  } else {
+    if (!(input instanceof File)) {
+      throw new Error('PDF input must be a File');
+    }
+    return {
+      type: 'pdf',
+      file: input, // Changed from 'content' to 'file'
+      token
+    } as PDFAIRequest;
+  }
+}
+
+export const generateAIContent = async (
+  data: {
+    option: 'Lesson' | 'Quiz';
+    quizType?: QuizType;
+    inputType: 'text' | 'pdf';
+    text?: string;
+    pdf?: File;
+  },
+  token: string
+): Promise<any> => {
+  const input = data.inputType === 'text' ? data.text! : data.pdf!;
+  let endpoint = `${apiServerUrl}/api/generate-${data.option.toLowerCase()}`;
+  
+  // Add quiz type to endpoint if it's a quiz
+  if (data.option === 'Quiz' && data.quizType) {
+    endpoint += `/${data.quizType}`;
+  }
+  
+  const request = createAIRequest(input, data.inputType, token);
+  return makeAIRequest(endpoint, request);
 };

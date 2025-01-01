@@ -231,3 +231,19 @@ button.submit-btn:active {
 .quiz-modal::-webkit-scrollbar-thumb:hover {
   background: #b3b3b3;
 }
+
+/* Add these to MatchingQuizModal.css */
+.options-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.radio-input {
+  margin-right: 12px;
+}
+
+.option-text {
+  flex: 1;
+}
