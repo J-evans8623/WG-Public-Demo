@@ -1,0 +1,252 @@
+
+
+
+// Multiple Choce Quiz :
+
+
+ 
+  "name": "MultipleChoiceQuiz",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique identifier for the quiz."
+      },
+      "title": {
+        "type": "string",
+        "description": "Title of the quiz."
+      },
+      "questions": {
+        "type": "array",
+        "description": "List of questions in the quiz.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for each question."
+            },
+            "question": {
+              "type": "string",
+              "description": "The question text."
+            },
+            "options": {
+              "type": "array",
+              "description": "Multiple-choice options.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "correctAnswer": {
+              "type": "string",
+              "description": "Single correct answer."
+            }
+          },
+          "required": [
+            "id",
+            "question",
+            "options",
+            "correctAnswer"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "questions"
+    ],
+    "additionalProperties": false
+  },
+  "strict": true
+
+
+
+  True and False Schema :
+
+  {
+  "name": "true_false_quiz",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique identifier for the quiz."
+      },
+      "title": {
+        "type": "string",
+        "description": "Title of the quiz."
+      },
+      "questions": {
+        "type": "array",
+        "description": "List of questions in the quiz.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for each question."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "true-false"
+              ],
+              "description": "Specific quiz type."
+            },
+            "question": {
+              "type": "string",
+              "description": "The question text."
+            },
+            "correctAnswer": {
+              "type": "boolean",
+              "description": "Boolean value for correct answer (true/false)."
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "question",
+            "correctAnswer"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "questions"
+    ],
+    "additionalProperties": false
+  },
+  "strict": true
+}
+
+
+Fill in the blank Schema :
+{
+"name": "fill_in_the_blank_quiz",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique identifier for the quiz."
+      },
+      "title": {
+        "type": "string",
+        "description": "Title of the quiz."
+      },
+      "questions": {
+        "type": "array",
+        "description": "List of questions for the fill-in-the-blank quiz.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for each question."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "FIB"
+              ],
+              "description": "Specific quiz type."
+            },
+            "questionText": {
+              "type": "string",
+              "description": "Text with placeholders for blanks, e.g., 'The cow jumped over the ________ .'"
+            },
+            "correctAnswer": {
+              "type": "string",
+              "description": "Correct answer for the question."
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "questionText",
+            "correctAnswer"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "questions"
+    ],
+    "additionalProperties": false
+  },
+  "strict": true
+}
+
+
+
+
+
+MatchingQuizSchema :
+
+{
+  "name": "matching_quiz",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique identifier for the quiz."
+      },
+      "title": {
+        "type": "string",
+        "description": "Title of the quiz."
+      },
+      "questions": {
+        "type": "array",
+        "description": "List of questions in the matching quiz.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for each question."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "matching"
+              ],
+              "description": "Specific quiz type."
+            },
+            "matchingTerm": {
+              "type": "string",
+              "description": "The question text or prompt for the matching."
+            },
+            "matchingAnswer": {
+              "type": "string",
+              "description": "Single correct answer as a string."
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "matchingTerm",
+            "matchingAnswer"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "questions"
+    ],
+    "additionalProperties": false
+  },
+  "strict": true
+}

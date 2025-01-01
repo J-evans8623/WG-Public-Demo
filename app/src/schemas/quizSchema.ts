@@ -12,61 +12,277 @@
  * - Used in `aiService.ts` for validating responses.
  */
 
-import { z } from "zod";
+
+export const MultipleChoiceSchema = {
+  "name": "MultipleChoiceQuiz",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique identifier for the quiz."
+      },
+      "title": {
+        "type": "string",
+        "description": "Title of the quiz."
+      },
+      "questions": {
+        "type": "array",
+        "description": "List of questions in the quiz.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for each question."
+            },
+            "question": {
+              "type": "string",
+              "description": "The question text."
+            },
+            "options": {
+              "type": "array",
+              "description": "Multiple-choice options.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "correctAnswer": {
+              "type": "string",
+              "description": "Single correct answer."
+            }
+          },
+          "required": [
+            "id",
+            "question",
+            "options",
+            "correctAnswer"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "questions"
+    ],
+    "additionalProperties": false
+  },
+  "strict": true
+}
 
 
-const BaseQuizSchema = z.object({
-  id: z.string(), // Unique identifier for the quiz.
-  title: z.string(), // Title of the quiz.
-});
-
-
-export const MultipleChoiceSchema = BaseQuizSchema.extend({
-  questions: z.array(
-    z.object({
-      id: z.string(), // Unique identifier for each question.
-      question: z.string(), // The question text.
-      options: z.array(z.string()), // Multiple-choice options.
-      correctAnswer: z.string(), // Single correct answer.
-    })
-  ),
-});
+/***
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+*/
 
 
 // Schema for True/False quizzes
-export const TrueFalseSchema = BaseQuizSchema.extend({
-  questions: z.array(
-    z.object({
-      id: z.string(), // Unique identifier for each question.
-      type: z.literal('true-false'), // Specific quiz type.
-      question: z.string(), // The question text.
-      correctAnswer: z.boolean(), // Boolean value for correct answer (true/false).
-    })
-  ),
-});
+export const TrueFalseSchema ={
+  "name": "true_false_quiz",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique identifier for the quiz."
+      },
+      "title": {
+        "type": "string",
+        "description": "Title of the quiz."
+      },
+      "questions": {
+        "type": "array",
+        "description": "List of questions in the quiz.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for each question."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "true-false"
+              ],
+              "description": "Specific quiz type."
+            },
+            "question": {
+              "type": "string",
+              "description": "The question text."
+            },
+            "correctAnswer": {
+              "type": "boolean",
+              "description": "Boolean value for correct answer (true/false)."
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "question",
+            "correctAnswer"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "questions"
+    ],
+    "additionalProperties": false
+  },
+  "strict": true
+}
 
 
 // Schema for Fill in the Blank quizzes
-export const FillInBlankSchema = BaseQuizSchema.extend({
-  questions: z.array(
-    z.object({
-      id: z.string(), // Unique identifier for each question.
-      type: z.literal('FIB'), // Specific quiz type.
-      questionText: z.string(), // Text with placeholders for blanks, e.g., "The {{blank-1}} jumped over the {{blank-2}}."
-      correctAnswer: z.string(),
-    })
-  ),
-});
+export const FillInBlankSchema = {
+  "name": "fill_in_the_blank_quiz",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique identifier for the quiz."
+      },
+      "title": {
+        "type": "string",
+        "description": "Title of the quiz."
+      },
+      "questions": {
+        "type": "array",
+        "description": "List of questions for the fill-in-the-blank quiz.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for each question."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "FIB"
+              ],
+              "description": "Specific quiz type."
+            },
+            "questionText": {
+              "type": "string",
+              "description": "Text with placeholders for blanks, e.g., 'The cow jumped over the ________ .'"
+            },
+            "correctAnswer": {
+              "type": "string",
+              "description": "Correct answer for the question."
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "questionText",
+            "correctAnswer"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "questions"
+    ],
+    "additionalProperties": false
+  },
+  "strict": true
+}
 
+
+/***
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+*/
 
 // Updated Matching Quiz Schema
-export const MatchingQuizSchema = BaseQuizSchema.extend({
-  questions: z.array(
-    z.object({
-      id: z.string(), // Unique identifier for each question.
-      type: z.literal('matching'), // Specific quiz type.
-      matchingTerm: z.string(), // The question text or prompt for the matching.
-      matchingAnswer: z.string(), // Single correct answer as a string.
-    })
-  ),
-});
+export const MatchingQuizSchema ={
+  "name": "matching_quiz",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique identifier for the quiz."
+      },
+      "title": {
+        "type": "string",
+        "description": "Title of the quiz."
+      },
+      "questions": {
+        "type": "array",
+        "description": "List of questions in the matching quiz.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for each question."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "matching"
+              ],
+              "description": "Specific quiz type."
+            },
+            "matchingTerm": {
+              "type": "string",
+              "description": "The question text or prompt for the matching."
+            },
+            "matchingAnswer": {
+              "type": "string",
+              "description": "Single correct answer as a string."
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "matchingTerm",
+            "matchingAnswer"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "questions"
+    ],
+    "additionalProperties": false
+  },
+  "strict": true
+}
+
+
+/***
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+*/

@@ -1,0 +1,242 @@
+New proposed changes :
+
+
+// lessonSchema.ts
+import { z } from "zod";
+
+// Define CueCard schema
+const CueCardSchema = z.object({
+  title: z.string(),
+  content: z.string()
+});
+
+// Define Concept schema (recursive)
+const ConceptSchema: z.ZodType<any> = z.object({
+  title: z.string(),
+  lesson: z.object({
+    content: z.array(CueCardSchema),
+    relatedConcept: z.array(CueCardSchema).optional()
+  }),
+  childConcepts: z.array(z.lazy(() => ConceptSchema))
+});
+
+// Define Topic schema
+export const TopicSchema = z.object({
+  title: z.string(),
+  overview: z.array(CueCardSchema),
+  mainConcepts: z.array(ConceptSchema)
+});
+
+// Updated IStructuredLessonResponse interface
+export interface IStructuredLessonResponse {
+  title: string;
+  overview: Array<{
+    title: string;
+    content: string;
+  }>;
+  mainConcepts: Array<{
+    title: string;
+    lesson: {
+      content: Array<{
+        title: string;
+        content: string;
+      }>;
+      relatedConcept?: Array<{
+        title: string;
+        content: string;
+      }>;
+    };
+    childConcepts: IStructuredLessonResponse['mainConcepts'];
+  }>;
+}
+
+// aiService.ts
+import { z } from "zod";
+import OpenAI from "openai";
+import { TopicSchema } from "../schemas/lessonSchema";
+
+class AIService {
+  private openai: OpenAI;
+
+  constructor(openai: OpenAI) {
+    this.openai = openai;
+  }
+
+  public async generateStructuredOutput(
+    schema: z.ZodSchema,
+    input: string,
+    systemPrompt: string,
+    schemaName: string
+  ): Promise<any> {
+    try {
+      const response = await this.openai.beta.chat.completions.parse({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user",
+            content: input
+          }
+        ],
+        max_tokens: 2000,
+        response_format: zodResponseFormat(schema, schemaName)
+      });
+
+      return response.choices[0].message.parsed;
+    } catch (error) {
+      console.error("Error in generateStructuredOutput:", error);
+      throw error;
+    }
+  }
+}
+
+// responseTranslator.ts
+export function translateLessonToCueCards(
+  lessonResponse: IStructuredLessonResponse, 
+  nodeId: string
+): CueCardResource[] {
+  const cueCards: CueCardResource[] = [];
+
+  // Add overview cue cards
+  lessonResponse.overview.forEach(card => {
+    cueCards.push({
+      id: uuidv4(),
+      title: card.title,
+      nodeId,
+      type: 'cueCard',
+      content: [{ type: 'paragraph', children: [{ text: card.content }] }]
+    });
+  });
+
+  // Function to process concept cue cards
+  const processConceptCards = (concept: any) => {
+    // Add concept content cards
+    concept.lesson.content.forEach((card: any) => {
+      cueCards.push({
+        id: uuidv4(),
+        title: card.title,
+        nodeId,
+        type: 'cueCard',
+        content: [{ type: 'paragraph', children: [{ text: card.content }] }]
+      });
+    });
+
+    // Add related concept cards if they exist
+    if (concept.lesson.relatedConcept) {
+      concept.lesson.relatedConcept.forEach((card: any) => {
+        cueCards.push({
+          id: uuidv4(),
+          title: card.title,
+          nodeId,
+          type: 'cueCard',
+          content: [{ type: 'paragraph', children: [{ text: card.content }] }]
+        });
+      });
+    }
+
+    // Process child concepts recursively
+    concept.childConcepts.forEach((child: any) => {
+      processConceptCards(child);
+    });
+  };
+
+  // Process all main concepts
+  lessonResponse.mainConcepts.forEach(concept => {
+    processConceptCards(concept);
+  });
+
+  return cueCards;
+}
+
+
+
+error raised :
+
+
+AI Service initialized
+Error in generateStructuredOutput: BadRequestError: 400 Invalid schema for response_format 'lesson_schema'. Please ensure it is a valid JSON Schema.
+    at Function.generate (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\openai\src\error.ts:72:14)
+    at OpenAI.makeStatusError (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\openai\src\core.ts:435:21)
+    at OpenAI.makeRequest (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\openai\src\core.ts:499:24)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  status: 400,
+  headers: {
+    'access-control-expose-headers': 'X-Request-ID',
+    'alt-svc': 'h3=":443"; ma=86400',
+    'cf-cache-status': 'DYNAMIC',
+    'cf-ray': '8fb0f7928d8b41e7-EWR',
+    connection: 'keep-alive',
+    'content-length': '217',
+    'content-type': 'application/json',
+    date: 'Wed, 01 Jan 2025 07:58:56 GMT',
+    'openai-organization': 'user-qqtejgc2zzc49ggc1pwzjj1s',
+    'openai-processing-ms': '41',
+    'openai-version': '2020-10-01',
+    server: 'cloudflare',
+    'set-cookie': '__cf_bm=pGLqfQqCvmE0UuvLlyB_NeUpzPA8cqCThm5tu0qhRd0-1735718336-1.0.1.1-3JKIcGbuIzr9oTgG74ASA1ndy58_CAhT2TcG2JhSPuosHMfUMvur3UuJCeQNN8H1.iY2KGG2f16Mq9vu9.KGsw; path=/; expires=Wed, 01-Jan-25 08:28:56 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=436xF7KF.VBKBbxmZ_fcZCKh6LERwk0LtgOqjzYhdmA-1735718336504-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    'x-ratelimit-limit-requests': '10000',
+    'x-ratelimit-limit-tokens': '200000',
+    'x-ratelimit-remaining-requests': '9999',
+    'x-ratelimit-remaining-tokens': '197308',
+    'x-ratelimit-reset-requests': '8.64s',
+    'x-ratelimit-reset-tokens': '807ms',
+    'x-request-id': 'req_4d78a53552b0a6b126a0b73df99a385b'
+  },
+  request_id: 'req_4d78a53552b0a6b126a0b73df99a385b',
+  error: {
+    message: "Invalid schema for response_format 'lesson_schema'. Please ensure it is a valid JSON Schema.",
+    type: 'invalid_request_error',
+    param: 'response_format',
+    code: null
+  },
+  code: null,
+  param: 'response_format',
+  type: 'invalid_request_error'
+}
+Error in generateLesson: BadRequestError: 400 Invalid schema for response_format 'lesson_schema'. Please ensure it is a valid JSON Schema.
+    at Function.generate (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\openai\src\error.ts:72:14)
+    at OpenAI.makeStatusError (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\openai\src\core.ts:435:21)
+    at OpenAI.makeRequest (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\openai\src\core.ts:499:24)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  status: 400,
+  headers: {
+    'access-control-expose-headers': 'X-Request-ID',
+    'alt-svc': 'h3=":443"; ma=86400',
+    'cf-cache-status': 'DYNAMIC',
+    'cf-ray': '8fb0f7928d8b41e7-EWR',
+    connection: 'keep-alive',
+    'content-length': '217',
+    'content-type': 'application/json',
+    date: 'Wed, 01 Jan 2025 07:58:56 GMT',
+    'openai-organization': 'user-qqtejgc2zzc49ggc1pwzjj1s',
+    'openai-processing-ms': '41',
+    'openai-version': '2020-10-01',
+    server: 'cloudflare',
+    'set-cookie': '__cf_bm=pGLqfQqCvmE0UuvLlyB_NeUpzPA8cqCThm5tu0qhRd0-1735718336-1.0.1.1-3JKIcGbuIzr9oTgG74ASA1ndy58_CAhT2TcG2JhSPuosHMfUMvur3UuJCeQNN8H1.iY2KGG2f16Mq9vu9.KGsw; path=/; expires=Wed, 01-Jan-25 08:28:56 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=436xF7KF.VBKBbxmZ_fcZCKh6LERwk0LtgOqjzYhdmA-1735718336504-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    'x-ratelimit-limit-requests': '10000',
+    'x-ratelimit-limit-tokens': '200000',
+    'x-ratelimit-remaining-requests': '9999',
+    'x-ratelimit-remaining-tokens': '197308',
+    'x-ratelimit-reset-requests': '8.64s',
+    'x-ratelimit-reset-tokens': '807ms',
+    'x-request-id': 'req_4d78a53552b0a6b126a0b73df99a385b'
+  },
+  request_id: 'req_4d78a53552b0a6b126a0b73df99a385b',
+  error: {
+    message: "Invalid schema for response_format 'lesson_schema'. Please ensure it is a valid JSON Schema.",
+    type: 'invalid_request_error',
+    param: 'response_format',
+    code: null
+  },
+  code: null,
+  param: 'response_format',
+  type: 'invalid_request_error'
+}
+

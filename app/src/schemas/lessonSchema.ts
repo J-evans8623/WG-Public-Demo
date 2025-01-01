@@ -1,3 +1,5 @@
+// lessonSchema.ts
+
 /**
  * schemas/lessonSchema.ts
  *
@@ -12,24 +14,95 @@
  * - Used in `aiService.ts` for validating responses.
  */
 
-import { z } from "zod";
-
-// Recursive schema definition requires using a type alias
-const RootConceptSchema: z.ZodType<any> = z.object({
-  concept: z.string(), // The primary concept of the lesson.
-  parent: z.string().nullable(), // Nullable string for parent concept (null for root).
-  cueCards: z.array(
-    z.object({
-      title: z.string(), // Title of the cue card.
-      description: z.string(), // Description or content of the cue card.
-    })
-  ),
-  subtopics: z.array(z.lazy(() => RootConceptSchema)), // Recursive structure for subtopics.
-});
-
-// Define LessonSchema using the RootConceptSchema
-export const LessonSchema = z.object({
-  rootConcept: RootConceptSchema,
-});
-
-export type LessonSchemaType = z.infer<typeof LessonSchema>; // Export the type for use in other files
+export const lessonSchema = {
+  name: "study_notes_schema",
+  schema: {
+    type: "object",
+    properties: {
+      topic: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "The title of the topic."
+          },
+          overview: {
+            type: "array",
+            description: "Summarizes the content that will be covered in the lesson.",
+            items: {
+              $ref: "#/$defs/cueCard"
+            }
+          },
+          mainConcepts: {
+            type: "array",
+            description: "Main concepts that are part of the topic.",
+            items: {
+              $ref: "#/$defs/concept"
+            }
+          }
+        },
+        required: ["title", "overview", "mainConcepts"],
+        additionalProperties: false
+      }
+    },
+    $defs: {
+      cueCard: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "The title of the cue card."
+          },
+          content: {
+            type: "string",
+            description: "The content or notes associated with the cue card."
+          }
+        },
+        required: ["title", "content"],
+        additionalProperties: false
+      },
+      concept: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "The title of the concept."
+          },
+          lesson: {
+            type: "object",
+            properties: {
+              content: {
+                type: "array",
+                description: "Cue cards that exclusively explore the specific concept.",
+                items: {
+                  $ref: "#/$defs/cueCard"
+                }
+              },
+              relatedConcept: {
+                type: "array",
+                description: "Cue cards that explain the relationship of this concept to other concepts.",
+                items: {
+                  $ref: "#/$defs/cueCard"
+                }
+              }
+            },
+            required: ["content", "relatedConcept"],
+            additionalProperties: false
+          },
+          childConcepts: {
+            type: "array",
+            description: "Supporting concepts that play a significant role in the parent concept.",
+            items: {
+              $ref: "#/$defs/concept"
+            }
+          }
+        },
+        required: ["title", "lesson", "childConcepts"],
+        additionalProperties: false
+      }
+    },
+    required: ["topic"],
+    additionalProperties: false
+  },
+  strict: true
+};

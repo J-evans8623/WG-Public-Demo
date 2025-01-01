@@ -11,14 +11,27 @@
  *
  * Dependencies:
  * - OpenAI client for API communication.
- * - Zod for schema validation.
- * - zodResponseFormat helper for OpenAI schema handling.
  */
-
-import { z } from "zod";
 import OpenAI from "openai";
-import { zodResponseFormat } from "openai/helpers/zod";
-import { IStructuredLessonResponse, IStructuredQuizResponse } from "../ai-definitions/Definitions";
+import { lessonSchema } from "../schemas/lessonSchema";
+import { MultipleChoiceSchema, TrueFalseSchema, MatchingQuizSchema,FillInBlankSchema } from "../schemas/quizSchema";
+
+interface JSONSchema {
+  name: string;
+  schema: {
+    type: string;
+    properties: Record<string, any>;
+    required?: string[];
+    additionalProperties?: boolean;
+  };
+  strict: boolean;
+}
+
+interface JSONSchemaValidation {
+  name: string;
+  schema: JSONSchema['schema'];
+  strict: boolean;
+}
 
 class AIService {
   private openai: OpenAI;
@@ -29,10 +42,10 @@ class AIService {
   }
 
   public async generateStructuredOutput(
-    schema: z.ZodSchema,
+    jsonSchema: JSONSchemaValidation,
     input: string,
-    schemaName: string
-  ): Promise<IStructuredLessonResponse | IStructuredQuizResponse> {
+    systemPrompt: string
+  ): Promise<any> {
     try {
       console.log("Sending structured output request with input:", input);
 
@@ -41,19 +54,25 @@ class AIService {
         messages: [
           {
             role: "system",
-            content:
-              "You are a helpful assistant that generates structured JSON adhering to a specific schema.",
+            content: systemPrompt
           },
           {
             role: "user",
             content: input,
           },
         ],
-        max_tokens: 2000,
-        response_format: zodResponseFormat(schema, schemaName),
+        max_tokens: 2500,
+        response_format: { 
+          type: "json_schema",
+          json_schema: {
+            name: jsonSchema.name,
+            schema: jsonSchema.schema,
+            strict: jsonSchema.strict
+          }
+        }
       });
 
-      console.log("Structured lesson response received:", JSON.stringify(response, null, 2));
+      console.log("Structured response received:", JSON.stringify(response, null, 2));
 
       return response.choices[0].message.parsed;
     } catch (error) {

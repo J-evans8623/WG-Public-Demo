@@ -1,0 +1,152 @@
+{
+  "name": "study_notes_schema",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "topic": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "The title of the topic."
+          },
+          "overview": {
+            "type": "array",
+            "description": "Summarizes the content that will be covered in the lesson.",
+            "items": {
+              "$ref": "#/$defs/cueCard"
+            }
+          },
+          "mainConcepts": {
+            "type": "array",
+            "description": "Main concepts that are part of the topic.",
+            "items": {
+              "$ref": "#/$defs/concept"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "overview",
+          "mainConcepts"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "$defs": {
+      "cueCard": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "The title of the cue card."
+          },
+          "content": {
+            "type": "string",
+            "description": "The content or notes associated with the cue card."
+          }
+        },
+        "required": [
+          "title",
+          "content"
+        ],
+        "additionalProperties": false
+      },
+      "concept": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "The title of the concept."
+          },
+          "lesson": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "array",
+                "description": "Cue cards that exclusively explore the specific concept.",
+                "items": {
+                  "$ref": "#/$defs/cueCard"
+                }
+              },
+              "relatedConcept": {
+                "type": "array",
+                "description": "Cue cards that explain the relationship of this concept to other concepts.",
+                "items": {
+                  "$ref": "#/$defs/cueCard"
+                }
+              }
+            },
+            "required": [
+              "content",
+              "relatedConcept"
+            ],
+            "additionalProperties": false
+          },
+          "childConcepts": {
+            "type": "array",
+            "description": "Supporting concepts that play a significant role in the parent concept.",
+            "items": {
+              "$ref": "#/$defs/concept"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "lesson",
+          "childConcepts"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "topic"
+    ],
+    "additionalProperties": false
+  },
+  "strict": true
+}
+
+
+
+
+
+
+
+
+
+
+
+system prompt :
+
+
+You are a helpful assistant that generates structured JSON based on the following schema, organizing study materials into topics, concepts, and cue cards.
+
+Schema Overview
+Topic: A broad subject derived from study notes.
+
+title: The topic name, a concise label for the subject. (string).
+overview: Cue cards summarizing the topic (array).
+mainConcepts: The primary ideas within the topic. These concepts represent key areas of focus and exploration. (array).
+
+
+Concept: A specific idea within a topic, with optional child concepts.
+
+title: The concept name (string).
+lesson:Explains the concept in depth through two key components:
+content:A collection of cue cards that exclusively focus on explaining the specific concept. (array).
+relatedConcept: Cue cards that describe the relationship between this concept and other concepts in the topic, if such relationships exist (optional, array).
+childConcepts: Supporting concepts that play a significant role in the parent concept (array). This field is recursively defined, allowing for nested hierarchies
+
+CueCard: A self-contained explanation. Think of these as short paragraph, the length can be from 30 to 100 words.
+
+title: A brief title.
+content: Detailed explanation (string)  the length can be from 30 to 100 words.
+
+Instructions
+Generate structured JSON that adheres to the schema, capturing the hierarchy and relationships. Omit relatedConcept if no relationships exist.
+Ensure child concepts logically support their parent.
+
+Task
+Organize study notes or textbook excerpts into this structured JSON format.
+

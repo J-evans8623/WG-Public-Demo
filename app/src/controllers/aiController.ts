@@ -1,34 +1,17 @@
 /**
  * controllers/aiController.ts
- *
- * Handles API requests related to AI services.
- *
- * Responsibilities:
- * - Accepts user input from HTTP requests or PDF uploads.
- * - Maps user-selected options to predefined prompts and schemas.
- * - Invokes AI Service methods for processing structured responses.
- * - Handles success and error responses.
- *
- * Dependencies:
- * - `aiService.ts` for AI operations.
- * - `predefined-prompts.ts` for predefined prompts.
- * - `schemas` for structured output validation.
- */
-
-/**
- * controllers/aiController.ts
  */
 
 import { Request, Response } from "express";
 import AIService from "../services/aiService";
 import predefinedPrompts from "../config/predefined-prompts";
 import OpenAIClient from "../config/openai";
-import { LessonSchema } from "../schemas/lessonSchema";
+import { lessonSchema } from "../schemas/lessonSchema";
 import { MatchingQuizSchema, MultipleChoiceSchema, FillInBlankSchema, TrueFalseSchema } from "../schemas/quizSchema";
-import { IStructuredLessonResponse, IStructuredQuizResponse } from "../ai-definitions/Definitions";
 import multer from "multer";
 import pdfParse from "pdf-parse";
 import fs from "fs";
+import { IStructuredQuizResponse } from "../ai-definitions/Definitions";
 
 const upload = multer({ dest: "uploads/" });
 
@@ -80,13 +63,13 @@ class AIController {
       const aiService = AIController.getAIService();
       console.log("AI Service initialized");
       const lessonPrompt = predefinedPrompts['Lesson'];
-      const fullPrompt = `${lessonPrompt}\n${text}`; 
+
       
       const structuredResponse = (await aiService.generateStructuredOutput(
-        LessonSchema,
-        fullPrompt,
-        "lesson_schema"
-      )) as IStructuredLessonResponse;
+        lessonSchema,
+        text,
+        lessonPrompt,
+      ));
 
       res.status(200).json(structuredResponse);
     } catch (error) {
@@ -105,13 +88,13 @@ class AIController {
 
       const aiService = AIController.getAIService();
       const quizPrompt = predefinedPrompts['multipleChoice'];
-      const fullPrompt = `${quizPrompt}\n${text}`; 
+      
 
       const structuredResponse = await aiService.generateStructuredOutput(
         MultipleChoiceSchema,
-        fullPrompt,
+        text,
         "quiz_schema"
-      ) as IStructuredQuizResponse;
+      );
 
       // Add the standardized quiz type before sending the response
       const standardizedResponse = AIController.addStandardQuizType(
@@ -136,13 +119,13 @@ class AIController {
 
       const aiService = AIController.getAIService();
       const quizPrompt = predefinedPrompts['trueFalse'];
-      const fullPrompt = `${quizPrompt}\n${text}`; 
+      
 
       const structuredResponse = await aiService.generateStructuredOutput(
         TrueFalseSchema,
-        fullPrompt,
+        text,
         "quiz_schema"
-      ) as IStructuredQuizResponse;
+      );
 
       // Add the standardized quiz type before sending the response
       const standardizedResponse = AIController.addStandardQuizType(
@@ -167,13 +150,13 @@ class AIController {
 
       const aiService = AIController.getAIService();
       const quizPrompt = predefinedPrompts['fillInBlank'];
-      const fullPrompt = `${quizPrompt}\n${text}`; 
+      
 
       const structuredResponse = await aiService.generateStructuredOutput(
         FillInBlankSchema,
-        fullPrompt,
+        text,
         "quiz_schema"
-      ) as IStructuredQuizResponse;
+      );
 
       // Add the standardized quiz type before sending the response
       const standardizedResponse = AIController.addStandardQuizType(
@@ -198,13 +181,13 @@ class AIController {
 
       const aiService = AIController.getAIService();
       const quizPrompt = predefinedPrompts['matching'];
-      const fullPrompt = `${quizPrompt}\n${text}`; 
+      
 
       const structuredResponse = await aiService.generateStructuredOutput(
         MatchingQuizSchema,
-        fullPrompt,
+        text,
         "quiz_schema"
-      ) as IStructuredQuizResponse;
+      );
 
       // Add the standardized quiz type before sending the response
       const standardizedResponse = AIController.addStandardQuizType(
