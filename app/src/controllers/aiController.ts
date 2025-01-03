@@ -67,7 +67,7 @@ class AIController {
       
       const structuredResponse = (await aiService.generateStructuredOutput(
         lessonSchema,
-        text,
+        `[start of user input]${text}[end of user input]`,
         lessonPrompt,
       ));
 

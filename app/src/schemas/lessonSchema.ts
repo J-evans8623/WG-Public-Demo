@@ -15,94 +15,122 @@
  */
 
 export const lessonSchema = {
-  name: "study_notes_schema",
-  schema: {
-    type: "object",
-    properties: {
-      topic: {
-        type: "object",
-        properties: {
-          title: {
-            type: "string",
-            description: "The title of the topic."
+  "name": "study_notes",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "$defs": {
+      "slide": {
+        "type": "object",
+        "required": [
+          "title",
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The content or text of the slide."
           },
-          overview: {
-            type: "array",
-            description: "Summarizes the content that will be covered in the lesson.",
-            items: {
-              $ref: "#/$defs/cueCard"
-            }
-          },
-          mainConcepts: {
-            type: "array",
-            description: "Main concepts that are part of the topic.",
-            items: {
-              $ref: "#/$defs/concept"
-            }
+          "title": {
+            "type": "string",
+            "description": "The title of the slide."
           }
         },
-        required: ["title", "overview", "mainConcepts"],
-        additionalProperties: false
-      }
-    },
-    $defs: {
-      cueCard: {
-        type: "object",
-        properties: {
-          title: {
-            type: "string",
-            description: "The title of the cue card."
-          },
-          content: {
-            type: "string",
-            description: "The content or notes associated with the cue card."
-          }
-        },
-        required: ["title", "content"],
-        additionalProperties: false
+        "description": "A slide containing title and text for documentation.",
+        "additionalProperties": false
       },
-      concept: {
-        type: "object",
-        properties: {
-          title: {
-            type: "string",
-            description: "The title of the concept."
+      "concept": {
+        "type": "object",
+        "required": [
+          "title",
+          "content"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "The title of the concept."
           },
-          lesson: {
-            type: "object",
-            properties: {
-              content: {
-                type: "array",
-                description: "Cue cards that exclusively explore the specific concept.",
-                items: {
-                  $ref: "#/$defs/cueCard"
-                }
-              },
-              relatedConcept: {
-                type: "array",
-                description: "Cue cards that explain the relationship of this concept to other concepts.",
-                items: {
-                  $ref: "#/$defs/cueCard"
-                }
-              }
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/slide"
             },
-            required: ["content", "relatedConcept"],
-            additionalProperties: false
-          },
-          childConcepts: {
-            type: "array",
-            description: "Supporting concepts that play a significant role in the parent concept.",
-            items: {
-              $ref: "#/$defs/concept"
-            }
+            "description": "Slides that document the content of the concept."
           }
         },
-        required: ["title", "lesson", "childConcepts"],
-        additionalProperties: false
+        "description": "A concept related to a subtopic, containing its title and content.",
+        "additionalProperties": false
+      },
+      "subtopic": {
+        "type": "object",
+        "required": [
+          "title",
+          "content",
+          "concept_bank"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "The title of the subtopic."
+          },
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/slide"
+            },
+            "description": "Slides that document the content of the subtopic."
+          },
+          "concept_bank": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/concept"
+            },
+            "description": "A collection of concepts related to the subtopic."
+          }
+        },
+        "description": "A subtopic that contains lessons on a specific aspect of the main topic.",
+        "additionalProperties": false
       }
     },
-    required: ["topic"],
-    additionalProperties: false
-  },
-  strict: true
-};
+    "required": [
+      "topic"
+    ],
+    "properties": {
+      "topic": {
+        "type": "object",
+        "required": [
+          "title",
+          "overview",
+          "subtopics",
+          "review"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "The title of the topic."
+          },
+          "review": {
+            "$ref": "#/$defs/subtopic"
+          },
+          "overview": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/slide"
+            },
+            "description": "An overview of the topic comprising slides."
+          },
+          "subtopics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/subtopic"
+            },
+            "description": "A list of subtopics under the main topic."
+          }
+        },
+        "description": "The main topic of the study notes.",
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  }
+}

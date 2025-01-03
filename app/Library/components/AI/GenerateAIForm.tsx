@@ -124,12 +124,10 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
 
   const processAIResponse = async (responseData: any) => {
     try {
-      // Step 1: Take snapshot of current data from react context
       console.log('1. GenerateAI-=== INITIAL SNAPSHOT ===');
       const localNodes = new Map(nodes);
       const localSubtrees = new Map(subtrees);
       
-      // Convert Maps to objects for better console logging
       const nodesSnapshot = Object.fromEntries(localNodes.entries());
       const subtreesSnapshot = Object.fromEntries(localSubtrees.entries());
       
@@ -142,49 +140,41 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
         data: subtreesSnapshot
       });
   
-      // Update root node title
       const subroot = localNodes.get(sourceNodeId) as ConceptNode;
+      console.log('*******Is subroot valid?: ', subroot);
+      console.log('*******Is subroot depth valid?: ', subroot.depth);
       const rootNodeId = sourceNodeId;
       const rootNodeTitle = generationOption === 'Lesson' ? 
         responseData.topic.title : 
         subroot.title;
-
-      // Correct - >console.log(`@@responseData.topic.title : ${responseData.topic.title}`)
-      /// Incorrect -> console.log(`@@responseData.title : ${responseData.title}`)
-      
-      
   
       if (generationOption === 'Lesson') {
-        // Process root concept cue cards
-        if (responseData.topic.overview.length> 0) {
+        // Process root concept slides (previously cue cards)
+        if (responseData.topic.overview.length > 0) {
           console.log('4. GenerateAI-=== PROCESSING ROOT CUE CARDS ===');
           console.log(` 5. Processing ${responseData.topic.overview.length} cue cards for root node`);
-          for (const cueCard of responseData.topic.overview) {
+          for (const slide of responseData.topic.overview) {
             await saveResource({
               resourceType: 'cueCard',
               nodeId: rootNodeId,
               addResource,
-              Title: cueCard.title,
+              Title: slide.title,
               cueCardContent: [{ 
                 type: 'paragraph', 
-                children: [{ text: cueCard.content }] 
+                children: [{ text: slide.text }] 
               }]
             });
           }
         }
   
-        // Step 2: Process and add concept nodes one at a time in hierarchy order
         const processSubtopicsInOrder = async (subtopics: any[], parentNodeId: string, depth: number) => {
           console.log(`\ 6. n=== PROCESSING DEPTH ${depth} NODES ===`);
           console.log(` 7. Number of subtopics at depth ${depth}: ${subtopics.length}`);
           
-          // First pass: Create all nodes at current depth level
           for (const subtopic of subtopics) {
             const subtopicNodeId = uuidv4();
-            // Incorrect console.log(`\nProcessing subtopic: ${subtopic.concept}`);
-            // correct console.log(`\nProcessing subtopic:`, subtopic);
             console.log(`\n 8. Processing subtopic: ${subtopic}`);
-            // Create new node in local state
+            
             const newNode: ConceptNode = {
               id: subtopicNodeId,
               title: subtopic.title,
@@ -195,10 +185,8 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
               y: undefined
             };
             
-            // Add node to local state
             localNodes.set(subtopicNodeId, newNode);
             
-            // Update parent's children array in local state
             const parentNode = localNodes.get(parentNodeId);
             if (parentNode) {
               parentNode.childrenNodeIds = [...(parentNode.childrenNodeIds || []), subtopicNodeId];
@@ -211,7 +199,6 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
               parentId: parentNodeId
             });
   
-            // Step 3: Update layout immediately after adding each node
             console.log('&&# 10. GenerateAI-\nUpdating layout.... Current state:#&&', {
               totalNodes: localNodes.size,
               totalSubtrees: localSubtrees.size,
@@ -226,12 +213,12 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
                 subtrees : localSubtrees
               },
             });
+  
             compositeLayout({
               nodes: localNodes,
               localSubtrees: localSubtrees,
               setSubtrees: setSubtrees,
               setNodes: (updatedNodes) => {
-                // Update local nodes with layout changes
                 for (const [nodeId, node] of updatedNodes.entries()) {
                   localNodes.set(nodeId, node);
                 }
@@ -253,46 +240,44 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
               },
             });
   
-            // Process cue cards
-            if (subtopic.lesson) {
-              const cueCards = subtopic.lesson.relatedConcept ? subtopic.lesson.content.concat(subtopic.lesson.relatedConcept) : subtopic.lesson.content;
-              console.log(`12. Processing ${subtopic.lesson.content.length} cue cards for node ${subtopicNodeId}`);
-              for (const cueCard of cueCards) {
-                await saveResource({
-                  resourceType: 'cueCard',
-                  nodeId: subtopicNodeId,
-                  addResource,
-                  Title: cueCard.title,
-                  cueCardContent: [{ 
-                    type: 'paragraph', 
-                    children: [{ text: cueCard.content }] 
-                  }]
-                });
-              }
+            // Process content slides
+            const allSlides = [...subtopic.content];
+             
+            console.log(`12. Processing ${allSlides.length} cue cards for node ${subtopicNodeId}`);
+            for (const slide of allSlides) {
+              await saveResource({
+                resourceType: 'cueCard',
+                nodeId: subtopicNodeId,
+                addResource,
+                Title: slide.title,
+                cueCardContent: [{ 
+                  type: 'paragraph', 
+                  children: [{ text: slide.text }] 
+                }]
+              });
             }
           }
-          console.log(`\ 12-B . n=== End of PROCESSING DEPTH ${depth} NODES ===`)
-          // Second pass: Process next depth level
+          console.log(`\ 12-B . n=== End of PROCESSING DEPTH ${depth} NODES ===`);
+  
+          // Process concepts as next depth level
           for (const subtopic of subtopics) {
-            if (subtopic.childConcepts && subtopic.childConcepts.length > 0) {
+            if (subtopic.concept_bank && subtopic.concept_bank.length > 0) {
               const parentSubtopicId = Array.from(localNodes.entries())
                 .find(([_, node]) => node.title === subtopic.title)?.[0];
               
               if (parentSubtopicId) {
-                await processSubtopicsInOrder(subtopic.childConcepts, parentSubtopicId, depth + 1);
+                await processSubtopicsInOrder(subtopic.concept_bank, parentSubtopicId, depth + 1);
               }
             }
           }
         };
   
-        // Start processing from depth 1 (children of root)
-        if (responseData.topic.mainConcepts) {
+        if (responseData.topic.subtopics) {
           console.log('13. GenerateAI-\n=== STARTING SUBTOPIC PROCESSING ===');
-          console.log('14. GenerateAI-Root subtopics count:', responseData.topic.mainConcepts.length);
-          await processSubtopicsInOrder(responseData.topic.mainConcepts, rootNodeId, 1 ); // use parent node depth + 1
+          console.log('14. GenerateAI-Root subtopics count:', responseData.topic.subtopics.length);
+          await processSubtopicsInOrder([...responseData.topic.subtopics, responseData.topic.review], rootNodeId, subroot.depth + 1);
         }
   
-        // Step 4: Final update to React context
         console.log('15. GenerateAI-\n=== FINAL STATE UPDATE ===');
         console.log('16. GenerateAI-Final nodes state:', {
           count: localNodes.size,
@@ -308,7 +293,6 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
         setSubtrees(localSubtrees);
   
       } else {
-        // Handle Quiz generation
         console.log('18. GenerateAI-=== PROCESSING QUIZ ===');
         const practiceSheet = translateQuizToPracticeSheets(responseData, rootNodeId);
         await saveResource({
