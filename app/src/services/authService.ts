@@ -37,6 +37,7 @@
 import { OAuth2Client } from 'google-auth-library';
 import UserModel, { IUser } from '../models/userModel';
 import JwtUtils from '../utils/jwtUtils';
+import DriveService from './driveService';
 
 class AuthService {
   private googleClient: OAuth2Client;
@@ -61,6 +62,7 @@ class AuthService {
       scope: [
         'https://www.googleapis.com/auth/userinfo.profile',
         'https://www.googleapis.com/auth/drive.file', // Access to user's Google Drive
+        'https://www.googleapis.com/auth/drive.appdata',
       ],
       prompt: 'consent', // Ensures refresh tokens are provided
       state: actionType, // Encodes the user's intent
@@ -85,6 +87,7 @@ class AuthService {
    */
   async handlePostAuthAction(state: string, tokens: any): Promise<void> {
     // Save tokens securely or pass to the appropriate service
+    await DriveService.getInstance().initializeDriveClient(tokens.access_token);
     if (state === 'file-sharing') {
       // Example: initiate a file-sharing action
       console.log('Initiate file-sharing with tokens:', tokens);
@@ -139,4 +142,4 @@ class AuthService {
   }
 }
 
-export default new AuthService();
+export default AuthService;

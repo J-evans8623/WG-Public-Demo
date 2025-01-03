@@ -109,6 +109,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
   };
 
   /**
+   * Used to share google drive files.
+   * const handleShare = () => {
+   * TODO
+};
+   * 
+   */
+
+  /**
    * Wrapper function to handle adding resources with focused node.
    */
   const handleAddResource = (
@@ -145,9 +153,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
       <Menu.Item key="open" onClick={onOpenDocument}>
         Open
       </Menu.Item>
+      <Menu.Item key="openFromGDrive" onClick={handleOpenFromGDrive} disabled={!isAuthenticated}>
+      Open from Google Drive
+    </Menu.Item>
       <Menu.Item key="save" onClick={onSaveDocument}>
         Save
       </Menu.Item>
+      <Menu.Item key="saveToGDrive" onClick={handleSaveToGDrive} disabled={!isAuthenticated}>
+      Save to Google Drive
+    </Menu.Item>
     </Menu>
   );
 
