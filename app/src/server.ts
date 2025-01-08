@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import authRoutes from './routes/authRoutes';
 import aiRoutes from './routes/aiRoutes'; // Import AI routes
-import RateLimiter from './middleware/rateLimiter'; // Import RateLimiter middleware
+import RateLimiter from './middleware/rateLimiter-depr'; // Import RateLimiter middleware
 import connectDB from './config/db';
 
 import path from 'path';

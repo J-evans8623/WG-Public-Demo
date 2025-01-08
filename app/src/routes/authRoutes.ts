@@ -17,7 +17,7 @@
 import express from 'express';
 import AuthService from '../services/authService';
 import AuthController from '../controllers/authController';
-import RateLimiter from '../middleware/rateLimiter';
+import RateLimiter from '../middleware/rateLimiter-depr';
 
 const router = express.Router();
 

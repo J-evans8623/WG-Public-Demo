@@ -11,8 +11,11 @@ import { AuthConfig, SessionData } from './types';
 import { RedisSessionManager } from './session';
 import { OAuth2Client, CodeChallengeMethod } from 'google-auth-library';
 import crypto from 'crypto';
+import { FirestoreFirebaseService } from '../services/firebase';
+
 
 const sessionManager = new RedisSessionManager();
+const firebaseService = new FirestoreFirebaseService();
 
 /**
  * OAuthManager interface defines methods for OAuth 2.0 flows.
@@ -86,6 +89,11 @@ export class GoogleOAuthManager implements OAuthManager {
 
     const sessionId = crypto.randomUUID();
     await sessionManager.createSession(sessionId, sessionData);
+    if (tokens.refresh_token) {
+        await firebaseService.storeRefreshToken(derivedUserId, tokens.refresh_token);
+      } else {
+        console.warn(`No refresh token returned for user: ${derivedUserId}`);
+      }
 
     return sessionData;
   }

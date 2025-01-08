@@ -1,16 +1,26 @@
 /**
  * File: /server/auth/session.ts
- * Responsibility: Manage server-side sessions using Redis.
+ * Responsibility: Manage server-side sessions using Redis with added token refresh handling.
  * Dependencies:
  *   - redis client for Redis interactions.
  *   - /server/auth/types.ts for SessionData interface.
+ *   - /server/auth/oauth.ts for OAuth token refresh logic.
  */
 
 import { createClient } from 'redis';
 import { SessionData } from './types';
+import { GoogleOAuthManager } from './oauth';
 
 const redisClient = createClient();
 redisClient.connect();
+
+// Instantiate the OAuth manager
+const oauthManager = new GoogleOAuthManager({
+  clientId: process.env.GOOGLE_CLIENT_ID!,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  scopes: ['https://www.googleapis.com/auth/drive'],
+});
 
 /**
  * SessionManager interface defines methods for managing user sessions in Redis.
@@ -19,6 +29,7 @@ export interface SessionManager {
   createSession(sessionId: string, sessionData: SessionData): Promise<void>;
   getSession(sessionId: string): Promise<SessionData | null>;
   destroySession(sessionId: string): Promise<void>;
+  ensureValidSession(sessionId: string): Promise<SessionData>;
 }
 
 /**
@@ -51,5 +62,29 @@ export class RedisSessionManager implements SessionManager {
    */
   async destroySession(sessionId: string): Promise<void> {
     await redisClient.del(sessionId);
+  }
+
+  /**
+   * Ensures the session data is valid by checking token expiration and refreshing if necessary.
+   * @param sessionId - Unique session identifier (key).
+   * @returns Updated SessionData if valid, otherwise throws an error.
+   */
+  async ensureValidSession(sessionId: string): Promise<SessionData> {
+    const session = await this.getSession(sessionId);
+
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    const currentTime = Date.now();
+    if (session.expiresAt <= currentTime) {
+      // Token is expired, refresh it
+      const refreshedSession = await oauthManager.refreshAccessToken(session.refreshToken);
+      await this.createSession(sessionId, refreshedSession);
+      return refreshedSession;
+    }
+
+    // Return the existing valid session
+    return session;
   }
 }
