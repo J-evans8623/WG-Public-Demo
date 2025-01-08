@@ -28,8 +28,6 @@ import mongoose from 'mongoose';
 const connectDB = async (): Promise<void> => {
   try {
     const dbUri = process.env.DB_URI || 'mongodb://127.0.0.1:27017/bloom-map?directConnection=true';
-
-    // Connect to MongoDB without deprecated options
     await mongoose.connect(dbUri);
     console.log('MongoDB connected successfully.');
   } catch (error) {

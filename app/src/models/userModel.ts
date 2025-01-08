@@ -9,40 +9,26 @@
  * - Mongoose for schema definition and database operations.
  */
 
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
-/**
- * IUser
- * 
- * Interface representing a user document in MongoDB.
- */
 export interface IUser extends Document {
   googleId: string;
   email: string;
   accountType: 'free' | 'premium';
+  refreshToken?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-/**
- * UserSchema
- * 
- * Mongoose schema for the User model.
- */
 const UserSchema: Schema = new Schema(
   {
     googleId: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     accountType: { type: String, enum: ['free', 'premium'], default: 'free' },
+    refreshToken: { type: String },
   },
-  { timestamps: true } // Automatically manage createdAt and updatedAt fields
+  { timestamps: true }
 );
 
-/**
- * UserModel
- * 
- * Mongoose model for the User collection.
- */
 const UserModel = mongoose.model<IUser>('User', UserSchema);
-
 export default UserModel;

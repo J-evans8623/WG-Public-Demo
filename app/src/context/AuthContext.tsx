@@ -5,13 +5,14 @@ interface User {
   email: string;
   accountType: 'free' | 'premium';
   accessToken: string;
+  googleAccessToken: string;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isGuest: boolean;
   user: User | null;
-  signIn: (token: string) => void;
+  signIn: (jwtToken: string, googleToken: string) => void;
   signOut: () => void;
   skipAuth: () => void;
 }
@@ -32,27 +33,31 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    const googleToken = localStorage.getItem('googleToken');
     const guest = localStorage.getItem('isGuest') === 'true';
-    if (token) {
+    if (token && googleToken) {
       // Optionally verify token with backend
       const decoded = JSON.parse(atob(token.split('.')[1]));
-      setUser({ accessToken: token, email: decoded.email, accountType: decoded.accountType });
+      setUser({ accessToken: token, googleAccessToken: googleToken,
+        email: decoded.email, accountType: decoded.accountType });
     }
     if (guest) {
       setIsGuest(true);
     }
   }, []);
 
-  const signIn = (token: string) => {
+  const signIn = (token: string, googleToken: string) => {
     localStorage.setItem('token', token);
+    localStorage.setItem('googleToken', googleToken);
     // Decode token to extract user info
     const decoded = JSON.parse(atob(token.split('.')[1]));
-    setUser({ accessToken: token, email: decoded.email, accountType: decoded.accountType });
+    setUser({ accessToken: token, googleAccessToken: googleToken, email: decoded.email, accountType: decoded.accountType });
     setIsGuest(false);
   };
 
   const signOut = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('googleToken');
     setUser(null);
     setIsGuest(false);
   };

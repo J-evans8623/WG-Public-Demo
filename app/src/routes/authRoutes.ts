@@ -28,6 +28,13 @@ const router = express.Router();
  * Rate-limited to prevent abuse.
  */
 router.post('/login', RateLimiter, AuthController.login);
+/**router.post('/drive/save', AuthController.saveFile);
+router.get('/drive/load/:fileId', AuthController.loadFile);
+router.get('/drive/list', AuthController.listFiles);
+router.post('/drive/share', AuthController.shareFile);
+router.put('/drive/update', AuthController.updateFile);
+
+ */
 
 /**
  * GET /oauth/callback
