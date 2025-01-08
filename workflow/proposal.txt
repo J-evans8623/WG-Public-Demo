@@ -1,242 +1,1303 @@
-New proposed changes :
+Can you determine why this error occured? I am currently in the middle of integrating google drive into my application. The main issue is the one that is printed below. Currently when I try to save a file this error occurs, and I am never actually taken to a UI to save a file. 
+
+[debugging guidelines]
+I need your help fixing these errors. To solve this errors please do the following.
+1. Analyze the error log to understand the errors that were raised.
+2. Analyze the attach file contents and try to understand their purpose.
+3. Thinking of the possible causes for this error, and then select the most probable cause.
+4. Solve the problem.
+5. Document your solution by explaining to me what the core issue was, and how you fixed it.
+[end of debuggin guidelines]
+
+[error log]
+MongoDB connected successfully.
+Error listing files: GaxiosError: Invalid Credentials
+    at Gaxios._request (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\gaxios\src\gaxios.ts:146:15)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async OAuth2Client.requestAsync (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\google-auth-library\build\src\auth\oauth2client.js:429:18) {
+  config: {
+    url: 'https://www.googleapis.com/drive/v3/files?q=mimeType%3D%27application%2Fvnd.bloom.document%27&fields=files%28id%2C%20name%2C%20mimeType%2C%20modifiedTime%29',
+    method: 'GET',
+    apiVersion: '',
+    userAgentDirectives: [ [Object] ],
+    paramsSerializer: [Function (anonymous)],
+    headers: {
+      'x-goog-api-client': 'gdcl/7.2.0 gl-node/20.15.1',
+      'Accept-Encoding': 'gzip',
+      'User-Agent': 'google-api-nodejs-client/7.2.0 (gzip)',
+      Authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.'
+    },
+    params: {
+      q: "mimeType='application/vnd.bloom.document'",
+      fields: 'files(id, name, mimeType, modifiedTime)'
+    },
+    validateStatus: [Function (anonymous)],
+    retry: true,
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor],
+    retryConfig: {
+      currentRetryAttempt: 0,
+      retry: 3,
+      httpMethodsToRetry: [Array],
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1736040067395,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    }
+  },
+  response: {
+    config: {
+      url: 'https://www.googleapis.com/drive/v3/files?q=mimeType%3D%27application%2Fvnd.bloom.document%27&fields=files%28id%2C%20name%2C%20mimeType%2C%20modifiedTime%29',
+      method: 'GET',
+      apiVersion: '',
+      userAgentDirectives: [Array],
+      paramsSerializer: [Function (anonymous)],
+      headers: [Object],
+      params: [Object],
+      validateStatus: [Function (anonymous)],
+      retry: true,
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    data: { error: [Object] },
+    headers: {
+      'alt-svc': 'h3=":443"; ma=2592000,h3-29=":443"; ma=2592000',
+      'content-encoding': 'gzip',
+      'content-type': 'application/json; charset=UTF-8',
+      date: 'Sun, 05 Jan 2025 01:21:07 GMT',
+      server: 'ESF',
+      'transfer-encoding': 'chunked',
+      'www-authenticate': 'Bearer realm="https://accounts.google.com/"',       
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'SAMEORIGIN',
+      'x-xss-protection': '0'
+    },
+    status: 401,
+    statusText: 'Unauthorized',
+    request: {
+      responseURL: 'https://www.googleapis.com/drive/v3/files?q=mimeType%3D%27application%2Fvnd.bloom.document%27&fields=files%28id%2C%20name%2C%20mimeType%2C%20modifiedTime%29'
+    }
+  },
+  error: undefined,
+  status: 401,
+  code: 401,
+  errors: [
+    {
+      message: 'Invalid Credentials',
+      domain: 'global',
+      reason: 'authError',
+      location: 'Authorization',
+      locationType: 'header'
+    }
+  ],
+  [Symbol(gaxios-gaxios-error)]: '6.7.1'
+}
+Error listing Drive files: GaxiosError: Invalid Credentials
+    at Gaxios._request (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\gaxios\src\gaxios.ts:146:15)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)      
+    at async OAuth2Client.requestAsync (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\google-auth-library\build\src\auth\oauth2client.js:429:18) {
+  config: {
+    url: 'https://www.googleapis.com/drive/v3/files?q=mimeType%3D%27application%2Fvnd.bloom.document%27&fields=files%28id%2C%20name%2C%20mimeType%2C%20modifiedTime%29',
+    method: 'GET',
+    apiVersion: '',
+    userAgentDirectives: [ [Object] ],
+    paramsSerializer: [Function (anonymous)],
+    headers: {
+      'x-goog-api-client': 'gdcl/7.2.0 gl-node/20.15.1',
+      'Accept-Encoding': 'gzip',
+      'User-Agent': 'google-api-nodejs-client/7.2.0 (gzip)',
+      Authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.'
+    },
+    params: {
+      q: "mimeType='application/vnd.bloom.document'",
+      fields: 'files(id, name, mimeType, modifiedTime)'
+    },
+    validateStatus: [Function (anonymous)],
+    retry: true,
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor],
+    retryConfig: {
+      currentRetryAttempt: 0,
+      retry: 3,
+      httpMethodsToRetry: [Array],
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1736040067395,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    }
+  },
+  response: {
+    config: {
+      url: 'https://www.googleapis.com/drive/v3/files?q=mimeType%3D%27application%2Fvnd.bloom.document%27&fields=files%28id%2C%20name%2C%20mimeType%2C%20modifiedTime%29',
+      method: 'GET',
+      apiVersion: '',
+      userAgentDirectives: [Array],
+      paramsSerializer: [Function (anonymous)],
+      headers: [Object],
+      params: [Object],
+      validateStatus: [Function (anonymous)],
+      retry: true,
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    data: { error: [Object] },
+    headers: {
+      'alt-svc': 'h3=":443"; ma=2592000,h3-29=":443"; ma=2592000',
+      'content-encoding': 'gzip',
+      'content-type': 'application/json; charset=UTF-8',
+      date: 'Sun, 05 Jan 2025 01:21:07 GMT',
+      server: 'ESF',
+      'transfer-encoding': 'chunked',
+      'www-authenticate': 'Bearer realm="https://accounts.google.com/"',       
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'SAMEORIGIN',
+      'x-xss-protection': '0'
+    },
+      responseURL: 'https://www.googleapis.com/drive/v3/files?q=mimeType%3D%27application%2Fvnd.bloom.document%27&fields=files%28id%2C%20name%2C%20mimeType%2C%20modifiedTime%29'
+    }
+  },
+  error: undefined,
+  status: 401,
+  code: 401,
+  errors: [
+    {
+      message: 'Invalid Credentials',
+      domain: 'global',
+      reason: 'authError',
+      location: 'Authorization',
+      locationType: 'header'
+    }
+  ],
+  [Symbol(gaxios-gaxios-error)]: '6.7.1'
+}
+List files error: Error: Failed to list Drive files
+    at DriveFileManager.<anonymous> (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\app\src\services\DriveFileManager.ts:89:13)
+    at Generator.throw (<anonymous>)
+    at rejected (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\app\src\services\DriveFileManager.ts:18:65)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
 
 
-// lessonSchema.ts
-import { z } from "zod";
 
-// Define CueCard schema
-const CueCardSchema = z.object({
-  title: z.string(),
-  content: z.string()
-});
 
-// Define Concept schema (recursive)
-const ConceptSchema: z.ZodType<any> = z.object({
-  title: z.string(),
-  lesson: z.object({
-    content: z.array(CueCardSchema),
-    relatedConcept: z.array(CueCardSchema).optional()
-  }),
-  childConcepts: z.array(z.lazy(() => ConceptSchema))
-});
+[end of error log]
 
-// Define Topic schema
-export const TopicSchema = z.object({
-  title: z.string(),
-  overview: z.array(CueCardSchema),
-  mainConcepts: z.array(ConceptSchema)
-});
 
-// Updated IStructuredLessonResponse interface
-export interface IStructuredLessonResponse {
-  title: string;
-  overview: Array<{
-    title: string;
-    content: string;
-  }>;
-  mainConcepts: Array<{
-    title: string;
-    lesson: {
-      content: Array<{
-        title: string;
-        content: string;
-      }>;
-      relatedConcept?: Array<{
-        title: string;
-        content: string;
-      }>;
-    };
-    childConcepts: IStructuredLessonResponse['mainConcepts'];
-  }>;
+[relevant files the files below roughly traces the data flow from the front end to the back end]
+
+1. Save action is triggered from this component MenuBar.tsx, the user is able to click a save menu item from the 'File' menu.
+// bloom-maps\app\Library\components\MenuBar\MenuBar.tsx
+
+import React, { useState,useContext, useEffect } from 'react';
+import { Menu, Dropdown, Input, Button } from 'antd';
+import { useFileContext } from '@/app/Library/Context/FileProvider';
+import AppIcon from '@/app/icons-custom/AppIcon.svg';
+import '@/app/(client-ui)/MenuBar.css';
+import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
+import { useResourceContext } from '@/app/Library/Context/ResourceContext'; // Import ResourceContext
+import { AuthContext } from '@/app/src/context/AuthContext'; // Import AuthContext
+import  SubMenu  from 'antd/lib/menu';
+import { loadFromGoogleDrive, saveToGoogleDrive } from '@/app/Library/utils/documentUtils';
+import  DriveFileSelector  from '@/app/Library/components/gDrive/DriveFileSelector';
+import DriveShareDialog  from '@/app/Library/components/gDrive/DriveShareDialog';
+import { useNodesContext } from '@/app/Library/Context/NodesProvider';
+import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
+import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
+
+
+interface MenuBarProps {
+  onTitleChange: (newTitle: string) => void;
+  onNewDocument: () => void;
+  onOpenFromDevice: () => void;
+  onSaveToDevice: () => void;
+  onHelp: () => void;
+  onOpenToolPane: (
+    operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null,
+    sourceNodeId: string
+  ) => void; // Updated to accept null
+  openModalWithResourceType: (
+    nodeId: string | null,
+    resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined,
+    op: 'resource' | 'node'
+  ) => void;
+  onAuthButtonClick: () => void;
 }
 
-// aiService.ts
-import { z } from "zod";
-import OpenAI from "openai";
-import { TopicSchema } from "../schemas/lessonSchema";
+const MenuBar: React.FC<MenuBarProps> = ({
+  onTitleChange,
+  onNewDocument,
+  onOpenFromDevice,
+  onSaveToDevice,
+  onHelp,
+  onOpenToolPane,
+  openModalWithResourceType,
+  onAuthButtonClick,
+}) => {
 
-class AIService {
-  private openai: OpenAI;
 
-  constructor(openai: OpenAI) {
-    this.openai = openai;
+  // Retrieve selected node ID for enabling/disabling actions
+  const selectedNodeIds = getSelectedNodeIds();
+  const selectedNodeId = selectedNodeIds.length > 0 ? selectedNodeIds[selectedNodeIds.length - 1] : null;
+
+  // Access AuthContext
+  const { isAuthenticated, signOut, user } = useContext(AuthContext);
+  const { nodes, dispatch: nodesDispatch } = useNodesContext();
+ 
+ // other code
+
+
+  // google drive state 
+ // New state for Drive functionality
+ const [isDriveFileSelectorOpen, setIsDriveFileSelectorOpen] = useState(false);
+ const [isDriveShareDialogOpen, setIsDriveShareDialogOpen] = useState(false);
+ const [selectedDriveFileId, setSelectedDriveFileId] = useState<string | null>(null);
+    // other code
+
+const handleSaveToGoogleDrive = async () => {
+  if (!isAuthenticated || !user?.googleAccessToken) {
+    console.error('User must be authenticated to save to Google Drive');
+    return;
+  }
+  try {
+    const fileId = await saveToGoogleDrive(
+      nodes,
+      colorTheme,
+      primaryColor,
+      backgroundColor,
+      fileName,
+      getResourcesByType('cueCard'),
+      subtrees,
+      getResourcesByType('picture'),
+      getResourcesByType('practiceSheet'),
+      user.googleAccessToken  // Use googleAccessToken instead of JWT
+    );
+    setSelectedDriveFileId(fileId);
+    setIsDriveShareDialogOpen(true);
+  } catch (error) {
+    console.error('Error saving to Drive:', error);
+  }
+};
+
+
+
+  /**
+   * Defines the menu items for the File menu.
+   */
+  const fileMenu = (
+    <Menu>
+      <SubMenu key="save" title="Save">
+        <Menu.Item key="saveLocal" onClick={onSaveToDevice}>
+          Save to Device
+        </Menu.Item>
+        <Menu.Item 
+          key="saveDrive" 
+          onClick={handleSaveToGoogleDrive} 
+          disabled={!isAuthenticated}
+        >
+          Save to Google Drive
+        </Menu.Item>
+      </SubMenu>
+      <SubMenu key="open" title="Open">
+        <Menu.Item key="openLocal" onClick={onOpenFromDevice}>
+          Open from Device
+        </Menu.Item>
+        <Menu.Item 
+          key="openDrive" 
+          onClick={() => setIsDriveFileSelectorOpen(true)} 
+          disabled={!isAuthenticated}
+        >
+          Open from Google Drive
+        </Menu.Item>
+      </SubMenu>
+      {isAuthenticated && selectedDriveFileId && (
+        <Menu.Item key="share" onClick={() => setIsDriveShareDialogOpen(true)}>
+          Share Current File
+        </Menu.Item>
+      )}
+    </Menu>
+  );
+
+
+other code
+ 
+
+
+  return 
+
+  // jsx  code here ...
+
+
+
+
+
+// 2. This Utility save method from Document utils is used to zip and process the file into a .bloomdocx,
+this file is essentially a set of jsonified strings that are stored in a zip folder. After zipping the file,
+the file is sent to the back end using the predefined request in the frontendDriveService file.
+
+export const saveToGoogleDrive = async (
+  nodes: Map<string, ConceptNode>,
+  colorTheme: ColorTheme,
+  primaryColor: string,
+  backgroundColor: string,
+  fileName: string,
+  cueCards: Map<string, ResourceCard[]>,
+  subtrees: Map<string, SubtreeData>,
+  pictures: Map<string, ResourceCard[]>,
+  practiceSheets: Map<string, ResourceCard[]>,
+  accessToken: string
+): Promise<string> => {
+  const zip = new JSZip();
+
+  // Reuse existing serialization logic
+  const serializedDocument = serializeDocument(
+    nodes,
+    colorTheme,
+    primaryColor,
+    backgroundColor,
+    fileName
+  );
+  const documentJson = JSON.stringify(serializedDocument);
+  zip.file('document/document.json', documentJson);
+
+  // Add other files using existing serialization methods
+  const serializedCueCards = serializeCueCards(cueCards as Map<string, CueCardResource[]>);
+  zip.file('document/cuecards.json', JSON.stringify(serializedCueCards));
+
+  const serializedSubtrees = serializeSubtrees(subtrees);
+  zip.file('document/subtrees.json', JSON.stringify(serializedSubtrees));
+
+  const serializedPictures = serializePictures(pictures as Map<string, PictureResource[]>);
+  zip.file('document/pictures.json', JSON.stringify(serializedPictures));
+
+  const serializedPracticeSheets = serializePracticeSheets(
+    practiceSheets as Map<string, PracticeSheetResource[]>
+  );
+  zip.file('document/practiceSheets.json', JSON.stringify(serializedPracticeSheets));
+
+  // Add images to the ZIP
+  for (const [nodeId, pictureArray] of pictures.entries()) {
+    for (const picture of pictureArray as PictureResource[]) {
+      if (picture.image) {
+        try {
+          const imageData = await picture.image.arrayBuffer();
+          zip.file(`document/images/${picture.id}_${picture.image.name}`, imageData);
+        } catch (error) {
+          console.error(`Error saving image ${picture.id}:`, error);
+        }
+      }
+    }
   }
 
-  public async generateStructuredOutput(
-    schema: z.ZodSchema,
-    input: string,
-    systemPrompt: string,
-    schemaName: string
-  ): Promise<any> {
+  // Generate ZIP content as Buffer
+  const content = await zip.generateAsync({ type: 'arraybuffer' });
+  
+  // Save to Google Drive
+  return  FrontendDriveService.saveFile(fileName, Buffer.from(content), accessToken);
+};
+
+
+
+
+
+3. This file defines all of HTTP request logic for the front end and it use to access the backend endpoints.
+
+
+  // services/frontendDriveService.ts
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_SERVER_URL || 'http://localhost:5000';
+
+export class FrontendDriveService {
+  private static getHeaders(accessToken: string) {
+    return {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    };
+  }
+
+  static async saveFile(fileName: string, content: any, accessToken: string, folderId?: string) {
     try {
-      const response = await this.openai.beta.chat.completions.parse({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
-          },
-          {
-            role: "user",
-            content: input
-          }
-        ],
-        max_tokens: 2000,
-        response_format: zodResponseFormat(schema, schemaName)
+      const response = await fetch(`${API_BASE_URL}/api/drive/save`, {
+        method: 'POST',
+        headers: this.getHeaders(accessToken),
+        body: JSON.stringify({ fileName, content, folderId })
       });
 
-      return response.choices[0].message.parsed;
+      if (!response.ok) {
+        throw new Error('Failed to save file');
+      }
+
+      const data = await response.json();
+      return data.fileId;
     } catch (error) {
-      console.error("Error in generateStructuredOutput:", error);
+      console.error('Error saving file:', error);
+      throw error;
+    }
+  }
+
+  static async loadFile(fileId: string, accessToken: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/drive/load/${fileId}`, {
+        method: 'GET',
+        headers: this.getHeaders(accessToken)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load file');
+      }
+
+      const data = await response.json();
+      return Buffer.from(data.content, 'base64');
+    } catch (error) {
+      console.error('Error loading file:', error);
+      throw error;
+    }
+  }
+
+  static async listFiles(accessToken: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/drive/list`, {
+        method: 'GET',
+        headers: this.getHeaders(accessToken)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to list files');
+      }
+
+      const data = await response.json();
+      return data.files;
+    } catch (error) {
+      console.error('Error listing files:', error);
+      throw error;
+    }
+  }
+
+  static async shareFile(fileId: string, settings: any, accessToken: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/drive/share`, {
+        method: 'POST',
+        headers: this.getHeaders(accessToken),
+        body: JSON.stringify({ fileId, settings })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to share file');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error sharing file:', error);
+      throw error;
+    }
+  }
+
+  static async updateFile(fileId: string, content: any, accessToken: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/drive/update`, {
+        method: 'PUT',
+        headers: this.getHeaders(accessToken),
+        body: JSON.stringify({ fileId, content })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update file');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating file:', error);
       throw error;
     }
   }
 }
 
-// responseTranslator.ts
-export function translateLessonToCueCards(
-  lessonResponse: IStructuredLessonResponse, 
-  nodeId: string
-): CueCardResource[] {
-  const cueCards: CueCardResource[] = [];
+// 4. The remaining files are used for backend logic 
 
-  // Add overview cue cards
-  lessonResponse.overview.forEach(card => {
-    cueCards.push({
-      id: uuidv4(),
-      title: card.title,
-      nodeId,
-      type: 'cueCard',
-      content: [{ type: 'paragraph', children: [{ text: card.content }] }]
-    });
-  });
 
-  // Function to process concept cue cards
-  const processConceptCards = (concept: any) => {
-    // Add concept content cards
-    concept.lesson.content.forEach((card: any) => {
-      cueCards.push({
-        id: uuidv4(),
-        title: card.title,
-        nodeId,
-        type: 'cueCard',
-        content: [{ type: 'paragraph', children: [{ text: card.content }] }]
+// driveService.ts
+
+/**
+ * src/services/driveService.ts
+ * 
+ * Provides methods to interact with Google Drive API for file operations.
+ * Handles file saving, retrieval, and updates for .bloomdocx files.
+ * 
+ * Dependencies:
+ * - google-auth-library for OAuth2
+ * - googleapis for Drive API
+ * - AuthService for token management
+ * - Environment variables for API configuration
+ */
+
+import { drive_v3, google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
+import { Readable } from 'stream';
+
+export interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  modifiedTime?: string;
+}
+
+export class DriveService {
+  private static instance: DriveService;
+  private drive: drive_v3.Drive | null = null;
+  private accessToken: string | null = null;
+  private constructor() {}
+
+  static getInstance(): DriveService {
+    if (!DriveService.instance) {
+      DriveService.instance = new DriveService();
+    }
+    return DriveService.instance;
+  }
+
+  getDriveInstance(): drive_v3.Drive {
+    if (!this.drive) throw new Error('Drive client not initialized');
+    return this.drive;
+  }
+
+  async initializeDriveClient(accessToken: string): Promise<void> {
+    try {
+      const auth = new OAuth2Client({
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       });
-    });
-
-    // Add related concept cards if they exist
-    if (concept.lesson.relatedConcept) {
-      concept.lesson.relatedConcept.forEach((card: any) => {
-        cueCards.push({
-          id: uuidv4(),
-          title: card.title,
-          nodeId,
-          type: 'cueCard',
-          content: [{ type: 'paragraph', children: [{ text: card.content }] }]
-        });
+  
+      auth.setCredentials({
+        access_token: accessToken,
       });
+  
+      this.accessToken = accessToken;
+      this.drive = google.drive({
+        version: 'v3',
+        auth,
+      });
+    } catch (error) {
+      console.error('Failed to initialize Drive client:', error);
+      throw error;
+    }
+  }
+  
+  private async fetchWithAuth(endpoint: string, options: RequestInit = {}): Promise<Response> {
+    if (!this.accessToken) {
+      throw new Error('Drive client not initialized');
     }
 
-    // Process child concepts recursively
-    concept.childConcepts.forEach((child: any) => {
-      processConceptCards(child);
-    });
+    try {
+      const baseUrl = 'https://www.googleapis.com/drive/v3';
+      const headers = new Headers(options.headers);
+      headers.set('Authorization', `Bearer ${this.accessToken}`);
+      
+      if (!headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+      }
+  
+      const response = await fetch(`${baseUrl}${endpoint}`, {
+        ...options,
+        headers
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(
+          `Drive API error: ${response.status} ${JSON.stringify(errorData, null, 2)}`
+        );
+      }
+  
+      return response;
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
+    }
+  }
+
+  async saveFile(fileName: string, content: Buffer, folderId?: string): Promise<string> {
+    if (!this.drive) {
+      throw new Error('Drive client not initialized');
+    }
+
+    try {
+      // Create a readable stream from the buffer
+      const fileStream = new Readable();
+      fileStream.push(content);
+      fileStream.push(null);
+
+      const requestBody = {
+        name: `${fileName}.bloomdocx`,
+        mimeType: 'application/vnd.bloom.document',
+        ...(folderId && { parents: [folderId] }),
+      };
+
+      const media = {
+        mimeType: 'application/octet-stream',
+        body: fileStream,
+      };
+
+      const response = await this.drive.files.create({
+        requestBody,
+        media,
+        fields: 'id',
+      });
+
+      if (!response.data.id) {
+        throw new Error('Failed to get file ID from response');
+      }
+
+      return response.data.id;
+    } catch (error) {
+      console.error('Error saving file to Drive:', error);
+      throw error;
+    }
+  }
+
+
+  async updateFile(fileId: string, content: Buffer): Promise<void> {
+    if (!this.drive) {
+      throw new Error('Drive client not initialized');
+    }
+
+    try {
+      const fileStream = new Readable();
+      fileStream.push(content);
+      fileStream.push(null);
+
+      await this.drive.files.update({
+        fileId,
+        media: {
+          mimeType: 'application/octet-stream',
+          body: fileStream,
+        },
+      });
+    } catch (error) {
+      console.error('Error updating file:', error);
+      throw error;
+    }
+  }
+  async getFile(fileId: string): Promise<Buffer> {
+    if (!this.drive) {
+      throw new Error('Drive client not initialized');
+    }
+
+    try {
+      const response = await this.drive.files.get(
+        { fileId, alt: 'media' },
+        { responseType: 'arraybuffer' }
+      );
+
+      return Buffer.from(response.data as ArrayBuffer);
+    } catch (error) {
+      console.error('Error getting file:', error);
+      throw error;
+    }
+  }
+
+  async listFiles(): Promise<DriveFile[]> {
+    if (!this.drive) {
+      throw new Error('Drive client not initialized');
+    }
+  
+    try {
+      const response = await this.drive.files.list({
+        q: "mimeType='application/vnd.bloom.document'",
+        fields: 'files(id, name, mimeType, modifiedTime)',
+      });
+  
+      const files = response.data.files || [];
+      
+      // Filter out invalid files and map to DriveFile
+      return files
+        .filter((file): file is Required<Pick<drive_v3.Schema$File, 'id' | 'name' | 'mimeType'>> & { modifiedTime?: string } =>
+          !!file.id && !!file.name && !!file.mimeType
+        )
+        .map((file) => ({
+          id: file.id!,
+          name: file.name!,
+          mimeType: file.mimeType!,
+          modifiedTime: file.modifiedTime || undefined, // Ensure modifiedTime is optional
+        }));
+    } catch (error) {
+      console.error('Error listing files:', error);
+      throw error;
+    }
+  }
+  
+  
+}
+
+export default DriveService.getInstance();
+
+// DriveFileManager.ts
+
+/**
+ * src/services/DriveFileManager.ts
+ * 
+ * Manages Google Drive file operations and coordinates with local file operations.
+ * Acts as a facade for DriveService, DriveShareService, and AutoSaveService.
+ * 
+ * Dependencies:
+ * - DriveService for basic Drive operations
+ * - DriveShareService for sharing functionality
+ * - AutoSaveService for automatic saving
+ * - documentUtils for file serialization
+ */
+
+import DriveService, { DriveFile } from './driveService';
+import DriveShareService from './driveShareService';
+import AutoSaveService, { AutoSaveConfig } from './autoSaveService';
+import { ShareSettings } from './driveShareService';
+
+export class DriveFileManager {
+  private static instance: DriveFileManager;
+
+  private constructor() {}
+
+  /**
+   * Returns the singleton instance of DriveFileManager
+   */
+  public static getInstance(): DriveFileManager {
+    if (!DriveFileManager.instance) {
+      DriveFileManager.instance = new DriveFileManager();
+    }
+    return DriveFileManager.instance;
+  }
+
+  /**
+   * Initializes the Drive client with the provided access token
+   * @param accessToken - Google OAuth access token
+   */
+  async initialize(accessToken: string): Promise<void> {
+    await DriveService.initializeDriveClient(accessToken);
+  }
+
+  /**
+   * Saves content to Google Drive
+   * @param fileName - Name of the file
+   * @param content - Serialized document content
+   * @param folderId - Optional folder ID to save the file in
+   * @returns Promise resolving to the file ID of the saved file
+   */
+  async saveToGoogleDrive(
+    fileName: string,
+    content: Buffer,
+    folderId?: string
+  ): Promise<string> {
+    try {
+      const fileId = await DriveService.saveFile(fileName, content, folderId);
+      return fileId;
+    } catch (error) {
+      console.error('Error saving to Google Drive:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      throw new Error('Failed to save file to Google Drive');
+    }
+  }
+
+  /**
+   * Loads a file from Google Drive
+   * @param fileId - ID of the file to load
+   * @returns Promise resolving to the file content
+   */
+  async loadFromGoogleDrive(fileId: string): Promise<Buffer> {
+    try {
+      const content = await DriveService.getFile(fileId);
+      return content;
+    } catch (error) {
+      console.error('Error loading from Google Drive:', error);
+      throw new Error('Failed to load file from Google Drive');
+    }
+  }
+
+  /**
+   * Lists available .bloomdocx files in Google Drive
+   * @returns Promise resolving to an array of DriveFile objects
+   */
+  async listDriveFiles(): Promise<DriveFile[]> {
+    try {
+      const files = await DriveService.listFiles();
+      return files;
+    } catch (error) {
+      console.error('Error listing Drive files:', error);
+      throw new Error('Failed to list Drive files');
+    }
+  }
+
+  /**
+   * Configures autosave functionality
+   * @param config - AutoSave configuration options
+   */
+  configureAutosave(config: AutoSaveConfig): void {
+    AutoSaveService.configure(config);
+  }
+
+  /**
+   * Shares a file with specified settings
+   * @param fileId - ID of the file to share
+   * @param settings - Share settings including permissions and target users
+   */
+  async shareFile(fileId: string, settings: ShareSettings): Promise<void> {
+    try {
+      await DriveShareService.shareFile(fileId, settings);
+    } catch (error) {
+      console.error('Error sharing file:', error);
+      throw new Error('Failed to share file');
+    }
+  }
+
+  /**
+   * Updates an existing file in Google Drive
+   * @param fileId - ID of the file to update
+   * @param content - New content for the file
+   */
+  async updateFile(fileId: string, content: Buffer): Promise<void> {
+    try {
+      await DriveService.updateFile(fileId, content);
+    } catch (error) {
+      console.error('Error updating file:', error);
+      throw new Error('Failed to update file');
+    }
+  }
+}
+
+export default DriveFileManager.getInstance();
+
+// context/AuthContext.tsx
+import React, { createContext, useState, useEffect } from 'react';
+
+interface User {
+  email: string;
+  accountType: 'free' | 'premium';
+  accessToken: string;
+  googleAccessToken: string;
+}
+
+interface AuthContextType {
+  isAuthenticated: boolean;
+  isGuest: boolean;
+  user: User | null;
+  signIn: (jwtToken: string, googleToken: string) => void;
+  signOut: () => void;
+  skipAuth: () => void;
+}
+
+export const AuthContext = createContext<AuthContextType>({
+  isAuthenticated: false,
+  isGuest: false,
+  user: null,
+  signIn: () => {},
+  signOut: () => {},
+  skipAuth: () => {},
+});
+
+
+export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isGuest, setIsGuest] = useState<boolean>(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const googleToken = localStorage.getItem('googleToken');
+    const guest = localStorage.getItem('isGuest') === 'true';
+    if (token && googleToken) {
+      // Optionally verify token with backend
+      const decoded = JSON.parse(atob(token.split('.')[1]));
+      setUser({ accessToken: token, googleAccessToken: googleToken,
+        email: decoded.email, accountType: decoded.accountType });
+    }
+    if (guest) {
+      setIsGuest(true);
+    }
+  }, []);
+
+  const signIn = (token: string, googleToken: string) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('googleToken', googleToken);
+    // Decode token to extract user info
+    const decoded = JSON.parse(atob(token.split('.')[1]));
+    setUser({ accessToken: token, googleAccessToken: googleToken, email: decoded.email, accountType: decoded.accountType });
+    setIsGuest(false);
   };
 
-  // Process all main concepts
-  lessonResponse.mainConcepts.forEach(concept => {
-    processConceptCards(concept);
+  const signOut = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('googleToken');
+    setUser(null);
+    setIsGuest(false);
+  };
+
+  const skipAuth = () => {
+    localStorage.setItem('isGuest', 'true');
+    setIsGuest(true);
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ isAuthenticated: !!user, isGuest, user, signIn, signOut, skipAuth }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+
+
+// authRoutes.ts
+
+/**
+ * authRoutes.ts
+ * 
+ * Provides authentication-related API routes using Express Router.
+ * Responsibilities:
+ * - Defines routes for user authentication via Google OAuth2.
+ * - Implements a silent callback endpoint (`/oauth/callback`) for OAuth2 token exchanges.
+ * - Provides a login route for direct user authentication.
+ * - Communicates tokens securely to the parent app using `postMessage`.
+ * Dependencies:
+ * - Express for routing.
+ * - AuthService for handling token exchanges and Google OAuth2 logic.
+ * - AuthController for handling authentication requests.
+ * - RateLimiter to prevent API abuse.
+ */
+
+import express from 'express';
+import AuthService from '../services/authService';
+import AuthController from '../controllers/authController';
+import RateLimiter from '../middleware/rateLimiter';
+
+const router = express.Router();
+
+/**
+ * POST /api/login
+ * 
+ * Authenticates a user using a Google OAuth token and returns a JWT.
+ * Rate-limited to prevent abuse.
+ */
+router.post('/login', RateLimiter, AuthController.login);
+router.post('/drive/save', AuthController.saveFile);
+router.get('/drive/load/:fileId', AuthController.loadFile);
+router.get('/drive/list', AuthController.listFiles);
+router.post('/drive/share', AuthController.shareFile);
+router.put('/drive/update', AuthController.updateFile);
+
+/**
+ * GET /oauth/callback
+ * 
+ * Silent OAuth2 callback endpoint.
+ * Handles the token exchange after Google redirects the user here and uses `postMessage`
+ * to securely send tokens and state back to the parent application.
+ * 
+ * Query Parameters:
+ * - code: Authorization code from Google.
+ * - state: Encoded user intent (e.g., `file-sharing`, `premium-service`).
+ * 
+ * Responses:
+ * - Sends an HTML script to post the tokens and state back to the parent window and closes the popup.
+ */
+router.get('/oauth/callback', async (req, res) => {
+  const { code, state } = req.query;
+
+  try {
+    if (!code) {
+      throw new Error('Authorization code is missing.');
+    }
+
+    // Exchange the authorization code for tokens
+    const tokens = await AuthService.getTokensFromCode(code as string);
+
+    // Generate the HTML response to send tokens and state back to the parent app
+    const responseHtml = `
+      <script>
+        // Post tokens and state back to the parent window
+        window.opener.postMessage(
+          ${JSON.stringify({ tokens, state })},
+          window.opener.location.origin
+        );
+        // Close the popup
+        window.close();
+      </script>
+    `;
+    res.send(responseHtml);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('OAuth2 callback error:', errorMessage);
+    res.status(400).send('Authentication failed.');
+  }
+});
+
+export default router;
+
+
+// authController.ts
+
+/**
+ * authController.ts
+ * 
+ * Handles API requests related to authentication, such as user login.
+ */
+
+import { Request, Response } from 'express';
+import AuthService from '../services/authService';
+import DriveFileManager from '../services/DriveFileManager';
+import { ShareSettings } from '../services/driveShareService';
+
+/**
+ * AuthController
+ * 
+ * Contains methods to handle authentication-related HTTP requests.
+ */
+class AuthController {
+  /**
+   * Handles user login via Google OAuth token.
+   * 
+   * @param req - Express Request object containing the Google OAuth token.
+   * @param res - Express Response object to send back the JWT and user details.
+   */
+  public async login(req: Request, res: Response): Promise<void> {
+    try {
+      const { token } = req.body;
+      if (!token) {
+        res.status(400).json({ status: 'error', message: 'Token is required.' });
+        return;
+      }
+
+      // Validate the Google OAuth token
+      const googleUserData = await AuthService.validateToken(token);
+      if (!googleUserData) {
+        res.status(401).json({ status: 'error', message: 'Invalid token.' });
+        return;
+      }
+
+      // Retrieve or create the user
+      const user = await AuthService.retrieveUser(googleUserData);
+
+      // Generate JWT
+      const jwtToken = AuthService.generateJWT(user);
+
+      res.status(200).json({
+        status: 'success',
+        token: jwtToken,
+        user: {
+          email: user.email,
+          accountType: user.accountType,
+        },
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ status: 'error', message: 'Internal server error.' });
+    }
+  }
+  public async saveFile(req: Request, res: Response): Promise<void> {
+    try {
+      const { fileName, content, folderId } = req.body;
+      const accessToken = req.headers.authorization?.split(' ')[1];
+
+      if (!accessToken) {
+        res.status(401).json({ status: 'error', message: 'No access token provided' });
+        return;
+      }
+
+      await DriveFileManager.initialize(accessToken);
+      const fileId = await DriveFileManager.saveToGoogleDrive(fileName, Buffer.from(content), folderId);
+
+      res.status(200).json({
+        status: 'success',
+        fileId,
+      });
+    } catch (error) {
+      console.error('Save file error:', error);
+      res.status(500).json({ status: 'error', message: 'Failed to save file' });
+    }
+  }
+
+  public async loadFile(req: Request, res: Response): Promise<void> {
+    try {
+      const { fileId } = req.params;
+      const accessToken = req.headers.authorization?.split(' ')[1];
+
+      if (!accessToken) {
+        res.status(401).json({ status: 'error', message: 'No access token provided' });
+        return;
+      }
+
+      await DriveFileManager.initialize(accessToken);
+      const content = await DriveFileManager.loadFromGoogleDrive(fileId);
+
+      res.status(200).json({
+        status: 'success',
+        content: content.toString('base64'),
+      });
+    } catch (error) {
+      console.error('Load file error:', error);
+      res.status(500).json({ status: 'error', message: 'Failed to load file' });
+    }
+  }
+
+  public async listFiles(req: Request, res: Response): Promise<void> {
+    try {
+      const accessToken = req.headers.authorization?.split(' ')[1];
+
+      if (!accessToken) {
+        res.status(401).json({ status: 'error', message: 'No access token provided' });
+        return;
+      }
+
+      await DriveFileManager.initialize(accessToken);
+      const files = await DriveFileManager.listDriveFiles();
+
+      res.status(200).json({
+        status: 'success',
+        files,
+      });
+    } catch (error) {
+      console.error('List files error:', error);
+      res.status(500).json({ status: 'error', message: 'Failed to list files' });
+    }
+  }
+
+  public async shareFile(req: Request, res: Response): Promise<void> {
+    try {
+      const { fileId, settings } = req.body;
+      const accessToken = req.headers.authorization?.split(' ')[1];
+
+      if (!accessToken) {
+        res.status(401).json({ status: 'error', message: 'No access token provided' });
+        return;
+      }
+
+      await DriveFileManager.initialize(accessToken);
+      await DriveFileManager.shareFile(fileId, settings as ShareSettings);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'File shared successfully',
+      });
+    } catch (error) {
+      console.error('Share file error:', error);
+      res.status(500).json({ status: 'error', message: 'Failed to share file' });
+    }
+  }
+
+  public async updateFile(req: Request, res: Response): Promise<void> {
+    try {
+      const { fileId, content } = req.body;
+      const accessToken = req.headers.authorization?.split(' ')[1];
+
+      if (!accessToken) {
+        res.status(401).json({ status: 'error', message: 'No access token provided' });
+        return;
+      }
+
+      await DriveFileManager.initialize(accessToken);
+      await DriveFileManager.updateFile(fileId, Buffer.from(content));
+
+      res.status(200).json({
+        status: 'success',
+        message: 'File updated successfully',
+      });
+    } catch (error) {
+      console.error('Update file error:', error);
+      res.status(500).json({ status: 'error', message: 'Failed to update file' });
+    }
+  }
+}
+
+
+
+export default new AuthController();
+
+
+// AuthPromptModal.tsx
+
+// AuthPromptModal.tsx
+import React from 'react';
+import { useGoogleLogin } from '@react-oauth/google';
+import { AuthPromptModalProps } from './AuthPromptModal.types';
+
+
+const AuthPromptModal: React.FC<AuthPromptModalProps> = ({ isOpen, onSignInSuccess, onSignInFailure, onSkip }) => {
+  const login = useGoogleLogin({
+    onSuccess: (tokenResponse) => {
+      // tokenResponse contains access_token from implicit flow
+      onSignInSuccess(tokenResponse);
+    },
+    onError: () => onSignInFailure?.(),
+    scope: [
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/drive.file',
+      'https://www.googleapis.com/auth/drive.appdata'
+    ].join(' '),
+    flow: 'implicit'
   });
 
-  return cueCards;
-}
+  if (!isOpen) return null;
+
+  return (
+    <div className="auth-prompt-overlay fixed inset-0 bg-[#FCFDFD] bg-opacity-90 flex items-center justify-center z-50">
+      <div className="auth-prompt-modal bg-white rounded-lg p-6 shadow-lg max-w-md w-full">
+        <h2 className="text-xl font-semibold mb-4">Welcome to Bloom Maps</h2>
+        <p className="mb-6">Sign in to enable autosave and file sharing with Google Drive or continue as guest.</p>
+        <div className="flex justify-end space-x-4">
+          <button
+            onClick={onSkip}
+            className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition"
+          >
+            Continue as Guest
+          </button>
+          <button
+            onClick={() => login()}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path
+                fill="currentColor"
+                d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1Z"
+              />
+            </svg>
+            Sign in with Google
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AuthPromptModal;
 
 
+// These files are used to sign in an get the access token from google Oauth2.
+// AuthpromptDependencies.txt
 
-error raised :
+Please note that :
 
 
-AI Service initialized
-Error in generateStructuredOutput: BadRequestError: 400 Invalid schema for response_format 'lesson_schema'. Please ensure it is a valid JSON Schema.
-    at Function.generate (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\openai\src\error.ts:72:14)
-    at OpenAI.makeStatusError (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\openai\src\core.ts:435:21)
-    at OpenAI.makeRequest (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\openai\src\core.ts:499:24)
-    at processTicksAndRejections (node:internal/process/task_queues:95:5) {
-  status: 400,
-  headers: {
-    'access-control-expose-headers': 'X-Request-ID',
-    'alt-svc': 'h3=":443"; ma=86400',
-    'cf-cache-status': 'DYNAMIC',
-    'cf-ray': '8fb0f7928d8b41e7-EWR',
-    connection: 'keep-alive',
-    'content-length': '217',
-    'content-type': 'application/json',
-    date: 'Wed, 01 Jan 2025 07:58:56 GMT',
-    'openai-organization': 'user-qqtejgc2zzc49ggc1pwzjj1s',
-    'openai-processing-ms': '41',
-    'openai-version': '2020-10-01',
-    server: 'cloudflare',
-    'set-cookie': '__cf_bm=pGLqfQqCvmE0UuvLlyB_NeUpzPA8cqCThm5tu0qhRd0-1735718336-1.0.1.1-3JKIcGbuIzr9oTgG74ASA1ndy58_CAhT2TcG2JhSPuosHMfUMvur3UuJCeQNN8H1.iY2KGG2f16Mq9vu9.KGsw; path=/; expires=Wed, 01-Jan-25 08:28:56 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=436xF7KF.VBKBbxmZ_fcZCKh6LERwk0LtgOqjzYhdmA-1735718336504-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
-    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
-    'x-content-type-options': 'nosniff',
-    'x-ratelimit-limit-requests': '10000',
-    'x-ratelimit-limit-tokens': '200000',
-    'x-ratelimit-remaining-requests': '9999',
-    'x-ratelimit-remaining-tokens': '197308',
-    'x-ratelimit-reset-requests': '8.64s',
-    'x-ratelimit-reset-tokens': '807ms',
-    'x-request-id': 'req_4d78a53552b0a6b126a0b73df99a385b'
-  },
-  request_id: 'req_4d78a53552b0a6b126a0b73df99a385b',
-  error: {
-    message: "Invalid schema for response_format 'lesson_schema'. Please ensure it is a valid JSON Schema.",
-    type: 'invalid_request_error',
-    param: 'response_format',
-    code: null
-  },
-  code: null,
-  param: 'response_format',
-  type: 'invalid_request_error'
-}
-Error in generateLesson: BadRequestError: 400 Invalid schema for response_format 'lesson_schema'. Please ensure it is a valid JSON Schema.
-    at Function.generate (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\openai\src\error.ts:72:14)
-    at OpenAI.makeStatusError (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\openai\src\core.ts:435:21)
-    at OpenAI.makeRequest (C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\node_modules\openai\src\core.ts:499:24)
-    at processTicksAndRejections (node:internal/process/task_queues:95:5) {
-  status: 400,
-  headers: {
-    'access-control-expose-headers': 'X-Request-ID',
-    'alt-svc': 'h3=":443"; ma=86400',
-    'cf-cache-status': 'DYNAMIC',
-    'cf-ray': '8fb0f7928d8b41e7-EWR',
-    connection: 'keep-alive',
-    'content-length': '217',
-    'content-type': 'application/json',
-    date: 'Wed, 01 Jan 2025 07:58:56 GMT',
-    'openai-organization': 'user-qqtejgc2zzc49ggc1pwzjj1s',
-    'openai-processing-ms': '41',
-    'openai-version': '2020-10-01',
-    server: 'cloudflare',
-    'set-cookie': '__cf_bm=pGLqfQqCvmE0UuvLlyB_NeUpzPA8cqCThm5tu0qhRd0-1735718336-1.0.1.1-3JKIcGbuIzr9oTgG74ASA1ndy58_CAhT2TcG2JhSPuosHMfUMvur3UuJCeQNN8H1.iY2KGG2f16Mq9vu9.KGsw; path=/; expires=Wed, 01-Jan-25 08:28:56 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=436xF7KF.VBKBbxmZ_fcZCKh6LERwk0LtgOqjzYhdmA-1735718336504-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
-    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
-    'x-content-type-options': 'nosniff',
-    'x-ratelimit-limit-requests': '10000',
-    'x-ratelimit-limit-tokens': '200000',
-    'x-ratelimit-remaining-requests': '9999',
-    'x-ratelimit-remaining-tokens': '197308',
-    'x-ratelimit-reset-requests': '8.64s',
-    'x-ratelimit-reset-tokens': '807ms',
-    'x-request-id': 'req_4d78a53552b0a6b126a0b73df99a385b'
-  },
-  request_id: 'req_4d78a53552b0a6b126a0b73df99a385b',
-  error: {
-    message: "Invalid schema for response_format 'lesson_schema'. Please ensure it is a valid JSON Schema.",
-    type: 'invalid_request_error',
-    param: 'response_format',
-    code: null
-  },
-  code: null,
-  param: 'response_format',
-  type: 'invalid_request_error'
-}
+  'HandleSign in Success' is called via 'onSignInSuccess' prop of AuthpromptModal
 
+ 
+const handleSignInSuccess = async (tokenResponse: any) => {
+  try {
+    const response = await fetch(`${apiServerUrl}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        token: tokenResponse.access_token
+      }),
+    });
+    
+    const data = await response.json();
+    if (data.status === 'success') {
+      // Pass both tokens to signIn
+      signIn(data.token, tokenResponse.access_token);
+      setIsAuthModalOpen(false);
+    } else {
+      alert(data.message || 'Authentication failed.');
+    }
+  } catch (error) {
+    console.error('Login Error:', error);
+    alert('An error occurred during authentication.');
+  }
+};
+  
+
+end of code

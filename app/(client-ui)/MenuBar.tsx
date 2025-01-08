@@ -1,6 +1,6 @@
 // bloom-maps\app\Library\components\MenuBar\MenuBar.tsx
 
-import React, { useState,useContext } from 'react';
+import React, { useState,useContext, useEffect } from 'react';
 import { Menu, Dropdown, Input, Button } from 'antd';
 import { useFileContext } from '@/app/Library/Context/FileProvider';
 import AppIcon from '@/app/icons-custom/AppIcon.svg';
@@ -8,12 +8,20 @@ import '@/app/(client-ui)/MenuBar.css';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext'; // Import ResourceContext
 import { AuthContext } from '@/app/src/context/AuthContext'; // Import AuthContext
+import  SubMenu  from 'antd/lib/menu';
+import { loadFromGoogleDrive, saveToGoogleDrive } from '@/app/Library/utils/documentUtils';
+import  DriveFileSelector  from '@/app/Library/components/gDrive/DriveFileSelector';
+import DriveShareDialog  from '@/app/Library/components/gDrive/DriveShareDialog';
+import { useNodesContext } from '@/app/Library/Context/NodesProvider';
+import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
+import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
+
 
 interface MenuBarProps {
   onTitleChange: (newTitle: string) => void;
   onNewDocument: () => void;
-  onOpenDocument: () => void;
-  onSaveDocument: () => void;
+  onOpenFromDevice: () => void;
+  onSaveToDevice: () => void;
   onHelp: () => void;
   onOpenToolPane: (
     operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null,
@@ -30,8 +38,8 @@ interface MenuBarProps {
 const MenuBar: React.FC<MenuBarProps> = ({
   onTitleChange,
   onNewDocument,
-  onOpenDocument,
-  onSaveDocument,
+  onOpenFromDevice,
+  onSaveToDevice,
   onHelp,
   onOpenToolPane,
   openModalWithResourceType,
@@ -50,7 +58,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const selectedNodeId = selectedNodeIds.length > 0 ? selectedNodeIds[selectedNodeIds.length - 1] : null;
 
   // Access AuthContext
-  const { isAuthenticated, signOut } = useContext(AuthContext);
+  const { isAuthenticated, signOut, user } = useContext(AuthContext);
+  const { nodes, dispatch: nodesDispatch } = useNodesContext();
+  const { colorTheme, primaryColor, backgroundColor, dispatch: colorThemeDispatch } = useColorThemeContext();
+  const { resources, addResource, getResourcesByType, setResourcesByMap } = useResourceContext();
+    const { subtrees, setSubtrees, resetSubtrees } = useSubTreeContext();
+  const { dispatch: fileDispatch } = useFileContext();
+
+
+  // google drive state 
+ // New state for Drive functionality
+ const [isDriveFileSelectorOpen, setIsDriveFileSelectorOpen] = useState(false);
+ const [isDriveShareDialogOpen, setIsDriveShareDialogOpen] = useState(false);
+ const [selectedDriveFileId, setSelectedDriveFileId] = useState<string | null>(null);
+
 
   /**
    * Handles the click event to enable title editing.
@@ -109,14 +130,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
   };
 
   /**
-   * Used to share google drive files.
-   * const handleShare = () => {
-   * TODO
-};
-   * 
-   */
-
-  /**
    * Wrapper function to handle adding resources with focused node.
    */
   const handleAddResource = (
@@ -142,26 +155,90 @@ const MenuBar: React.FC<MenuBarProps> = ({
    */
   const isRedoAvailable = selectedNodeId ? redoAvailable(selectedNodeId) : false;
 
+
+  const handleSaveToGoogleDrive = async () => {
+    if (!isAuthenticated || !user?.googleAccessToken) {
+      console.error('User must be authenticated to save to Google Drive');
+      return;
+    }
+    try {
+      const fileId = await saveToGoogleDrive(
+        nodes,
+        colorTheme,
+        primaryColor,
+        backgroundColor,
+        fileName,
+        getResourcesByType('cueCard'),
+        subtrees,
+        getResourcesByType('picture'),
+        getResourcesByType('practiceSheet'),
+        user.googleAccessToken
+      );
+      setSelectedDriveFileId(fileId);
+      setIsDriveShareDialogOpen(true);
+    } catch (error) {
+      console.error('Error saving to Drive:', error);
+    }
+  };
+
+  const handleDriveFileSelect = async (fileId: string) => {
+    if (!user?.accessToken) {
+      console.error('User must be authenticated to load from Google Drive');
+      return;
+    }
+    try {
+      await loadFromGoogleDrive(
+        fileId,
+        nodesDispatch,
+        setResourcesByMap,
+        setSubtrees,
+        fileDispatch,
+        colorThemeDispatch,
+        resetTreeDimensions,
+        resetSubtrees,
+        resetResources,
+        user.accessToken
+      );
+      setIsDriveFileSelectorOpen(false);
+    } catch (error) {
+      console.error('Error loading from Drive:', error);
+    }
+  };
+
   /**
    * Defines the menu items for the File menu.
    */
   const fileMenu = (
     <Menu>
-      <Menu.Item key="new" onClick={onNewDocument}>
-        New
-      </Menu.Item>
-      <Menu.Item key="open" onClick={onOpenDocument}>
-        Open
-      </Menu.Item>
-      <Menu.Item key="openFromGDrive" onClick={handleOpenFromGDrive} disabled={!isAuthenticated}>
-      Open from Google Drive
-    </Menu.Item>
-      <Menu.Item key="save" onClick={onSaveDocument}>
-        Save
-      </Menu.Item>
-      <Menu.Item key="saveToGDrive" onClick={handleSaveToGDrive} disabled={!isAuthenticated}>
-      Save to Google Drive
-    </Menu.Item>
+      <SubMenu key="save" title="Save">
+        <Menu.Item key="saveLocal" onClick={onSaveToDevice}>
+          Save to Device
+        </Menu.Item>
+        <Menu.Item 
+          key="saveDrive" 
+          onClick={handleSaveToGoogleDrive} 
+          disabled={!isAuthenticated}
+        >
+          Save to Google Drive
+        </Menu.Item>
+      </SubMenu>
+      <SubMenu key="open" title="Open">
+        <Menu.Item key="openLocal" onClick={onOpenFromDevice}>
+          Open from Device
+        </Menu.Item>
+        <Menu.Item 
+          key="openDrive" 
+          onClick={() => setIsDriveFileSelectorOpen(true)} 
+          disabled={!isAuthenticated}
+        >
+          Open from Google Drive
+        </Menu.Item>
+      </SubMenu>
+      {isAuthenticated && selectedDriveFileId && (
+        <Menu.Item key="share" onClick={() => setIsDriveShareDialogOpen(true)}>
+          Share Current File
+        </Menu.Item>
+      )}
     </Menu>
   );
 
@@ -304,6 +381,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
           </Button>
         </div>
       </div>
+      {/* Drive-related modals */}
+      <DriveFileSelector
+        visible={isDriveFileSelectorOpen}
+        onSelect={handleDriveFileSelect}
+        onCancel={() => setIsDriveFileSelectorOpen(false)}
+      />
+
+      <DriveShareDialog
+        visible={isDriveShareDialogOpen}
+        fileId={selectedDriveFileId as string} // Find a better fix
+        onClose={() => setIsDriveShareDialogOpen(false)}
+      />
     </div>
   );
 };
@@ -311,3 +400,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
 MenuBar.displayName = 'MenuBar';
 
 export default MenuBar;
+function resetTreeDimensions(): void {
+  throw new Error('Function not implemented.');
+}
+
+function resetResources(): void {
+  throw new Error('Function not implemented.');
+}
+

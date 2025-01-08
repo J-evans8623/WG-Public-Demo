@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useReducer, useContext, ReactNode, useMemo } from 'react';
-import { fileReducer, initialFileState } from './fileReducer';
+import { fileReducer, initialFileState, FileState } from './fileReducer';
 import { FileAction } from '@/app/Library/Definitions/Definitions';
 
 interface FileContextValue {

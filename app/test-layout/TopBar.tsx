@@ -16,7 +16,9 @@ import { saveDocument, loadDocument, initializeNewDocument } from '@/app/Library
 import { setFileName } from '@/app/Library/Context/fileActions';
 import { ColorTheme, ResourceType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import { AuthContext } from '@/app/src/context/AuthContext';
+
+
+
 
 interface TopBarProps {
   /**
@@ -210,8 +212,8 @@ const TopBar: React.FC<TopBarProps> = ({
       <MenuBar
         onTitleChange={handleTitleChange}
         onNewDocument={handleCreateNewDocument}
-        onOpenDocument={handleOpenDocument}
-        onSaveDocument={handleSaveDocument}
+        onOpenFromDevice={handleOpenDocument}
+        onSaveToDevice={handleSaveDocument}
         onHelp={handleHelp}
         onOpenToolPane={handleOpenToolPane}
         openModalWithResourceType={openModalWithResourceType}

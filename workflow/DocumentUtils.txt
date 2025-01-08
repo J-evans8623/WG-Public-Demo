@@ -1,0 +1,74 @@
+/**
+ * Saves document to Google Drive
+ * @param nodes - Map of concept nodes
+ * @param colorTheme - Current color theme
+ * @param primaryColor - Primary color theme
+ * @param backgroundColor - Background color theme
+ * @param fileName - Name of the file
+ * @param cueCards - Map of cue card resources
+ * @param subtrees - Map of subtree data
+ * @param pictures - Map of picture resources
+ * @param practiceSheets - Map of practice sheet resources
+ * @param driveFileManager - Instance of DriveFileManager
+ * @returns Promise resolving to the Google Drive file ID
+ */
+export const saveToGoogleDrive = async (
+  nodes: Map<string, ConceptNode>,
+  colorTheme: ColorTheme,
+  primaryColor: string,
+  backgroundColor: string,
+  fileName: string,
+  cueCards: Map<string, ResourceCard[]>,
+  subtrees: Map<string, SubtreeData>,
+  pictures: Map<string, ResourceCard[]>,
+  practiceSheets: Map<string, ResourceCard[]>,
+  driveFileManager: typeof DriveFileManager
+): Promise<string> => {
+  const zip = new JSZip();
+
+  // Reuse existing serialization logic
+  const serializedDocument = serializeDocument(
+    nodes,
+    colorTheme,
+    primaryColor,
+    backgroundColor,
+    fileName
+  );
+  const documentJson = JSON.stringify(serializedDocument);
+  zip.file('document/document.json', documentJson);
+
+  // Add other files using existing serialization methods
+  const serializedCueCards = serializeCueCards(cueCards as Map<string, CueCardResource[]>);
+  zip.file('document/cuecards.json', JSON.stringify(serializedCueCards));
+
+  const serializedSubtrees = serializeSubtrees(subtrees);
+  zip.file('document/subtrees.json', JSON.stringify(serializedSubtrees));
+
+  const serializedPictures = serializePictures(pictures as Map<string, PictureResource[]>);
+  zip.file('document/pictures.json', JSON.stringify(serializedPictures));
+
+  const serializedPracticeSheets = serializePracticeSheets(
+    practiceSheets as Map<string, PracticeSheetResource[]>
+  );
+  zip.file('document/practiceSheets.json', JSON.stringify(serializedPracticeSheets));
+
+  // Add images to the ZIP
+  for (const [nodeId, pictureArray] of pictures.entries()) {
+    for (const picture of pictureArray as PictureResource[]) {
+      if (picture.image) {
+        try {
+          const imageData = await picture.image.arrayBuffer();
+          zip.file(`document/images/${picture.id}_${picture.image.name}`, imageData);
+        } catch (error) {
+          console.error(`Error saving image ${picture.id}:`, error);
+        }
+      }
+    }
+  }
+
+  // Generate ZIP content as Buffer
+  const content = await zip.generateAsync({ type: 'nodebuffer' });
+  
+  // Save to Google Drive
+  return driveFileManager.saveToGoogleDrive(fileName, content);
+};

@@ -42,6 +42,7 @@ import MainContent from './MainContent';
 import RightPanel from './RightPanel';
 import StatusBar from './StatusBar';
 
+
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 const apiServerUrl = process.env.NEXT_PUBLIC_API_SERVER_URL || 'http://localhost:5000';
 
@@ -192,17 +193,20 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSignInSuccess = async (credentialResponse: any) => {
-    const token = credentialResponse.credential;
+  const handleSignInSuccess = async (tokenResponse: any) => {
     try {
       const response = await fetch(`${apiServerUrl}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ 
+          token: tokenResponse.access_token
+        }),
       });
+      
       const data = await response.json();
       if (data.status === 'success') {
-        signIn(data.token);
+        // Pass both tokens to signIn
+        signIn(data.token, tokenResponse.access_token);
         setIsAuthModalOpen(false);
       } else {
         alert(data.message || 'Authentication failed.');
@@ -212,6 +216,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
       alert('An error occurred during authentication.');
     }
   };
+  
 
   const handleSignInFailure = () => {
     alert('Google login failed.');
@@ -414,9 +419,10 @@ export default function ClientLayout() {
                 <LayoutProvider>
                   <ColorThemeProvider>
                     <FileProvider>
-                      <SubTreeProvider>
+                         <SubTreeProvider>
                         <ClientLayoutContent />               
                       </SubTreeProvider>
+                      
                     </FileProvider>
                   </ColorThemeProvider>
                 </LayoutProvider>

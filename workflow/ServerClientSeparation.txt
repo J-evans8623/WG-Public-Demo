@@ -1,0 +1,1016 @@
+Previously I working a on proposal that integrated google drive api service into the application. In the last step of this proposal I asked
+an ai model to integrate these backend services into the frontend via the client component 'MenuBar.tsx'. This caused the following error to be raised :
+
+
+[error]
+⨯ ./node_modules/gaxios/node_modules/agent-base/dist/index.js:30:1
+Module not found: Can't resolve 'net'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./node_modules/gaxios/node_modules/https-proxy-agent/dist/index.js
+./node_modules/gaxios/build/src/gaxios.js
+./node_modules/gaxios/build/src/index.js
+./node_modules/google-auth-library/build/src/index.js
+./app/src/services/driveService.ts
+./app/src/services/DriveFileManager.ts
+./app/(client-ui)/MenuBar.tsx
+./app/Library/components/DocumentFile/DocumentHeader.tsx
+oom-maps\.next\cache\webpack\client-development-fallback\0.pack.gz_' -> 'C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\.next\cache\webpack\client-development-fallback\0.pack.gz'
+ ⨯ ./node_modules/gaxios/node_modules/agent-base/dist/index.js:30:1
+Module not found: Can't resolve 'net'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./node_modules/gaxios/node_modules/https-proxy-agent/dist/index.js
+./node_modules/gaxios/build/src/gaxios.js
+./node_modules/gaxios/build/src/index.js
+./node_modules/google-auth-library/build/src/index.js
+./app/src/services/driveService.ts
+./app/src/services/DriveFileManager.ts
+./app/(client-ui)/MenuBar.tsx
+./app/Library/components/DocumentFile/DocumentHeader.tsx
+./app/(client-ui)/layout.tsx
+ GET /test-layout/layout-test 500 in 64821ms
+ ⨯ ./node_modules/gaxios/node_modules/agent-base/dist/index.js:30:1
+Module not found: Can't resolve 'net'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./node_modules/gaxios/node_modules/https-proxy-agent/dist/index.js
+./node_modules/gaxios/build/src/gaxios.js
+./node_modules/gaxios/build/src/index.js
+./node_modules/google-auth-library/build/src/index.js
+./app/src/services/driveService.ts
+./app/src/services/autoSaveService.ts
+./app/src/context/AutoSaveProvider.tsx
+./app/test-layout/layout-test.tsx
+./app/test-layout/layout-test/page.tsx
+
+[end of error]
+
+
+I suspect this issue is being raised because a server component logic is being used on the client side. I think a better approach would be if we Implemented the
+corresponding routes to call the necessary service, instead of attempting to use the backend logic in the service. 
+This was the original pattern used in the application, for instance there is a file called authRoutes.ts that handle login authentication via an authController, 
+it seem my former proposal had an oversight in this aspect. Can you help me resolve this issue? Perhaps we can extend authController by integerating the services offered by DrivefileManager.
+Then in another prompt I will  refactor in the front end to use this new implementation.  After you have extended authController, please end your response with a summary on how to use the new implementation in the front end.
+
+Here are the relevant files (some entries are simply description of the file) :
+
+/**
+ * src/services/driveService.ts
+ * 
+ * Provides methods to interact with Google Drive API for file operations.
+ * Handles file saving, retrieval, and updates for .bloomdocx files.
+ * 
+ * Dependencies:
+ * - google-auth-library for OAuth2
+ * - googleapis for Drive API
+ * - AuthService for token management
+ * - Environment variables for API configuration
+ */
+
+
+ /**
+ * src/services/driveShareService.ts
+ * 
+ * Manages file sharing capabilities through Google Drive.
+ * 
+ * Dependencies:
+ * - DriveService for file operations
+ * - googleapis for Drive API types
+ */
+
+
+ [code]
+// MenuBar.tsx
+
+// bloom-maps\app\Library\components\MenuBar\MenuBar.tsx
+
+import React, { useState,useContext, useEffect } from 'react';
+import { Menu, Dropdown, Input, Button } from 'antd';
+import { useFileContext } from '@/app/Library/Context/FileProvider';
+import AppIcon from '@/app/icons-custom/AppIcon.svg';
+import '@/app/(client-ui)/MenuBar.css';
+import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
+import { useResourceContext } from '@/app/Library/Context/ResourceContext'; // Import ResourceContext
+import { AuthContext } from '@/app/src/context/AuthContext'; // Import AuthContext
+import  SubMenu  from 'antd/lib/menu';
+import { loadFromGoogleDrive, saveToGoogleDrive } from '@/app/Library/utils/documentUtils';
+import  DriveFileSelector  from '@/app/Library/components/gDrive/DriveFileSelector';
+import DriveShareDialog  from '@/app/Library/components/gDrive/DriveShareDialog';
+import { useAutoSave } from '@/app/src/context/AutoSaveProvider';
+import { useNodesContext } from '@/app/Library/Context/NodesProvider';
+import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
+import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
+import DriveFileManager from '../src/services/DriveFileManager';
+
+interface MenuBarProps {
+  onTitleChange: (newTitle: string) => void;
+  onNewDocument: () => void;
+  onOpenFromDevice: () => void;
+  onSaveToDevice: () => void;
+  onHelp: () => void;
+  onOpenToolPane: (
+    operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null,
+    sourceNodeId: string
+  ) => void; // Updated to accept null
+  openModalWithResourceType: (
+    nodeId: string | null,
+    resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined,
+    op: 'resource' | 'node'
+  ) => void;
+  onAuthButtonClick: () => void;
+}
+
+const MenuBar: React.FC<MenuBarProps> = ({
+  onTitleChange,
+  onNewDocument,
+  onOpenFromDevice,
+  onSaveToDevice,
+  onHelp,
+  onOpenToolPane,
+  openModalWithResourceType,
+  onAuthButtonClick,
+}) => {
+  const { fileName } = useFileContext();
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [newTitle, setNewTitle] = useState(fileName);
+
+  // Extract selection and resource states
+  const { clearSelection, getSelectedNodeIds, focusOnSelectedNode } = useNodeSelection();
+  const { undo, redo, undoAvailable, redoAvailable } = useResourceContext();
+
+  // Retrieve selected node ID for enabling/disabling actions
+  const selectedNodeIds = getSelectedNodeIds();
+  const selectedNodeId = selectedNodeIds.length > 0 ? selectedNodeIds[selectedNodeIds.length - 1] : null;
+
+  // Access AuthContext
+  const { isAuthenticated, signOut, user } = useContext(AuthContext);
+  const { nodes, dispatch: nodesDispatch } = useNodesContext();
+  const { colorTheme, primaryColor, backgroundColor, dispatch: colorThemeDispatch } = useColorThemeContext();
+  const { resources, addResource, getResourcesByType, setResourcesByMap } = useResourceContext();
+    const { subtrees, setSubtrees, resetSubtrees } = useSubTreeContext();
+  const { dispatch: fileDispatch } = useFileContext();
+
+
+  // google drive state 
+ // New state for Drive functionality
+ const [isDriveFileSelectorOpen, setIsDriveFileSelectorOpen] = useState(false);
+ const [isDriveShareDialogOpen, setIsDriveShareDialogOpen] = useState(false);
+ const [selectedDriveFileId, setSelectedDriveFileId] = useState<string | null>(null);
+
+ // Auto-save context
+ const { isEnabled: isAutoSaveEnabled, enable: enableAutoSave, disable: disableAutoSave } = useAutoSave();
+
+ useEffect(() => {
+  if (isAuthenticated && user?.accessToken) {
+    console.log('Access token being passed to Drive manager:', user.accessToken);
+    console.log('Attempting to initialize Drive manager...');
+    DriveFileManager.initialize(user.accessToken)
+      .then(() => {
+        console.log('Drive manager successfully initialized.');
+      })
+      .catch(error => {
+        console.error('Failed to initialize Drive manager:', error);
+      });
+  }
+}, [isAuthenticated, user]);
+
+  /**
+   * Handles the click event to enable title editing.
+   */
+  const handleTitleClick = () => {
+    setIsEditingTitle(true);
+  };
+
+  /**
+   * Handles the change event for the title input.
+   * @param e - Change event from the input field.
+   */
+  const handleTitleChangeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewTitle(e.target.value);
+  };
+
+  /**
+   * Handles the blur event to disable title editing and update the title.
+   */
+  const handleTitleBlur = () => {
+    setIsEditingTitle(false);
+    onTitleChange(newTitle);
+  };
+
+  /**
+   * Handler for undo action.
+   */
+  const handleUndo = () => {
+    const focusedNodeId = focusOnSelectedNode();
+    if (focusedNodeId && undoAvailable(focusedNodeId)) {
+      undo(focusedNodeId);
+    }
+  };
+
+  /**
+   * Handler for redo action.
+   */
+  const handleRedo = () => {
+    const focusedNodeId = focusOnSelectedNode();
+    if (focusedNodeId && redoAvailable(focusedNodeId)) {
+      redo(focusedNodeId);
+    }
+  };
+
+  /**
+   * Wrapper function to handle focusing on the last selected node and performing the operation.
+   */
+  const handleOperation = (
+    operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null
+  ) => {
+    const focusedNodeId = focusOnSelectedNode();
+    if (!focusedNodeId) {
+      return; // Exit the function if no node is selected
+    }
+    onOpenToolPane(operation, focusedNodeId);
+  };
+
+  /**
+   * Wrapper function to handle adding resources with focused node.
+   */
+  const handleAddResource = (
+    resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined,
+    op: 'resource' | 'node'
+  ) => {
+    const focusedNodeId = focusOnSelectedNode();
+    openModalWithResourceType(focusedNodeId, resourceType, op);
+  };
+
+  /**
+   * Determines if a node is selected.
+   */
+  const isNodeSelected = Boolean(selectedNodeId);
+
+  /**
+   * Determines if Undo is available.
+   */
+  const isUndoAvailable = selectedNodeId ? undoAvailable(selectedNodeId) : false;
+
+  /**
+   * Determines if Redo is available.
+   */
+  const isRedoAvailable = selectedNodeId ? redoAvailable(selectedNodeId) : false;
+
+
+  const handleSaveToGoogleDrive = async () => {
+    if (!isAuthenticated || !user?.accessToken) {
+      // Add error handling for when user is not authenticated
+      console.error('User must be authenticated to save to Google Drive');
+      return;
+    }
+    try {
+      const fileId = await saveToGoogleDrive(
+        nodes,
+        colorTheme,
+        primaryColor,
+        backgroundColor,
+        fileName,
+        getResourcesByType('cueCard'),
+        subtrees,
+        getResourcesByType('picture'),
+        getResourcesByType('practiceSheet'),
+        DriveFileManager
+      );
+      setSelectedDriveFileId(fileId);
+      //message.success('File saved to Google Drive successfully');
+      setIsDriveShareDialogOpen(true);
+    } catch (error) {
+      console.error('Error saving to Drive:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+    }
+  };
+
+  const handleDriveFileSelect = async (fileId: string) => {
+    try {
+      await loadFromGoogleDrive(
+        fileId,
+        nodesDispatch,
+        setResourcesByMap,
+        setSubtrees,
+        fileDispatch,
+        colorThemeDispatch,
+        () => {}, // resetTreeDimensions
+        () => {}, // resetSubtrees
+        () => {}, // resetResources
+        DriveFileManager
+      );
+      setIsDriveFileSelectorOpen(false);
+      //message.success('File loaded from Google Drive successfully');
+    } catch (error) {
+      //message.error('Failed to load file from Google Drive');
+      console.error('Error loading from Drive:', error);
+    }
+  };
+
+  /**
+   * Defines the menu items for the File menu.
+   */
+  const fileMenu = (
+    <Menu>
+      <SubMenu key="save" title="Save">
+        <Menu.Item key="saveLocal" onClick={onSaveToDevice}>
+          Save to Device
+        </Menu.Item>
+        <Menu.Item 
+          key="saveDrive" 
+          onClick={handleSaveToGoogleDrive} 
+          disabled={!isAuthenticated}
+        >
+          Save to Google Drive
+        </Menu.Item>
+        <Menu.Item 
+          key="autoSave" 
+          onClick={() => isAutoSaveEnabled ? disableAutoSave() : enableAutoSave()}
+          disabled={!isAuthenticated}
+        >
+          {isAutoSaveEnabled ? 'Disable Auto-Save' : 'Enable Auto-Save'}
+        </Menu.Item>
+      </SubMenu>
+      <SubMenu key="open" title="Open">
+        <Menu.Item key="openLocal" onClick={onOpenFromDevice}>
+          Open from Device
+        </Menu.Item>
+        <Menu.Item 
+          key="openDrive" 
+          onClick={() => setIsDriveFileSelectorOpen(true)} 
+          disabled={!isAuthenticated}
+        >
+          Open from Google Drive
+        </Menu.Item>
+      </SubMenu>
+      {isAuthenticated && selectedDriveFileId && (
+        <Menu.Item key="share" onClick={() => setIsDriveShareDialogOpen(true)}>
+          Share Current File
+        </Menu.Item>
+      )}
+    </Menu>
+  );
+
+  /**
+   * Defines the menu items for the Edit menu.
+   */
+  const editMenu = (
+    <Menu>
+      <Menu.Item key="undo" onClick={handleUndo} disabled={!isUndoAvailable}>
+        Undo
+      </Menu.Item>
+      <Menu.Item key="redo" onClick={handleRedo} disabled={!isRedoAvailable}>
+        Redo
+      </Menu.Item>
+      <Menu.Divider />
+      <Menu.Item key="cut" onClick={() => handleOperation('cut')} disabled={!isNodeSelected}>
+        Cut
+      </Menu.Item>
+      <Menu.Item key="copy" onClick={() => handleOperation('copy')} disabled={!isNodeSelected}>
+        Copy
+      </Menu.Item>
+      <Menu.Item key="edit" onClick={() => handleOperation('edit')} disabled={!isNodeSelected}>
+        Edit
+      </Menu.Item>
+      <Menu.Item key="delete" onClick={() => handleOperation('delete')} disabled={!isNodeSelected}>
+        Delete
+      </Menu.Item>
+    </Menu>
+  );
+
+  /**
+   * Defines the menu items for the Insert menu.
+   */
+  const insertMenu = (
+    <Menu>
+      <Menu.Item key="newConcept" onClick={() => handleAddResource(undefined, 'node')} disabled={!isNodeSelected}>
+        New Concept
+      </Menu.Item>
+      <Menu.Item key="cueCard" onClick={() => handleAddResource('cueCard', 'resource')} disabled={!isNodeSelected}>
+        Cue Card
+      </Menu.Item>
+      <Menu.Item key="picture" onClick={() => handleAddResource('picture', 'resource')} disabled={!isNodeSelected}>
+        Picture
+      </Menu.Item>
+      <Menu.Item key="quiz" onClick={() => handleAddResource('practiceSheet', 'resource')} disabled={!isNodeSelected}>
+        Quiz
+      </Menu.Item>
+    </Menu>
+  );
+
+  /**
+   * Defines the menu items for the Help menu.
+   * Placeholder for future implementation.
+   */
+  const helpMenu = (
+    <Menu>
+      {/* Future Help Options */}
+      <Menu.Item key="helpPlaceholder" disabled>
+        Coming Soon
+      </Menu.Item>
+    </Menu>
+  );
+
+
+    /**
+   * Handles Sign In/Sign Out button click.
+   */
+    const handleAuthButtonClick = () => {
+      if (isAuthenticated) {
+        signOut();
+      } else {
+        onAuthButtonClick(); // Open the AuthPromptModal
+      }
+    };
+
+  return (
+    <div className="menu-bar-container">
+      {/* Application Icon */}
+      <div className="menu-bar-icon">
+        <AppIcon className="menu-bar-app-icon" />
+      </div>
+
+      {/* Content Section with Document Title and MenuBar */}
+      <div className="menu-bar-content">
+        {/* Document Title */}
+        <div className="menu-bar-document-title">
+          {isEditingTitle ? (
+            <Input
+              value={newTitle}
+              onChange={handleTitleChangeInput}
+              onBlur={handleTitleBlur}
+              autoFocus
+              className="menu-bar-title-input"
+            />
+          ) : (
+            <span onClick={handleTitleClick} className="menu-bar-title-text">
+              {fileName}
+            </span>
+          )}
+        </div>
+
+        {/* MenuBar with Dropdown Menus */}
+        <div className="menu-bar-dropdowns">
+          {/* File Menu */}
+          <Dropdown overlay={fileMenu} trigger={['click']}>
+            <Button className="menu-bar-button">
+              File 
+            </Button>
+          </Dropdown>
+
+          {/* Edit Menu */}
+          <Dropdown overlay={editMenu} trigger={['click']}>
+            <Button className="menu-bar-button">
+              Edit 
+            </Button>
+          </Dropdown>
+
+          {/* Insert Menu */}
+          <Dropdown overlay={insertMenu} trigger={['click']}>
+            <Button className="menu-bar-button">
+              Insert 
+            </Button>
+          </Dropdown>
+
+          {/* Help Menu */}
+          <Dropdown overlay={helpMenu} trigger={['click']}>
+            <Button className="menu-bar-button">
+              Help 
+            </Button>
+          </Dropdown>
+
+           {/* Spacer to push Auth button to the right */}
+           <div className="flex-grow"></div>
+                     {/* Sign In/Sign Out Button */}
+          <Button
+            onClick={handleAuthButtonClick}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+          >
+            {isAuthenticated ? 'Sign Out' : 'Sign In'}
+          </Button>
+        </div>
+      </div>
+      {/* Drive-related modals */}
+      <DriveFileSelector
+        visible={isDriveFileSelectorOpen}
+        onSelect={handleDriveFileSelect}
+        onCancel={() => setIsDriveFileSelectorOpen(false)}
+      />
+
+      <DriveShareDialog
+        visible={isDriveShareDialogOpen}
+        fileId={selectedDriveFileId as string} // Find a better fix
+        onClose={() => setIsDriveShareDialogOpen(false)}
+      />
+
+      {/* Auto-save status indicator */}
+      {isAuthenticated && isAutoSaveEnabled && (
+        <div className="fixed bottom-4 right-4 bg-blue-100 text-blue-800 px-4 py-2 rounded-md shadow">
+          Auto-Save Enabled
+        </div>
+      )}
+    </div>
+  );
+};
+
+MenuBar.displayName = 'MenuBar';
+
+export default MenuBar;
+
+
+// DriveFileManager.ts
+
+/**
+ * src/services/DriveFileManager.ts
+ * 
+ * Manages Google Drive file operations and coordinates with local file operations.
+ * Acts as a facade for DriveService, DriveShareService, and AutoSaveService.
+ * 
+ * Dependencies:
+ * - DriveService for basic Drive operations
+ * - DriveShareService for sharing functionality
+ * - AutoSaveService for automatic saving
+ * - documentUtils for file serialization
+ */
+
+import DriveService, { DriveFile } from './driveService';
+import DriveShareService from './driveShareService';
+import AutoSaveService, { AutoSaveConfig } from './autoSaveService';
+import { ShareSettings } from './driveShareService';
+
+export class DriveFileManager {
+  private static instance: DriveFileManager;
+
+  private constructor() {}
+
+  /**
+   * Returns the singleton instance of DriveFileManager
+   */
+  public static getInstance(): DriveFileManager {
+    if (!DriveFileManager.instance) {
+      DriveFileManager.instance = new DriveFileManager();
+    }
+    return DriveFileManager.instance;
+  }
+
+  /**
+   * Initializes the Drive client with the provided access token
+   * @param accessToken - Google OAuth access token
+   */
+  async initialize(accessToken: string): Promise<void> {
+    await DriveService.initializeDriveClient(accessToken);
+  }
+
+  /**
+   * Saves content to Google Drive
+   * @param fileName - Name of the file
+   * @param content - Serialized document content
+   * @param folderId - Optional folder ID to save the file in
+   * @returns Promise resolving to the file ID of the saved file
+   */
+  async saveToGoogleDrive(
+    fileName: string,
+    content: Buffer,
+    folderId?: string
+  ): Promise<string> {
+    try {
+      const fileId = await DriveService.saveFile(fileName, content, folderId);
+      return fileId;
+    } catch (error) {
+      console.error('Error saving to Google Drive:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      throw new Error('Failed to save file to Google Drive');
+    }
+  }
+
+  /**
+   * Loads a file from Google Drive
+   * @param fileId - ID of the file to load
+   * @returns Promise resolving to the file content
+   */
+  async loadFromGoogleDrive(fileId: string): Promise<Buffer> {
+    try {
+      const content = await DriveService.getFile(fileId);
+      return content;
+    } catch (error) {
+      console.error('Error loading from Google Drive:', error);
+      throw new Error('Failed to load file from Google Drive');
+    }
+  }
+
+  /**
+   * Lists available .bloomdocx files in Google Drive
+   * @returns Promise resolving to an array of DriveFile objects
+   */
+  async listDriveFiles(): Promise<DriveFile[]> {
+    try {
+      const files = await DriveService.listFiles();
+      return files;
+    } catch (error) {
+      console.error('Error listing Drive files:', error);
+      throw new Error('Failed to list Drive files');
+    }
+  }
+
+  /**
+   * Configures autosave functionality
+   * @param config - AutoSave configuration options
+   */
+  configureAutosave(config: AutoSaveConfig): void {
+    AutoSaveService.configure(config);
+  }
+
+  /**
+   * Shares a file with specified settings
+   * @param fileId - ID of the file to share
+   * @param settings - Share settings including permissions and target users
+   */
+  async shareFile(fileId: string, settings: ShareSettings): Promise<void> {
+    try {
+      await DriveShareService.shareFile(fileId, settings);
+    } catch (error) {
+      console.error('Error sharing file:', error);
+      throw new Error('Failed to share file');
+    }
+  }
+
+  /**
+   * Updates an existing file in Google Drive
+   * @param fileId - ID of the file to update
+   * @param content - New content for the file
+   */
+  async updateFile(fileId: string, content: Buffer): Promise<void> {
+    try {
+      await DriveService.updateFile(fileId, content);
+    } catch (error) {
+      console.error('Error updating file:', error);
+      throw new Error('Failed to update file');
+    }
+  }
+}
+
+export default DriveFileManager.getInstance();
+
+// authRoutes.ts
+
+/**
+ * authRoutes.ts
+ * 
+ * Provides authentication-related API routes using Express Router.
+ * Responsibilities:
+ * - Defines routes for user authentication via Google OAuth2.
+ * - Implements a silent callback endpoint (`/oauth/callback`) for OAuth2 token exchanges.
+ * - Provides a login route for direct user authentication.
+ * - Communicates tokens securely to the parent app using `postMessage`.
+ * Dependencies:
+ * - Express for routing.
+ * - AuthService for handling token exchanges and Google OAuth2 logic.
+ * - AuthController for handling authentication requests.
+ * - RateLimiter to prevent API abuse.
+ */
+
+import express from 'express';
+import AuthService from '../services/authService';
+import AuthController from '../controllers/authController';
+import RateLimiter from '../middleware/rateLimiter';
+
+const router = express.Router();
+
+/**
+ * POST /api/login
+ * 
+ * Authenticates a user using a Google OAuth token and returns a JWT.
+ * Rate-limited to prevent abuse.
+ */
+router.post('/login', RateLimiter, AuthController.login);
+
+/**
+ * GET /oauth/callback
+ * 
+ * Silent OAuth2 callback endpoint.
+ * Handles the token exchange after Google redirects the user here and uses `postMessage`
+ * to securely send tokens and state back to the parent application.
+ * 
+ * Query Parameters:
+ * - code: Authorization code from Google.
+ * - state: Encoded user intent (e.g., `file-sharing`, `premium-service`).
+ * 
+ * Responses:
+ * - Sends an HTML script to post the tokens and state back to the parent window and closes the popup.
+ */
+router.get('/oauth/callback', async (req, res) => {
+  const { code, state } = req.query;
+
+  try {
+    if (!code) {
+      throw new Error('Authorization code is missing.');
+    }
+
+    // Exchange the authorization code for tokens
+    const tokens = await AuthService.getTokensFromCode(code as string);
+
+    // Generate the HTML response to send tokens and state back to the parent app
+    const responseHtml = `
+      <script>
+        // Post tokens and state back to the parent window
+        window.opener.postMessage(
+          ${JSON.stringify({ tokens, state })},
+          window.opener.location.origin
+        );
+        // Close the popup
+        window.close();
+      </script>
+    `;
+    res.send(responseHtml);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('OAuth2 callback error:', errorMessage);
+    res.status(400).send('Authentication failed.');
+  }
+});
+
+export default router;
+
+
+// DocumentUtils.txt
+
+/**
+ * Saves document to Google Drive
+ * @param nodes - Map of concept nodes
+ * @param colorTheme - Current color theme
+ * @param primaryColor - Primary color theme
+ * @param backgroundColor - Background color theme
+ * @param fileName - Name of the file
+ * @param cueCards - Map of cue card resources
+ * @param subtrees - Map of subtree data
+ * @param pictures - Map of picture resources
+ * @param practiceSheets - Map of practice sheet resources
+ * @param driveFileManager - Instance of DriveFileManager
+ * @returns Promise resolving to the Google Drive file ID
+ */
+export const saveToGoogleDrive = async (
+  nodes: Map<string, ConceptNode>,
+  colorTheme: ColorTheme,
+  primaryColor: string,
+  backgroundColor: string,
+  fileName: string,
+  cueCards: Map<string, ResourceCard[]>,
+  subtrees: Map<string, SubtreeData>,
+  pictures: Map<string, ResourceCard[]>,
+  practiceSheets: Map<string, ResourceCard[]>,
+  driveFileManager: typeof DriveFileManager
+): Promise<string> => {
+  const zip = new JSZip();
+
+  // Reuse existing serialization logic
+  const serializedDocument = serializeDocument(
+    nodes,
+    colorTheme,
+    primaryColor,
+    backgroundColor,
+    fileName
+  );
+  const documentJson = JSON.stringify(serializedDocument);
+  zip.file('document/document.json', documentJson);
+
+  // Add other files using existing serialization methods
+  const serializedCueCards = serializeCueCards(cueCards as Map<string, CueCardResource[]>);
+  zip.file('document/cuecards.json', JSON.stringify(serializedCueCards));
+
+  const serializedSubtrees = serializeSubtrees(subtrees);
+  zip.file('document/subtrees.json', JSON.stringify(serializedSubtrees));
+
+  const serializedPictures = serializePictures(pictures as Map<string, PictureResource[]>);
+  zip.file('document/pictures.json', JSON.stringify(serializedPictures));
+
+  const serializedPracticeSheets = serializePracticeSheets(
+    practiceSheets as Map<string, PracticeSheetResource[]>
+  );
+  zip.file('document/practiceSheets.json', JSON.stringify(serializedPracticeSheets));
+
+  // Add images to the ZIP
+  for (const [nodeId, pictureArray] of pictures.entries()) {
+    for (const picture of pictureArray as PictureResource[]) {
+      if (picture.image) {
+        try {
+          const imageData = await picture.image.arrayBuffer();
+          zip.file(`document/images/${picture.id}_${picture.image.name}`, imageData);
+        } catch (error) {
+          console.error(`Error saving image ${picture.id}:`, error);
+        }
+      }
+    }
+  }
+
+  // Generate ZIP content as Buffer
+  const content = await zip.generateAsync({ type: 'nodebuffer' });
+  
+  // Save to Google Drive
+  return driveFileManager.saveToGoogleDrive(fileName, content);
+};
+
+// server.ts
+
+import express, { Request, Response, NextFunction } from 'express';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import authRoutes from './routes/authRoutes';
+import aiRoutes from './routes/aiRoutes'; // Import AI routes
+import RateLimiter from './middleware/rateLimiter'; // Import RateLimiter middleware
+import connectDB from './config/db';
+
+import path from 'path';
+
+// Adjust the path to point to your root directory
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+const app = express();
+
+// CORS Configuration
+const allowedOrigins = [process.env.CLIENT_ORIGIN || 'http://localhost:3000'];
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true, // Allow cookies if needed
+  })
+);
+
+// Connect to MongoDB
+connectDB();
+
+// Middleware to parse JSON
+app.use(express.json());
+
+// API routes
+app.use('/api', authRoutes);
+app.use('/api', RateLimiter, aiRoutes); // Apply rate limiter and integrate AI routes
+
+// Error-handling middleware
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
+
+// Start the server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`)
+});
+
+
+
+
+// authController.ts
+
+/**
+ * authController.ts
+ * 
+ * Handles API requests related to authentication, such as user login.
+ */
+
+import { Request, Response } from 'express';
+import AuthService from '../services/authService';
+
+/**
+ * AuthController
+ * 
+ * Contains methods to handle authentication-related HTTP requests.
+ */
+class AuthController {
+  /**
+   * Handles user login via Google OAuth token.
+   * 
+   * @param req - Express Request object containing the Google OAuth token.
+   * @param res - Express Response object to send back the JWT and user details.
+   */
+  public async login(req: Request, res: Response): Promise<void> {
+    try {
+      const { token } = req.body;
+      if (!token) {
+        res.status(400).json({ status: 'error', message: 'Token is required.' });
+        return;
+      }
+
+      // Validate the Google OAuth token
+      const googleUserData = await AuthService.validateToken(token);
+      if (!googleUserData) {
+        res.status(401).json({ status: 'error', message: 'Invalid token.' });
+        return;
+      }
+
+      // Retrieve or create the user
+      const user = await AuthService.retrieveUser(googleUserData);
+
+      // Generate JWT
+      const jwtToken = AuthService.generateJWT(user);
+
+      res.status(200).json({
+        status: 'success',
+        token: jwtToken,
+        user: {
+          email: user.email,
+          accountType: user.accountType,
+        },
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ status: 'error', message: 'Internal server error.' });
+    }
+  }
+}
+
+export default new AuthController();
+
+
+
+
+ [end of code]
+
+
+ Here the directory structure of the backend :
+
+ PS C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps\app\src> tree /f
+Folder PATH listing for volume Windows-SSD
+Volume serial number is FA40-B78D
+C:.
+│   server.ts
+│
+├───ai-definitions
+│       Definitions.tsx
+│
+├───config
+│   │   db.ts
+│   │   openai.ts
+│   │   predefined-prompts.ts
+│   │   redis.ts
+│   │
+│   └───__tests__
+│           db.test.ts
+│
+├───context
+│   │   AuthContext.tsx
+│   │   AutoSaveProvider.tsx
+│   │
+│   └───__tests__
+│           AuthContext.test.tsx
+│
+├───controllers
+│   │   aiController.ts
+│   │   authController.ts
+│   │
+│   └───__tests__
+│           aiController.test.ts
+│
+├───middleware
+│       rateLimiter.ts
+│
+├───models
+│   │   aiRequestLog.ts
+│   │   userModel.ts
+│   │
+│   └───__tests__
+│           aiRequestLog.test.ts
+│           userModel.test.ts
+│
+├───routes
+│   │   aiRoutes.ts
+│   │   authRoutes.ts
+│   │
+│   └───__tests__
+│           aiRoutes.test.ts
+│           authRoutes.test.ts
+│
+├───schemas
+│       lessonSchema.ts
+│       quizSchema.ts
+│
+├───services
+│   │   aiService.ts
+│   │   authService.ts
+│   │   autoSaveService.ts
+│   │   DriveFileManager.ts
+│   │   driveService.ts
+│   │   driveShareService.ts
+│   │   
+│   └───__tests__
+│           aiService.test.ts
+│           authService.test.ts
+│
+├───uploads
+└───utils
+    │   jwtUtils.ts
+    │   moderation.ts
+    │   promptEngineering.ts
+    │
+    └───__tests__
+            moderation.test.ts
+            promptEngineering.test.ts
+
