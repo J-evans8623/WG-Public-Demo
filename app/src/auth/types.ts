@@ -5,18 +5,14 @@
  */
 
 export interface SessionData {
-  /**
-   * Represents the session data for a logged-in user.
-   * @property accessToken - The access token for authenticated requests.
-   * @property refreshToken - The refresh token used for token renewal.
-   * @property expiresAt - Expiration timestamp (Unix).
-   * @property userId - Unique identifier for the user.
-   */
   accessToken: string;
   refreshToken: string;
-  expiresAt: number; // Unix timestamp
+  expiresAt: number;
   userId: string;
+  email?: string;         // new
+  accountType?: 'free' | 'premium'; // new
 }
+
 
 export interface AuthConfig {
   /**

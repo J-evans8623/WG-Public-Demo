@@ -6,14 +6,35 @@
  */
 
 import admin from 'firebase-admin';
-import { SessionData } from '../auth/types';
+
+if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+  throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
+}
+
+if (!process.env.FIREBASE_DATABASE_URL) {
+  throw new Error('FIREBASE_DATABASE_URL environment variable is not set.');
+}
+
+// Parse the FIREBASE_SERVICE_ACCOUNT JSON string
+let serviceAccount: admin.ServiceAccount;
+try {
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
+} catch (error) {
+  throw new Error('FIREBASE_SERVICE_ACCOUNT is not a valid JSON string.');
+}
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!)),
-    databaseURL: process.env.FIREBASE_DATABASE_URL,
-  });
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      databaseURL: process.env.FIREBASE_DATABASE_URL,
+    });
+    console.log('Firebase initialized successfully');
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
+    throw error;
+  }
 }
 
 const firestore = admin.firestore();
@@ -22,34 +43,9 @@ const firestore = admin.firestore();
  * FirebaseService interface defines methods for user data management.
  */
 export interface FirebaseService {
-  /**
-   * Stores a user's subscription tier (e.g., free or premium).
-   * @param userId - Unique identifier for the user.
-   * @param tier - Subscription tier ('free' or 'premium').
-   * @returns Promise<void>
-   */
   storeUserTier(userId: string, tier: string): Promise<void>;
-
-  /**
-   * Checks a user's subscription tier.
-   * @param userId - Unique identifier for the user.
-   * @returns Promise<string> - The user's subscription tier.
-   */
   getUserTier(userId: string): Promise<string>;
-
-  /**
-   * Stores a user's refresh token as a fallback.
-   * @param userId - Unique identifier for the user.
-   * @param refreshToken - The refresh token to store.
-   * @returns Promise<void>
-   */
   storeRefreshToken(userId: string, refreshToken: string): Promise<void>;
-
-  /**
-   * Retrieves a user's refresh token.
-   * @param userId - Unique identifier for the user.
-   * @returns Promise<string | null> - The stored refresh token or null if not found.
-   */
   getRefreshToken(userId: string): Promise<string | null>;
 }
 
@@ -85,10 +81,28 @@ export class FirestoreFirebaseService implements FirebaseService {
    * @param refreshToken - The refresh token to store.
    */
   async storeRefreshToken(userId: string, refreshToken: string): Promise<void> {
-    await firestore.collection('users').doc(userId).set(
-      { refreshToken },
-      { merge: true } // Update existing data without overwriting
-    );
+    try {
+      // Check if document exists first
+      const docRef = firestore.collection('users').doc(userId);
+      const doc = await docRef.get();
+      
+      if (!doc.exists) {
+        // Create document with initial data
+        await docRef.set({
+          refreshToken,
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } else {
+        // Update existing document
+        await docRef.update({
+          refreshToken,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    } catch (error) {
+      console.error('Error storing refresh token:', error);
+      throw error;
+    }
   }
 
   /**

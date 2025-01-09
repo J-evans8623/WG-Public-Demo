@@ -7,8 +7,8 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { GoogleDriveService } from '../../src/services/googleDrive';
-import { RedisSessionManager } from '../../src/auth/session';
+import { GoogleDriveService } from '../../../app/src/services/googleDrive';
+import { RedisSessionManager } from '../../../app/src/auth/session';
 
 const sessionManager = new RedisSessionManager();
 const driveService = new GoogleDriveService();

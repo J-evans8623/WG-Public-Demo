@@ -1,19 +1,17 @@
-// context/AuthContext.tsx
 import React, { createContext, useState, useEffect } from 'react';
+import { openAuthPopup } from './authUtils';
 
 interface User {
   email: string;
   accountType: 'free' | 'premium';
-  accessToken: string;
-  googleAccessToken: string;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isGuest: boolean;
   user: User | null;
-  signIn: (jwtToken: string, googleToken: string) => void;
-  signOut: () => void;
+  signIn: () => Promise<void>;
+  signOut: () => Promise<void>;
   skipAuth: () => void;
 }
 
@@ -21,49 +19,75 @@ export const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   isGuest: false,
   user: null,
-  signIn: () => {},
-  signOut: () => {},
+  signIn: async () => {},
+  signOut: async () => {},
   skipAuth: () => {},
 });
-
 
 export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isGuest, setIsGuest] = useState<boolean>(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const googleToken = localStorage.getItem('googleToken');
-    const guest = localStorage.getItem('isGuest') === 'true';
-    if (token && googleToken) {
-      // Optionally verify token with backend
-      const decoded = JSON.parse(atob(token.split('.')[1]));
-      setUser({ accessToken: token, googleAccessToken: googleToken,
-        email: decoded.email, accountType: decoded.accountType });
-    }
-    if (guest) {
-      setIsGuest(true);
-    }
+    const fetchSession = async () => {
+      try {
+        const response = await fetch('/api/auth/session', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.session) {
+            setUser({ email: data.session.email, accountType: data.session.accountType });
+          } else {
+            console.log('No active session found.');
+          }
+        } else {
+          console.error('Failed to fetch session:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching session:', error);
+      }
+    };
+  
+    fetchSession();
+    const handleMessage = async (event: MessageEvent) => {
+      // Verify origin
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data.type === 'AUTH_SUCCESS') {
+        await fetchSession(); // Refresh session data after successful auth
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  
   }, []);
+  
+  
 
-  const signIn = (token: string, googleToken: string) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('googleToken', googleToken);
-    // Decode token to extract user info
-    const decoded = JSON.parse(atob(token.split('.')[1]));
-    setUser({ accessToken: token, googleAccessToken: googleToken, email: decoded.email, accountType: decoded.accountType });
-    setIsGuest(false);
+  const signIn = async () => {
+    try {
+      const popup = openAuthPopup();
+      if (!popup) {
+        throw new Error('Popup blocked. Please enable popups for this site.');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   };
+  
 
-  const signOut = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('googleToken');
-    setUser(null);
-    setIsGuest(false);
+  const signOut = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      setUser(null);
+      setIsGuest(false);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const skipAuth = () => {
-    localStorage.setItem('isGuest', 'true');
     setIsGuest(true);
     setUser(null);
   };

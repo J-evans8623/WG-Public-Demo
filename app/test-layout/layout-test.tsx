@@ -193,29 +193,15 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSignInSuccess = async (tokenResponse: any) => {
+  const handleSignInSuccess = async () => {
     try {
-      const response = await fetch(`${apiServerUrl}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          token: tokenResponse.access_token
-        }),
-      });
-      
-      const data = await response.json();
-      if (data.status === 'success') {
-        // Pass both tokens to signIn
-        signIn(data.token, tokenResponse.access_token);
-        setIsAuthModalOpen(false);
-      } else {
-        alert(data.message || 'Authentication failed.');
-      }
+      await signIn(); // Context-managed sign-in
+      setIsAuthModalOpen(false);
     } catch (error) {
-      console.error('Login Error:', error);
-      alert('An error occurred during authentication.');
+      console.error('Error during sign-in:', error);
     }
   };
+  
   
 
   const handleSignInFailure = () => {
@@ -355,11 +341,9 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
 
       {/* Authentication Modal */}
       <AuthPromptModal
-        isOpen={isAuthModalOpen}
-        onSignInSuccess={handleSignInSuccess}
-        onSignInFailure={handleSignInFailure}
-        onSkip={handleSkipAuth}
-      />
+  isOpen={isAuthModalOpen}
+  onClose={() => setIsAuthModalOpen(false)}
+/>
 
       {/* Modern Modal for Adding Resources or Nodes */}
       <ModernModal
