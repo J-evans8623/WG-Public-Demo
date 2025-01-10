@@ -38,7 +38,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "app/**/*.d.ts",
+    "app/**/*.d.ts", "../Archived/authRoutes.ts",
   ],
   "exclude": [
     "node_modules"

@@ -1,10 +1,9 @@
-// bloom-maps/app/(client-ui)/layout.tsx
+// bloom-maps\app\test-layout\layout-test.tsx
 
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef, memo, useContext} from 'react';
 import CueCardDisplay, { CueCardDisplayRef } from '@/app/Library/components/CardDisplay/CueCardDisplay';
-import ConceptMap from '@/app/Library/components/map/ConceptMap';
 import { NodeSelectionProvider, useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import ModernModal from '@/app/Library/components/Modals/ModernModal';
 import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
@@ -14,12 +13,8 @@ import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { saveResource } from '@/app/Library/utils/ResourceSave/saveResource';
 import { IQuizQuestion, ResourceType, QuizType } from '@/app/Library/Definitions/Definitions';
-import DocumentHeader from '@/app/Library/components/DocumentFile/DocumentHeader';
-import './ClientLayout.css';
-import './ToolBar.css';
-import './panelSize.css';
 import { Descendant } from 'slate';
-import { AuthContext, AuthProvider } from '@/app/src/context/ApiContext';
+import { ApiContext, ApiProvider,  } from '@/app/src/context/ApiContext';
 import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
 // Import new context providers and hooks
 import { NodesProvider, useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -36,11 +31,16 @@ import { setGetLayout } from '@/app/Library/Context/LayoutActions';
 import { initializeNewDocument } from '@/app/Library/utils/documentUtils'; 
 
 // Dynamic Tool Panes
-import ToolPane from '@/app/Library/dynamic_tool_panes/ToolPane';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { LoadingProvider } from '@/app/Library/Context/LoadingContext';
 import { useLoading } from '@/app/Library/Context/LoadingContext'; // Import the loading hook
 import GlobalLoadingScreen from '@/app/Library/components/loading-screen/GlobalLoadingScreen';
+import TopBar from '../(client-ui)/commandPanelLayout/TopBar';
+import LeftPanel from '../(client-ui)/commandPanelLayout/LeftPanel';
+import MainContent from '../(client-ui)/commandPanelLayout/MainContent';
+import RightPanel from '../(client-ui)/commandPanelLayout/RightPanel';
+import StatusBar from '../(client-ui)/commandPanelLayout/StatusBar';
+
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 const apiServerUrl = process.env.NEXT_PUBLIC_API_SERVER_URL || 'http://localhost:5000';
@@ -52,7 +52,7 @@ const apiServerUrl = process.env.NEXT_PUBLIC_API_SERVER_URL || 'http://localhost
  * including CueCardDisplay, ConceptMap, and ToolPane.
  */
 const ClientLayoutContent = memo(function ClientLayoutContent() {
-  const { isAuthenticated, isGuest, skipAuth, signIn } = useContext(AuthContext);  
+  const { isAuthenticated, isGuest, skipAuth, signIn } = useContext(ApiContext);  
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(true);
   const centerPaneRef = useRef<HTMLDivElement>(null);
   const toolPaneRef = useRef<HTMLDivElement>(null); // Reference to the Tool Pane
@@ -192,26 +192,16 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSignInSuccess = async (credentialResponse: any) => {
-    const token = credentialResponse.credential;
+  const handleSignInSuccess = async () => {
     try {
-      const response = await fetch(`${apiServerUrl}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        signIn(data.token);
-        setIsAuthModalOpen(false);
-      } else {
-        alert(data.message || 'Authentication failed.');
-      }
+      await signIn(); // Context-managed sign-in
+      setIsAuthModalOpen(false);
     } catch (error) {
-      console.error('Login Error:', error);
-      alert('An error occurred during authentication.');
+      console.error('Error during sign-in:', error);
     }
   };
+  
+  
 
   const handleSignInFailure = () => {
     alert('Google login failed.');
@@ -262,7 +252,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     source?: string,
     pictureDescription?: Descendant[],
     practiceSheetContent?: {
-      quizType:QuizType;
+      quizType: QuizType,
       quizContent: IQuizQuestion[];
     }
   ) => {
@@ -334,20 +324,26 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     },
     [toolPaneVisible, activeOperation, setTargetNodeId, toggleNodeSelection]
   );
-
+  const topBarProps = {
+    handleOpenToolPane,
+    openModalWithResourceType,
+    handleCloseAllModals,
+    centerScroll,
+    handleAuthButtonClick,
+  };
   
   return (
     <>
-          {/* Overlay the loading screen */}
-          {isLoading && <GlobalLoadingScreen />}
-    
-          {/* Authentication Modal */}
-          <AuthPromptModal
-        isOpen={isAuthModalOpen}
-        onSignInSuccess={handleSignInSuccess}
-        onSignInFailure={handleSignInFailure}
-        onSkip={handleSkipAuth}
-      />
+        <div className="h-screen flex flex-col">
+      {/* Loading Screen */}
+      {isLoading && <GlobalLoadingScreen />}
+
+      {/* Authentication Modal */}
+      <AuthPromptModal
+  isOpen={isAuthModalOpen}
+  onClose={() => setIsAuthModalOpen(false)}
+/>
+
       {/* Modern Modal for Adding Resources or Nodes */}
       <ModernModal
         key={modalKey}
@@ -359,61 +355,28 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
         selectedResourceType={modalResourceType}
       />
 
-      {/* Document Header with Actions */}
-      <DocumentHeader
-        handleOpenToolPane={handleOpenToolPane}
-        openModalWithResourceType={openModalWithResourceType}
-        closeAllModals={handleCloseAllModals}
-        centerScroll={centerScroll}
-        onAuthButtonClick={handleAuthButtonClick}
-      />
-      
-      {/* Toolbar Padding */}
-      <div className="toolbar-padding-bottom"></div>
+      {/* TopBar */}
+      <TopBar {...topBarProps} />
 
-      {/* Main Layout: Three Column Flex Container */}
-      <div className="flex h-[calc(100vh-50px)] gap-4">
-        {/* CueCardDisplay: Fixed Width */}
-        <div className="fixed-width-pane flex flex-col space-y-2 bg-[#F9FBFD] rounded-lg overflow-y-auto">
-          {isCenterPaneMounted && (
-            <div className="flex flex-col space-y-2 pb-40">
-              <CueCardDisplay
-                ref={cueCardDisplayRef} // Attach ref to CueCardDisplay
-                centerPaneRef={centerPaneRef}
-                toolPaneVisible={toolPaneVisible}
-              />
-            </div>
-          )}
-        </div>
-        
-        {/* ConceptMap: Flexible */}
-        <div
-          ref={centerPaneRef}
-          className="flex-1 bg-[#FBFBFB] p-4 rounded-lg overflow-auto center-pane"
-          style={{
-            position: 'relative',
-            overflowX: 'auto',
-            overflowY: 'auto',
-            scrollbarWidth: 'none',
-          }}
-        >
-          <ConceptMap
-            centerPaneRef={centerPaneRef}
-            openModalWithResourceType={openModalWithResourceType}
-            onNodeClick={handleNodeClick} 
-          />
-        </div>
-        
-        {/* ToolPane: Conditional Rendering with Ref */}
-        <div ref={toolPaneRef}> 
-          <ToolPane
-            activeOperation={activeOperation}
-            visible={toolPaneVisible}
-            onClose={handleCloseToolPane}
-            sourceNodeId={sourceNodeId}
-          />
-        </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        <LeftPanel centerPaneRef={centerPaneRef} toolPaneVisible={toolPaneVisible} />
+        <MainContent
+          centerPaneRef={centerPaneRef}
+          openModalWithResourceType={openModalWithResourceType}
+          onNodeClick={handleNodeClick}
+        />
+        <RightPanel
+          visible={toolPaneVisible}
+          onClose={handleCloseToolPane}
+          activeOperation={activeOperation}
+          sourceNodeId={sourceNodeId}
+        />
       </div>
+
+      {/* StatusBar */}
+      <StatusBar />
+    </div>
     </>
   );
 });
@@ -429,7 +392,7 @@ export default function ClientLayout() {
   return (
     <LoadingProvider>
     <GoogleOAuthProvider clientId={clientId}>
-    <AuthProvider>
+    <ApiProvider>
     <DndProvider backend={HTML5Backend}>
       <TreeDimensionsProvider>
         <NodeSelectionProvider>
@@ -439,9 +402,10 @@ export default function ClientLayout() {
                 <LayoutProvider>
                   <ColorThemeProvider>
                     <FileProvider>
-                      <SubTreeProvider>
+                         <SubTreeProvider>
                         <ClientLayoutContent />               
                       </SubTreeProvider>
+                      
                     </FileProvider>
                   </ColorThemeProvider>
                 </LayoutProvider>
@@ -451,7 +415,7 @@ export default function ClientLayout() {
         </NodeSelectionProvider>
       </TreeDimensionsProvider>
     </DndProvider>
-    </AuthProvider>
+    </ApiProvider>
     </GoogleOAuthProvider>
     </LoadingProvider>
   );
