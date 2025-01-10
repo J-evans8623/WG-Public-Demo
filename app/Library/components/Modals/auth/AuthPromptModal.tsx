@@ -1,9 +1,9 @@
 import React, { useContext } from 'react';
-import { AuthContext } from '../../../../src/context/AuthContext';
+import { ApiContext} from '../../../../src/context/ApiContext';
 import './authModal.css';
 
 const AuthPromptModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-  const { signIn, skipAuth } = useContext(AuthContext);
+  const { signIn, skipAuth } = useContext(ApiContext);
 
   if (!isOpen) return null;
 

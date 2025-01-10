@@ -19,7 +19,7 @@ import './ClientLayout.css';
 import './ToolBar.css';
 import './panelSize.css';
 import { Descendant } from 'slate';
-import { AuthContext, AuthProvider } from '@/app/src/context/AuthContext';
+import { AuthContext, AuthProvider } from '@/app/src/context/ApiContext';
 import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
 // Import new context providers and hooks
 import { NodesProvider, useNodesContext } from '@/app/Library/Context/NodesProvider';

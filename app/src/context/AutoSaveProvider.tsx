@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AutoSaveService, { AutoSaveConfig } from '../services/autoSaveService';
-import { AuthContext } from '@/app/src/context/AuthContext'
+import { AuthContext } from '@/app/src/context/ApiContext'
 import { useFileContext } from '@/app/Library/Context/FileProvider';
 /**
  * Interface defining the shape of the AutoSave context

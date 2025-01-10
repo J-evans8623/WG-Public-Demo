@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { renderHook, act } from '@testing-library/react-hooks';
-import { AuthContext, AuthContextInterface, User, useAuthContext } from '../AuthContext';
+import { AuthContext, AuthContextInterface, User, useAuthContext } from '../ApiContext';
 
 // Mock context and provider
 const createMockContext = (): AuthContextInterface => ({

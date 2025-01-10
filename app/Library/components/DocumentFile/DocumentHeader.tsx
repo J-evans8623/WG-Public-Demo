@@ -16,7 +16,7 @@ import { saveDocument, loadDocument, initializeNewDocument } from '@/app/Library
 import { setFileName } from '@/app/Library/Context/fileActions';
 import { ColorTheme, ResourceType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import { AuthContext } from '@/app/src/context/AuthContext';
+import { AuthContext } from '@/app/src/context/ApiContext';
 
 interface DocumentHeaderProps {
   /**

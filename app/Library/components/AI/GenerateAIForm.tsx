@@ -16,7 +16,7 @@
  */
 
 import React, { useState, useContext, ChangeEvent, FormEvent } from 'react';
-import { AuthContext } from '../../../src/context/AuthContext';
+import { ApiContext } from '../../../src/context/ApiContext';
 import { useResourceContext } from '../../Context/ResourceContext';
 import { useNodesContext } from '../../Context/NodesProvider';
 import { generateAIContent } from '../../utils/api';
@@ -58,7 +58,7 @@ interface GenerateAIFormProps {
  * @returns JSX Element representing the AI generation form.
  */
 const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }) => {
-  const { user } = useContext(AuthContext);
+  const { user } = useContext(ApiContext);
   const { addResource } = useResourceContext();
   const { dispatch: nodesDispatch, nodes } = useNodesContext();
   const [generationOption, setGenerationOption] = useState<'Lesson' | 'Quiz'>('Lesson');

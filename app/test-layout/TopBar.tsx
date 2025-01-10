@@ -1,6 +1,4 @@
-// bloom-maps\app\test-layout\TopBar.tsx
-
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import MenuBar from '@/app/(client-ui)/MenuBar';
 import ToolBar from './Toolbar-test';
 import { useFileContext } from '@/app/Library/Context/FileProvider';
@@ -12,13 +10,13 @@ import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { setGetLayout, toggleResetMapSize } from '@/app/Library/Context/LayoutActions';
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
-import { saveDocument, loadDocument, initializeNewDocument } from '@/app/Library/utils/documentUtils';
+import { saveDocument, loadDocument, initializeNewDocument, prepareBloomDocx, loadDocumentFromDrive } from '@/app/Library/utils/documentUtils';
 import { setFileName } from '@/app/Library/Context/fileActions';
 import { ColorTheme, ResourceType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-
-
-
+import { ApiContext } from '@/app/src/context/ApiContext';
+import  FileSelectorModal from '@/app/Library/components/FileSelectorModal/FileSelectorModal';
+import { toast } from 'react-toastify';
 
 interface TopBarProps {
   /**
@@ -62,8 +60,13 @@ const TopBar: React.FC<TopBarProps> = ({
   const { resetTreeDimensions } = useTreeDimensions();
   const { zoomLevel, baseZoomLevel, dispatch: zoomDispatch } = useZoomContext();
   const { resetResources } = useResourceContext();
+  const { isAuthenticated, saveToDrive, loadFromDrive } = React.useContext(ApiContext);
 
-  // Ref for the hidden file input
+  // State for Google Drive File Selector Modal
+  const [isFileSelectorOpen, setIsFileSelectorOpen] = useState(false);
+  const [selectedDriveFileId, setSelectedDriveFileId] = useState<string | null>(null);
+
+  // Ref for the hidden file input (if needed for device operations)
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /**
@@ -116,17 +119,23 @@ const TopBar: React.FC<TopBarProps> = ({
    * Utilizes the existing saveDocument utility function.
    */
   const handleSaveDocument = useCallback(async () => {
-    await saveDocument(
-      nodes,
-      colorTheme as ColorTheme, // Ensure proper type casting
-      primaryColor,
-      backgroundColor,
-      fileName,
-      getResourcesByType('cueCard'),
-      subtrees,
-      getResourcesByType('picture'),
-      getResourcesByType('practiceSheet'),
-    );
+    try {
+      await saveDocument(
+        nodes,
+        colorTheme as ColorTheme, // Ensure proper type casting
+        primaryColor,
+        backgroundColor,
+        fileName,
+        getResourcesByType('cueCard'),
+        subtrees,
+        getResourcesByType('picture'),
+        getResourcesByType('practiceSheet'),
+      );
+      toast.success('Document saved successfully!');
+    } catch (error) {
+      console.error('Error saving document:', error);
+      toast.error('Failed to save the document.');
+    }
   }, [
     nodes,
     colorTheme,
@@ -138,7 +147,7 @@ const TopBar: React.FC<TopBarProps> = ({
   ]);
 
   /**
-   * Handler for opening a document.
+   * Handler for opening a document from the device.
    * Triggers the hidden file input click.
    */
   const handleOpenDocument = useCallback(() => {
@@ -154,23 +163,29 @@ const TopBar: React.FC<TopBarProps> = ({
     if (file) {
       handleCloseAllModals();
       clearSelection();
-      await loadDocument(
-        file,
-        nodesDispatch,
-        setResourcesByMap,
-        setSubtrees,
-        fileDispatch,
-        colorThemeDispatch,
-        resetTreeDimensions,
-        resetSubtrees,
-        resetResources
-      );
-      layoutDispatch(setGetLayout(true)); // Trigger layout recalculation if necessary
-      centerScroll();
-
-      // Clear the input value to allow the same file to be loaded again
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      try {
+        await loadDocument(
+          file,
+          nodesDispatch,
+          setResourcesByMap,
+          setSubtrees,
+          fileDispatch,
+          colorThemeDispatch,
+          resetTreeDimensions,
+          resetSubtrees,
+          resetResources
+        );
+        layoutDispatch(setGetLayout(true)); // Trigger layout recalculation if necessary
+        centerScroll();
+        toast.success('Document loaded successfully!');
+      } catch (error) {
+        console.error('Error loading document:', error);
+        toast.error('Failed to load the document.');
+      } finally {
+        // Clear the input value to allow the same file to be loaded again
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       }
     }
   }, [
@@ -189,6 +204,94 @@ const TopBar: React.FC<TopBarProps> = ({
   ]);
 
   /**
+   * Handles saving the document to Google Drive.
+   * Utilizes `prepareBloomDocx` to create the file and `saveToDrive` from ApiContext to upload.
+   */
+  const handleSaveToGoogleDrive = async () => {
+    try {
+      toast.info('Saving to Google Drive...');
+      const bloomDocx = await prepareBloomDocx(
+        nodes,
+        colorTheme as ColorTheme,
+        primaryColor,
+        backgroundColor,
+        fileName,
+        getResourcesByType('cueCard'),
+        subtrees,
+        getResourcesByType('picture'),
+        getResourcesByType('practiceSheet'),
+      );
+      const bloomDocxArrayBuffer = await bloomDocx.arrayBuffer(); 
+      const fileId = await saveToDrive(bloomDocxArrayBuffer, fileName);
+      setSelectedDriveFileId(fileId);
+      toast.success('File saved to Google Drive successfully!');
+    } catch (error) {
+      console.error('Error saving to Google Drive:', error);
+      toast.error('Failed to save to Google Drive.');
+    }
+  };
+
+  /**
+   * Handles loading a document from Google Drive.
+   * Utilizes `loadFromDrive` from ApiContext and `loadDocumentFromDrive` utility function.
+   * 
+   * @param fileId - The ID of the Google Drive file to load.
+   */
+  const handleLoadFromGoogleDrive = async (fileId: string) => {
+    try {
+      toast.info('Loading from Google Drive...');
+      const arrayBuffer = await loadFromDrive(fileId);
+      
+      // Create a File object with a name
+      const loadedFileName = `${fileId}.bloomdocx`;
+      const file = new File([arrayBuffer], loadedFileName, { type: 'application/octet-stream' });
+      
+      await loadDocumentFromDrive(
+        file,
+        nodesDispatch,
+        setResourcesByMap,
+        setSubtrees,
+        fileDispatch,
+        colorThemeDispatch,
+        resetTreeDimensions,
+        resetSubtrees,
+        resetResources,
+      );
+      
+      toast.success('File loaded from Google Drive successfully!');
+      layoutDispatch(setGetLayout(true));
+      setSelectedDriveFileId(fileId);
+      centerScroll();
+    } catch (error) {
+      console.error('Error loading from Google Drive:', error);
+      toast.error('Failed to load from Google Drive.');
+    }
+  };
+
+  /**
+   * Opens the File Selector Modal for Google Drive operations.
+   */
+  const handleOpenFromGoogleDrive = () => {
+    setIsFileSelectorOpen(true);
+  };
+
+  /**
+   * Closes the File Selector Modal.
+   */
+  const handleCloseFileSelector = () => {
+    setIsFileSelectorOpen(false);
+  };
+
+  /**
+   * Handles the selection of a file from the File Selector Modal.
+   * @param fileId - The ID of the selected Google Drive file.
+   */
+  const handleFileSelect = (fileId: string) => {
+    handleLoadFromGoogleDrive(fileId);
+    handleCloseFileSelector();
+  };
+
+  /**
    * Handler for help action.
    * Placeholder for implementing help functionality or navigation.
    */
@@ -199,7 +302,7 @@ const TopBar: React.FC<TopBarProps> = ({
 
   return (
     <div className="border-b border-gray-200 bg-white flex flex-col">
-      {/* Hidden file input for opening documents */}
+      {/* Hidden file input for opening documents from device */}
       <input
         type="file"
         accept=".bloomdocx"
@@ -218,12 +321,21 @@ const TopBar: React.FC<TopBarProps> = ({
         onOpenToolPane={handleOpenToolPane}
         openModalWithResourceType={openModalWithResourceType}
         onAuthButtonClick={handleAuthButtonClick}
+        onSaveToDrive={handleSaveToGoogleDrive}    // Passed down to MenuBar
+        onOpenFromDrive={handleOpenFromGoogleDrive} // Passed down to MenuBar
       />
 
       {/* ToolBar handles additional operations like zoom, undo/redo, and resource management */}
       <ToolBar
         onOpenToolPane={handleOpenToolPane}
         openModalWithResourceType={openModalWithResourceType}
+      />
+
+      {/* File Selector Modal for Google Drive Operations */}
+      <FileSelectorModal
+        isOpen={isFileSelectorOpen}
+        onClose={handleCloseFileSelector}
+        onSelect={handleFileSelect}
       />
     </div>
   );

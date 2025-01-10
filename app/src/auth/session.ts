@@ -80,3 +80,5 @@ export class RedisSessionManager implements SessionManager {
     return session;
   }
 }
+export type { SessionData };
+

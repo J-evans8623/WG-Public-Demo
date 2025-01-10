@@ -15,7 +15,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { saveResource } from '@/app/Library/utils/ResourceSave/saveResource';
 import { IQuizQuestion, ResourceType, QuizType } from '@/app/Library/Definitions/Definitions';
 import { Descendant } from 'slate';
-import { AuthContext, AuthProvider } from '@/app/src/context/AuthContext';
+import { ApiContext, ApiProvider,  } from '@/app/src/context/ApiContext';
 import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
 // Import new context providers and hooks
 import { NodesProvider, useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -53,7 +53,7 @@ const apiServerUrl = process.env.NEXT_PUBLIC_API_SERVER_URL || 'http://localhost
  * including CueCardDisplay, ConceptMap, and ToolPane.
  */
 const ClientLayoutContent = memo(function ClientLayoutContent() {
-  const { isAuthenticated, isGuest, skipAuth, signIn } = useContext(AuthContext);  
+  const { isAuthenticated, isGuest, skipAuth, signIn } = useContext(ApiContext);  
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(true);
   const centerPaneRef = useRef<HTMLDivElement>(null);
   const toolPaneRef = useRef<HTMLDivElement>(null); // Reference to the Tool Pane
@@ -393,7 +393,7 @@ export default function ClientLayout() {
   return (
     <LoadingProvider>
     <GoogleOAuthProvider clientId={clientId}>
-    <AuthProvider>
+    <ApiProvider>
     <DndProvider backend={HTML5Backend}>
       <TreeDimensionsProvider>
         <NodeSelectionProvider>
@@ -416,7 +416,7 @@ export default function ClientLayout() {
         </NodeSelectionProvider>
       </TreeDimensionsProvider>
     </DndProvider>
-    </AuthProvider>
+    </ApiProvider>
     </GoogleOAuthProvider>
     </LoadingProvider>
   );

@@ -31,8 +31,7 @@ import {
 import { serializeSubtrees } from '@/app/Library/Context/SubTreeProvider';
 import { resetColorTheme } from '@/app/Library/Context/colorThemeActions';
 import { Descendant } from 'slate';
-import { Buffer } from 'buffer';
-import { FrontendDriveService } from '../services/frontendDriveService';
+
 /**
  * Enumeration for application modes.
  * - 'private': Standard mode for single-user operations.
@@ -434,22 +433,20 @@ export const initializeNewDocument = (
   fileDispatch({ type: 'SET_FILE_NAME', payload: 'Untitled Document' });
 };
 
-
 /**
- * Saves document to Google Drive
- * @param nodes - Map of concept nodes
- * @param colorTheme - Current color theme
- * @param primaryColor - Primary color theme
- * @param backgroundColor - Background color theme
- * @param fileName - Name of the file
- * @param cueCards - Map of cue card resources
- * @param subtrees - Map of subtree data
- * @param pictures - Map of picture resources
- * @param practiceSheets - Map of practice sheet resources
- * @param driveFileManager - Instance of DriveFileManager
- * @returns Promise resolving to the Google Drive file ID
+ * Prepares a `.bloomdocx` file for saving to Google Drive.
+ * @param nodes - Map of ConceptNode with nodeId as key.
+ * @param colorTheme - Current color theme.
+ * @param primaryColor - Primary color of the theme.
+ * @param backgroundColor - Background color of the theme.
+ * @param fileName - Name of the document file.
+ * @param cueCards - Map of CueCardResource with nodeId as key.
+ * @param subtrees - Map of SubtreeData with subtreeId as key.
+ * @param pictures - Map of PictureResource with nodeId as key.
+ * @param practiceSheets - Map of PracticeSheetResource with nodeId as key.
+ * @returns A `Blob` representing the `.bloomdocx` file.
  */
-export const saveToGoogleDrive = async (
+export const prepareBloomDocx = async (
   nodes: Map<string, ConceptNode>,
   colorTheme: ColorTheme,
   primaryColor: string,
@@ -458,12 +455,11 @@ export const saveToGoogleDrive = async (
   cueCards: Map<string, ResourceCard[]>,
   subtrees: Map<string, SubtreeData>,
   pictures: Map<string, ResourceCard[]>,
-  practiceSheets: Map<string, ResourceCard[]>,
-  accessToken: string
-): Promise<string> => {
+  practiceSheets: Map<string, ResourceCard[]>
+): Promise<Blob> => {
   const zip = new JSZip();
 
-  // Reuse existing serialization logic
+  // Serialize document data
   const serializedDocument = serializeDocument(
     nodes,
     colorTheme,
@@ -474,22 +470,38 @@ export const saveToGoogleDrive = async (
   const documentJson = JSON.stringify(serializedDocument);
   zip.file('document/document.json', documentJson);
 
-  // Add other files using existing serialization methods
+  // Serialize cue cards
   const serializedCueCards = serializeCueCards(cueCards as Map<string, CueCardResource[]>);
-  zip.file('document/cuecards.json', JSON.stringify(serializedCueCards));
+  const cueCardsJson = JSON.stringify(serializedCueCards);
+  zip.file('document/cuecards.json', cueCardsJson);
 
+  // Serialize subtrees
   const serializedSubtrees = serializeSubtrees(subtrees);
-  zip.file('document/subtrees.json', JSON.stringify(serializedSubtrees));
+  const subtreesJson = JSON.stringify(serializedSubtrees);
+  zip.file('document/subtrees.json', subtreesJson);
 
+  // Serialize pictures metadata
   const serializedPictures = serializePictures(pictures as Map<string, PictureResource[]>);
-  zip.file('document/pictures.json', JSON.stringify(serializedPictures));
+  const picturesJson = JSON.stringify(serializedPictures);
+  zip.file('document/pictures.json', picturesJson);
 
+  // Serialize practice sheets
   const serializedPracticeSheets = serializePracticeSheets(
     practiceSheets as Map<string, PracticeSheetResource[]>
   );
-  zip.file('document/practiceSheets.json', JSON.stringify(serializedPracticeSheets));
+  const practiceSheetsJson = JSON.stringify(serializedPracticeSheets);
+  zip.file('document/practiceSheets.json', practiceSheetsJson);
 
-  // Add images to the ZIP
+  // Serialize styles
+  const styles = {
+    primaryColor,
+    backgroundColor,
+    colorTheme,
+  };
+  const stylesJson = JSON.stringify(styles);
+  zip.file('document/styles.json', stylesJson);
+
+  // Add images to the ZIP under 'document/images/'
   for (const [nodeId, pictureArray] of pictures.entries()) {
     for (const picture of pictureArray as PictureResource[]) {
       if (picture.image) {
@@ -503,86 +515,102 @@ export const saveToGoogleDrive = async (
     }
   }
 
-  // Generate ZIP content as Buffer
-  const content = await zip.generateAsync({ type: 'arraybuffer' });
-  
-  // Save to Google Drive
-  return  FrontendDriveService.saveFile(fileName, Buffer.from(content), accessToken);
+  // Generate ZIP as Blob
+  try {
+    const content = await zip.generateAsync({ type: 'blob' });
+    return content;
+  } catch (error) {
+    console.error('Error generating ZIP:', error);
+    throw error;
+  }
 };
 
 /**
- * Loads document from Google Drive
- * @param fileId - Google Drive file ID
- * @param nodesDispatch - Dispatch function for nodes state
- * @param setResourcesByMap - Function to set resources by map
- * @param setSubtrees - Function to set subtrees data
- * @param fileDispatch - Dispatch function for file state
- * @param colorThemeDispatch - Dispatch function for color theme state
- * @param resetTreeDimensions - Function to reset tree dimensions
- * @param resetSubtrees - Function to reset subtrees
- * @param resetResources - Function to reset resources
+ * Handles loading a document from Google Drive into the application's state.
+ * @param file - The `.bloomdocx` file fetched from Google Drive.
+ * @param nodesDispatch - Dispatch function to update nodes state.
+ * @param setResourcesByMap - Function to set resources by their respective maps.
+ * @param setSubtrees - Function to set subtrees data.
+ * @param fileDispatch - Dispatch function to update file-related state.
+ * @param colorThemeDispatch - Dispatch function to update color theme state.
+ * @param resetTreeDimensions - Function to reset tree dimensions.
+ * @param resetSubtrees - Function to reset subtrees.
+ * @param resetResources - Function to reset resources.
  */
-export const loadFromGoogleDrive = async (
-  fileId: string,
+export const loadDocumentFromDrive = async (
+  file: Blob,
   nodesDispatch: React.Dispatch<any>,
-  setResourcesByMap: (resourceMap: Map<string, CueCardResource[] | PictureResource[] | PracticeSheetResource[]>) => void,
-  setSubtrees: (newSubtrees: Map<string, SubtreeData>) => void,
-  fileDispatch: React.Dispatch<any>,
-  colorThemeDispatch: React.Dispatch<any>,
-  resetTreeDimensions: () => void,
-  resetSubtrees: () => void,
-  resetResources: () => void,
-  accessToken: string,
+  setResourcesByMap: any,
+  setSubtrees: any,
+  fileDispatch: any,
+  colorThemeDispatch: any,
+  resetTreeDimensions: any,
+  resetSubtrees: any,
+  resetResources: any
 ) => {
-  // Reset current state
-  resetTreeDimensions();
-  resetSubtrees();
-  resetResources();
-
   try {
-    // Load file content from Google Drive
-    const content = await FrontendDriveService.loadFile(fileId, accessToken);
-    
-    // Process the loaded content using JSZip
+    console.log('Starting to load document from drive.');
+    console.log('Received file:', file);
+
     const zip = new JSZip();
-    const loadedZip = await zip.loadAsync(content);
-    
-    // Load and process document.json
-    const documentFile = loadedZip.file('document/document.json');
+    await zip.loadAsync(file);
+    console.log('ZIP loaded successfully.');
+
+    // Safely access the name property
+    if (!(file instanceof File)) {
+      console.error('Provided blob is not a File instance. Cannot extract file name.');
+      throw new Error('Invalid file type. Expected a File with a name.');
+    }
+
+    // Load document.json
+    const documentFile = zip.file('document/document.json');
     if (documentFile) {
       const documentJson = await documentFile.async('string');
+      console.log('document.json content:', documentJson);
       const parsedDocument = JSON.parse(documentJson) as SerializedDocument;
-      
-      // Update state with loaded document data
+
+      // Reconstruct nodes Map
       const nodes = new Map<string, ConceptNode>(parsedDocument.nodes);
       nodesDispatch({ type: 'SET_NODES', payload: nodes });
       colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: parsedDocument.primaryColor });
       colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: parsedDocument.backgroundColor });
       fileDispatch({ type: 'SET_FILE_NAME', payload: parsedDocument.fileName });
+      console.log('Nodes and color themes updated successfully.');
+    } else {
+      console.warn('document/document.json not found in the ZIP.');
     }
 
-    // Load and process cuecards.json
-    const cueCardsFile = loadedZip.file('document/cuecards.json');
+    // Load cuecards.json
+    const cueCardsFile = zip.file('document/cuecards.json');
     if (cueCardsFile) {
       const cueCardsJson = await cueCardsFile.async('string');
-      const parsedCueCards = JSON.parse(cueCardsJson) as [string, CueCardResource[]][];
+      console.log('cuecards.json content:', cueCardsJson);
+      let parsedCueCards: [string, CueCardResource[]][] = JSON.parse(cueCardsJson);
       const cueCardsMap = new Map<string, CueCardResource[]>(parsedCueCards);
       setResourcesByMap(cueCardsMap);
+      console.log('Cue cards loaded successfully.');
+    } else {
+      console.warn('document/cuecards.json not found in the ZIP.');
     }
 
-    // Load and process subtrees.json
-    const subtreesFile = loadedZip.file('document/subtrees.json');
+    // Load subtrees.json
+    const subtreesFile = zip.file('document/subtrees.json');
     if (subtreesFile) {
       const subtreesJson = await subtreesFile.async('string');
+      console.log('subtrees.json content:', subtreesJson);
       const parsedSubtrees = JSON.parse(subtreesJson) as [string, SubtreeData][];
       const subtreesMap = new Map<string, SubtreeData>(parsedSubtrees);
       setSubtrees(subtreesMap);
+      console.log('Subtrees loaded successfully.');
+    } else {
+      console.warn('document/subtrees.json not found in the ZIP.');
     }
 
-    // Load and process pictures.json and associated images
-    const picturesFile = loadedZip.file('document/pictures.json');
+    // Load pictures.json and images
+    const picturesFile = zip.file('document/pictures.json');
     if (picturesFile) {
       const picturesJson = await picturesFile.async('string');
+      console.log('pictures.json content:', picturesJson);
       const parsedPictures = JSON.parse(picturesJson) as [
         string,
         { id: string; title: string; imagePath: string; description?: Descendant[]; source?: string }[]
@@ -592,7 +620,7 @@ export const loadFromGoogleDrive = async (
       for (const [nodeId, pictureArray] of parsedPictures) {
         const reconstructedPictures: PictureResource[] = [];
         for (const pic of pictureArray) {
-          const imageFile = loadedZip.file(pic.imagePath);
+          const imageFile = zip.file(pic.imagePath);
           if (imageFile) {
             try {
               const imageBlob = await imageFile.async('blob');
@@ -618,33 +646,62 @@ export const loadFromGoogleDrive = async (
             console.warn(`Image file not found: ${pic.imagePath}`);
           }
         }
-        if (reconstructedPictures.length > 0) {
-          picturesMap.set(nodeId, reconstructedPictures);
-        }
+        picturesMap.set(nodeId, reconstructedPictures);
       }
       setResourcesByMap(picturesMap);
+      console.log('Pictures loaded successfully.');
+    } else {
+      console.warn('document/pictures.json not found in the ZIP.');
     }
 
-    // Load and process practiceSheets.json
-    const practiceSheetsFile = loadedZip.file('document/practiceSheets.json');
+    // Load practiceSheets.json
+    const practiceSheetsFile = zip.file('document/practiceSheets.json');
     if (practiceSheetsFile) {
       const practiceSheetsJson = await practiceSheetsFile.async('string');
-      const parsedPracticeSheets = JSON.parse(practiceSheetsJson) as [string, PracticeSheetResource[]][];
+      console.log('practiceSheets.json content:', practiceSheetsJson);
+      const parsedPracticeSheets = JSON.parse(practiceSheetsJson) as [
+        string,
+        PracticeSheetResource[]
+      ][];
       const practiceSheetsMap = new Map<string, PracticeSheetResource[]>(parsedPracticeSheets);
       setResourcesByMap(practiceSheetsMap);
+      console.log('Practice sheets loaded successfully.');
+    } else {
+      console.warn('document/practiceSheets.json not found in the ZIP.');
     }
 
-    // Load and process styles.json
-    const stylesFile = loadedZip.file('document/styles.json');
+    // Load styles.json
+    const stylesFile = zip.file('document/styles.json');
     if (stylesFile) {
       const stylesJson = await stylesFile.async('string');
+      console.log('styles.json content:', stylesJson);
       const styles = JSON.parse(stylesJson);
       colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: styles.primaryColor });
       colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: styles.backgroundColor });
+      console.log('Styles updated successfully.');
+    } else {
+      console.warn('document/styles.json not found in the ZIP.');
     }
 
+    // Handle mode-dependent logic after loading
+    const metadataFile = zip.file('document/metadata.json');
+    if (metadataFile) {
+      const metadataJson = await metadataFile.async('string');
+      const metadata = JSON.parse(metadataJson) as SerializedResourceMetadata;
+      console.log('Metadata found:', metadata);
+      // Implement any additional initialization for collaborate mode here
+      console.log('Document loaded in Collaborate Mode.');
+      // Example: Initialize conflict resolution mechanisms or user sessions
+    } else {
+      console.log('Document loaded in Private Mode.');
+    }
+
+    // Trigger layout computation if necessary
+    // Example:
+    // layoutDispatch(setGetLayout(true));
+    console.log('Document loaded and state updated successfully.');
   } catch (error) {
-    console.error('Error loading document from Google Drive:', error);
-    throw new Error('Failed to load document from Google Drive');
+    console.error('Error in loadDocumentFromDrive:', error);
+    throw error; // Re-throw to handle in the caller
   }
 };
