@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
-import { deleteNode } from '@/app/Library/Context/nodesActions';
 import { setGetLayout } from '../Context/LayoutActions';
 import { useLayoutContext } from '../Context/LayoutProvider';
 import './ToolPane.css';
@@ -17,7 +16,7 @@ interface ToolPaneDeleteWindowProps {
 
 const ToolPaneDeleteWindow: React.FC<ToolPaneDeleteWindowProps> = ({ sourceNodeId, onClose }) => {
   const { selectResources, removeResource } = useResourceContext();
-  const { dispatch: nodesDispatch, nodes } = useNodesContext();
+  const { deleteNode, nodes } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
   const command = 'delete';
   const sourceNode = nodes.get(sourceNodeId);
@@ -111,7 +110,7 @@ const ToolPaneDeleteWindow: React.FC<ToolPaneDeleteWindowProps> = ({ sourceNodeI
     });
 
     // **Dispatch Delete Node Action**
-    nodesDispatch(deleteNode(sourceNodeId));
+    deleteNode(sourceNodeId);
     layoutDispatch(setGetLayout(true));
 
     alert(`Node "${currentNode.title}" has been deleted successfully.`);

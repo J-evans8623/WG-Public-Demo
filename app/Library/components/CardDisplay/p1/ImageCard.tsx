@@ -32,6 +32,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
   const [startPan, setStartPan] = useState<{ x: number; y: number } | null>(null);
   const [translate, setTranslate] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isMaximized, setIsMaximized] = useState<boolean>(isMaximizedProp); // Initialize with prop
+  
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +45,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
   const handleZoomIn = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     e.preventDefault();
-    setZoomLevel((prev) => Math.min(prev + 0.5, 3)); // Max zoom level 3x
+    setZoomLevel((prev) => Math.min(prev + 0.5, 5)); // Max zoom level 3x
     setTranslate({ x: 0, y: 0 }); // Reset panning on zoom
   }, []);
 
@@ -166,7 +167,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
           {title}
         </div>
         <div className="toolbar-buttons">
-          {zoomLevel < 3 && (
+          {zoomLevel < 5&& (
             <button onClick={handleZoomIn} className="tool-button" title="Zoom In">
               <FaSearchPlus />
             </button>

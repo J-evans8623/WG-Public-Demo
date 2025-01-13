@@ -31,6 +31,8 @@ import {
 import { serializeSubtrees } from '@/app/Library/Context/SubTreeProvider';
 import { resetColorTheme } from '@/app/Library/Context/colorThemeActions';
 import { Descendant } from 'slate';
+import { getOrCreateYDoc, encodeDocState, applyDocUpdate } from './YDocManager';
+
 
 /**
  * Enumeration for application modes.
@@ -199,16 +201,15 @@ export const saveDocument = async (
   const stylesJson = JSON.stringify(styles);
   zip.file('document/styles.json', stylesJson);
 
-  // Mode-dependent serialization: Include additional metadata in 'collaborate' mode
-  if (mode === 'collaborate') {
-    const metadata: SerializedResourceMetadata = {
-      userId: 'currentUserId', // Replace with actual user ID from context or state
-      timestamp: Date.now(),
-      operation: 'save', // Example operation
-    };
-    const metadataJson = JSON.stringify(metadata);
-    zip.file('document/metadata.json', metadataJson);
-  }
+    // Serialize Y.js state
+    try {
+      const yUpdate = encodeDocState();
+      zip.file('document/yjsState.bin', yUpdate);
+      console.log('Y.js state included in the .bloomdocx file.');
+    } catch (error) {
+      console.error('Error encoding Y.js state:', error);
+      // Depending on requirements, you might choose to abort the save or continue without Y.js state
+    }
 
   // Add images to the ZIP under 'document/images/'
   for (const [nodeId, pictureArray] of pictures.entries()) {
@@ -267,18 +268,6 @@ export const loadDocument = async (
   const content = await zip.loadAsync(file);
   const loadedFileName = file.name.replace(/\.[^/.]+$/, '');
 
-  // Load metadata.json to determine the mode
-  const metadataFile = content.file('document/metadata.json');
-  let mode: AppMode = 'private'; // Default mode
-
-  if (metadataFile) {
-    const metadataJson = await metadataFile.async('string');
-    const metadata = JSON.parse(metadataJson) as SerializedResourceMetadata;
-    // You can use metadata to set mode or handle collaborative features
-    // For this example, we'll assume mode is 'collaborate' if metadata exists
-    mode = 'collaborate';
-    // Additional metadata can be processed here
-  }
 
   // Load document.json
   const documentFile = content.file('document/document.json');
@@ -294,6 +283,20 @@ export const loadDocument = async (
     fileDispatch({ type: 'SET_FILE_NAME', payload: loadedFileName });
   }
 
+  const yjsStateFile = content.file('document/yjsState.bin');
+  if (yjsStateFile) {
+    const yjsStateBinary = await yjsStateFile.async('uint8array');
+    try {
+      applyDocUpdate(yjsStateBinary);
+      console.log('Y.js state applied successfully.');
+    } catch (error) {
+      console.error('Error applying Y.js state:', error);
+      // Depending on requirements, you might choose to throw an error or continue without Y.js state
+    }
+  } else {
+    console.warn('document/yjsState.bin not found in the ZIP.');
+  }
+  
   // Load cuecards.json
   const cueCardsFile = content.file('document/cuecards.json');
   if (cueCardsFile) {
@@ -376,15 +379,6 @@ export const loadDocument = async (
     const styles = JSON.parse(stylesJson);
     colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: styles.primaryColor });
     colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: styles.backgroundColor });
-  }
-
-  // Handle mode-dependent logic after loading
-  if (mode === 'collaborate') {
-    // Implement any additional initialization for collaborate mode here
-    console.log('Document loaded in Collaborate Mode.');
-    // For example, initialize conflict resolution mechanisms or user sessions
-  } else {
-    console.log('Document loaded in Private Mode.');
   }
 
   // Trigger layout computation if necessary
@@ -501,6 +495,18 @@ export const prepareBloomDocx = async (
   const stylesJson = JSON.stringify(styles);
   zip.file('document/styles.json', stylesJson);
 
+
+    // Serialize Y.js state
+    try {
+      const yUpdate = encodeDocState();
+      zip.file('document/yjsState.bin', yUpdate);
+      console.log('Y.js state included in the prepareBloomDocx function.');
+    } catch (error) {
+      console.error('Error encoding Y.js state in prepareBloomDocx:', error);
+      // Depending on requirements, you might choose to throw an error or continue without Y.js state
+      throw error;
+    }
+
   // Add images to the ZIP under 'document/images/'
   for (const [nodeId, pictureArray] of pictures.entries()) {
     for (const picture of pictureArray as PictureResource[]) {
@@ -579,6 +585,22 @@ export const loadDocumentFromDrive = async (
     } else {
       console.warn('document/document.json not found in the ZIP.');
     }
+
+    const yjsStateFile = zip.file('document/yjsState.bin');
+    if (yjsStateFile) {
+      const yjsStateBinary = await yjsStateFile.async('uint8array');
+      try {
+        applyDocUpdate(yjsStateBinary);
+        console.log('Y.js state applied successfully.');
+      } catch (error) {
+        console.error('Error applying Y.js state:', error);
+        // Decide whether to throw an error or proceed without Y.js state
+      }
+    } else {
+      console.warn('document/yjsState.bin not found in the ZIP.');
+    }
+
+
 
     // Load cuecards.json
     const cueCardsFile = zip.file('document/cuecards.json');
