@@ -4,7 +4,7 @@ import React, { createContext, useReducer, useContext, ReactNode, useMemo } from
 import { fileReducer, initialFileState, FileState } from './fileReducer';
 import { FileAction } from '@/app/Library/Definitions/Definitions';
 
-interface FileContextValue {
+interface FileContextValue extends FileState{
   fileName: string;
   dispatch: React.Dispatch<FileAction>;
 }

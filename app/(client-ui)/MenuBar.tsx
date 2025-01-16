@@ -6,7 +6,6 @@ import '@/app/(client-ui)/MenuBar.css';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { ApiContext } from '@/app/src/context/ApiContext';
-import SubMenu from 'antd/lib/menu';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 

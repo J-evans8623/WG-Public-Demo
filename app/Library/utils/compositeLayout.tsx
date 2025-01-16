@@ -6,14 +6,13 @@ import { applyHVLayout } from '@/app/Library/utils/hvLayout';
 import { applyIndentedLayout } from '@/app/Library/utils/indentedLayout';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
-import { setNodes } from '@/app/Library/Context/nodesActions';
 import { setGetLayout } from '@/app/Library/Context/LayoutActions';
 import { useSubTreeContext, SubtreeData } from '@/app/Library/Context/SubTreeProvider';
 
 export function useCompositeLayout(
   nodes: Map<string, ConceptNode>
 ): Map<string, ConceptNode> {
-  const { dispatch: nodesDispatch } = useNodesContext();
+  const { setNodes } = useNodesContext();
   const { getLayout, dispatch: layoutDispatch } = useLayoutContext();
   const { calculateSubtreeDimensions, setSubtreePosition, subtrees, setSubtrees } = useSubTreeContext();
 
@@ -118,7 +117,7 @@ export function useCompositeLayout(
 
     // Update nodes in NodesContext and reset getLayout flag
     layoutDispatch(setGetLayout(false));
-    nodesDispatch(setNodes(updatedNodes));
+    setNodes(updatedNodes);
 
     console.log('--- Final state ---');
     console.log('Nodes:', Array.from(updatedNodes.entries()));
@@ -127,7 +126,7 @@ export function useCompositeLayout(
   }, [
     nodes,
     getLayout,
-    nodesDispatch,
+    setNodes,
     layoutDispatch,
     calculateSubtreeDimensions,
     setSubtreePosition,

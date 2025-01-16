@@ -1,4 +1,4 @@
-// bloom-maps\app\test-layout\layout-test.tsx
+// bloom-maps\app\(client-ui)\app.tsx
 
 'use client';
 
@@ -23,11 +23,8 @@ import { LayoutProvider, useLayoutContext } from '@/app/Library/Context/LayoutPr
 import { ColorThemeProvider, useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { FileProvider, useFileContext } from '@/app/Library/Context/FileProvider';
 import { ResourceProvider, useResourceContext } from '@/app/Library/Context/ResourceContext';
-
-// Import action creators
-import { createNewNode, updateNodeTitle } from '@/app/Library/Context/nodesActions';
 import { setGetLayout } from '@/app/Library/Context/LayoutActions';
-
+import { YDocProvider } from '@/app/Library/Context/YDocContext';
 import { initializeNewDocument } from '@/app/Library/utils/documentUtils'; 
 
 // Dynamic Tool Panes
@@ -35,11 +32,11 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { LoadingProvider } from '@/app/Library/Context/LoadingContext';
 import { useLoading } from '@/app/Library/Context/LoadingContext'; // Import the loading hook
 import GlobalLoadingScreen from '@/app/Library/components/loading-screen/GlobalLoadingScreen';
-import TopBar from '../(client-ui)/commandPanelLayout/TopBar';
-import LeftPanel from '../(client-ui)/commandPanelLayout/LeftPanel';
-import MainContent from '../(client-ui)/commandPanelLayout/MainContent';
-import RightPanel from '../(client-ui)/commandPanelLayout/RightPanel';
-import StatusBar from '../(client-ui)/commandPanelLayout/StatusBar';
+import TopBar from './commandPanelLayout/TopBar';
+import LeftPanel from './commandPanelLayout/LeftPanel';
+import MainContent from './commandPanelLayout/MainContent';
+import RightPanel from './commandPanelLayout/RightPanel';
+import StatusBar from './commandPanelLayout/StatusBar';
 
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
@@ -62,7 +59,8 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
   // Use new context hooks
-  const { nodes, dispatch: nodesDispatch } = useNodesContext();
+  
+  const { nodes, setNodes, createNewNode, updateNodeTitle, deleteNode, resetNodes, initNewDocument, transferNode } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
   const { dispatch: fileDispatch, fileName } = useFileContext();
   const { dispatch: colorThemeDispatch } = useColorThemeContext();
@@ -128,6 +126,10 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     }
   }, [cueCardDisplayRef]);
 
+  const handleInitNodes = useCallback(()=>{
+    initNewDocument(6,1800,1800) // bloomdepth , map width and height
+  }, [initNewDocument]);
+
   /**
    * Handles closing the Tool Pane and resetting related states.
    */
@@ -157,7 +159,6 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     };
 
     updateWindowSize();
-
     window.addEventListener('resize', updateWindowSize);
     return () => window.removeEventListener('resize', updateWindowSize);
   }, []);
@@ -169,7 +170,8 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     const initializeApp = async () => {
       try {
         await initializeNewDocument(
-          nodesDispatch,
+          resetNodes,
+          handleInitNodes,
           layoutDispatch,
           fileDispatch,
           colorThemeDispatch,
@@ -260,7 +262,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     if (modalNodeId) {
       if (modalMode === 'addChild') {
         const newNodeId = uuidv4();
-        nodesDispatch(createNewNode(nodeTitle || 'New Concept', modalNodeId, newNodeId));
+        createNewNode(nodeTitle || 'New Concept', modalNodeId, newNodeId);
         layoutDispatch(setGetLayout(true));
 
         if (Title || cueCardContent || image || practiceSheetContent) {
@@ -277,7 +279,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
           });
         }
       } else if (modalMode === 'addResource') {
-        nodesDispatch(updateNodeTitle(modalNodeId, nodeTitle));
+        updateNodeTitle(modalNodeId, nodeTitle);
 
         if (Title || cueCardContent || image || practiceSheetContent) {
           saveResource({
@@ -295,7 +297,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
       }
     }
     setIsModalOpen(false); // Close the modal after saving
-  }, [modalNodeId, modalMode, nodesDispatch, layoutDispatch, addResource]);
+  }, [modalNodeId, modalMode, createNewNode, layoutDispatch, addResource, updateNodeTitle]);
 
   /**
    * Tracks if the center pane has been mounted to ensure refs are available.
@@ -394,6 +396,8 @@ export default function ClientLayout() {
     <GoogleOAuthProvider clientId={clientId}>
     <ApiProvider>
     <DndProvider backend={HTML5Backend}>
+    <FileProvider>
+    <YDocProvider>
       <TreeDimensionsProvider>
         <NodeSelectionProvider>
           <ResourceProvider> {/* Wrap with centralized ResourceProvider */}
@@ -401,12 +405,9 @@ export default function ClientLayout() {
               <ZoomProvider>
                 <LayoutProvider>
                   <ColorThemeProvider>
-                    <FileProvider>
-                         <SubTreeProvider>
-                        <ClientLayoutContent />               
-                      </SubTreeProvider>
-                      
-                    </FileProvider>
+                         <SubTreeProvider>                         
+                        <ClientLayoutContent />              
+                      </SubTreeProvider>                 
                   </ColorThemeProvider>
                 </LayoutProvider>
               </ZoomProvider>
@@ -414,6 +415,8 @@ export default function ClientLayout() {
           </ResourceProvider>
         </NodeSelectionProvider>
       </TreeDimensionsProvider>
+      </YDocProvider>
+      </FileProvider>
     </DndProvider>
     </ApiProvider>
     </GoogleOAuthProvider>

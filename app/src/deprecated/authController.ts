@@ -5,7 +5,7 @@
  */
 
 import { Request, Response } from 'express';
-import AuthService from '../services/authService';
+import AuthService from './authService';
 //import DriveFileManager from '../services/DriveFileManager';
 //import { ShareSettings } from '../services/driveShareService';
 

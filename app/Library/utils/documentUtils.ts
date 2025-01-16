@@ -28,18 +28,12 @@ import {
   ResourceCard,
 } from '@/app/Library/Definitions/Definitions';
 
+import * as Y from 'yjs';
+
 import { serializeSubtrees } from '@/app/Library/Context/SubTreeProvider';
 import { resetColorTheme } from '@/app/Library/Context/colorThemeActions';
 import { Descendant } from 'slate';
-import { getOrCreateYDoc, encodeDocState, applyDocUpdate } from './YDocManager';
-
-
-/**
- * Enumeration for application modes.
- * - 'private': Standard mode for single-user operations.
- * - 'collaborate': Mode for collaborative operations with multiple users.
- */
-export type AppMode = 'private' | 'collaborate';
+import { toast } from 'react-toastify';
 
 /**
  * Interface for serialized resource metadata in collaborate mode.
@@ -58,7 +52,7 @@ interface SerializedResourceMetadata {
  * @param cueCards - Map where key is nodeId and value is an array of CueCardResource
  * @returns Array of [nodeId, CueCardResource[]] tuples
  */
-const serializeCueCards = (cueCards: Map<string, CueCardResource[]>): [string, CueCardResource[]][] => {
+export const serializeCueCards = (cueCards: Map<string, CueCardResource[]>): [string, CueCardResource[]][] => {
   return Array.from(cueCards.entries());
 };
 
@@ -69,7 +63,7 @@ const serializeCueCards = (cueCards: Map<string, CueCardResource[]>): [string, C
  * @param practiceSheets - Map where key is nodeId and value is an array of PracticeSheetResource
  * @returns Array of [nodeId, PracticeSheetResource[]] tuples
  */
-const serializePracticeSheets = (
+export const serializePracticeSheets = (
   practiceSheets: Map<string, PracticeSheetResource[]>
 ): [string, PracticeSheetResource[]][] => {
   return Array.from(practiceSheets.entries());
@@ -82,10 +76,10 @@ const serializePracticeSheets = (
  * @param pictures - Map where key is nodeId and value is an array of PictureResource
  * @returns Array of [nodeId, { id, title, imagePath, description }[]] tuples
  */
-const serializePictures = (
+export const serializePictures = (
   pictures: Map<string, PictureResource[]>
-): [string, { id: string; title: string; imagePath: string; description?: Descendant[] }[]][] => {
-  const serialized: [string, { id: string; title: string; imagePath: string; description?: Descendant[] }[]][] = [];
+): [string, { id: string; title: string; imagePath: string; description?: Descendant[]; source?: string }[]][] => {
+  const serialized: [string, { id: string; title: string; imagePath: string; description?: Descendant[]; source?: string }[]][] = [];
   pictures.forEach((pictureArray, nodeId) => {
     const serializedPictures = pictureArray.map(pic => ({
       id: pic.id,
@@ -131,9 +125,10 @@ export const serializeDocument = (
 };
 
 /**
- * Function to save the document as a .bloomdocx file.
- * Handles mode-dependent serialization to include additional metadata in collaborate mode.
- * 
+ * Function to save the document as a `.bloomdocx` file.
+ * This function saves the file to the local device and triggers the file save dialog.
+ *
+ * @param ydoc - The Y.Doc instance to encode and include in the save
  * @param nodes - Map of ConceptNode with nodeId as key
  * @param colorTheme - Current color theme
  * @param primaryColor - Primary color of the theme
@@ -143,9 +138,10 @@ export const serializeDocument = (
  * @param subtrees - Map of SubtreeData with subtreeId as key
  * @param pictures - Map of PictureResource with nodeId as key
  * @param practiceSheets - Map of PracticeSheetResource with nodeId as key
- * @param mode - Current application mode ('private' or 'collaborate')
+ * @param fileId - Optional file identifier for collaborative documents
  */
 export const saveDocument = async (
+  ydoc: Y.Doc,
   nodes: Map<string, ConceptNode>,
   colorTheme: ColorTheme,
   primaryColor: string,
@@ -155,8 +151,8 @@ export const saveDocument = async (
   subtrees: Map<string, SubtreeData>,
   pictures: Map<string, ResourceCard[]>,
   practiceSheets: Map<string, ResourceCard[]>,
-  mode: AppMode = 'private' // Default to 'private' mode
-) => {
+  fileId?: string
+): Promise<void> => {
   const zip = new JSZip();
 
   // Serialize document data
@@ -167,51 +163,43 @@ export const saveDocument = async (
     backgroundColor,
     fileName
   );
-  const documentJson = JSON.stringify(serializedDocument);
-  zip.file('document/document.json', documentJson);
+
+  if (fileId) {
+    (serializedDocument as any)['fileId'] = fileId;
+  }
+
+  zip.file('document/document.json', JSON.stringify(serializedDocument));
 
   // Serialize cue cards
-  const serializedCueCards = serializeCueCards(cueCards as Map<string, CueCardResource[]>);
-  const cueCardsJson = JSON.stringify(serializedCueCards);
-  zip.file('document/cuecards.json', cueCardsJson);
+  zip.file('document/cuecards.json', JSON.stringify(serializeCueCards(cueCards as Map<string, CueCardResource[]>)));
 
   // Serialize subtrees
-  const serializedSubtrees = serializeSubtrees(subtrees);
-  const subtreesJson = JSON.stringify(serializedSubtrees);
-  zip.file('document/subtrees.json', subtreesJson);
+  zip.file('document/subtrees.json', JSON.stringify(serializeSubtrees(subtrees)));
 
-  // Serialize pictures metadata
-  const serializedPictures = serializePictures(pictures as Map<string, PictureResource[]>);
-  const picturesJson = JSON.stringify(serializedPictures);
-  zip.file('document/pictures.json', picturesJson);
+  // Serialize pictures
+  zip.file('document/pictures.json', JSON.stringify(serializePictures(pictures as Map<string, PictureResource[]>)));
 
   // Serialize practice sheets
-  const serializedPracticeSheets = serializePracticeSheets(
-    practiceSheets as Map<string, PracticeSheetResource[]>
+  zip.file(
+    'document/practiceSheets.json',
+    JSON.stringify(serializePracticeSheets(practiceSheets as Map<string, PracticeSheetResource[]>))
   );
-  const practiceSheetsJson = JSON.stringify(serializedPracticeSheets);
-  zip.file('document/practiceSheets.json', practiceSheetsJson);
 
   // Serialize styles
-  const styles = {
-    primaryColor,
-    backgroundColor,
-    colorTheme,
-  };
-  const stylesJson = JSON.stringify(styles);
-  zip.file('document/styles.json', stylesJson);
+  zip.file('document/styles.json', JSON.stringify({ primaryColor, backgroundColor, colorTheme }));
 
-    // Serialize Y.js state
-    try {
-      const yUpdate = encodeDocState();
-      zip.file('document/yjsState.bin', yUpdate);
-      console.log('Y.js state included in the .bloomdocx file.');
-    } catch (error) {
-      console.error('Error encoding Y.js state:', error);
-      // Depending on requirements, you might choose to abort the save or continue without Y.js state
-    }
+  // Serialize Y.js state
+  try {
+    const yUpdate = Y.encodeStateAsUpdate(ydoc);
+    zip.file('document/yjsState.bin', yUpdate);
+    console.log('Y.js state included in the `.bloomdocx` file.');
+  } catch (error) {
+    console.error('Error encoding Y.js state:', error);
+    toast.error('Failed to encode collaborative state.');
+    throw error;
+  }
 
-  // Add images to the ZIP under 'document/images/'
+  // Add images to the ZIP
   for (const [nodeId, pictureArray] of pictures.entries()) {
     for (const picture of pictureArray as PictureResource[]) {
       if (picture.image) {
@@ -220,37 +208,43 @@ export const saveDocument = async (
           zip.file(`document/images/${picture.id}_${picture.image.name}`, imageData);
         } catch (error) {
           console.error(`Error saving image ${picture.id}:`, error);
+          toast.error(`Failed to save image ${picture.title}.`);
         }
       }
     }
   }
 
-  // Generate ZIP and trigger download
+  // Generate ZIP and invoke the file save dialog
   try {
     const content = await zip.generateAsync({ type: 'blob' });
     saveAs(content, `${fileName || 'my_document'}.bloomdocx`);
+    toast.success('Document saved successfully!');
   } catch (error) {
     console.error('Error generating ZIP:', error);
+    toast.error('Failed to save the document.');
+    throw error;
   }
 };
 
 /**
- * Function to load a document from a .bloomdocx file.
- * Handles mode-dependent deserialization to process additional metadata in 'collaborate' mode.
+ * Function to load a document from a `.bloomdocx` file.
+ * This function is used to load a file from a local device.
  * 
- * @param file - The .bloomdocx file to load
- * @param nodesDispatch - Dispatch function to update nodes state
+ * @param ydoc - The Y.Doc instance to apply updates to
+ * @param file - The `.bloomdocx` file to load
+ * @param setNodes - Function to set nodes state
  * @param setResourcesByMap - Function to set resources by their respective maps
  * @param setSubtrees - Function to set subtrees data
- * @param fileDispatch - Dispatch function to update file-related state
- * @param colorThemeDispatch - Dispatch function to update color theme state
+ * @param fileDispatch - Function to update file-related state
+ * @param colorThemeDispatch - Function to update color theme state
  * @param resetTreeDimensions - Function to reset tree dimensions
  * @param resetSubtrees - Function to reset subtrees
  * @param resetResources - Function to reset resources
  */
 export const loadDocument = async (
+  ydoc: Y.Doc,
   file: File,
-  nodesDispatch: React.Dispatch<any>,
+  setNodes: (nodes: Map<string, ConceptNode>) => void,
   setResourcesByMap: (
     resourceMap: Map<string, CueCardResource[] | PictureResource[] | PracticeSheetResource[]>
   ) => void,
@@ -260,14 +254,15 @@ export const loadDocument = async (
   resetTreeDimensions: () => void,
   resetSubtrees: () => void,
   resetResources: () => void
-) => {
+): Promise<void> => {
+  // Reset current state before loading
   resetTreeDimensions();
   resetSubtrees();
   resetResources();
+
   const zip = new JSZip();
   const content = await zip.loadAsync(file);
   const loadedFileName = file.name.replace(/\.[^/.]+$/, '');
-
 
   // Load document.json
   const documentFile = content.file('document/document.json');
@@ -277,36 +272,44 @@ export const loadDocument = async (
 
     // Reconstruct nodes Map
     const nodes = new Map<string, ConceptNode>(parsedDocument.nodes);
-    nodesDispatch({ type: 'SET_NODES', payload: nodes });
+    setNodes(nodes);
     colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: parsedDocument.primaryColor });
     colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: parsedDocument.backgroundColor });
     fileDispatch({ type: 'SET_FILE_NAME', payload: loadedFileName });
+    toast.success('Document data loaded successfully.');
   }
 
+  // Load Y.js state
   const yjsStateFile = content.file('document/yjsState.bin');
   if (yjsStateFile) {
     const yjsStateBinary = await yjsStateFile.async('uint8array');
     try {
-      applyDocUpdate(yjsStateBinary);
+      Y.applyUpdate(ydoc, yjsStateBinary);
       console.log('Y.js state applied successfully.');
+      toast.success('Collaborative state synchronized.');
     } catch (error) {
       console.error('Error applying Y.js state:', error);
+      toast.error('Failed to synchronize collaborative state.');
       // Depending on requirements, you might choose to throw an error or continue without Y.js state
     }
   } else {
     console.warn('document/yjsState.bin not found in the ZIP.');
+    toast.warn('No collaborative state found in the file.');
   }
-  
+
   // Load cuecards.json
   const cueCardsFile = content.file('document/cuecards.json');
   if (cueCardsFile) {
     const cueCardsJson = await cueCardsFile.async('string');
     let parsedCueCards: [string, CueCardResource[]][] = JSON.parse(cueCardsJson);
-    // parsedCueCards is now [nodeId, CueCardResource[]]
-    // Each CueCardResource has content as Descendant[]. No conversion needed.
     const cueCardsMap = new Map<string, CueCardResource[]>(parsedCueCards);
     setResourcesByMap(cueCardsMap);
+    toast.success('Cue cards loaded successfully.');
+  } else {
+    console.warn('document/cuecards.json not found in the ZIP.');
+    toast.warn('No cue cards found in the file.');
   }
+
   // Load subtrees.json
   const subtreesFile = content.file('document/subtrees.json');
   if (subtreesFile) {
@@ -314,6 +317,10 @@ export const loadDocument = async (
     const parsedSubtrees = JSON.parse(subtreesJson) as [string, SubtreeData][];
     const subtreesMap = new Map<string, SubtreeData>(parsedSubtrees);
     setSubtrees(subtreesMap);
+    toast.success('Subtrees loaded successfully.');
+  } else {
+    console.warn('document/subtrees.json not found in the ZIP.');
+    toast.warn('No subtrees found in the file.');
   }
 
   // Load pictures.json and images
@@ -322,14 +329,14 @@ export const loadDocument = async (
     const picturesJson = await picturesFile.async('string');
     const parsedPictures = JSON.parse(picturesJson) as [
       string,
-      { id: string; title: string; imagePath: string; description?: Descendant[], source?:string }[]
+      { id: string; title: string; imagePath: string; description?: Descendant[]; source?: string }[]
     ][];
     const picturesMap = new Map<string, PictureResource[]>();
 
     for (const [nodeId, pictureArray] of parsedPictures) {
       const reconstructedPictures: PictureResource[] = [];
       for (const pic of pictureArray) {
-        const imageFile = content.file(pic.imagePath);
+        const imageFile = zip.file(pic.imagePath);
         if (imageFile) {
           try {
             const imageBlob = await imageFile.async('blob');
@@ -350,14 +357,20 @@ export const loadDocument = async (
             });
           } catch (error) {
             console.error(`Error loading image ${pic.id}:`, error);
+            toast.error(`Failed to load image ${pic.title}.`);
           }
         } else {
           console.warn(`Image file not found: ${pic.imagePath}`);
+          toast.warn(`Image file not found: ${pic.imagePath}`);
         }
       }
       picturesMap.set(nodeId, reconstructedPictures);
     }
     setResourcesByMap(picturesMap);
+    toast.success('Pictures loaded successfully.');
+  } else {
+    console.warn('document/pictures.json not found in the ZIP.');
+    toast.warn('No pictures found in the file.');
   }
 
   // Load practiceSheets.json
@@ -370,6 +383,10 @@ export const loadDocument = async (
     ][];
     const practiceSheetsMap = new Map<string, PracticeSheetResource[]>(parsedPracticeSheets);
     setResourcesByMap(practiceSheetsMap);
+    toast.success('Practice sheets loaded successfully.');
+  } else {
+    console.warn('document/practiceSheets.json not found in the ZIP.');
+    toast.warn('No practice sheets found in the file.');
   }
 
   // Load styles.json
@@ -379,17 +396,39 @@ export const loadDocument = async (
     const styles = JSON.parse(stylesJson);
     colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: styles.primaryColor });
     colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: styles.backgroundColor });
+    toast.success('Styles updated successfully.');
+  } else {
+    console.warn('document/styles.json not found in the ZIP.');
+    toast.warn('No styles found in the file.');
+  }
+
+  // Handle mode-dependent logic after loading
+  const metadataFile = zip.file('document/metadata.json');
+  if (metadataFile) {
+    const metadataJson = await metadataFile.async('string');
+    const metadata = JSON.parse(metadataJson) as SerializedResourceMetadata;
+    console.log('Metadata found:', metadata);
+    // Implement any additional initialization for collaborate mode here
+    toast.info('Document loaded in Collaborate Mode.');
+    // Example: Initialize conflict resolution mechanisms or user sessions
+  } else {
+    console.log('Document loaded in Private Mode.');
+    toast.info('Document loaded in Private Mode.');
   }
 
   // Trigger layout computation if necessary
-  // You may need to dispatch an action to set layout state
+  // Example:
+  // layoutDispatch(setGetLayout(true));
+  console.log('Document loaded and state updated successfully.');
 };
 
 /**
  * Function to initialize a new document with default settings.
  * Resets the application state and sets up initial configurations.
  * 
- * @param nodesDispatch - Dispatch function to update nodes state
+ * @param ydoc - The Y.Doc instance to initialize
+ * @param resetNode - Function to reset nodes
+ * @param initNodes - Function to initialize nodes
  * @param layoutDispatch - Dispatch function to update layout state
  * @param fileDispatch - Dispatch function to update file-related state
  * @param colorThemeDispatch - Dispatch function to update color theme state
@@ -402,7 +441,8 @@ export const loadDocument = async (
  * @param mapHeight - Height of the map layout
  */
 export const initializeNewDocument = (
-  nodesDispatch: React.Dispatch<any>,
+  resetNode: () => void,
+  initNodes: () => void,
   layoutDispatch: React.Dispatch<any>,
   fileDispatch: React.Dispatch<any>,
   colorThemeDispatch: React.Dispatch<any>,
@@ -413,9 +453,9 @@ export const initializeNewDocument = (
   isInitialLoad: boolean,
   mapWidth: number = 1800,
   mapHeight: number = 1800
-) => {
+): void => {
   if (!isInitialLoad) {
-    nodesDispatch({ type: 'RESET_NODES' });
+    resetNode();
     resetTreeDimensions();
     resetSubtrees();
     resetResources();
@@ -423,24 +463,29 @@ export const initializeNewDocument = (
   }
 
   layoutDispatch({ type: 'SET_MAP_SIZE', payload: { mapWidth, mapHeight } });
-  nodesDispatch({ type: 'INIT_NEW_DOCUMENT', payload: { bloomDepth, mapWidth, mapHeight } });
+  initNodes();
   fileDispatch({ type: 'SET_FILE_NAME', payload: 'Untitled Document' });
+  toast.success('New document initialized successfully.');
 };
 
 /**
- * Prepares a `.bloomdocx` file for saving to Google Drive.
- * @param nodes - Map of ConceptNode with nodeId as key.
- * @param colorTheme - Current color theme.
- * @param primaryColor - Primary color of the theme.
- * @param backgroundColor - Background color of the theme.
- * @param fileName - Name of the document file.
- * @param cueCards - Map of CueCardResource with nodeId as key.
- * @param subtrees - Map of SubtreeData with subtreeId as key.
- * @param pictures - Map of PictureResource with nodeId as key.
- * @param practiceSheets - Map of PracticeSheetResource with nodeId as key.
+ * Prepares a `.bloomdocx` file for saving to Google Drive or local storage.
+ * The created file can then be sent to the backend where it will be routed to Google Drive.
+ * @param ydoc - The Y.Doc instance to encode and include in the save
+ * @param nodes - Map of ConceptNode with nodeId as key
+ * @param colorTheme - Current color theme
+ * @param primaryColor - Primary color of the theme
+ * @param backgroundColor - Background color of the theme
+ * @param fileName - Name of the document file
+ * @param cueCards - Map of CueCardResource with nodeId as key
+ * @param subtrees - Map of SubtreeData with subtreeId as key
+ * @param pictures - Map of PictureResource with nodeId as key
+ * @param practiceSheets - Map of PracticeSheetResource with nodeId as key
+ * @param fileId - Optional file identifier for collaborative documents
  * @returns A `Blob` representing the `.bloomdocx` file.
  */
 export const prepareBloomDocx = async (
+  ydoc: Y.Doc,
   nodes: Map<string, ConceptNode>,
   colorTheme: ColorTheme,
   primaryColor: string,
@@ -449,8 +494,12 @@ export const prepareBloomDocx = async (
   cueCards: Map<string, ResourceCard[]>,
   subtrees: Map<string, SubtreeData>,
   pictures: Map<string, ResourceCard[]>,
-  practiceSheets: Map<string, ResourceCard[]>
+  practiceSheets: Map<string, ResourceCard[]>,
+  fileId?: string,
 ): Promise<Blob> => {
+  console.log('************Firing prepareBloomDocx.....')
+  console.log('prepareBloomDocx: Number of nodes passed:', nodes);
+  console.log('prepareBloomDocx: Y.Doc nodes count:', ydoc);
   const zip = new JSZip();
 
   // Serialize document data
@@ -461,6 +510,11 @@ export const prepareBloomDocx = async (
     backgroundColor,
     fileName
   );
+
+  if (fileId) {
+    (serializedDocument as any)['fileId'] = fileId;
+  }
+
   const documentJson = JSON.stringify(serializedDocument);
   zip.file('document/document.json', documentJson);
 
@@ -495,17 +549,16 @@ export const prepareBloomDocx = async (
   const stylesJson = JSON.stringify(styles);
   zip.file('document/styles.json', stylesJson);
 
-
-    // Serialize Y.js state
-    try {
-      const yUpdate = encodeDocState();
-      zip.file('document/yjsState.bin', yUpdate);
-      console.log('Y.js state included in the prepareBloomDocx function.');
-    } catch (error) {
-      console.error('Error encoding Y.js state in prepareBloomDocx:', error);
-      // Depending on requirements, you might choose to throw an error or continue without Y.js state
-      throw error;
-    }
+  // Serialize Y.js state
+  try {
+    const yUpdate = Y.encodeStateAsUpdate(ydoc);
+    zip.file('document/yjsState.bin', yUpdate);
+    console.log('Y.js state included in the `prepareBloomDocx` function.');
+  } catch (error) {
+    console.error('Error encoding Y.js state in prepareBloomDocx:', error);
+    toast.error('Failed to encode collaborative state.');
+    throw error;
+  }
 
   // Add images to the ZIP under 'document/images/'
   for (const [nodeId, pictureArray] of pictures.entries()) {
@@ -516,6 +569,7 @@ export const prepareBloomDocx = async (
           zip.file(`document/images/${picture.id}_${picture.image.name}`, imageData);
         } catch (error) {
           console.error(`Error saving image ${picture.id}:`, error);
+          toast.error(`Failed to save image ${picture.title}.`);
         }
       }
     }
@@ -524,9 +578,11 @@ export const prepareBloomDocx = async (
   // Generate ZIP as Blob
   try {
     const content = await zip.generateAsync({ type: 'blob' });
+    console.log('ZIP generated successfully.');
     return content;
   } catch (error) {
     console.error('Error generating ZIP:', error);
+    toast.error('Failed to prepare the document for saving.');
     throw error;
   }
 };
@@ -534,29 +590,38 @@ export const prepareBloomDocx = async (
 /**
  * Handles loading a document from Google Drive into the application's state.
  * @param file - The `.bloomdocx` file fetched from Google Drive.
- * @param nodesDispatch - Dispatch function to update nodes state.
- * @param setResourcesByMap - Function to set resources by their respective maps.
- * @param setSubtrees - Function to set subtrees data.
- * @param fileDispatch - Dispatch function to update file-related state.
- * @param colorThemeDispatch - Dispatch function to update color theme state.
- * @param resetTreeDimensions - Function to reset tree dimensions.
- * @param resetSubtrees - Function to reset subtrees.
- * @param resetResources - Function to reset resources.
+ * @param ydoc - The Y.Doc instance to apply updates to
+ * @param setNodes - Function to set nodes state
+ * @param setResourcesByMap - Function to set resources by their respective maps
+ * @param setSubtrees - Function to set subtrees data
+ * @param fileDispatch - Dispatch function to update file-related state
+ * @param colorThemeDispatch - Dispatch function to update color theme state
+ * @param resetTreeDimensions - Function to reset tree dimensions
+ * @param resetSubtrees - Function to reset subtrees
+ * @param resetResources - Function to reset resources
  */
 export const loadDocumentFromDrive = async (
   file: Blob,
-  nodesDispatch: React.Dispatch<any>,
-  setResourcesByMap: any,
-  setSubtrees: any,
-  fileDispatch: any,
-  colorThemeDispatch: any,
-  resetTreeDimensions: any,
-  resetSubtrees: any,
-  resetResources: any
-) => {
+  ydoc: Y.Doc,
+  setNodes: (nodes: Map<string, ConceptNode>) => void,
+  setResourcesByMap: (
+    resourceMap: Map<string, CueCardResource[] | PictureResource[] | PracticeSheetResource[]>
+  ) => void,
+  setSubtrees: (newSubtrees: Map<string, SubtreeData>) => void,
+  fileDispatch: React.Dispatch<any>,
+  colorThemeDispatch: React.Dispatch<any>,
+  resetTreeDimensions: () => void,
+  resetSubtreesFn: () => void,
+  resetResourcesFn: () => void
+): Promise<void> => {
   try {
     console.log('Starting to load document from drive.');
     console.log('Received file:', file);
+
+    // Reset current state before loading
+    resetTreeDimensions();
+    resetSubtreesFn();
+    resetResourcesFn();
 
     const zip = new JSZip();
     await zip.loadAsync(file);
@@ -577,30 +642,34 @@ export const loadDocumentFromDrive = async (
 
       // Reconstruct nodes Map
       const nodes = new Map<string, ConceptNode>(parsedDocument.nodes);
-      nodesDispatch({ type: 'SET_NODES', payload: nodes });
+      console.log('Load nodes from Drive ......Returned nodes :',  nodes);
+      setNodes(nodes);
       colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: parsedDocument.primaryColor });
       colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: parsedDocument.backgroundColor });
       fileDispatch({ type: 'SET_FILE_NAME', payload: parsedDocument.fileName });
-      console.log('Nodes and color themes updated successfully.');
+      toast.success('Document data loaded successfully.');
     } else {
       console.warn('document/document.json not found in the ZIP.');
+      toast.warn('No document data found in the file.');
     }
 
+    // Load Y.js state
     const yjsStateFile = zip.file('document/yjsState.bin');
     if (yjsStateFile) {
       const yjsStateBinary = await yjsStateFile.async('uint8array');
       try {
-        applyDocUpdate(yjsStateBinary);
+        Y.applyUpdate(ydoc, yjsStateBinary);
         console.log('Y.js state applied successfully.');
+        toast.success('Collaborative state synchronized.');
       } catch (error) {
         console.error('Error applying Y.js state:', error);
-        // Decide whether to throw an error or proceed without Y.js state
+        toast.error('Failed to synchronize collaborative state.');
+        // Depending on requirements, you might choose to throw an error or continue without Y.js state
       }
     } else {
       console.warn('document/yjsState.bin not found in the ZIP.');
+      toast.warn('No collaborative state found in the file.');
     }
-
-
 
     // Load cuecards.json
     const cueCardsFile = zip.file('document/cuecards.json');
@@ -610,9 +679,10 @@ export const loadDocumentFromDrive = async (
       let parsedCueCards: [string, CueCardResource[]][] = JSON.parse(cueCardsJson);
       const cueCardsMap = new Map<string, CueCardResource[]>(parsedCueCards);
       setResourcesByMap(cueCardsMap);
-      console.log('Cue cards loaded successfully.');
+      toast.success('Cue cards loaded successfully.');
     } else {
       console.warn('document/cuecards.json not found in the ZIP.');
+      toast.warn('No cue cards found in the file.');
     }
 
     // Load subtrees.json
@@ -623,9 +693,10 @@ export const loadDocumentFromDrive = async (
       const parsedSubtrees = JSON.parse(subtreesJson) as [string, SubtreeData][];
       const subtreesMap = new Map<string, SubtreeData>(parsedSubtrees);
       setSubtrees(subtreesMap);
-      console.log('Subtrees loaded successfully.');
+      toast.success('Subtrees loaded successfully.');
     } else {
       console.warn('document/subtrees.json not found in the ZIP.');
+      toast.warn('No subtrees found in the file.');
     }
 
     // Load pictures.json and images
@@ -663,17 +734,20 @@ export const loadDocumentFromDrive = async (
               });
             } catch (error) {
               console.error(`Error loading image ${pic.id}:`, error);
+              toast.error(`Failed to load image ${pic.title}.`);
             }
           } else {
             console.warn(`Image file not found: ${pic.imagePath}`);
+            toast.warn(`Image file not found: ${pic.imagePath}`);
           }
         }
         picturesMap.set(nodeId, reconstructedPictures);
       }
       setResourcesByMap(picturesMap);
-      console.log('Pictures loaded successfully.');
+      toast.success('Pictures loaded successfully.');
     } else {
       console.warn('document/pictures.json not found in the ZIP.');
+      toast.warn('No pictures found in the file.');
     }
 
     // Load practiceSheets.json
@@ -687,9 +761,10 @@ export const loadDocumentFromDrive = async (
       ][];
       const practiceSheetsMap = new Map<string, PracticeSheetResource[]>(parsedPracticeSheets);
       setResourcesByMap(practiceSheetsMap);
-      console.log('Practice sheets loaded successfully.');
+      toast.success('Practice sheets loaded successfully.');
     } else {
       console.warn('document/practiceSheets.json not found in the ZIP.');
+      toast.warn('No practice sheets found in the file.');
     }
 
     // Load styles.json
@@ -700,9 +775,10 @@ export const loadDocumentFromDrive = async (
       const styles = JSON.parse(stylesJson);
       colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: styles.primaryColor });
       colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: styles.backgroundColor });
-      console.log('Styles updated successfully.');
+      toast.success('Styles updated successfully.');
     } else {
       console.warn('document/styles.json not found in the ZIP.');
+      toast.warn('No styles found in the file.');
     }
 
     // Handle mode-dependent logic after loading
@@ -712,10 +788,11 @@ export const loadDocumentFromDrive = async (
       const metadata = JSON.parse(metadataJson) as SerializedResourceMetadata;
       console.log('Metadata found:', metadata);
       // Implement any additional initialization for collaborate mode here
-      console.log('Document loaded in Collaborate Mode.');
+      toast.info('Document loaded in Collaborate Mode.');
       // Example: Initialize conflict resolution mechanisms or user sessions
     } else {
       console.log('Document loaded in Private Mode.');
+      toast.info('Document loaded in Private Mode.');
     }
 
     // Trigger layout computation if necessary
@@ -724,6 +801,7 @@ export const loadDocumentFromDrive = async (
     console.log('Document loaded and state updated successfully.');
   } catch (error) {
     console.error('Error in loadDocumentFromDrive:', error);
+    toast.error('Failed to load the document.');
     throw error; // Re-throw to handle in the caller
   }
 };

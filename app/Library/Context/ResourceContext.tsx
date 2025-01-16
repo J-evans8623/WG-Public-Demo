@@ -1,6 +1,6 @@
-// bloom-maps/app/Library/Context/ResourceContext.tsx
+// File: src/Library/Context/ResourceContext.tsx
 
-import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useMemo } from 'react';
 import { ResourceCard, ResourceType, PictureResource, PracticeSheetResource, CueCardResource } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -9,14 +9,13 @@ import {
   undoOperation,
   redoOperation,
   HistoryState,
-  canUndoOperation,
-  canRedoOperation,
   HistoryEntry,
   OperationType,
   createBinaryCompoundEntries,
   generateOperationId,
 } from '../utils/undoredo/historyutils'; // Adjust the import path as necessary
-import { Descendant } from 'slate';
+import { useYDoc } from '@/app/Library/Context/YDocContext'; // Use YDocContext
+import * as Y from 'yjs';
 
 /**
  * Interface defining the methods available in the ResourceContext.
@@ -35,10 +34,10 @@ interface ResourceContextType {
   resetResources: () => void;
   getResourcesByType: (type: 'cueCard' | 'picture' | 'practiceSheet') => Map<string, ResourceCard[]>;
   setResourcesByMap: (resourceMap: Map<string, CueCardResource[] | PictureResource[] | PracticeSheetResource[]>) => void;
-  undo: (nodeId: string) => void; // New undo method
-  redo: (nodeId: string) => void; // New redo method
-  undoAvailable:  (nodeId: string) => boolean;
-  redoAvailable:  (nodeId: string) => boolean;
+  undo: (nodeId: string) => void;
+  redo: (nodeId: string) => void;
+  undoAvailable: (nodeId: string) => boolean;
+  redoAvailable: (nodeId: string) => boolean;
 }
 
 /**
@@ -50,20 +49,66 @@ const ResourceContext = createContext<ResourceContextType | undefined>(undefined
  * Provider component for ResourceContext.
  */
 export const ResourceProvider = ({ children }: { children: ReactNode }) => {
-  // State holding all resources, keyed by nodeId.
-  const [resources, setResourcesState] = useState<Map<string, ResourceCard[]>>(new Map());
-
-  // History map to track past and future states for each node
-  const [resourceHistoryMap, setResourceHistoryMap] = useState<Map<string, HistoryState>>(
-    new Map()
-  );
-
-    useEffect(() => {
-      console.log('Context state updated-resources:', resources);
-    }, [resources]);
+  // Consume YDocContext to access Y.Doc and WebsocketProvider
+  const { ydoc, provider } = useYDoc();
+  const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>('resources'); // Y.Map<Y.Map<ResourceCard>>
 
   /**
-   * Adds a new resource to a node.
+   * Synchronize Y.Map changes with React state.
+   */
+  const [resources, setResourcesState] = useState<Map<string, ResourceCard[]>>(new Map());
+
+  useEffect(() => {
+    // Function to load initial resources from Y.Map
+    const loadInitialResources = () => {
+      const initialResources = new Map<string, ResourceCard[]>();
+      yResourcesMap.forEach((yMap, nodeId) => {
+        const nodeResources: ResourceCard[] = [];
+        yMap.forEach((resource: ResourceCard) => {
+          nodeResources.push(resource as ResourceCard);
+        });
+        initialResources.set(nodeId, nodeResources);
+      });
+      setResourcesState(initialResources);
+    };
+
+    loadInitialResources();
+
+    /**
+     * Observe Y.Map for any updates.
+     */
+    const updateListener = () => {
+      const updatedResources = new Map<string, ResourceCard[]>();
+      yResourcesMap.forEach((yMap, nodeId) => {
+        const nodeResources: ResourceCard[] = [];
+        yMap.forEach((resource: ResourceCard) => {
+          nodeResources.push(resource as ResourceCard);
+        });
+        updatedResources.set(nodeId, nodeResources);
+      });
+      setResourcesState(updatedResources);
+    };
+
+    yResourcesMap.observeDeep(updateListener);
+
+    return () => {
+      yResourcesMap.unobserveDeep(updateListener);
+    };
+  }, [yResourcesMap]);
+
+  // History map to track past and future states for each node
+  const [resourceHistoryMap, setResourceHistoryMap] = useState<Map<string, HistoryState>>(new Map());
+
+  useEffect(() => {
+    console.log('Context state updated-resources:', resources);
+  }, [resources]);
+
+  /**
+   * Context Functions to Manage Resources via Y.js
+   */
+
+  /**
+   * Add a new resource to a node.
    * @param resource - The resource to add (excluding the 'id' field).
    */
   const addResource = useCallback(
@@ -120,19 +165,21 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
       newHistoryMap.set(nodeId, updatedHistory);
       setResourceHistoryMap(newHistoryMap);
 
-      // Update the resources state immutably
-      setResourcesState((prev) => {
-        const updatedResources = new Map(prev);
-        const nodeResources = updatedResources.get(nodeId) || [];
-        updatedResources.set(nodeId, [...nodeResources, newResource]);
-        return updatedResources;
+      // Update the resources state immutably and Y.Map
+      ydoc.transact(() => {
+        let yMap = yResourcesMap.get(nodeId);
+        if (!yMap) {
+          yMap = new Y.Map<ResourceCard>();
+          yResourcesMap.set(nodeId, yMap);
+        }
+        yMap.set(newResource.id, newResource);
       });
     },
-    [resources, resourceHistoryMap]
+    [resources, resourceHistoryMap, yResourcesMap, ydoc]
   );
 
   /**
-   * Removes a resource from a node.
+   * Remove a resource from a node.
    * @param nodeId - The ID of the node.
    * @param resourceId - The ID of the resource to remove.
    */
@@ -162,19 +209,19 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
       newHistoryMap.set(nodeId, updatedHistory);
       setResourceHistoryMap(newHistoryMap);
 
-      // Update the resources state immutably
-      setResourcesState((prev) => {
-        const updatedResources = new Map(prev);
-        const nodeResources = updatedResources.get(nodeId) || [];
-        updatedResources.set(nodeId, nodeResources.filter((resource) => resource.id !== resourceId));
-        return updatedResources;
+      // Update the resources state immutably and Y.Map
+      ydoc.transact(() => {
+        const yMap = yResourcesMap.get(nodeId);
+        if (yMap && yMap.has(resourceId)) {
+          yMap.delete(resourceId);
+        }
       });
     },
-    [resources, resourceHistoryMap]
+    [resources, resourceHistoryMap, yResourcesMap, ydoc]
   );
 
   /**
-   * Edits an existing resource.
+   * Edit an existing resource.
    * @param updatedResource - The resource with updated fields.
    */
   const editResource = useCallback(
@@ -208,16 +255,15 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
       newHistoryMap.set(nodeId, updatedHistory);
       setResourceHistoryMap(newHistoryMap);
 
-      // Update the resources state immutably
-      setResourcesState((prev) => {
-        const updatedResources = new Map(prev);
-        const nodeResources = [...updatedResources.get(nodeId)!];
-        nodeResources[resourceIndex] = updatedResource;
-        updatedResources.set(nodeId, nodeResources);
-        return updatedResources;
+      // Update the resources state immutably and Y.Map
+      ydoc.transact(() => {
+        const yMap = yResourcesMap.get(nodeId);
+        if (yMap && yMap.has(updatedResource.id)) {
+          yMap.set(updatedResource.id, updatedResource);
+        }
       });
     },
-    [resources, resourceHistoryMap]
+    [resources, resourceHistoryMap, yResourcesMap, ydoc]
   );
 
   /**
@@ -281,9 +327,28 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   const setResources = useCallback((newResources: Map<string, ResourceCard[]>) => {
     setResourcesState(newResources);
     setResourceHistoryMap(new Map()); // Reset history when setting new resources
-  }, []);
 
- /**
+    ydoc.transact(() => {
+      // Clear existing Y.Maps
+      yResourcesMap.forEach((yMap) => {
+        yMap.clear();
+      });
+
+      // Populate Y.Maps with new resources
+      newResources.forEach((resourceArray, nodeId) => {
+        let yMap = yResourcesMap.get(nodeId);
+        if (!yMap) {
+          yMap = new Y.Map<ResourceCard>();
+          yResourcesMap.set(nodeId, yMap);
+        }
+        resourceArray.forEach(resource => {
+          yMap.set(resource.id, resource);
+        });
+      });
+    });
+  }, [ydoc, yResourcesMap]);
+
+  /**
    * Transfers resources from one node to another.
    * Now supports 'copy' and 'cut' commands.
    * @param sourceNodeId - The ID of the source node.
@@ -291,7 +356,7 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
    * @param resourceIds - An array of resource IDs to transfer.
    * @param command - The type of transfer: 'copy' or 'cut'. Defaults to 'cut'.
    */
- const transferResource = useCallback(
+  const transferResource = useCallback(
     (
       sourceNodeId: string,
       targetNodeId: string,
@@ -318,7 +383,7 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
           nodeId: targetNodeId,
         }));
 
-        // Create an atomic history entry for the target node
+        // Update history: add current state to past for target node
         const operationId = generateOperationId();
         const targetHistory = resourceHistoryMap.get(targetNodeId) || initializeNodeHistory();
 
@@ -335,11 +400,16 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
         newHistoryMap.set(targetNodeId, updatedTargetHistory);
         setResourceHistoryMap(newHistoryMap);
 
-        // Update the resources state immutably
-        setResourcesState((prev) => {
-          const updatedResources = new Map(prev);
-          updatedResources.set(targetNodeId, [...targetCurrentResources, ...transferredResources]);
-          return updatedResources;
+        // Update Y.Map
+        ydoc.transact(() => {
+          let yMap = yResourcesMap.get(targetNodeId);
+          if (!yMap) {
+            yMap = new Y.Map<ResourceCard>();
+            yResourcesMap.set(targetNodeId, yMap);
+          }
+          transferredResources.forEach(resource => {
+            yMap.set(resource.id, resource);
+          });
         });
       } else if (command === 'cut') {
         // Handle cut operation: transfer and remove from source
@@ -349,7 +419,7 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
           nodeId: targetNodeId,
         }));
 
-        // Create binary compound history entries
+        // Update history for source node
         const operationId = generateOperationId();
         const primaryHistory = resourceHistoryMap.get(sourceNodeId) || initializeNodeHistory();
         const secondaryHistory = resourceHistoryMap.get(targetNodeId) || initializeNodeHistory();
@@ -378,21 +448,30 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
         newHistoryMap.set(targetNodeId, updatedSecondaryHistory);
         setResourceHistoryMap(newHistoryMap);
 
-        // Update the resources state immutably
-        setResourcesState((prev) => {
-          const updatedResources = new Map(prev);
-          // Update source node resources by removing transferred resources
-          updatedResources.set(
-            sourceNodeId,
-            sourceResources.filter((resource) => !resourceIds.includes(resource.id))
-          );
-          // Update target node resources by adding transferred resources
-          updatedResources.set(targetNodeId, [...targetCurrentResources, ...transferredResources]);
-          return updatedResources;
+        // Update Y.Map
+        ydoc.transact(() => {
+          const sourceYMap = yResourcesMap.get(sourceNodeId);
+          if (sourceYMap) {
+            resourceIds.forEach(resourceId => {
+              const resource = sourceYMap.get(resourceId);
+              if (resource) {
+                // Transfer to target node
+                const newResource = { ...resource, id: uuidv4(), nodeId: targetNodeId };
+                let targetYMap = yResourcesMap.get(targetNodeId);
+                if (!targetYMap) {
+                  targetYMap = new Y.Map<ResourceCard>();
+                  yResourcesMap.set(targetNodeId, targetYMap);
+                }
+                targetYMap.set(newResource.id, newResource);
+                // Remove from source node
+                sourceYMap.delete(resourceId);
+              }
+            });
+          }
         });
       }
     },
-    [resources, resourceHistoryMap]
+    [resources, resourceHistoryMap, yResourcesMap, ydoc]
   );
 
   /**
@@ -401,7 +480,13 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   const resetResources = useCallback(() => {
     setResourcesState(new Map());
     setResourceHistoryMap(new Map());
-  }, []);
+
+    ydoc.transact(() => {
+      yResourcesMap.forEach((yMap) => {
+        yMap.clear();
+      });
+    });
+  }, [yResourcesMap, ydoc]);
 
   /**
    * Retrieves all resources of a specified type in a Map keyed by nodeId.
@@ -444,10 +529,28 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
         // Reset history as resources have been replaced
         setResourceHistoryMap(new Map());
 
+        // Update Y.Map accordingly
+        ydoc.transact(() => {
+          yResourcesMap.forEach((yMap, nodeId) => {
+            yMap.clear();
+          });
+
+          resourceMap.forEach((newResources, nodeId) => {
+            let yMap = yResourcesMap.get(nodeId);
+            if (!yMap) {
+              yMap = new Y.Map<ResourceCard>();
+              yResourcesMap.set(nodeId, yMap);
+            }
+            newResources.forEach(resource => {
+              yMap.set(resource.id, resource);
+            });
+          });
+        });
+
         return updatedResources;
       });
     },
-    []
+    [ydoc, yResourcesMap]
   );
 
   /**
@@ -475,8 +578,23 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
         });
         return updatedResources;
       });
+
+      // Update Y.Map accordingly
+      ydoc.transact(() => {
+        revertStates.forEach((state, nodeId) => {
+          let yMap = yResourcesMap.get(nodeId);
+          if (!yMap) {
+            yMap = new Y.Map<ResourceCard>();
+            yResourcesMap.set(nodeId, yMap);
+          }
+          yMap.clear();
+          state.forEach(resource => {
+            yMap.set(resource.id, resource);
+          });
+        });
+      });
     },
-    [resourceHistoryMap]
+    [resourceHistoryMap, yResourcesMap, ydoc]
   );
 
   /**
@@ -504,8 +622,23 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
         });
         return updatedResources;
       });
+
+      // Update Y.Map accordingly
+      ydoc.transact(() => {
+        applyStates.forEach((state, nodeId) => {
+          let yMap = yResourcesMap.get(nodeId);
+          if (!yMap) {
+            yMap = new Y.Map<ResourceCard>();
+            yResourcesMap.set(nodeId, yMap);
+          }
+          yMap.clear();
+          state.forEach(resource => {
+            yMap.set(resource.id, resource);
+          });
+        });
+      });
     },
-    [resourceHistoryMap]
+    [resourceHistoryMap, yResourcesMap, ydoc]
   );
 
   /**
@@ -516,7 +649,7 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   const undoAvailable = useCallback(
     (nodeId: string) => {
       const history = resourceHistoryMap.get(nodeId);
-      return history ? canUndoOperation(history) : false;
+      return history ? history.past.length > 0 : false;
     },
     [resourceHistoryMap]
   );
@@ -529,32 +662,55 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   const redoAvailable = useCallback(
     (nodeId: string) => {
       const history = resourceHistoryMap.get(nodeId);
-      return history ? canRedoOperation(history) : false;
+      return history ? history.future.length > 0 : false;
     },
     [resourceHistoryMap]
   );
 
+  /**
+   * Context Value with Resource Management Functions
+   */
+  const contextValue: ResourceContextType = useMemo(() => ({
+    resources,
+    addResource,
+    removeResource,
+    editResource,
+    selectResources,
+    selectCueCards,
+    selectPictures,
+    selectPracticeSheets,
+    setResources,
+    transferResource,
+    resetResources,
+    getResourcesByType,
+    setResourcesByMap,
+    undo,
+    redo,
+    undoAvailable,
+    redoAvailable,
+  }), [
+    resources,
+    addResource,
+    removeResource,
+    editResource,
+    selectResources,
+    selectCueCards,
+    selectPictures,
+    selectPracticeSheets,
+    setResources,
+    transferResource,
+    resetResources,
+    getResourcesByType,
+    setResourcesByMap,
+    undo,
+    redo,
+    undoAvailable,
+    redoAvailable,
+  ]);
+
   return (
     <ResourceContext.Provider
-      value={{
-        resources,
-        addResource,
-        removeResource,
-        editResource,
-        selectResources,
-        selectCueCards,
-        selectPictures,
-        selectPracticeSheets,
-        setResources,
-        transferResource,
-        resetResources,
-        getResourcesByType,
-        setResourcesByMap,
-        undo,
-        redo,
-        undoAvailable,
-        redoAvailable,
-      }}
+      value={contextValue}
     >
       {children}
     </ResourceContext.Provider>

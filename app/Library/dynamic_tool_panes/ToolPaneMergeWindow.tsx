@@ -3,7 +3,6 @@
 import React from 'react';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import { transferNode } from '@/app/Library/Context/nodesActions';
 import { useLayoutContext } from '../Context/LayoutProvider';
 import { setGetLayout } from '../Context/LayoutActions';
 import './ToolPane.css'; // Reusing existing CSS for consistent styling
@@ -15,7 +14,7 @@ interface ToolPaneMergeWindowProps {
 }
 
 const ToolPaneMergeWindow: React.FC<ToolPaneMergeWindowProps> = ({ sourceNodeId, onClose }) => {
-  const { nodes, dispatch } = useNodesContext();
+  const { nodes, transferNode } = useNodesContext();
   const { targetNodeId } = useNodeSelection();
   const { dispatch: layoutDispatch } = useLayoutContext();
 
@@ -28,7 +27,7 @@ const ToolPaneMergeWindow: React.FC<ToolPaneMergeWindowProps> = ({ sourceNodeId,
    */
   const handleMergeNodes = () => {
     if (targetNodeId && sourceNode) {
-      dispatch(transferNode(sourceNodeId, targetNodeId));
+      transferNode(sourceNodeId, targetNodeId);
       layoutDispatch(setGetLayout(true));
 
       // Automatically close the pane after merge

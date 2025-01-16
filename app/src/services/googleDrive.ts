@@ -7,13 +7,13 @@
  */
 
 import { google, drive_v3 } from 'googleapis';
-// Instead of importing RedisSessionManager directly, import the interface
 import { SessionManager, SessionData } from '../auth/session';
 import { Readable } from 'stream';
 export interface IGoogleDriveService {
-  saveDocument(sessionId: string, content: any, fileName:string): Promise<string>;
-  loadDocument(sessionId: string, fileId: string): Promise<any>;
-  enableAutoSave(sessionId: string, fileId: string): Promise<void>;
+  saveDocument(sessionId: string, content: string, fileName: string): Promise<string>;
+  updateDocument(sessionId: string, fileId: string, content: string): Promise<string>;
+  loadDocument(sessionId: string, fileId: string): Promise<Buffer>;
+  listFiles(sessionId: string, query?: string): Promise<drive_v3.Schema$File[]>;
 }
 
 export class GoogleDriveService implements IGoogleDriveService {
@@ -110,17 +110,6 @@ export class GoogleDriveService implements IGoogleDriveService {
     });
   }
 
-  /**
-   * Enables autosave functionality for a specific document.
-   * (This function is a placeholder and requires further backend logic for autosave intervals.)
-   * @param sessionId - The session identifier from the client.
-   * @param fileId - The ID of the file to enable autosave for.
-   */
-  async enableAutoSave(sessionId: string, fileId: string): Promise<void> {
-    const { userData } = await this.authenticate(sessionId);
-    console.log(`Autosave enabled for file: ${fileId} by user: ${userData.userId}`);
-    // Implement backend autosave logic, e.g., scheduling regular saves.
-  }
 /**
    * Lists files from the user's Google Drive.
    * @param sessionId - The session identifier from the client.
@@ -146,4 +135,42 @@ async listFiles(sessionId: string, query?: string): Promise<drive_v3.Schema$File
 
   return response.data.files || [];
 }
+
+/**
+   * Updates an existing document in Google Drive.
+   * @param sessionId - The session identifier from the client.
+   * @param fileId - The ID of the file to update.
+   * @param content - The Base64-encoded new content of the .bloomdocx file.
+   * @returns The ID of the updated file.
+   * @throws Will throw an error if the file cannot be updated.
+   */
+async updateDocument(sessionId: string, fileId: string, content: string): Promise<string> {
+  const { driveClient, userData } = await this.authenticate(sessionId);
+
+  // Decode Base64 content to binary
+  const bufferContent = Buffer.from(content, 'base64');
+  const bufferStream = new Readable();
+  bufferStream.push(bufferContent);
+  bufferStream.push(null);
+
+  const media = {
+    mimeType: 'application/octet-stream',
+    body: bufferStream,
+  };
+
+  const response = await driveClient.files.update({
+    fileId,
+    media,
+    fields: 'id',
+  });
+
+  if (!response.data.id) {
+    throw new Error('Failed to update document on Google Drive.');
+  }
+
+  console.log(`Document updated for user: ${userData.userId} with fileId: ${response.data.id}`);
+
+  return response.data.id;
+}
+
 }

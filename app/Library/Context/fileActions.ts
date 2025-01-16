@@ -12,15 +12,6 @@ export const setFileName = (fileName: string): FileAction => ({
 });
 
 /**
- * Action creator for updating the storage type
- * @param storageType New storage type ('local' or 'drive')
- */
-export const setStorageType = (storageType: StorageType): FileAction => ({
-  type: FileActionType.SET_STORAGE_TYPE,
-  payload: storageType,
-});
-
-/**
  * Action creator for updating the Google Drive file ID
  * @param fileId Google Drive file ID
  */
@@ -30,19 +21,8 @@ export const setDriveFileId = (fileId: string): FileAction => ({
 });
 
 /**
- * Action creator for updating the auto-save state
- * @param enabled Whether auto-save is enabled
+ * Action creator for resetting the Google Drive file ID
  */
-export const setAutoSave = (enabled: boolean): FileAction => ({
-  type: FileActionType.SET_AUTO_SAVE,
-  payload: enabled,
-});
-
-/**
- * Action creator for updating the file sharing state
- * @param isShared Whether the file is shared
- */
-export const setIsShared = (isShared: boolean): FileAction => ({
-  type: FileActionType.SET_IS_SHARED,
-  payload: isShared,
+export const resetDriveFileId = (): FileAction => ({
+  type: FileActionType.RESET_DRIVE_FILE_ID,
 });

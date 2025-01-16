@@ -100,6 +100,7 @@ export interface SerializedDocument {
   primaryColor: string;
   backgroundColor: string;
   fileName: string; 
+  fileId? : string;
 }
 
 // Picture Definition
@@ -167,17 +168,13 @@ export type StorageType = 'local' | 'drive';
 
 export enum FileActionType {
   SET_FILE_NAME = 'SET_FILE_NAME',
-  SET_STORAGE_TYPE = 'SET_STORAGE_TYPE',
   SET_DRIVE_FILE_ID = 'SET_DRIVE_FILE_ID',
-  SET_AUTO_SAVE = 'SET_AUTO_SAVE',
-  SET_IS_SHARED = 'SET_IS_SHARED'
+  RESET_DRIVE_FILE_ID = 'RESET_DRIVE_FILE_ID',
 }
 export type FileAction =
   | { type: FileActionType.SET_FILE_NAME; payload: string }
-  | { type: FileActionType.SET_STORAGE_TYPE; payload: StorageType }
   | { type: FileActionType.SET_DRIVE_FILE_ID; payload: string }
-  | { type: FileActionType.SET_AUTO_SAVE; payload: boolean }
-  | { type: FileActionType.SET_IS_SHARED; payload: boolean };
+  | { type: FileActionType.RESET_DRIVE_FILE_ID }
 
 
 

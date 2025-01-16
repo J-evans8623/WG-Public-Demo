@@ -1,13 +1,10 @@
-// bloom-maps/app/Library/Context/NodesProvider.tsx
+// File: src/context/NodesProvider.tsx
 
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { ConceptNode, NodesActionType } from '@/app/Library/Definitions/Definitions';
-import { getOrCreateYDoc, applyDocUpdate, encodeDocState } from  '../utils/YDocManager' //..YDocManager';
+import { useYDoc } from './YDocContext'; // Import YDocContext
 import * as Y from 'yjs';
 
-/**
- * Interface defining the methods available in the NodesContext.
- */
 interface NodesContextValue {
   nodes: Map<string, ConceptNode>;
   setNodes: (nodes: Map<string, ConceptNode>) => void;
@@ -19,28 +16,21 @@ interface NodesContextValue {
   deleteNode: (nodeId: string) => void;
 }
 
-/**
- * Create the NodesContext with an undefined default value.
- */
 const NodesContext = createContext<NodesContextValue | undefined>(undefined);
 
-/**
- * Provider component for NodesContext.
- */
 export const NodesProvider = ({ children }: { children: ReactNode }) => {
-  const [nodes, setNodesState] = useState<Map<string, ConceptNode>>(new Map());
-
-  // Initialize Y.Doc
-  const ydoc = getOrCreateYDoc();
+  const { ydoc } = useYDoc(); // Access Y.Doc from YDocContext
   const yNodesMap = ydoc.getMap<ConceptNode>('nodes');
+
+  const [nodes, setNodesState] = useState<Map<string, ConceptNode>>(new Map());
 
   /**
    * Synchronize Y.Map changes with React state.
    */
   useEffect(() => {
-    // Function to load initial nodes from Y.Map
     const loadInitialNodes = () => {
       const initialNodes = new Map<string, ConceptNode>(yNodesMap.entries());
+      
       setNodesState(initialNodes);
     };
 

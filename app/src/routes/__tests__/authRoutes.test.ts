@@ -7,7 +7,7 @@
 
 import request from 'supertest';
 import express from 'express';
-import authRoutes from '../../../../../Archived/authRoutes';
+import authRoutes from '../../../../../Archived/utils/deprecated/authRoutes';
 
 const app = express();
 app.use('/api', authRoutes);

@@ -23,13 +23,11 @@ import { generateAIContent } from '../../utils/api';
 import { Button, Select, Upload, message, Spin } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
-import { updateNodeTitle } from '../../Context/nodesActions';
 import { translateLessonToCueCards, translateQuizToPracticeSheets } from './responseTranslator';
 import { saveResource } from '../../utils/ResourceSave/saveResource';
 import './GenerateAIForm.css';
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
-import { setNodes } from '@/app/Library/Context/nodesActions';
 import { useSubTreeContext, SubtreeData } from '@/app/Library/Context/SubTreeProvider';
 import { compositeLayout } from './layoutUtils';
 const { Option } = Select;
@@ -60,7 +58,7 @@ interface GenerateAIFormProps {
 const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }) => {
   const { user } = useContext(ApiContext);
   const { addResource } = useResourceContext();
-  const { dispatch: nodesDispatch, nodes } = useNodesContext();
+  const { setNodes, nodes, updateNodeTitle } = useNodesContext();
   const [generationOption, setGenerationOption] = useState<'Lesson' | 'Quiz'>('Lesson');
   const [inputType, setInputType] = useState<'text' | 'pdf'>('text');
   const [textInput, setTextInput] = useState<string>('');
@@ -288,8 +286,8 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
           subtrees: Object.fromEntries(localSubtrees.entries())
         });
         
-        nodesDispatch(setNodes(localNodes));
-        nodesDispatch(updateNodeTitle(sourceNodeId, rootNodeTitle));
+        setNodes(localNodes);
+        updateNodeTitle(sourceNodeId, rootNodeTitle);
         setSubtrees(localSubtrees);
   
       } else {

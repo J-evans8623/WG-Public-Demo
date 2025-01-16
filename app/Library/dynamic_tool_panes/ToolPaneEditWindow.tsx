@@ -10,7 +10,6 @@ import './proposal.css'
 import CardEntry from '@/app/Library/dynamic_tool_panes/CardEntry';
 import { toggleResourceSelection } from '@/app/Library/utils/copycutpaste/CutCopyPasteUtils';
 import EditIcon from '@mui/icons-material/Edit'; // Importing EditIcon
-import { updateNodeTitle } from '@/app/Library/Context/nodesActions'; // Importing the action creator
 import { Descendant } from 'slate';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -21,7 +20,7 @@ interface ToolPaneEditWindowProps {
 
 const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, onClose }) => {
   // Import contexts for nodes and resources
-  const { nodes, dispatch } = useNodesContext(); // Destructure dispatch from context
+  const { nodes, updateNodeTitle } = useNodesContext(); // Destructure dispatch from context
   const { selectCueCards, selectPictures, selectPracticeSheets, editResource, selectResources } = useResourceContext();
   
   const command = 'edit';
@@ -206,7 +205,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
   const handleTitleSubmit = () => {
     const trimmedTitle = newTitle.trim();
     if (trimmedTitle && trimmedTitle !== nodeTitle) {
-      dispatch(updateNodeTitle(sourceNodeId, trimmedTitle));
+      updateNodeTitle(sourceNodeId, trimmedTitle);
     }
     setIsEditingTitle(false);
   };

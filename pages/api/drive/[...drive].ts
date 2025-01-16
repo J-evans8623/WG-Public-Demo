@@ -10,6 +10,7 @@ import { RedisSessionManager } from '../../../app/src/auth/session';
 import { AuthConfig } from '../../../app/src/auth/types';
 import dotenv from 'dotenv';
 import { parse } from 'cookie';
+import { mapSessionToDocument } from '@/app/src/utils/SessionDocumentMapper';
 
 dotenv.config();
 // 1) Construct the AuthConfig
@@ -71,32 +72,61 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           // Pass the sessionId to driveService to retrieve session data
           const fileId = await driveService.saveDocument(sessionId, content, fileName);
           console.log('Document saved with fileId:', fileId);
+      
+          // **Map the session to the new document**
+          await mapSessionToDocument(sessionId, fileId);
+      
           return res.status(200).json({ fileId, fileName });
         }
         console.warn('Invalid method for "save" route:', req.method);
         break;
 
-        case 'load':
-          console.log('Handling "load" route');
-          if (req.method === 'GET') {
-            const { fileId } = req.query;
-            console.log('Loading file with fileId:', fileId);
-            if (!fileId || typeof fileId !== 'string') {
-              console.warn('Invalid file ID provided:', fileId);
-              return res.status(400).json({ error: 'Invalid file ID' });
+        case 'update':
+          console.log('Handling "update" route');
+          if (req.method === 'POST') {
+            const { fileId, content } = req.body;
+            console.log('Received update request for fileId:', fileId);
+            if (!fileId || !content) {
+              console.warn('Update request missing fileId or content');
+              return res.status(400).json({ error: 'fileId and content are required for updating a document' });
             }
-            // Retrieve binary data
-            const buffer = await driveService.loadDocument(sessionId, fileId);
-            console.log('File loaded:', buffer);
-            
-            // Set appropriate headers for binary data
-            res.setHeader('Content-Type', 'application/octet-stream');
-            res.setHeader('Content-Disposition', `attachment; filename=${fileId}.bloomdocx`);
-            
-            return res.status(200).send(buffer);
+            // Call updateDocument to update the existing file
+            const updatedFileId = await driveService.updateDocument(sessionId, fileId, content);
+            console.log('Document updated with fileId:', updatedFileId);
+        
+            // **Ensure the session is mapped to the updated document**
+            await mapSessionToDocument(sessionId, updatedFileId);
+        
+            return res.status(200).json({ fileId: updatedFileId });
           }
-          console.warn('Invalid method for "load" route:', req.method);
+          console.warn('Invalid method for "update" route:', req.method);
           break;
+
+          case 'load':
+            console.log('Handling "load" route');
+            if (req.method === 'GET') {
+              const { fileId } = req.query;
+              console.log('Loading file with fileId:', fileId);
+              if (!fileId || typeof fileId !== 'string') {
+                console.warn('Invalid file ID provided:', fileId);
+                return res.status(400).json({ error: 'Invalid file ID' });
+              }
+              // Retrieve binary data
+              const buffer = await driveService.loadDocument(sessionId, fileId);
+              console.log('File loaded:', buffer);
+              
+              // **Map the session to the loaded document**
+              await mapSessionToDocument(sessionId, fileId);
+          
+              // Set appropriate headers for binary data
+              res.setHeader('Content-Type', 'application/octet-stream');
+              res.setHeader('Content-Disposition', `attachment; filename=${fileId}.bloomdocx`);
+              
+              return res.status(200).send(buffer);
+            }
+            console.warn('Invalid method for "load" route:', req.method);
+            break;
+          
         
 
         case 'list':

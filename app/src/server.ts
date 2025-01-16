@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import authRoutes from '../../../Archived/authRoutes';
+import authRoutes from '../../../Archived/utils/deprecated/authRoutes';
 import aiRoutes from './routes/aiRoutes'; // Import AI routes
 import RateLimiter from './middleware/rateLimiter-depr'; // Import RateLimiter middleware
 import connectDB from './config/db';

@@ -2,7 +2,14 @@
 
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { openAuthPopup } from './authUtils';
-import { DriveFile } from '../services/authService';
+
+
+export interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  modifiedTime?: string;
+}
 
 interface User {
   email: string;
@@ -19,6 +26,9 @@ interface ApiContextType {
   saveToDrive: (content: ArrayBuffer,  fileName:string) => Promise<string>;
   loadFromDrive: (fileId: string) => Promise<ArrayBuffer>;
   listFiles: (query?: string) => Promise<DriveFile[]>;
+  getWebSocketUrl: (documentId: string) => Promise<string>;
+  updateDriveFile: (fileId: string, content: ArrayBuffer) => Promise<string>;
+  autosaveDocument: (documentContent: ArrayBuffer, fileName: string, fileId?: string) => Promise<string>;
 }
 
 export const ApiContext = createContext<ApiContextType>({
@@ -31,6 +41,9 @@ export const ApiContext = createContext<ApiContextType>({
   saveToDrive: async () => '',
   loadFromDrive: async () => new ArrayBuffer(0),
   listFiles: async () => [],
+  getWebSocketUrl: async () => '',
+  updateDriveFile: async () => '',
+  autosaveDocument: async () => '',
 });
 
 export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
@@ -134,6 +147,43 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
     }
   };
 
+    /**
+   * Updates an existing Google Drive file.
+   * @param fileId - The ID of the file to update.
+   * @param content - The ArrayBuffer content of the updated .bloomdocx file.
+   * @returns The updated Google Drive file ID.
+   */
+    const updateDriveFile = async (fileId: string, content: ArrayBuffer): Promise<string> => {
+      try {
+        // Convert ArrayBuffer to Base64 string
+        const base64Content = Buffer.from(content).toString('base64');
+  
+        const response = await fetch('/api/drive/update', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ fileId, content: base64Content }),
+        });
+  
+        console.log('Drive update response status:', response.status);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Update Drive failed:', response.statusText, errorText);
+          throw new Error(`Update Drive failed: ${response.statusText}`);
+        }
+  
+        const data = await response.json();
+        console.log('Update Drive successful:', data);
+        return data.fileId;
+      } catch (error) {
+        console.error('Error updating Drive:', error);
+        throw error;
+      }
+    };
+  
+
   /**
    * Loads a document from Google Drive via the BFF.
    * @param fileId - The Google Drive file ID.
@@ -190,6 +240,60 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
     }
   };
 
+ /**
+   * Retrieves a WebSocket URL for real-time synchronization.
+   * @param documentId - The active document ID.
+   * @returns A Promise resolving to the WebSocket URL.
+   */
+ const getWebSocketUrl = async (documentId: string): Promise<string> => {
+  try {
+    const response = await fetch('/api/realtime/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ documentId }), // Only documentId is needed
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to fetch WebSocket URL: ${errorData.error || response.statusText}`);
+    }
+
+    const data = await response.json();
+    const wsUrl = new URL(process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:1234');
+    wsUrl.searchParams.append('token', data.token);
+    return wsUrl.toString();
+  } catch (error) {
+    console.error('Error fetching WebSocket URL:', error);
+    throw error;
+  }
+};
+
+  /**
+   * Autosaves a document by deciding whether to create a new file or update an existing one based on the presence of `fileId`.
+   * @param documentContent - The ArrayBuffer content of the document to autosave.
+   * @param fileName - The name of the file to save.
+   * @param fileId - (Optional) The existing Google Drive file ID.
+   * @returns The Google Drive file ID after autosave.
+   */
+  const autosaveDocument = async (documentContent: ArrayBuffer, fileName: string, fileId?: string): Promise<string> => {
+    try {
+      if (fileId) {
+        // Update existing file
+        const updatedFileId = await updateDriveFile(fileId, documentContent);
+        return updatedFileId;
+      } else {
+        // Create new file
+        const newFileId = await saveToDrive(documentContent, fileName);
+        return newFileId;
+      }
+    } catch (error) {
+      console.error('Error during autosave:', error);
+      throw error;
+    }
+  };
+
+
   return (
     <ApiContext.Provider
       value={{
@@ -202,6 +306,9 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
         saveToDrive,
         loadFromDrive,
         listFiles,
+        getWebSocketUrl,
+        updateDriveFile,
+        autosaveDocument,
       }}
     >
       {children}
@@ -209,4 +316,4 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
   );
 };
 
-export type { DriveFile };
+
