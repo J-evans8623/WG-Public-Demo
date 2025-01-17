@@ -10,7 +10,6 @@ import { RedisSessionManager } from '../../../app/src/auth/session';
 import { AuthConfig } from '../../../app/src/auth/types';
 import dotenv from 'dotenv';
 import { parse } from 'cookie';
-import { mapSessionToDocument } from '@/app/src/utils/SessionDocumentMapper';
 
 dotenv.config();
 // 1) Construct the AuthConfig
@@ -72,10 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           // Pass the sessionId to driveService to retrieve session data
           const fileId = await driveService.saveDocument(sessionId, content, fileName);
           console.log('Document saved with fileId:', fileId);
-      
-          // **Map the session to the new document**
-          await mapSessionToDocument(sessionId, fileId);
-      
+            
           return res.status(200).json({ fileId, fileName });
         }
         console.warn('Invalid method for "save" route:', req.method);
@@ -93,10 +89,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             // Call updateDocument to update the existing file
             const updatedFileId = await driveService.updateDocument(sessionId, fileId, content);
             console.log('Document updated with fileId:', updatedFileId);
-        
-            // **Ensure the session is mapped to the updated document**
-            await mapSessionToDocument(sessionId, updatedFileId);
-        
+                
             return res.status(200).json({ fileId: updatedFileId });
           }
           console.warn('Invalid method for "update" route:', req.method);
@@ -114,10 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               // Retrieve binary data
               const buffer = await driveService.loadDocument(sessionId, fileId);
               console.log('File loaded:', buffer);
-              
-              // **Map the session to the loaded document**
-              await mapSessionToDocument(sessionId, fileId);
-          
+                        
               // Set appropriate headers for binary data
               res.setHeader('Content-Type', 'application/octet-stream');
               res.setHeader('Content-Disposition', `attachment; filename=${fileId}.bloomdocx`);

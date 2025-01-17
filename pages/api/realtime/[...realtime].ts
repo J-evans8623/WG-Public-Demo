@@ -12,10 +12,6 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import {
-  addSessionToDocument,
-  getDocumentBySession,
-} from '@/app/src/utils/SessionDocumentMapper';
 import { generateWebSocketToken } from '@/app/src/utils/webSocketToken';
 import cookie from 'cookie';
 
@@ -62,17 +58,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           if (!sessionId) {
             console.warn('No sessionId found in cookies.');
             return res.status(401).json({ error: 'Unauthorized: No session found' });
-          }
-
-          console.log(`Validating if session ${sessionId} has access to document ${documentId}...`);
-          const associatedDocumentId = await getDocumentBySession(sessionId);
-          if (associatedDocumentId !== documentId) {
-            console.warn(
-              `Session ${sessionId} is mapped to document ${associatedDocumentId}, not ${documentId}. Access denied.`
-            );
-            return res
-              .status(403)
-              .json({ error: 'Session does not have access to the specified document' });
           }
 
           console.log(`Generating WebSocket token for sessionId=${sessionId}, documentId=${documentId}...`);

@@ -75,5 +75,4 @@ export const validateWebSocketToken = (token: string): WebSocketTokenPayload => 
     console.log('***************');
     throw new Error('Token validation failed');
   }
-
 };

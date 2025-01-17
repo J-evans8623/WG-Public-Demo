@@ -1,10 +1,7 @@
-import { createClient } from 'redis';
+// /server/auth/session.ts
+
 import { SessionData } from './types';
-
-
-const redisClient = createClient();
-redisClient.on('error', (err) => console.error('Redis Client Error', err));
-redisClient.connect();
+import { redisClient } from '../utils/redisClient';  // Import the shared Redis client
 
 /**
  * SessionManager interface defines methods for managing user sessions in Redis.
@@ -30,7 +27,12 @@ export class RedisSessionManager implements SessionManager {
     console.log('Creating session in Redis:', { sessionId, sessionData });
     try {
       const data = JSON.stringify(sessionData);
-      await redisClient.set(sessionId, data, { EX: 3600 }); // Set with 1-hour expiry.
+      await redisClient.set(
+        sessionId,
+        data,
+        'EX',  // Set expiration using Redis command syntax
+        3600   // 1 hour in seconds
+      );
       console.log('Session created successfully');
     } catch (error) {
       console.error('Error creating session:', error);
@@ -80,5 +82,5 @@ export class RedisSessionManager implements SessionManager {
     return session;
   }
 }
-export type { SessionData };
 
+export type { SessionData };

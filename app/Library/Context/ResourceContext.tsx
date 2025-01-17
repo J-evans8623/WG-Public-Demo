@@ -515,39 +515,59 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
     (
       resourceMap: Map<string, CueCardResource[] | PictureResource[] | PracticeSheetResource[]>
     ) => {
+      console.log('setResourcesByMap called with:', resourceMap);
+      
       setResourcesState((prev) => {
         const updatedResources = new Map(prev);
-
+  
         resourceMap.forEach((newResources, nodeId) => {
-          // Retrieve existing resources for the node, default to an empty array if none exist
           const existingResources = updatedResources.get(nodeId) || [];
-
-          // Concatenate new resources with existing resources
-          updatedResources.set(nodeId, [...existingResources, ...newResources]);
+          
+          // Determine the type of resources being added
+          const resourceType = newResources[0]?.type;
+          console.log(`Processing resources for nodeId: ${nodeId}, type: ${resourceType}`);
+  
+          // Filter existing resources to keep only those of different types
+          const filteredExisting = existingResources.filter(
+            resource => resource.type !== resourceType
+          );
+  
+          // Combine filtered existing resources with new resources
+          updatedResources.set(nodeId, [...filteredExisting, ...newResources]);
         });
-
-        // Reset history as resources have been replaced
-        setResourceHistoryMap(new Map());
-
-        // Update Y.Map accordingly
-        ydoc.transact(() => {
-          yResourcesMap.forEach((yMap, nodeId) => {
-            yMap.clear();
-          });
-
-          resourceMap.forEach((newResources, nodeId) => {
-            let yMap = yResourcesMap.get(nodeId);
-            if (!yMap) {
-              yMap = new Y.Map<ResourceCard>();
-              yResourcesMap.set(nodeId, yMap);
-            }
-            newResources.forEach(resource => {
-              yMap.set(resource.id, resource);
-            });
-          });
-        });
-
+  
+        console.log('Updated resources state:', updatedResources);
         return updatedResources;
+      });
+  
+      // Update Y.Map
+      ydoc.transact(() => {
+        resourceMap.forEach((newResources, nodeId) => {
+          let yMap = yResourcesMap.get(nodeId);
+          if (!yMap) {
+            yMap = new Y.Map<ResourceCard>();
+            yResourcesMap.set(nodeId, yMap);
+          }
+  
+          // Get the resource type
+          const resourceType = newResources[0]?.type;
+          
+          // Only clear resources of the same type
+          if (resourceType) {
+            const keysToDelete: string[] = [];
+            yMap.forEach((value, key) => {
+              if (value.type === resourceType) {
+                keysToDelete.push(key);
+              }
+            });
+            keysToDelete.forEach(key => yMap.delete(key));
+          }
+  
+          // Add new resources
+          newResources.forEach(resource => {
+            yMap.set(resource.id, resource);
+          });
+        });
       });
     },
     [ydoc, yResourcesMap]

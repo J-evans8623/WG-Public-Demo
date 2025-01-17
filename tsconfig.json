@@ -17,6 +17,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "checkJs": false, 
     "plugins": [
       {
         "name": "next"
@@ -38,7 +39,8 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "app/**/*.d.ts", "../Archived/utils/deprecated/authRoutes.ts",
+    "app/**/*.d.ts",
+    "app/src/services/*.js", "../Archived/SessionDocumentMapper.ts" ,
   ],
   "exclude": [
     "node_modules"

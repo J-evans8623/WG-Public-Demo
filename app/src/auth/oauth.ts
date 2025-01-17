@@ -65,7 +65,12 @@ export class GoogleOAuthManager implements OAuthManager {
       const state = uuidv4(); // Unique state to tie back to codeVerifier in Redis
 
       // Store the codeVerifier with an expiration (600 seconds = 10 minutes)
-      await redisClient.set(`pkce_${state}`, codeVerifier, { EX: 600 });
+      await redisClient.set(
+        `pkce_${state}`, 
+        codeVerifier,
+        'EX',  // Set expiration using Redis command syntax
+        600    // 10 minutes in seconds
+      );
 
       const authUrl = this.oauth2Client.generateAuthUrl({
         access_type: 'offline',

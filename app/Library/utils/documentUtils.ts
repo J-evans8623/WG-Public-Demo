@@ -616,102 +616,87 @@ export const loadDocumentFromDrive = async (
 ): Promise<void> => {
   try {
     console.log('Starting to load document from drive.');
-    console.log('Received file:', file);
 
-    // Reset current state before loading
+    // Reset state before loading
     resetTreeDimensions();
     resetSubtreesFn();
     resetResourcesFn();
 
     const zip = new JSZip();
     await zip.loadAsync(file);
-    console.log('ZIP loaded successfully.');
 
-    // Safely access the name property
-    if (!(file instanceof File)) {
-      console.error('Provided blob is not a File instance. Cannot extract file name.');
-      throw new Error('Invalid file type. Expected a File with a name.');
+    // Create separate maps for each resource type
+    const cueCardsMap = new Map<string, CueCardResource[]>();
+    const picturesMap = new Map<string, PictureResource[]>();
+    const practiceSheetsMap = new Map<string, PracticeSheetResource[]>();
+
+    // Load Y.js state first
+    const yjsStateFile = zip.file('document/yjsState.bin');
+    if (yjsStateFile) {
+      const yjsStateBinary = await yjsStateFile.async('uint8array');
+      try {
+        // Clear existing Y.doc state
+        ydoc.transact(() => {
+          Array.from(ydoc.share.keys()).forEach(key => {
+            ydoc.share.delete(key);
+          });
+        });
+        Y.applyUpdate(ydoc, yjsStateBinary);
+        console.log('Y.js state applied successfully.');
+      } catch (error) {
+        console.error('Error applying Y.js state:', error);
+        toast.error('Failed to synchronize collaborative state.');
+      }
     }
 
     // Load document.json
     const documentFile = zip.file('document/document.json');
     if (documentFile) {
       const documentJson = await documentFile.async('string');
-      console.log('document.json content:', documentJson);
       const parsedDocument = JSON.parse(documentJson) as SerializedDocument;
-
-      // Reconstruct nodes Map
       const nodes = new Map<string, ConceptNode>(parsedDocument.nodes);
-      console.log('Load nodes from Drive ......Returned nodes :',  nodes);
       setNodes(nodes);
       colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: parsedDocument.primaryColor });
       colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: parsedDocument.backgroundColor });
       fileDispatch({ type: 'SET_FILE_NAME', payload: parsedDocument.fileName });
-      toast.success('Document data loaded successfully.');
-    } else {
-      console.warn('document/document.json not found in the ZIP.');
-      toast.warn('No document data found in the file.');
     }
 
-    // Load Y.js state
-    const yjsStateFile = zip.file('document/yjsState.bin');
-    if (yjsStateFile) {
-      const yjsStateBinary = await yjsStateFile.async('uint8array');
-      try {
-        Y.applyUpdate(ydoc, yjsStateBinary);
-        console.log('Y.js state applied successfully.');
-        toast.success('Collaborative state synchronized.');
-      } catch (error) {
-        console.error('Error applying Y.js state:', error);
-        toast.error('Failed to synchronize collaborative state.');
-        // Depending on requirements, you might choose to throw an error or continue without Y.js state
-      }
-    } else {
-      console.warn('document/yjsState.bin not found in the ZIP.');
-      toast.warn('No collaborative state found in the file.');
-    }
-
-    // Load cuecards.json
+    // Load cue cards
     const cueCardsFile = zip.file('document/cuecards.json');
     if (cueCardsFile) {
       const cueCardsJson = await cueCardsFile.async('string');
-      console.log('cuecards.json content:', cueCardsJson);
-      let parsedCueCards: [string, CueCardResource[]][] = JSON.parse(cueCardsJson);
-      const cueCardsMap = new Map<string, CueCardResource[]>(parsedCueCards);
-      setResourcesByMap(cueCardsMap);
-      toast.success('Cue cards loaded successfully.');
-    } else {
-      console.warn('document/cuecards.json not found in the ZIP.');
-      toast.warn('No cue cards found in the file.');
+      console.log('Loaded cue cards JSON:', cueCardsJson);
+      const parsedCueCards = JSON.parse(cueCardsJson) as [string, CueCardResource[]][];
+      
+      const cueCardsMap = new Map<string, CueCardResource[]>();
+      parsedCueCards.forEach(([nodeId, cards]) => {
+        // Ensure type is set correctly
+        const processedCards = cards.map(card => ({
+          ...card,
+          type: 'cueCard' as const
+        }));
+        cueCardsMap.set(nodeId, processedCards);
+      });
+      
+      console.log('Setting cue cards:', cueCardsMap);
+      await setResourcesByMap(cueCardsMap);
     }
 
-    // Load subtrees.json
-    const subtreesFile = zip.file('document/subtrees.json');
-    if (subtreesFile) {
-      const subtreesJson = await subtreesFile.async('string');
-      console.log('subtrees.json content:', subtreesJson);
-      const parsedSubtrees = JSON.parse(subtreesJson) as [string, SubtreeData][];
-      const subtreesMap = new Map<string, SubtreeData>(parsedSubtrees);
-      setSubtrees(subtreesMap);
-      toast.success('Subtrees loaded successfully.');
-    } else {
-      console.warn('document/subtrees.json not found in the ZIP.');
-      toast.warn('No subtrees found in the file.');
-    }
-
-    // Load pictures.json and images
+    // Load pictures with improved image handling
     const picturesFile = zip.file('document/pictures.json');
     if (picturesFile) {
       const picturesJson = await picturesFile.async('string');
-      console.log('pictures.json content:', picturesJson);
+      console.log('Loaded pictures JSON:', picturesJson);
       const parsedPictures = JSON.parse(picturesJson) as [
         string,
         { id: string; title: string; imagePath: string; description?: Descendant[]; source?: string }[]
       ][];
+      
       const picturesMap = new Map<string, PictureResource[]>();
-
+      
       for (const [nodeId, pictureArray] of parsedPictures) {
         const reconstructedPictures: PictureResource[] = [];
+        
         for (const pic of pictureArray) {
           const imageFile = zip.file(pic.imagePath);
           if (imageFile) {
@@ -722,86 +707,155 @@ export const loadDocumentFromDrive = async (
                 pic.imagePath.split('/').pop() || 'image',
                 { type: imageBlob.type }
               );
+
+              reconstructedPictures.push({
+                id: pic.id,
+                title: pic.title,
+                image: imageFileObject,
+                type: 'picture' as const,
+                nodeId: nodeId,
+                imageUrl: URL.createObjectURL(imageBlob),
+                description: pic.description || [{ type: 'paragraph', children: [{ text: '' }] }],
+                source: pic.source || '',
+              });
+            } catch (error) {
+              console.error(`Error loading image ${pic.id}:`, error);
+            }
+          }
+        }
+        
+        if (reconstructedPictures.length > 0) {
+          picturesMap.set(nodeId, reconstructedPictures);
+        }
+      }
+      
+      console.log('Setting pictures:', picturesMap);
+      await setResourcesByMap(picturesMap);
+    }
+    // Load practice sheets
+    const practiceSheetsFile = zip.file('document/practiceSheets.json');
+    if (practiceSheetsFile) {
+      const practiceSheetsJson = await practiceSheetsFile.async('string');
+      console.log('Loaded practice sheets JSON:', practiceSheetsJson);
+      const parsedPracticeSheets = JSON.parse(practiceSheetsJson) as [string, PracticeSheetResource[]][];
+      
+      const practiceSheetsMap = new Map<string, PracticeSheetResource[]>();
+      parsedPracticeSheets.forEach(([nodeId, sheets]) => {
+        const processedSheets = sheets.map(sheet => ({
+          ...sheet,
+          type: 'practiceSheet' as const
+        }));
+        practiceSheetsMap.set(nodeId, processedSheets);
+      });
+      
+      console.log('Setting practice sheets:', practiceSheetsMap);
+      await setResourcesByMap(practiceSheetsMap);
+    }
+
+   /** // Set all resources at once to prevent multiple updates
+    await Promise.all([
+      setResourcesByMap(cueCardsMap),
+      setResourcesByMap(picturesMap),
+      setResourcesByMap(practiceSheetsMap)
+    ]);  */
+
+    // Load subtrees
+    const subtreesFile = zip.file('document/subtrees.json');
+    if (subtreesFile) {
+      const subtreesJson = await subtreesFile.async('string');
+      const parsedSubtrees = JSON.parse(subtreesJson) as [string, SubtreeData][];
+      const subtreesMap = new Map<string, SubtreeData>(parsedSubtrees);
+      setSubtrees(subtreesMap);
+    }
+
+    toast.success('Document loaded successfully');
+  } catch (error) {
+    console.error('Error in loadDocumentFromDrive:', error);
+    toast.error('Failed to load the document');
+    throw error;
+  }
+};
+
+// Helper functions for loading different resource types
+const loadCueCards = async (zip: JSZip): Promise<Map<string, CueCardResource[]>> => {
+  const cueCardsMap = new Map<string, CueCardResource[]>();
+  const cueCardsFile = zip.file('document/cuecards.json');
+  
+  if (cueCardsFile) {
+    const cueCardsJson = await cueCardsFile.async('string');
+    const parsedCueCards = JSON.parse(cueCardsJson) as [string, CueCardResource[]][];
+    parsedCueCards.forEach(([nodeId, resources]) => {
+      cueCardsMap.set(nodeId, resources);
+    });
+  }
+  
+  return cueCardsMap;
+};
+
+const loadPictures = async (zip: JSZip): Promise<Map<string, PictureResource[]>> => {
+  const picturesMap = new Map<string, PictureResource[]>();
+  const picturesFile = zip.file('document/pictures.json');
+  
+  if (picturesFile) {
+    const picturesJson = await picturesFile.async('string');
+    const parsedPictures = JSON.parse(picturesJson) as [
+      string,
+      { id: string; title: string; imagePath: string; description?: Descendant[]; source?: string }[]
+    ][];
+
+    await Promise.all(
+      parsedPictures.map(async ([nodeId, pictureArray]) => {
+        const reconstructedPictures: PictureResource[] = [];
+        
+        await Promise.all(
+          pictureArray.map(async (pic) => {
+            const imageFile = zip.file(pic.imagePath);
+            if (imageFile) {
+              const imageBlob = await imageFile.async('blob');
+              const imageFileObject = new File(
+                [imageBlob],
+                pic.imagePath.split('/').pop() || 'image',
+                { type: imageBlob.type }
+              );
+              
               reconstructedPictures.push({
                 id: pic.id,
                 title: pic.title,
                 image: imageFileObject,
                 type: 'picture',
                 nodeId: nodeId,
-                imageUrl: '',
+                imageUrl: URL.createObjectURL(imageFileObject), // Create URL for immediate display
                 description: pic.description || [{ type: 'paragraph', children: [{ text: '' }] }],
                 source: pic.source || '',
               });
-            } catch (error) {
-              console.error(`Error loading image ${pic.id}:`, error);
-              toast.error(`Failed to load image ${pic.title}.`);
             }
-          } else {
-            console.warn(`Image file not found: ${pic.imagePath}`);
-            toast.warn(`Image file not found: ${pic.imagePath}`);
-          }
+          })
+        );
+        
+        if (reconstructedPictures.length > 0) {
+          picturesMap.set(nodeId, reconstructedPictures);
         }
-        picturesMap.set(nodeId, reconstructedPictures);
-      }
-      setResourcesByMap(picturesMap);
-      toast.success('Pictures loaded successfully.');
-    } else {
-      console.warn('document/pictures.json not found in the ZIP.');
-      toast.warn('No pictures found in the file.');
-    }
-
-    // Load practiceSheets.json
-    const practiceSheetsFile = zip.file('document/practiceSheets.json');
-    if (practiceSheetsFile) {
-      const practiceSheetsJson = await practiceSheetsFile.async('string');
-      console.log('practiceSheets.json content:', practiceSheetsJson);
-      const parsedPracticeSheets = JSON.parse(practiceSheetsJson) as [
-        string,
-        PracticeSheetResource[]
-      ][];
-      const practiceSheetsMap = new Map<string, PracticeSheetResource[]>(parsedPracticeSheets);
-      setResourcesByMap(practiceSheetsMap);
-      toast.success('Practice sheets loaded successfully.');
-    } else {
-      console.warn('document/practiceSheets.json not found in the ZIP.');
-      toast.warn('No practice sheets found in the file.');
-    }
-
-    // Load styles.json
-    const stylesFile = zip.file('document/styles.json');
-    if (stylesFile) {
-      const stylesJson = await stylesFile.async('string');
-      console.log('styles.json content:', stylesJson);
-      const styles = JSON.parse(stylesJson);
-      colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: styles.primaryColor });
-      colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: styles.backgroundColor });
-      toast.success('Styles updated successfully.');
-    } else {
-      console.warn('document/styles.json not found in the ZIP.');
-      toast.warn('No styles found in the file.');
-    }
-
-    // Handle mode-dependent logic after loading
-    const metadataFile = zip.file('document/metadata.json');
-    if (metadataFile) {
-      const metadataJson = await metadataFile.async('string');
-      const metadata = JSON.parse(metadataJson) as SerializedResourceMetadata;
-      console.log('Metadata found:', metadata);
-      // Implement any additional initialization for collaborate mode here
-      toast.info('Document loaded in Collaborate Mode.');
-      // Example: Initialize conflict resolution mechanisms or user sessions
-    } else {
-      console.log('Document loaded in Private Mode.');
-      toast.info('Document loaded in Private Mode.');
-    }
-
-    // Trigger layout computation if necessary
-    // Example:
-    // layoutDispatch(setGetLayout(true));
-    console.log('Document loaded and state updated successfully.');
-  } catch (error) {
-    console.error('Error in loadDocumentFromDrive:', error);
-    toast.error('Failed to load the document.');
-    throw error; // Re-throw to handle in the caller
+      })
+    );
   }
+  
+  return picturesMap;
+};
+
+const loadPracticeSheets = async (zip: JSZip): Promise<Map<string, PracticeSheetResource[]>> => {
+  const practiceSheetsMap = new Map<string, PracticeSheetResource[]>();
+  const practiceSheetsFile = zip.file('document/practiceSheets.json');
+  
+  if (practiceSheetsFile) {
+    const practiceSheetsJson = await practiceSheetsFile.async('string');
+    const parsedPracticeSheets = JSON.parse(practiceSheetsJson) as [
+      string,
+      PracticeSheetResource[]
+    ][];
+    parsedPracticeSheets.forEach(([nodeId, resources]) => {
+      practiceSheetsMap.set(nodeId, resources);
+    });
+  }
+  
+  return practiceSheetsMap;
 };
