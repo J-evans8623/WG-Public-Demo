@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { ConceptNode, NodesActionType } from '@/app/Library/Definitions/Definitions';
-import { useYDoc } from './YDocContext'; // Import YDocContext
+import { useYDoc } from '@/app/Library/Tests/Synchro/YDocContext'; // Import YDocContext
 import * as Y from 'yjs';
 
 interface NodesContextValue {
@@ -75,6 +75,8 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
    * @param mapHeight - The height of the map.
    */
   const initNewDocument = useCallback((bloomDepth: number, mapWidth: number, mapHeight: number) => {
+    console.log('********** Entering initNewDocument **********');
+    console.log('Initial Nodes State:', nodes);
     const newRootNode: ConceptNode = {
       id: 'node-1',
       title: 'Root Concept',
@@ -90,6 +92,8 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
       yNodesMap.clear();
       yNodesMap.set(newRootNode.id, newRootNode);
     });
+    console.log('Updated Nodes State:', nodes);
+    console.log('********** Leaving initNewDocument **********');
   }, [ydoc, yNodesMap]);
 
   /**
@@ -144,6 +148,9 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
    * Delete a node from Y.Map
    */
   const deleteNode = useCallback((nodeId: string) => {
+    console.log('********** Entering deleteNode **********');
+    console.log('Initial Nodes State:', nodes);
+    console.log('Node to Delete:', nodeId);
     const node = yNodesMap.get(nodeId);
     if (!node) {
       console.error(`Delete failed: Node with ID ${nodeId} does not exist.`);
@@ -185,6 +192,8 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
         childrenNodeIds: parentNode.childrenNodeIds?.filter((id: string) => id !== nodeId),
       });
     });
+    console.log('Updated Nodes State:', nodes);
+    console.log('********** Leaving deleteNode **********');
   }, [yNodesMap, ydoc]);
 
   /**

@@ -14,7 +14,7 @@ import {
   createBinaryCompoundEntries,
   generateOperationId,
 } from '../utils/undoredo/historyutils'; // Adjust the import path as necessary
-import { useYDoc } from '@/app/Library/Context/YDocContext'; // Use YDocContext
+import { useYDoc } from '@/app/Library/Tests/Synchro/YDocContext'; // Use YDocContext
 import * as Y from 'yjs';
 
 /**
@@ -50,7 +50,7 @@ const ResourceContext = createContext<ResourceContextType | undefined>(undefined
  */
 export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   // Consume YDocContext to access Y.Doc and WebsocketProvider
-  const { ydoc, provider } = useYDoc();
+  const { ydoc } = useYDoc();
   const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>('resources'); // Y.Map<Y.Map<ResourceCard>>
 
   /**
@@ -77,7 +77,12 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
     /**
      * Observe Y.Map for any updates.
      */
-    const updateListener = () => {
+    const updateListener = (update: any, origin: any) => {
+      console.log('Y.Map update occurred:', {
+        origin,
+        timestamp: new Date().toISOString(),
+        updateType: update.constructor.name
+      });
       const updatedResources = new Map<string, ResourceCard[]>();
       yResourcesMap.forEach((yMap, nodeId) => {
         const nodeResources: ResourceCard[] = [];
@@ -86,6 +91,12 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
         });
         updatedResources.set(nodeId, nodeResources);
       });
+
+      console.log('Resources after update:', {
+        resourceCount: Array.from(updatedResources.values())
+          .reduce((acc, arr) => acc + arr.length, 0)
+      });
+      
       setResourcesState(updatedResources);
     };
 
@@ -99,10 +110,6 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   // History map to track past and future states for each node
   const [resourceHistoryMap, setResourceHistoryMap] = useState<Map<string, HistoryState>>(new Map());
 
-  useEffect(() => {
-    console.log('Context state updated-resources:', resources);
-  }, [resources]);
-
   /**
    * Context Functions to Manage Resources via Y.js
    */
@@ -113,6 +120,9 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
    */
   const addResource = useCallback(
     (resource: Omit<ResourceCard, 'id'>) => {
+      console.log('********** Entering addResource **********');
+      console.log('Initial Resources:', resources);
+      console.log('Resource to Add:', resource);
       // Validate that the resource has a 'type' property
       if (!resource.type) {
         throw new Error('Resource type is required');
@@ -174,6 +184,8 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
         }
         yMap.set(newResource.id, newResource);
       });
+      console.log('Updated Resources:', resources);
+      console.log('********** Leaving addResource **********');
     },
     [resources, resourceHistoryMap, yResourcesMap, ydoc]
   );
@@ -325,6 +337,9 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
    * @param newResources - The new resources map.
    */
   const setResources = useCallback((newResources: Map<string, ResourceCard[]>) => {
+    console.log('********** Entering setResources **********');
+    console.log('Initial Resources State:', resources);
+    console.log('New Resources:', newResources);
     setResourcesState(newResources);
     setResourceHistoryMap(new Map()); // Reset history when setting new resources
 
@@ -346,6 +361,8 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
         });
       });
     });
+    console.log('Updated Resources State:', resources);
+    console.log('********** Leaving setResources **********');
   }, [ydoc, yResourcesMap]);
 
   /**

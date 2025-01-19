@@ -29,15 +29,15 @@ export function useCompositeLayout(
     // Find the root node
     const rootNode = Array.from(updatedNodes.values()).find((node) => node.isRoot);
     if (!rootNode) {
-      console.error('Root node not found.');
+      //console.error('Root node not found.');
       return;
     }
 
         // Log initial state
-        console.log('--- Initial state ---');
-        console.log('Nodes:', Array.from(updatedNodes.entries()));
-        console.log('Subtrees:', Array.from(localSubtrees.entries()));
-        console.log('----------------------');
+        //console.log('--- Initial state ---');
+        //console.log('Nodes:', Array.from(updatedNodes.entries()));
+        //console.log('Subtrees:', Array.from(localSubtrees.entries()));
+        //console.log('----------------------');
 
     // Get the current depth 1 node IDs (children of the root node)
     const currentDepthOneNodeIds = new Set(rootNode.childrenNodeIds || []);
@@ -119,10 +119,10 @@ export function useCompositeLayout(
     layoutDispatch(setGetLayout(false));
     setNodes(updatedNodes);
 
-    console.log('--- Final state ---');
-    console.log('Nodes:', Array.from(updatedNodes.entries()));
-    console.log('Subtrees:', Array.from(localSubtrees.entries()));
-    console.log('-------------------');
+    //console.log('--- Final state ---');
+    //console.log('Nodes:', Array.from(updatedNodes.entries()));
+    //console.log('Subtrees:', Array.from(localSubtrees.entries()));
+    //console.log('-------------------');
   }, [
     nodes,
     getLayout,

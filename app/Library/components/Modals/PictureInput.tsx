@@ -130,47 +130,40 @@ const PictureInput: React.FC<PictureInputProps> = ({
       onDrop={(e) => handleDropOrPaste(e)}
       onDragOver={(e) => e.preventDefault()}
     >
-      {imagePreviewUrl ? (
-        <div style={{ position: 'relative', display: 'inline-block' }}>
-          <Image
-            src={imagePreviewUrl}
-            alt={pictureTitle}
-            width={80}
-            height={80}
-            layout="fixed"
-          />
-          {/* Add the X button */}
-          <button
-            onClick={() => {
-              setImagePreviewUrl(null);
-              setPastedImage(null);
-            }}
-            style={{
-              position: 'absolute',
-              top: '-5px',
-              right: '-5px',
-              background: 'red',
-              color: 'white',
-              border: 'none',
-              borderRadius: '50%',
-              width: '15px',
-              height: '15px',
-              cursor: 'pointer',
-              fontSize: '10px',
-              lineHeight: '15px',
-              textAlign: 'center',
-            }}
-            title="Remove image"
-          >
-            &times;
-          </button>
-        </div>
-      ) : (
-        <div>
-          <PictureOutlined style={{ fontSize: '48px', color: '#ccc' }} />
-          <p>Paste or upload an image</p>
-        </div>
-      )}
+     {imagePreviewUrl ? (
+  <div style={{ position: 'relative', display: 'inline-block' }}>
+    <div className="relative w-20 h-20"> {/* Fixed 80x80px container */}
+      <Image
+        src={imagePreviewUrl}
+        alt={pictureTitle || 'Preview'}
+        fill
+        style={{
+          objectFit: 'contain'
+        }}
+        sizes="120px"
+        className="rounded-lg"
+      />
+      <button
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent triggering the parent div's onClick
+          setImagePreviewUrl(null);
+          setPastedImage(null);
+        }}
+        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 
+                   flex items-center justify-center text-xs cursor-pointer 
+                   hover:bg-red-600 transition-colors"
+        title="Remove image"
+      >
+        ×
+      </button>
+    </div>
+  </div>
+) : (
+  <div>
+    <PictureOutlined style={{ fontSize: '48px', color: '#ccc' }} />
+    <p>Paste or upload an image</p>
+  </div>
+)}
     </div>
   
     <div

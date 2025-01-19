@@ -59,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     case 'callback':
       if (req.method === 'GET') {
-        console.log('Handling OAuth callback...');
+        console.log('-------------[...auth].ts Handling OAuth callback...');
         const { code, state } = req.query;
         console.log('Received authorization code:', code);
         console.log('Received state:', state);
@@ -131,7 +131,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       case 'session':
         if (req.method === 'GET') {
-          console.log('Fetching session data...');
+          console.log('------[...auth].ts session endpoint : Fetching session data...------');
           const cookies = req.headers.cookie ? parse(req.headers.cookie) : {};
           const sessionId = cookies.sessionId; // Safely access cookies
           console.log('Session ID from cookies:', sessionId);

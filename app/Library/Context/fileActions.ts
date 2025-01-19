@@ -1,6 +1,6 @@
 // bloom-maps/app/Library/Context/fileActions.ts
 
-import { FileActionType, FileAction, StorageType } from '@/app/Library/Definitions/Definitions';
+import { FileActionType, FileAction } from '@/app/Library/Definitions/Definitions';
 
 /**
  * Action creator for updating the file name
@@ -25,4 +25,22 @@ export const setDriveFileId = (fileId: string): FileAction => ({
  */
 export const resetDriveFileId = (): FileAction => ({
   type: FileActionType.RESET_DRIVE_FILE_ID,
+});
+
+/**
+ * Action creator for setting the initialized state
+ * @param isInitialized Boolean indicating if the file is initialized
+ */
+export const setInitialized = (isInitialized: boolean): FileAction => ({
+  type: FileActionType.SET_INITIALIZED,
+  payload: isInitialized,
+});
+
+/**
+ * Action creator for setting the YDoc initialized state
+ * @param isYDocInitialized Boolean indicating if the YDoc is initialized
+ */
+export const setYDocInitialized = (isYDocInitialized: boolean): FileAction => ({
+  type: FileActionType.SET_YDOC_INITIALIZED,
+  payload: isYDocInitialized,
 });

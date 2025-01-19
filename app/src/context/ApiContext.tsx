@@ -245,24 +245,42 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
    * @param documentId - The active document ID.
    * @returns A Promise resolving to the WebSocket URL.
    */
- const getWebSocketUrl = async (documentId: string): Promise<string> => {
+// ApiContext.tsx
+const getWebSocketUrl = async (documentId: string): Promise<string> => {
   try {
-    const response = await fetch('/api/realtime/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ documentId }), // Only documentId is needed
-    });
+    // Add retry logic with exponential backoff
+    const maxRetries = 3;
+    let retryCount = 0;
+    let lastError: Error | null = null;
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Failed to fetch WebSocket URL: ${errorData.error || response.statusText}`);
+    while (retryCount < maxRetries) {
+      try {
+        const response = await fetch('/api/realtime/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ documentId }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch WebSocket URL: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const wsUrl = new URL(process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:1234');
+        wsUrl.searchParams.append('token', data.token);
+        return wsUrl.toString();
+      } catch (error) {
+        lastError = error as Error;
+        retryCount++;
+        if (retryCount < maxRetries) {
+          // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+        }
+      }
     }
 
-    const data = await response.json();
-    const wsUrl = new URL(process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:1234');
-    wsUrl.searchParams.append('token', data.token);
-    return wsUrl.toString();
+    throw lastError || new Error('Failed to get WebSocket URL after retries');
   } catch (error) {
     console.error('Error fetching WebSocket URL:', error);
     throw error;

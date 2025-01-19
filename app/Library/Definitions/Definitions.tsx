@@ -166,18 +166,25 @@ export interface ColorThemeAction {
 
 export type StorageType = 'local' | 'drive';
 
+/**
+ * Enum for File action types.
+ */
 export enum FileActionType {
   SET_FILE_NAME = 'SET_FILE_NAME',
   SET_DRIVE_FILE_ID = 'SET_DRIVE_FILE_ID',
   RESET_DRIVE_FILE_ID = 'RESET_DRIVE_FILE_ID',
+  SET_INITIALIZED = 'SET_INITIALIZED',
+  SET_YDOC_INITIALIZED = 'SET_YDOC_INITIALIZED',
 }
+/**
+ * Union type for File actions.
+ */
 export type FileAction =
   | { type: FileActionType.SET_FILE_NAME; payload: string }
   | { type: FileActionType.SET_DRIVE_FILE_ID; payload: string }
   | { type: FileActionType.RESET_DRIVE_FILE_ID }
-
-
-
+  | { type: FileActionType.SET_INITIALIZED; payload: boolean }
+  | { type: FileActionType.SET_YDOC_INITIALIZED; payload: boolean };
 export interface SubtreeData {
   minX: number;
   maxX: number;

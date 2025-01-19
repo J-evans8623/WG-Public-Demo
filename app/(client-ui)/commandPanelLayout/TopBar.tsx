@@ -259,7 +259,7 @@ const TopBar: React.FC<TopBarProps> = ({
   }, []);
 
   /**
-   * Handler for file input change (loading a `.bloomdocx` document).
+   * Handler for file input change (loading a `.bloomdocx` document from the local device).
    */
   const handleFileChange = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {

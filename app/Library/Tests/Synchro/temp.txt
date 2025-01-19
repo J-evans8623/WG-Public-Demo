@@ -1,0 +1,156 @@
+// WebSocketManager.tsx
+import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { useFileContext } from './FileContext';
+import { useYDoc } from './YDocContext';
+import { ApiContext } from '@/app/src/context/ApiContext';
+import { toast } from 'react-toastify';
+import * as Y from 'yjs';
+
+interface WebSocketManagerContextType {
+  connectionState: 'disconnected' | 'connecting' | 'connected' | 'error';
+  connect: () => Promise<void>;
+  disconnect: () => void;
+}
+
+export const WebSocketManagerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { driveFileId, isInitialized, isYDocInitialized } = useFileContext();
+  const { getWebSocketUrl } = useContext(ApiContext);
+  const { ydoc, applyDocUpdate, getDocState } = useYDoc();
+  const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [ws, setWs] = useState<WebSocket | null>(null);
+
+  // Add awareness handling for collaborative features
+  const [awareness] = useState(() => new Y.Awareness(ydoc));
+
+  // Monitor prerequisites for connection
+  useEffect(() => {
+    const shouldConnect = driveFileId && isInitialized && isYDocInitialized;
+    
+    if (shouldConnect) {
+      connect();
+    } else {
+      disconnect();
+    }
+  }, [driveFileId, isInitialized, isYDocInitialized]);
+
+  // Handle Y.js document updates
+  useEffect(() => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+    const handleUpdate = (update: Uint8Array, origin: any) => {
+      // Don't send back updates that came from WebSocket
+      if (origin !== ws) {
+        console.log('Sending Y.doc update through WebSocket', {
+          updateSize: update.length,
+          timestamp: new Date().toISOString()
+        });
+        ws.send(update);
+      }
+    };
+
+    // Subscribe to document updates
+    ydoc.on('update', handleUpdate);
+
+    // Handle awareness updates
+    const awarenessUpdate = ({ added, updated, removed }: any) => {
+      const changedClients = added.concat(updated).concat(removed);
+      const awarenessUpdate = awareness.encodeUpdate(changedClients);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(awarenessUpdate);
+      }
+    };
+    
+    awareness.on('update', awarenessUpdate);
+
+    return () => {
+      ydoc.off('update', handleUpdate);
+      awareness.off('update', awarenessUpdate);
+    };
+  }, [ws, ydoc, awareness]);
+
+  const connect = async () => {
+    if (!driveFileId || !isInitialized || !isYDocInitialized) {
+      console.log('Prerequisites not met for WebSocket connection');
+      return;
+    }
+
+    try {
+      setConnectionState('connecting');
+      const wsUrl = await getWebSocketUrl(driveFileId);
+      console.log('Establishing WebSocket connection to:', wsUrl);
+      const newWs = new WebSocket(wsUrl);
+
+      newWs.onopen = () => {
+        console.log('WebSocket connection opened');
+        setConnectionState('connected');
+        
+        // Send initial state
+        const initialState = getDocState();
+        console.log('Sending initial state:', {
+          stateSize: initialState.length,
+          timestamp: new Date().toISOString()
+        });
+        newWs.send(initialState);
+
+        // Send initial awareness state
+        const awarenessState = awareness.encodeUpdate(Array.from(awareness.getStates().keys()));
+        newWs.send(awarenessState);
+
+        toast.info('Connected to collaboration room');
+      };
+
+      newWs.onmessage = (event) => {
+        console.log('WebSocket received message:', {
+          size: event.data.length,
+          timestamp: new Date().toISOString()
+        });
+        
+        const update = new Uint8Array(event.data);
+        
+        // Try to apply as awareness update first
+        try {
+          awareness.applyUpdate(update);
+        } catch {
+          // If not an awareness update, apply as document update
+          console.log('Processing document update:', {
+            updateSize: update.length,
+            timestamp: new Date().toISOString()
+          });
+          applyDocUpdate(update);
+        }
+      };
+
+      newWs.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setConnectionState('error');
+        toast.error('WebSocket encountered an error');
+      };
+
+      newWs.onclose = () => {
+        setConnectionState('disconnected');
+        toast.warn('WebSocket connection closed');
+      };
+
+      setWs(newWs);
+    } catch (error) {
+      console.error('Failed to establish WebSocket connection:', error);
+      setConnectionState('error');
+      toast.error('Failed to establish WebSocket connection');
+    }
+  };
+
+  const disconnect = () => {
+    if (ws) {
+      ws.close();
+      setWs(null);
+      setConnectionState('disconnected');
+      console.log('WebSocket connection terminated');
+    }
+  };
+
+  return (
+    <WebSocketManagerContext.Provider value={{ connectionState, connect, disconnect }}>
+      {children}
+    </WebSocketManagerContext.Provider>
+  );
+};

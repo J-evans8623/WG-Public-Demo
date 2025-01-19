@@ -21,18 +21,19 @@ import { NodesProvider, useNodesContext } from '@/app/Library/Context/NodesProvi
 import { ZoomProvider, useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { LayoutProvider, useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { ColorThemeProvider, useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
-import { FileProvider, useFileContext } from '@/app/Library/Context/FileProvider';
+import { FileProvider, useFileContext } from '@/app/Library/Tests/Synchro/FileContext';
 import { ResourceProvider, useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { setGetLayout } from '@/app/Library/Context/LayoutActions';
-import { YDocProvider } from '@/app/Library/Context/YDocContext';
+import { YDocProvider } from '@/app/Library/Tests/Synchro/YDocContext';
 import { initializeNewDocument } from '@/app/Library/utils/documentUtils'; 
+import { WebSocketManagerProvider } from '../Library/Tests/Synchro/WebSocketManager';
 
 // Dynamic Tool Panes
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { LoadingProvider } from '@/app/Library/Context/LoadingContext';
 import { useLoading } from '@/app/Library/Context/LoadingContext'; // Import the loading hook
 import GlobalLoadingScreen from '@/app/Library/components/loading-screen/GlobalLoadingScreen';
-import TopBar from './commandPanelLayout/TopBar';
+import TopBar from  '@/app/Library/Tests/Synchro/TopBar'  //'./commandPanelLayout/TopBar';
 import LeftPanel from './commandPanelLayout/LeftPanel';
 import MainContent from './commandPanelLayout/MainContent';
 import RightPanel from './commandPanelLayout/RightPanel';
@@ -398,6 +399,7 @@ export default function ClientLayout() {
     <DndProvider backend={HTML5Backend}>
     <FileProvider>
     <YDocProvider>
+      <WebSocketManagerProvider>
       <TreeDimensionsProvider>
         <NodeSelectionProvider>
           <ResourceProvider> {/* Wrap with centralized ResourceProvider */}
@@ -415,6 +417,7 @@ export default function ClientLayout() {
           </ResourceProvider>
         </NodeSelectionProvider>
       </TreeDimensionsProvider>
+      </WebSocketManagerProvider>
       </YDocProvider>
       </FileProvider>
     </DndProvider>

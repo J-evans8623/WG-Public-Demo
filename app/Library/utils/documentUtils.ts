@@ -192,9 +192,9 @@ export const saveDocument = async (
   try {
     const yUpdate = Y.encodeStateAsUpdate(ydoc);
     zip.file('document/yjsState.bin', yUpdate);
-    console.log('Y.js state included in the `.bloomdocx` file.');
+    //console.log('Y.js state included in the `.bloomdocx` file.');
   } catch (error) {
-    console.error('Error encoding Y.js state:', error);
+    //console.error('Error encoding Y.js state:', error);
     toast.error('Failed to encode collaborative state.');
     throw error;
   }
@@ -207,7 +207,7 @@ export const saveDocument = async (
           const imageData = await picture.image.arrayBuffer();
           zip.file(`document/images/${picture.id}_${picture.image.name}`, imageData);
         } catch (error) {
-          console.error(`Error saving image ${picture.id}:`, error);
+          //console.error(`Error saving image ${picture.id}:`, error);
           toast.error(`Failed to save image ${picture.title}.`);
         }
       }
@@ -220,7 +220,7 @@ export const saveDocument = async (
     saveAs(content, `${fileName || 'my_document'}.bloomdocx`);
     toast.success('Document saved successfully!');
   } catch (error) {
-    console.error('Error generating ZIP:', error);
+    //console.error('Error generating ZIP:', error);
     toast.error('Failed to save the document.');
     throw error;
   }
@@ -285,15 +285,15 @@ export const loadDocument = async (
     const yjsStateBinary = await yjsStateFile.async('uint8array');
     try {
       Y.applyUpdate(ydoc, yjsStateBinary);
-      console.log('Y.js state applied successfully.');
+      //console.log('Y.js state applied successfully.');
       toast.success('Collaborative state synchronized.');
     } catch (error) {
-      console.error('Error applying Y.js state:', error);
+      //console.error('Error applying Y.js state:', error);
       toast.error('Failed to synchronize collaborative state.');
       // Depending on requirements, you might choose to throw an error or continue without Y.js state
     }
   } else {
-    console.warn('document/yjsState.bin not found in the ZIP.');
+    //console.warn('document/yjsState.bin not found in the ZIP.');
     toast.warn('No collaborative state found in the file.');
   }
 
@@ -306,7 +306,7 @@ export const loadDocument = async (
     setResourcesByMap(cueCardsMap);
     toast.success('Cue cards loaded successfully.');
   } else {
-    console.warn('document/cuecards.json not found in the ZIP.');
+    //console.warn('document/cuecards.json not found in the ZIP.');
     toast.warn('No cue cards found in the file.');
   }
 
@@ -319,7 +319,7 @@ export const loadDocument = async (
     setSubtrees(subtreesMap);
     toast.success('Subtrees loaded successfully.');
   } else {
-    console.warn('document/subtrees.json not found in the ZIP.');
+    //console.warn('document/subtrees.json not found in the ZIP.');
     toast.warn('No subtrees found in the file.');
   }
 
@@ -356,11 +356,11 @@ export const loadDocument = async (
               source: pic.source || '',
             });
           } catch (error) {
-            console.error(`Error loading image ${pic.id}:`, error);
+            //console.error(`Error loading image ${pic.id}:`, error);
             toast.error(`Failed to load image ${pic.title}.`);
           }
         } else {
-          console.warn(`Image file not found: ${pic.imagePath}`);
+          //console.warn(`Image file not found: ${pic.imagePath}`);
           toast.warn(`Image file not found: ${pic.imagePath}`);
         }
       }
@@ -369,7 +369,7 @@ export const loadDocument = async (
     setResourcesByMap(picturesMap);
     toast.success('Pictures loaded successfully.');
   } else {
-    console.warn('document/pictures.json not found in the ZIP.');
+    //console.warn('document/pictures.json not found in the ZIP.');
     toast.warn('No pictures found in the file.');
   }
 
@@ -385,7 +385,7 @@ export const loadDocument = async (
     setResourcesByMap(practiceSheetsMap);
     toast.success('Practice sheets loaded successfully.');
   } else {
-    console.warn('document/practiceSheets.json not found in the ZIP.');
+    //console.warn('document/practiceSheets.json not found in the ZIP.');
     toast.warn('No practice sheets found in the file.');
   }
 
@@ -398,7 +398,7 @@ export const loadDocument = async (
     colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: styles.backgroundColor });
     toast.success('Styles updated successfully.');
   } else {
-    console.warn('document/styles.json not found in the ZIP.');
+    //console.warn('document/styles.json not found in the ZIP.');
     toast.warn('No styles found in the file.');
   }
 
@@ -407,19 +407,19 @@ export const loadDocument = async (
   if (metadataFile) {
     const metadataJson = await metadataFile.async('string');
     const metadata = JSON.parse(metadataJson) as SerializedResourceMetadata;
-    console.log('Metadata found:', metadata);
+    //console.log('Metadata found:', metadata);
     // Implement any additional initialization for collaborate mode here
     toast.info('Document loaded in Collaborate Mode.');
     // Example: Initialize conflict resolution mechanisms or user sessions
   } else {
-    console.log('Document loaded in Private Mode.');
+    //console.log('Document loaded in Private Mode.');
     toast.info('Document loaded in Private Mode.');
   }
 
   // Trigger layout computation if necessary
   // Example:
   // layoutDispatch(setGetLayout(true));
-  console.log('Document loaded and state updated successfully.');
+  //console.log('Document loaded and state updated successfully.');
 };
 
 /**
@@ -440,7 +440,7 @@ export const loadDocument = async (
  * @param mapWidth - Width of the map layout
  * @param mapHeight - Height of the map layout
  */
-export const initializeNewDocument = (
+export const initializeNewDocument = async (
   resetNode: () => void,
   initNodes: () => void,
   layoutDispatch: React.Dispatch<any>,
@@ -453,19 +453,22 @@ export const initializeNewDocument = (
   isInitialLoad: boolean,
   mapWidth: number = 1800,
   mapHeight: number = 1800
-): void => {
-  if (!isInitialLoad) {
-    resetNode();
-    resetTreeDimensions();
-    resetSubtrees();
-    resetResources();
-    colorThemeDispatch(resetColorTheme()); // Reset the color theme to default
-  }
+): Promise<void> => {
+  return new Promise((resolve) => {
+    if (!isInitialLoad) {
+      resetNode();
+      resetTreeDimensions();
+      resetSubtrees();
+      resetResources();
+      colorThemeDispatch(resetColorTheme());
+    }
 
-  layoutDispatch({ type: 'SET_MAP_SIZE', payload: { mapWidth, mapHeight } });
-  initNodes();
-  fileDispatch({ type: 'SET_FILE_NAME', payload: 'Untitled Document' });
-  toast.success('New document initialized successfully.');
+    layoutDispatch({ type: 'SET_MAP_SIZE', payload: { mapWidth: 1800, mapHeight: 1800 } });
+    initNodes();
+    fileDispatch({ type: 'SET_FILE_NAME', payload: 'Untitled Document' });
+    toast.success('New document initialized successfully.');
+    resolve();
+  });
 };
 
 /**
@@ -497,9 +500,9 @@ export const prepareBloomDocx = async (
   practiceSheets: Map<string, ResourceCard[]>,
   fileId?: string,
 ): Promise<Blob> => {
-  console.log('************Firing prepareBloomDocx.....')
-  console.log('prepareBloomDocx: Number of nodes passed:', nodes);
-  console.log('prepareBloomDocx: Y.Doc nodes count:', ydoc);
+  //console.log('************Firing prepareBloomDocx.....')
+  //console.log('prepareBloomDocx: Number of nodes passed:', nodes);
+  //console.log('prepareBloomDocx: Y.Doc nodes count:', ydoc);
   const zip = new JSZip();
 
   // Serialize document data
@@ -553,9 +556,9 @@ export const prepareBloomDocx = async (
   try {
     const yUpdate = Y.encodeStateAsUpdate(ydoc);
     zip.file('document/yjsState.bin', yUpdate);
-    console.log('Y.js state included in the `prepareBloomDocx` function.');
+    //console.log('Y.js state included in the `prepareBloomDocx` function.');
   } catch (error) {
-    console.error('Error encoding Y.js state in prepareBloomDocx:', error);
+    //console.error('Error encoding Y.js state in prepareBloomDocx:', error);
     toast.error('Failed to encode collaborative state.');
     throw error;
   }
@@ -568,7 +571,7 @@ export const prepareBloomDocx = async (
           const imageData = await picture.image.arrayBuffer();
           zip.file(`document/images/${picture.id}_${picture.image.name}`, imageData);
         } catch (error) {
-          console.error(`Error saving image ${picture.id}:`, error);
+          //console.error(`Error saving image ${picture.id}:`, error);
           toast.error(`Failed to save image ${picture.title}.`);
         }
       }
@@ -578,10 +581,10 @@ export const prepareBloomDocx = async (
   // Generate ZIP as Blob
   try {
     const content = await zip.generateAsync({ type: 'blob' });
-    console.log('ZIP generated successfully.');
+    //console.log('ZIP generated successfully.');
     return content;
   } catch (error) {
-    console.error('Error generating ZIP:', error);
+    //console.error('Error generating ZIP:', error);
     toast.error('Failed to prepare the document for saving.');
     throw error;
   }
@@ -615,7 +618,7 @@ export const loadDocumentFromDrive = async (
   resetResourcesFn: () => void
 ): Promise<void> => {
   try {
-    console.log('Starting to load document from drive.');
+    //console.log('Starting to load document from drive.');
 
     // Reset state before loading
     resetTreeDimensions();
@@ -625,47 +628,53 @@ export const loadDocumentFromDrive = async (
     const zip = new JSZip();
     await zip.loadAsync(file);
 
-    // Create separate maps for each resource type
-    const cueCardsMap = new Map<string, CueCardResource[]>();
-    const picturesMap = new Map<string, PictureResource[]>();
-    const practiceSheetsMap = new Map<string, PracticeSheetResource[]>();
-
-    // Load Y.js state first
-    const yjsStateFile = zip.file('document/yjsState.bin');
-    if (yjsStateFile) {
-      const yjsStateBinary = await yjsStateFile.async('uint8array');
-      try {
-        // Clear existing Y.doc state
-        ydoc.transact(() => {
-          Array.from(ydoc.share.keys()).forEach(key => {
-            ydoc.share.delete(key);
-          });
-        });
-        Y.applyUpdate(ydoc, yjsStateBinary);
-        console.log('Y.js state applied successfully.');
-      } catch (error) {
-        console.error('Error applying Y.js state:', error);
-        toast.error('Failed to synchronize collaborative state.');
-      }
-    }
-
     // Load document.json
     const documentFile = zip.file('document/document.json');
     if (documentFile) {
       const documentJson = await documentFile.async('string');
+      //console.log('Loaded Document JSON:', documentJson);
       const parsedDocument = JSON.parse(documentJson) as SerializedDocument;
-      const nodes = new Map<string, ConceptNode>(parsedDocument.nodes);
-      setNodes(nodes);
+      
+      // Initialize YDoc with nodes
+      ydoc.transact(() => {
+        //console.log('*****Calling ydoc.transact....*****');
+        const nodesMap = ydoc.getMap('nodes');
+        nodesMap.clear(); // Clear existing nodes
+        //console.log('1. Clearing nodes map', nodesMap);
+        
+        const nodes = new Map<string, ConceptNode>(parsedDocument.nodes);
+        nodes.forEach((node, key) => {
+          nodesMap.set(key, node);
+        });
+        //console.log('2. Setting nodes....', nodes);
+        setNodes(nodes);
+        //console.log('*****Leaving ydoc.trans*****');
+      });
+
+      // Set other document properties
       colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: parsedDocument.primaryColor });
       colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: parsedDocument.backgroundColor });
       fileDispatch({ type: 'SET_FILE_NAME', payload: parsedDocument.fileName });
+    }
+
+    const yjsStateFile = zip.file('document/yjsState.bin');
+    if (yjsStateFile) {
+      const yjsStateBinary = await yjsStateFile.async('uint8array');
+      try {
+        //console.log('Before Ydoc update :', ydoc)
+        Y.applyUpdate(ydoc, yjsStateBinary);
+        //console.log('After Ydoc update : ', ydoc);
+      } catch (error) {
+        //console.error('Error applying Y.js state:', error);
+        toast.error('Failed to synchronize collaborative state.');
+      }
     }
 
     // Load cue cards
     const cueCardsFile = zip.file('document/cuecards.json');
     if (cueCardsFile) {
       const cueCardsJson = await cueCardsFile.async('string');
-      console.log('Loaded cue cards JSON:', cueCardsJson);
+      //console.log('Loaded cue cards JSON:', cueCardsJson);
       const parsedCueCards = JSON.parse(cueCardsJson) as [string, CueCardResource[]][];
       
       const cueCardsMap = new Map<string, CueCardResource[]>();
@@ -678,7 +687,7 @@ export const loadDocumentFromDrive = async (
         cueCardsMap.set(nodeId, processedCards);
       });
       
-      console.log('Setting cue cards:', cueCardsMap);
+      //console.log('Setting cue cards:', cueCardsMap);
       await setResourcesByMap(cueCardsMap);
     }
 
@@ -686,7 +695,7 @@ export const loadDocumentFromDrive = async (
     const picturesFile = zip.file('document/pictures.json');
     if (picturesFile) {
       const picturesJson = await picturesFile.async('string');
-      console.log('Loaded pictures JSON:', picturesJson);
+      //console.log('Loaded pictures JSON:', picturesJson);
       const parsedPictures = JSON.parse(picturesJson) as [
         string,
         { id: string; title: string; imagePath: string; description?: Descendant[]; source?: string }[]
@@ -719,7 +728,7 @@ export const loadDocumentFromDrive = async (
                 source: pic.source || '',
               });
             } catch (error) {
-              console.error(`Error loading image ${pic.id}:`, error);
+              //console.error(`Error loading image ${pic.id}:`, error);
             }
           }
         }
@@ -729,14 +738,14 @@ export const loadDocumentFromDrive = async (
         }
       }
       
-      console.log('Setting pictures:', picturesMap);
+      //console.log('Setting pictures:', picturesMap);
       await setResourcesByMap(picturesMap);
     }
     // Load practice sheets
     const practiceSheetsFile = zip.file('document/practiceSheets.json');
     if (practiceSheetsFile) {
       const practiceSheetsJson = await practiceSheetsFile.async('string');
-      console.log('Loaded practice sheets JSON:', practiceSheetsJson);
+      //console.log('Loaded practice sheets JSON:', practiceSheetsJson);
       const parsedPracticeSheets = JSON.parse(practiceSheetsJson) as [string, PracticeSheetResource[]][];
       
       const practiceSheetsMap = new Map<string, PracticeSheetResource[]>();
@@ -748,7 +757,7 @@ export const loadDocumentFromDrive = async (
         practiceSheetsMap.set(nodeId, processedSheets);
       });
       
-      console.log('Setting practice sheets:', practiceSheetsMap);
+      //console.log('Setting practice sheets:', practiceSheetsMap);
       await setResourcesByMap(practiceSheetsMap);
     }
 
@@ -770,7 +779,7 @@ export const loadDocumentFromDrive = async (
 
     toast.success('Document loaded successfully');
   } catch (error) {
-    console.error('Error in loadDocumentFromDrive:', error);
+    //console.error('Error in loadDocumentFromDrive:', error);
     toast.error('Failed to load the document');
     throw error;
   }

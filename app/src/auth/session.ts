@@ -41,10 +41,10 @@ export class RedisSessionManager implements SessionManager {
   }
 
   async getSession(sessionId: string): Promise<SessionData | null> {
+    console.log('----------------session.ts invoking: getSession-----------------')
     console.log('Retrieving session from Redis:', sessionId);
     try {
       const data = await redisClient.get(sessionId);
-      console.log('Session data retrieved:', data);
       return data ? JSON.parse(data) : null;
     } catch (error) {
       console.error('Error retrieving session:', error);

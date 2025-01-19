@@ -10,10 +10,10 @@ if (!JWT_SECRET) {
 }
 
 const generateWebSocketToken = (sessionId, documentId) => {
-  console.log('***************');
-  console.log('Debugging generateWebSocketToken');
-  console.log('sessionId:', sessionId);
-  console.log('documentId:', documentId);
+  console.log('********generateWebSocketToken*******');
+
+  console.log('New sessionId ------> ', sessionId);
+  console.log('With documentId ------->', documentId);
 
   const payload = {
     sessionId,
@@ -36,11 +36,10 @@ const validateWebSocketToken = (token) => {
   console.log('Debugging validateWebSocketToken');
   
   const cleanToken = token.split('/')[0];
-  console.log('Cleaned token:', cleanToken);
+ 
 
   try {
     const decoded = jwt.verify(cleanToken, JWT_SECRET);
-    console.log('Decoded payload:', decoded);
     return decoded;
   } catch (error) {
     console.error('Error during token validation:', error.message);
