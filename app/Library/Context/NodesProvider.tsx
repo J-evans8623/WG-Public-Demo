@@ -1,45 +1,62 @@
-// File: src/context/NodesProvider.tsx
+/**
+ * @file NodesProvider.tsx
+ * @description
+ * Provides the Nodes context, managing ConceptNodes within the Y.Doc.
+ * Filters out system-originated updates to prevent unwanted state changes.
+ */
 
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import { ConceptNode, NodesActionType } from '@/app/Library/Definitions/Definitions';
-import { useYDoc } from '@/app/Library/Tests/Synchro/YDocContext'; // Import YDocContext
+import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+import { useYDoc } from '@/app/Library/Tests/Synchro/Centralize/CentralYdoc';
 import * as Y from 'yjs';
+import { SystemActionType, SystemOrigin } from '@/app/Library/Tests/Synchro/Centralize/SystemOriginTypes';
 
 interface NodesContextValue {
   nodes: Map<string, ConceptNode>;
-  setNodes: (nodes: Map<string, ConceptNode>) => void;
+  setNodes: (nodes: Map<string, ConceptNode>, options?: { origin?: { type: 'system'; action: SystemActionType } }) => void;
   createNewNode: (title: string, parentNodeId: string, newNodeId: string) => void;
   updateNodeTitle: (nodeId: string, newTitle: string) => void;
-  resetNodes: () => void;
-  initNewDocument: (bloomDepth: number, mapWidth: number, mapHeight: number) => void;
-  transferNode: (sourceNodeId: string, targetNodeId: string) => void;
   deleteNode: (nodeId: string) => void;
+  resetNodes: () => void;
+  initNewDocument: () => void;
+  transferNode: (sourceNodeId: string, targetNodeId: string) => void;
 }
 
+
+interface SetNodesOptions {
+  origin?: { type: 'system'; action: SystemActionType };
+}
 const NodesContext = createContext<NodesContextValue | undefined>(undefined);
 
+export const useNodesContext = () => {
+  const context = useContext(NodesContext);
+  if (!context) {
+    throw new Error('useNodesContext must be used within a NodesProvider');
+  }
+  return context;
+};
+
 export const NodesProvider = ({ children }: { children: ReactNode }) => {
-  const { ydoc } = useYDoc(); // Access Y.Doc from YDocContext
+  const { ydoc } = useYDoc();
   const yNodesMap = ydoc.getMap<ConceptNode>('nodes');
 
   const [nodes, setNodesState] = useState<Map<string, ConceptNode>>(new Map());
 
-  /**
-   * Synchronize Y.Map changes with React state.
-   */
   useEffect(() => {
     const loadInitialNodes = () => {
       const initialNodes = new Map<string, ConceptNode>(yNodesMap.entries());
-      
       setNodesState(initialNodes);
     };
 
     loadInitialNodes();
 
-    /**
-     * Observe Y.Map for any updates.
-     */
-    const updateListener = () => {
+    const updateListener = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
+      // Ignore system-originated updates
+      if (transaction.origin?.type === 'system') {
+        console.log('[NodesProvider] Ignoring system-origin update:', transaction.origin.action);
+        return;
+      }
+
       const updatedNodes = new Map<string, ConceptNode>(yNodesMap.entries());
       setNodesState(updatedNodes);
     };
@@ -52,52 +69,71 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
   }, [yNodesMap]);
 
   /**
-   * Context Functions to Manage Nodes via Y.js
-   */
-
-  /**
-   * Set the entire nodes map.
+   * Sets the entire nodes map.
+   *
    * @param nodesMap - The new nodes map.
    */
-  const setNodes = useCallback((nodesMap: Map<string, ConceptNode>) => {
+  const setNodes = useCallback((
+    nodesMap: Map<string, ConceptNode>, 
+    options?: SetNodesOptions
+  ) => {
+    console.log('[NodesProvider] Setting nodes with options:', options);
+    
     ydoc.transact(() => {
       yNodesMap.clear();
       nodesMap.forEach((node, nodeId) => {
         yNodesMap.set(nodeId, node);
       });
-    });
+    }, options?.origin); // Will be undefined for user actions
+  
+    console.log('[NodesProvider] Nodes set, map size:', nodesMap.size);
   }, [ydoc, yNodesMap]);
 
   /**
-   * Initialize a new document with a root node.
-   * @param bloomDepth - The depth of the bloom.
+   * Initializes a new document with a root node.
+   *
+   * @param bloomDepth - The depth of the bloom taxonomy.
    * @param mapWidth - The width of the map.
    * @param mapHeight - The height of the map.
    */
-  const initNewDocument = useCallback((bloomDepth: number, mapWidth: number, mapHeight: number) => {
-    console.log('********** Entering initNewDocument **********');
-    console.log('Initial Nodes State:', nodes);
-    const newRootNode: ConceptNode = {
-      id: 'node-1',
-      title: 'Root Concept',
-      parentNodeId: undefined,
-      childrenNodeIds: [],
-      x: 0,
-      y: 0,
-      isRoot: true,
-      depth: 0,
-    };
+// Update in NodesProvider.tsx
+const initNewDocument = useCallback(() => {
+  console.log('********** Entering initNewDocument **********');
+  
+  // Create root node with initial state
+  const rootNode: ConceptNode = {
+    id: 'node-1',
+    title: 'Root Concept',
+    parentNodeId: undefined,
+    childrenNodeIds: [],
+    x: 0,
+    y: 0,
+    isRoot: true,
+    depth: 0
+  };
 
-    ydoc.transact(() => {
-      yNodesMap.clear();
-      yNodesMap.set(newRootNode.id, newRootNode);
-    });
-    console.log('Updated Nodes State:', nodes);
-    console.log('********** Leaving initNewDocument **********');
-  }, [ydoc, yNodesMap]);
+  // Use Y.js transaction to update the shared data
+  ydoc.transact(() => {
+    // Clear existing nodes
+    yNodesMap.clear();
+    
+    // Set initial root node
+    yNodesMap.set(rootNode.id, rootNode);
+    
+    // Update local state
+    setNodesState(new Map([[rootNode.id, rootNode]]));
+  }, { origin: { type: 'system', action: 'initialize' } });
+
+  console.log('Updated Nodes State:', yNodesMap);
+  console.log('********** Leaving initNewDocument **********');
+}, [ydoc, yNodesMap]);
 
   /**
-   * Create a new node and add it to Y.Map
+   * Creates a new node and adds it to the Y.Doc.
+   *
+   * @param title - The title of the new node.
+   * @param parentNodeId - The ID of the parent node.
+   * @param newNodeId - The unique ID for the new node.
    */
   const createNewNode = useCallback((title: string, parentNodeId: string, newNodeId: string) => {
     const parentNode = yNodesMap.get(parentNodeId);
@@ -130,7 +166,10 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
   }, [yNodesMap, ydoc]);
 
   /**
-   * Update a node's title in Y.Map
+   * Updates a node's title within the Y.Doc.
+   *
+   * @param nodeId - The ID of the node to update.
+   * @param newTitle - The new title for the node.
    */
   const updateNodeTitle = useCallback((nodeId: string, newTitle: string) => {
     const node = yNodesMap.get(nodeId);
@@ -145,7 +184,9 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
   }, [yNodesMap, ydoc]);
 
   /**
-   * Delete a node from Y.Map
+   * Deletes a node from the Y.Doc.
+   *
+   * @param nodeId - The ID of the node to delete.
    */
   const deleteNode = useCallback((nodeId: string) => {
     console.log('********** Entering deleteNode **********');
@@ -157,7 +198,7 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // Safeguard: Prevent deletion of the root node
+    // Prevent deletion of the root node
     if (node.isRoot) {
       console.error(`Delete failed: The root node cannot be deleted.`);
       return;
@@ -194,10 +235,13 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
     });
     console.log('Updated Nodes State:', nodes);
     console.log('********** Leaving deleteNode **********');
-  }, [yNodesMap, ydoc]);
+  }, [yNodesMap, ydoc, nodes]);
 
   /**
-   * Transfer a node from one parent to another.
+   * Transfers a node from one parent to another within the Y.Doc.
+   *
+   * @param sourceNodeId - The ID of the node to transfer.
+   * @param targetNodeId - The ID of the target parent node.
    */
   const transferNode = useCallback((sourceNodeId: string, targetNodeId: string) => {
     const sourceNode = yNodesMap.get(sourceNodeId);
@@ -272,7 +316,7 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
   }, [yNodesMap, ydoc]);
 
   /**
-   * Reset all nodes in Y.Map
+   * Resets all nodes in the Y.Doc.
    */
   const resetNodes = useCallback(() => {
     ydoc.transact(() => {
@@ -280,9 +324,6 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [ydoc, yNodesMap]);
 
-  /**
-   * Context Value with Node Management Functions
-   */
   const contextValue: NodesContextValue = useMemo(() => ({
     nodes,
     setNodes,
@@ -299,15 +340,4 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </NodesContext.Provider>
   );
-};
-
-/**
- * Custom hook to access the NodesContext.
- */
-export const useNodesContext = () => {
-  const context = useContext(NodesContext);
-  if (!context) {
-    throw new Error('useNodesContext must be used within a NodesProvider');
-  }
-  return context;
 };

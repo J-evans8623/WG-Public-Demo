@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { Menu, Dropdown, Input, Button } from 'antd';
-import { useFileContext } from '@/app/Library/Tests/Synchro/FileContext';
+import { useYDoc } from '@/app/Library/Tests/Synchro/Centralize/CentralYdoc';
 import AppIcon from '@/app/icons-custom/AppIcon.svg';
 import '@/app/(client-ui)/MenuBar.css';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
@@ -41,7 +41,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   onSaveToDrive,
   onOpenFromDrive,
 }) => {
-  const { fileName } = useFileContext();
+  const { fileName} = useYDoc();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState(fileName);
 

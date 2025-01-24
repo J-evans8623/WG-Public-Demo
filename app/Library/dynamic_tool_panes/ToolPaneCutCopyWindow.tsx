@@ -20,7 +20,7 @@ interface ToolPaneCutCopyWindowProps {
 
 const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNodeId, command, onClose }) => {
   const { nodes } = useNodesContext();
-  const { selectResources, transferResource, removeResource } = useResourceContext();
+  const { selectResources, transferResource } = useResourceContext();
   const { targetNodeId } = useNodeSelection();
 
   const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);

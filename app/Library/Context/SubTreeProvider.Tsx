@@ -1,5 +1,6 @@
-// bloom-maps\app\Library\Context\SubTreeProvider.Tsx
 import React, { useCallback, createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
+import { useYDoc } from '@/app/Library/Tests/Synchro/Centralize/CentralYdoc';
+import * as Y from 'yjs';
 
 
 export interface SubtreeData {
@@ -30,69 +31,93 @@ interface SubTreeContextType {
 const SubTreeContext = createContext<SubTreeContextType | undefined>(undefined);
 
 export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
+  const { ydoc } = useYDoc();
+  const ySubtreesMap = ydoc.getMap<SubtreeData>('subtrees');
+  
   const [subtrees, setSubtreesState] = useState<Map<string, SubtreeData>>(new Map());
   const [draggingSubtreeId, setDraggingSubtreeId] = useState<string | null>(null);
   const [targetSubtreeId, setTargetSubtreeId] = useState<string | null>(null);
 
+  // Initialize sentinel node with system action origin
+  useEffect(() => {
+    const sentinelNodeId = 'sentinel-node';
+    const sentinelSubtree: SubtreeData = {
+      minX: 0,
+      maxX: 0,
+      minY: 0,
+      maxY: 0,
+      width: 0,
+      height: 0,
+      position: { x: 0, y: 0 },
+    };
 
+    // Initialize with system action origin to prevent tracking as user update
+    ydoc.transact(() => {
+      if (!ySubtreesMap.has(sentinelNodeId)) {
+        ySubtreesMap.set(sentinelNodeId, sentinelSubtree);
+      }
+    }, { type: 'system', action: 'initialize' });
+  }, [ydoc, ySubtreesMap]);
 
- // Initialize the sentinel node's data (invisible reference point at x=0, y=0)
- useMemo(() => {
-  const sentinelNodeId = 'sentinel-node'; // Sentinel node ID
-  ////console.log('Initializing sentinel node in SubTreeProvider');
-  const sentinelSubtree: SubtreeData = {
-    minX: 0,
-    maxX: 0,
-    minY: 0,
-    maxY: 0,
-    width: 0,
-    height: 0,
-    position: { x: 0, y: 0 }, // Positioned at (0, 0) but invisible
-  };
-
-  
-  setSubtreesState((prevSubtrees) => {
-    const updatedSubtrees = new Map(prevSubtrees);
-    
-    // Safeguard: Check if the sentinel node already exists
-    if (!updatedSubtrees.has(sentinelNodeId)) {
-      updatedSubtrees.set(sentinelNodeId, sentinelSubtree); // Add the sentinel node if not already present
-      ////console.log('Sentinel node added.');
-    } else {
-      ////console.log('Sentinel node already exists, skipping insertion.');
-    }
-
-    return updatedSubtrees;
-  });
-}, []); // Only initialized once on mount
-
-
-  // Memoize functions
-  const calculateSubtreeDimensions = useCallback((nodeId: string, subtreeData: SubtreeData) => {
-    setSubtreesState((prevSubtrees) => {
-      const updatedSubtrees = new Map(prevSubtrees);
-      updatedSubtrees.set(nodeId, subtreeData);
-      return updatedSubtrees;
-    });
-  }, []);
-
-  const commitSwap = useCallback(() => {
-    if (draggingSubtreeId && targetSubtreeId) {
-      setSubtreesState((prevSubtrees) => {
-        const updatedSubtrees = new Map(prevSubtrees);
-        const draggingSubtree = updatedSubtrees.get(draggingSubtreeId);
-        const targetSubtree = updatedSubtrees.get(targetSubtreeId);
-        if (draggingSubtree && targetSubtree) {
-          const tempPosition = draggingSubtree.position;
-          updatedSubtrees.set(draggingSubtreeId, { ...draggingSubtree, position: targetSubtree.position });
-          updatedSubtrees.set(targetSubtreeId, { ...targetSubtree, position: tempPosition });
-        }
-        return updatedSubtrees;
+  // Sync with Y.js
+  useEffect(() => {
+    const loadInitialSubtrees = () => {
+      const initialSubtrees = new Map<string, SubtreeData>();
+      
+      // Check if sentinel node exists, if not create it as a system action
+      const sentinelNodeId = 'sentinel-node';
+      if (!ySubtreesMap.has(sentinelNodeId)) {
+        const sentinelSubtree: SubtreeData = {
+          minX: 0,
+          maxX: 0,
+          minY: 0,
+          maxY: 0,
+          width: 0,
+          height: 0,
+          position: { x: 0, y: 0 },
+        };
+        
+        ydoc.transact(() => {
+          ySubtreesMap.set(sentinelNodeId, sentinelSubtree);
+        }, { type: 'system', action: 'initialize' });
+      }
+      
+      // Load all subtrees including sentinel
+      ySubtreesMap.forEach((value, key) => {
+        initialSubtrees.set(key, value);
       });
-    }
-    setDraggingSubtreeId(null);
-    setTargetSubtreeId(null);
-  }, [draggingSubtreeId, targetSubtreeId]);
+      setSubtreesState(initialSubtrees);
+    };
+
+    loadInitialSubtrees();
+
+    const updateListener = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
+      // Explicitly filter out system actions related to initialization
+      if (transaction.origin?.type === 'system' && 
+          ['initialize', 'reset'].includes((transaction.origin as any).action)) {
+        console.log('[SubTreeProvider] Ignoring system initialization update:', transaction.origin);
+        return;
+      }
+
+      const updatedSubtrees = new Map<string, SubtreeData>();
+      ySubtreesMap.forEach((value, key) => {
+        updatedSubtrees.set(key, value);
+      });
+      setSubtreesState(updatedSubtrees);
+    };
+
+    ySubtreesMap.observeDeep(updateListener);
+
+    return () => {
+      ySubtreesMap.unobserveDeep(updateListener);
+    };
+  }, [ySubtreesMap]);
+
+  const calculateSubtreeDimensions = useCallback((nodeId: string, subtreeData: SubtreeData) => {
+    ydoc.transact(() => {
+      ySubtreesMap.set(nodeId, subtreeData);
+    });
+  }, [ydoc, ySubtreesMap]);
 
   const getTotalSubtreeWidths = useCallback(() => {
     let totalWidth = 0;
@@ -113,25 +138,20 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
   }, [subtrees]);
 
   const setSubtreePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
-    setSubtreesState((prevSubtrees) => {
-      const updatedSubtrees = new Map(prevSubtrees);
-      const subtree = updatedSubtrees.get(nodeId);
+    ydoc.transact(() => {
+      const subtree = ySubtreesMap.get(nodeId);
       if (subtree) {
-        updatedSubtrees.set(nodeId, { ...subtree, position });
+        ySubtreesMap.set(nodeId, { ...subtree, position });
       }
-      //////console.log('Context state updated-subtrees-position:', updatedSubtrees);
-      return updatedSubtrees;
     });
-  }, []);
+  }, [ydoc, ySubtreesMap]);
 
   const resetSubtrees = useCallback(() => {
-    // Reset the subtree state to an empty map
-    setSubtreesState(() => {
+    ydoc.transact(() => {
+      ySubtreesMap.clear();
+      
+      // Re-add sentinel node
       const sentinelNodeId = 'sentinel-node';
-      
-      // Re-add the sentinel node after resetting
-      //////console.log('Reinitializing sentinel node after reset in resetSubtrees');
-      
       const sentinelSubtree: SubtreeData = {
         minX: 0,
         maxX: 0,
@@ -139,39 +159,61 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
         maxY: 0,
         width: 0,
         height: 0,
-        position: { x: 0, y: 0 }, // Positioned at (0, 0) but invisible
+        position: { x: 0, y: 0 },
+      };
+      ySubtreesMap.set(sentinelNodeId, sentinelSubtree);
+    }, { type: 'system', action: 'reset' });
+  }, [ydoc, ySubtreesMap]);
+
+  const setSubtrees = useCallback((
+    newSubtrees: Map<string, SubtreeData>,
+    options?: { isInitialization?: boolean }
+  ) => {
+    const transactionOptions = options?.isInitialization 
+      ? { type: 'system' as const, action: 'initialize' as const }
+      : undefined;
+
+    ydoc.transact(() => {
+      ySubtreesMap.clear();
+      
+      // Ensure sentinel node exists
+      const sentinelNodeId = 'sentinel-node';
+      const sentinelSubtree: SubtreeData = {
+        minX: 0,
+        maxX: 0,
+        minY: 0,
+        maxY: 0,
+        width: 0,
+        height: 0,
+        position: { x: 0, y: 0 },
       };
       
-      const updatedSubtrees = new Map();
-      updatedSubtrees.set(sentinelNodeId, sentinelSubtree); // Add the sentinel node to the subtree map
-      return updatedSubtrees;
-    });
-  }, []);
-  
+      if (!newSubtrees.has(sentinelNodeId)) {
+        newSubtrees.set(sentinelNodeId, sentinelSubtree);
+      }
+      
+      newSubtrees.forEach((subtree, nodeId) => {
+        ySubtreesMap.set(nodeId, subtree);
+      });
+    }, transactionOptions);
+  }, [ydoc, ySubtreesMap]);
 
-  const setSubtrees = useCallback((newSubtrees: Map<string, SubtreeData>) => {
-    const sentinelNodeId = 'sentinel-node'; // Sentinel node ID
-    const sentinelSubtree: SubtreeData = {
-      minX: 0,
-      maxX: 0,
-      minY: 0,
-      maxY: 0,
-      width: 0,
-      height: 0,
-      position: { x: 0, y: 0 }, // Positioned at (0, 0) but invisible
-    };
-  
-    // Safeguard: Check if the sentinel node exists in newSubtrees, if not, add it
-    if (!newSubtrees.has(sentinelNodeId)) {
-      //////console.log('Sentinel node is missing in the new subtree map, adding it.');
-      newSubtrees.set(sentinelNodeId, sentinelSubtree); // Add the sentinel node if not present
+  const commitSwap = useCallback(() => {
+    if (draggingSubtreeId && targetSubtreeId) {
+      ydoc.transact(() => {
+        const draggingSubtree = ySubtreesMap.get(draggingSubtreeId);
+        const targetSubtree = ySubtreesMap.get(targetSubtreeId);
+        if (draggingSubtree && targetSubtree) {
+          const tempPosition = draggingSubtree.position;
+          ySubtreesMap.set(draggingSubtreeId, { ...draggingSubtree, position: targetSubtree.position });
+          ySubtreesMap.set(targetSubtreeId, { ...targetSubtree, position: tempPosition });
+        }
+      });
     }
-    //////console.log('Context state newSubtrees:', newSubtrees);
-    setSubtreesState(newSubtrees); // Update state with the modified subtrees
-  }, []);
-  
+    setDraggingSubtreeId(null);
+    setTargetSubtreeId(null);
+  }, [ydoc, ySubtreesMap, draggingSubtreeId, targetSubtreeId]);
 
-  // Memoize context value
   const contextValue = useMemo(() => ({
     subtrees,
     calculateSubtreeDimensions,
@@ -187,8 +229,17 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     commitSwap,
   }), [
     subtrees,
+    calculateSubtreeDimensions,
+    getTotalSubtreeWidths,
+    getMaxSubtreeHeight,
+    setSubtreePosition,
+    resetSubtrees,
+    setSubtrees,
     draggingSubtreeId,
     targetSubtreeId,
+    setDraggingSubtreeId,
+    setTargetSubtreeId,
+    commitSwap,
   ]);
 
   return <SubTreeContext.Provider value={contextValue}>{children}</SubTreeContext.Provider>;

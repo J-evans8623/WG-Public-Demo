@@ -42,7 +42,7 @@ export const generateWebSocketToken = (sessionId: string, documentId: string): s
 
   // Token options: set expiration to 5 minutes
   const options = {
-    expiresIn: '5m', // 5 minutes
+    expiresIn: '60m', // 5 minutes
   };
 
   const token = jwt.sign(payload, JWT_SECRET, options);

@@ -220,10 +220,21 @@ export interface CueCardResource extends BaseResource {
  * Interface for Picture resources.
  */
 export interface PictureResource extends BaseResource {
-  imageUrl: string;
   type: 'picture';
-  image: File | null;
-  description? : Descendant[];
+  serverUrl?: string;    // URL for fetching from asset server
+  localUrl?: string;     // URL for accessing locally stored file
+  image: File;          // File object stored in ResourceContext
+  description?: Descendant[];
+}
+
+export interface ImageMessage {
+  id: string;           // Matches PictureResource id
+  nodeId: string;       // Matches PictureResource nodeId
+  serverUrl: string;    // URL for fetching image
+  title: string;        // Matches PictureResource title
+  description?: Descendant[];  // Matches PictureResource description
+  source?: string;      // Matches PictureResource source
+  type: 'picture';      // Preserve type discrimination
 }
 
 export type QuizType = 'matching' | 'multipleChoice' | 'true-false' | 'FIB'; 
@@ -271,6 +282,4 @@ export interface PracticeSheetResource extends BaseResource {
 /**
  * Discriminated union type for all resources.
  */
-export type ResourceCard = CueCardResource | PictureResource | PracticeSheetResource;
-
-
+export type ResourceCard = CueCardResource | PictureResource | PracticeSheetResource  | ImageMessage;

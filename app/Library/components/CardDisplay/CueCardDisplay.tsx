@@ -7,7 +7,7 @@ import PracticeSheetCard from './PracticeSheetCard';
 import MatchingQuizModal from './MatchingQuizModal';
 import ImageCard from '@/app/Library/components/CardDisplay/p1/ImageCard'; // Import the new ImageCard component
 import { CueCardResource, IFillInBlankQuestion, IMultipleChoiceQuestion, IQuizQuestion, ITrueFalseQuestion, QuizType  } from '@/app/Library/Definitions/Definitions';
-import { useResourceContext } from '../../Context/ResourceContext'; 
+import { useResourceContext } from '@/app/Library/Context/ResourceContext'; 
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 
 // Import new context

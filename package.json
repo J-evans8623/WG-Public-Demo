@@ -9,7 +9,6 @@
     "lint": "next lint",
     "test": "jest",
     "ws-server": "node app/src/services/y-websocket-server.js"
-
   },
   "dependencies": {
     "@emotion/react": "^11.13.3",
@@ -60,6 +59,7 @@
     "react-toastify": "^11.0.2",
     "redis": "^4.7.0",
     "sanitize-html": "^2.14.0",
+    "sharp": "^0.33.5",
     "slate": "^0.110.2",
     "slate-history": "^0.110.3",
     "slate-react": "^0.112.0",

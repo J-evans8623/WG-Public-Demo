@@ -1,7 +1,15 @@
-// File: src/Library/Context/ResourceContext.tsx
+// ResourceContext.tsx
 
-import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useMemo } from 'react';
-import { ResourceCard, ResourceType, PictureResource, PracticeSheetResource, CueCardResource } from '@/app/Library/Definitions/Definitions';
+/**
+ * @file ResourceContext.tsx
+ * @description
+ * Provides the Resource context, managing resources within the Y.Doc.
+ * Decouples image file data from Y.js data structures by introducing a separate imageAssets state.
+ * Ensures synchronization of image metadata and reliable image display across all replicas.
+ */
+
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
+import { ResourceCard,  PictureResource, PracticeSheetResource, CueCardResource, ImageMessage } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 import {
   initializeNodeHistory,
@@ -13,16 +21,15 @@ import {
   OperationType,
   createBinaryCompoundEntries,
   generateOperationId,
-} from '../utils/undoredo/historyutils'; // Adjust the import path as necessary
-import { useYDoc } from '@/app/Library/Tests/Synchro/YDocContext'; // Use YDocContext
+} from '@/app/Library/utils/undoredo/historyutils';
+import { useYDoc } from '@/app/Library/Tests/Synchro/Centralize/CentralYdoc';
 import * as Y from 'yjs';
+import { SystemActionType, SystemOrigin } from '@/app/Library/Tests/Synchro/Centralize/SystemOriginTypes';
 
-/**
- * Interface defining the methods available in the ResourceContext.
- */
 interface ResourceContextType {
   resources: Map<string, ResourceCard[]>;
-  addResource: (resource: Omit<ResourceCard, 'id'>) => void;
+  imageAssets: Map<string, File>;
+  addResource: (resource: Omit<ResourceCard, 'id'>) => Promise<void>;
   removeResource: (nodeId: string, resourceId: string) => void;
   editResource: (resource: ResourceCard) => void;
   selectResources: (nodeId: string) => ResourceCard[];
@@ -33,39 +40,41 @@ interface ResourceContextType {
   transferResource: (sourceNodeId: string, targetNodeId: string, resourceIds: string[], command: 'copy' | 'cut') => void;
   resetResources: () => void;
   getResourcesByType: (type: 'cueCard' | 'picture' | 'practiceSheet') => Map<string, ResourceCard[]>;
-  setResourcesByMap: (resourceMap: Map<string, CueCardResource[] | PictureResource[] | PracticeSheetResource[]>) => void;
+  fetchImageOnUpdate: (messages: ImageMessage[]) => Promise<void>;
   undo: (nodeId: string) => void;
   redo: (nodeId: string) => void;
   undoAvailable: (nodeId: string) => boolean;
   redoAvailable: (nodeId: string) => boolean;
+  saveImages: () => Promise<Map<string, ArrayBuffer>>;
+  loadImages: (imageData: Map<string, ArrayBuffer>) => void;
 }
 
-/**
- * Create the ResourceContext with an undefined default value.
- */
 const ResourceContext = createContext<ResourceContextType | undefined>(undefined);
 
-/**
- * Provider component for ResourceContext.
- */
-export const ResourceProvider = ({ children }: { children: ReactNode }) => {
-  // Consume YDocContext to access Y.Doc and WebsocketProvider
-  const { ydoc } = useYDoc();
-  const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>('resources'); // Y.Map<Y.Map<ResourceCard>>
+export const useResourceContext = () => {
+  const context = useContext(ResourceContext);
+  if (context === undefined) {
+    throw new Error('useResourceContext must be used within a ResourceProvider');
+  }
+  return context;
+};
 
-  /**
-   * Synchronize Y.Map changes with React state.
-   */
+export const ResourceProvider = ({ children }: { children: ReactNode }) => {
+  const { ydoc } = useYDoc();
+  const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>('resources');
+
   const [resources, setResourcesState] = useState<Map<string, ResourceCard[]>>(new Map());
+  const [imageAssets, setImageAssets] = useState<Map<string, File>>(new Map());
+
+  const fetchingImages = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    // Function to load initial resources from Y.Map
     const loadInitialResources = () => {
       const initialResources = new Map<string, ResourceCard[]>();
       yResourcesMap.forEach((yMap, nodeId) => {
         const nodeResources: ResourceCard[] = [];
         yMap.forEach((resource: ResourceCard) => {
-          nodeResources.push(resource as ResourceCard);
+          nodeResources.push(resource);
         });
         initialResources.set(nodeId, nodeResources);
       });
@@ -74,30 +83,25 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
 
     loadInitialResources();
 
-    /**
-     * Observe Y.Map for any updates.
-     */
-    const updateListener = (update: any, origin: any) => {
-      console.log('Y.Map update occurred:', {
-        origin,
-        timestamp: new Date().toISOString(),
-        updateType: update.constructor.name
-      });
+    const updateListener = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
+      // Ignore system-originated updates
+      if (transaction.origin?.type === 'system') {
+        
+        console.log('Ignoring system-origin update:', transaction.origin.action);
+        return;
+      }
+
       const updatedResources = new Map<string, ResourceCard[]>();
       yResourcesMap.forEach((yMap, nodeId) => {
         const nodeResources: ResourceCard[] = [];
         yMap.forEach((resource: ResourceCard) => {
-          nodeResources.push(resource as ResourceCard);
+          nodeResources.push(resource);
         });
         updatedResources.set(nodeId, nodeResources);
       });
 
-      console.log('Resources after update:', {
-        resourceCount: Array.from(updatedResources.values())
-          .reduce((acc, arr) => acc + arr.length, 0)
-      });
-      
       setResourcesState(updatedResources);
+
     };
 
     yResourcesMap.observeDeep(updateListener);
@@ -105,25 +109,43 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       yResourcesMap.unobserveDeep(updateListener);
     };
-  }, [yResourcesMap]);
+  }, [yResourcesMap, ]);
+
+
+  const convertImageMessageToPictureResource = (message: ImageMessage, imageAssets: Map<string, File>): PictureResource => {
+    const file = imageAssets.get(message.id);
+    if (!file) {
+      throw new Error(`No image file found for resource ${message.id}`);
+    }
+    
+    return {
+      id: message.id,
+      nodeId: message.nodeId,
+      type: 'picture',
+      title: message.title,
+      serverUrl: message.serverUrl,
+      localUrl: URL.createObjectURL(file),
+      image: file,
+      description: message.description,
+      source: message.source
+    };
+  };
 
   // History map to track past and future states for each node
   const [resourceHistoryMap, setResourceHistoryMap] = useState<Map<string, HistoryState>>(new Map());
 
-  /**
-   * Context Functions to Manage Resources via Y.js
-   */
+
 
   /**
-   * Add a new resource to a node.
+   * Adds a new resource to a node.
+   *
    * @param resource - The resource to add (excluding the 'id' field).
    */
   const addResource = useCallback(
-    (resource: Omit<ResourceCard, 'id'>) => {
+    async (resource: Omit<ResourceCard, 'id'>) => {
       console.log('********** Entering addResource **********');
       console.log('Initial Resources:', resources);
       console.log('Resource to Add:', resource);
-      // Validate that the resource has a 'type' property
       if (!resource.type) {
         throw new Error('Resource type is required');
       }
@@ -132,36 +154,88 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
 
       switch (resource.type) {
         case 'cueCard':
-          // Ensure required fields for CueCard are present
           if (!('content' in resource)) {
             throw new Error('Content is required for CueCard');
           }
           newResource = { ...resource, id: uuidv4() } as CueCardResource;
           break;
+
         case 'picture':
-          // Ensure required fields for Picture are present
           if (!('image' in resource)) {
             throw new Error('Image is required for Picture');
           }
-          newResource = { ...resource, id: uuidv4() } as PictureResource;
+          console.log('[ResourceContext] Processing picture in addResource:', {
+            hasImage: !!resource.image,
+            isFile: resource.image instanceof File
+          });
+
+          // Upload to asset server if we have a File
+          if (resource.image instanceof File) {
+            let initResource = resource as PictureResource;
+            try {
+              
+              const formData = new FormData();
+              formData.append('image', initResource.image);
+
+              const response = await fetch('/api/asset', {
+                method: 'POST',
+                body: formData
+              });
+
+              if (!response.ok) {
+                throw new Error('Failed to upload image');
+              }
+
+              const { url: serverUrl } = await response.json();
+
+              // Create ImageMessage for Y.js
+               newResource = {
+                id: uuidv4(),
+                nodeId: initResource.nodeId,
+                type: 'picture',
+                title: initResource.title,
+                serverUrl,
+                description: initResource.description,
+                source: initResource.source
+              };
+
+              // Add to imageAssets
+              setImageAssets(prev => new Map(prev).set(newResource.id, initResource.image));
+
+              // Create resource with file and URLs
+             /**  newResource = {
+                ...resource,
+                id: initResource.id,
+                type: 'picture',
+                image: initResource.image,              // File is stored separately
+                localUrl: URL.createObjectURL(resource.image), // For local rendering  --> should probably be defined in save utils
+                serverUrl,                         // For remote replicas to fetch
+              } as PictureResource;  */
+
+            } catch (error) {
+              console.error('[ResourceContext] Error uploading image:', error);
+              throw error;
+            }
+          } else {
+            throw new Error('Invalid image file');
+          }
           break;
+
         case 'practiceSheet':
-          // Ensure required fields for PracticeSheet are present
           if (!('content' in resource)) {
             throw new Error('Content is required for PracticeSheet');
           }
           newResource = { ...resource, id: uuidv4() } as PracticeSheetResource;
           break;
+
         default:
           throw new Error(`Unknown resource type: ${(resource as any).type}`);
       }
 
       const nodeId = newResource.nodeId;
-
-      // Get current resources for the node
       const currentResources = resources.get(nodeId) || [];
 
-      // Update history: add current state to past
+      // Update history
       const currentHistory = resourceHistoryMap.get(nodeId) || initializeNodeHistory();
       const newHistoryEntry: HistoryEntry = {
         operationId: generateOperationId(),
@@ -170,28 +244,34 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
         previousState: [...currentResources],
         newState: [...currentResources, newResource],
       };
+
       const updatedHistory = addHistoryEntry(currentHistory, newHistoryEntry);
       const newHistoryMap = new Map(resourceHistoryMap);
       newHistoryMap.set(nodeId, updatedHistory);
       setResourceHistoryMap(newHistoryMap);
 
-      // Update the resources state immutably and Y.Map
+      // Update Y.Map - For pictures, the File object is null
       ydoc.transact(() => {
         let yMap = yResourcesMap.get(nodeId);
         if (!yMap) {
           yMap = new Y.Map<ResourceCard>();
           yResourcesMap.set(nodeId, yMap);
         }
+        console.log('[ResourceContext] Adding resource to Y.Map:', {
+          nodeId,
+          resource: newResource,
+        });
         yMap.set(newResource.id, newResource);
       });
-      console.log('Updated Resources:', resources);
+
       console.log('********** Leaving addResource **********');
     },
     [resources, resourceHistoryMap, yResourcesMap, ydoc]
   );
 
   /**
-   * Remove a resource from a node.
+   * Removes a resource from a node.
+   *
    * @param nodeId - The ID of the node.
    * @param resourceId - The ID of the resource to remove.
    */
@@ -201,7 +281,6 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
       const resourceIndex = currentResources.findIndex((resource) => resource.id === resourceId);
 
       if (resourceIndex === -1) {
-        // Resource not found; no action needed
         return;
       }
 
@@ -221,77 +300,119 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
       newHistoryMap.set(nodeId, updatedHistory);
       setResourceHistoryMap(newHistoryMap);
 
-      // Update the resources state immutably and Y.Map
+      // Update Y.Map
       ydoc.transact(() => {
         const yMap = yResourcesMap.get(nodeId);
         if (yMap && yMap.has(resourceId)) {
           yMap.delete(resourceId);
         }
       });
+
+      // If the removed resource was a picture, remove it from imageAssets
+      if (resourceToRemove.type === 'picture') {
+        setImageAssets(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(resourceId);
+          return newMap;
+        });
+      }
     },
     [resources, resourceHistoryMap, yResourcesMap, ydoc]
   );
 
-  /**
-   * Edit an existing resource.
+  /**f
+   * Edits an existing resource within the Y.Doc.
+   *
    * @param updatedResource - The resource with updated fields.
+   * @param newImage - Flag indicating if the image was updated.
    */
-  const editResource = useCallback(
-    (updatedResource: ResourceCard) => {
-      const nodeId = updatedResource.nodeId;
-      const currentResources = resources.get(nodeId) || [];
-      const resourceIndex = currentResources.findIndex((resource) => resource.id === updatedResource.id);
-
-      if (resourceIndex === -1) {
-        // Resource not found; no action needed
-        return;
+  const editResource = useCallback(async (
+    updatedResource: ResourceCard, 
+    newImage: boolean = false
+  ) => {
+    const nodeId = updatedResource.nodeId;
+    const currentResources = resources.get(nodeId) || [];
+    const resourceIndex = currentResources.findIndex(
+      resource => resource.id === updatedResource.id
+    );
+  
+    if (resourceIndex === -1) return;
+  
+    if (updatedResource.type === 'picture' && newImage) {
+      const pictureResource = updatedResource as PictureResource;
+      
+      try {
+        // Upload new image
+        const formData = new FormData();
+        formData.append('image', pictureResource.image);
+        
+        const response = await fetch('/api/asset', {
+          method: 'POST',
+          body: formData
+        });
+  
+        if (!response.ok) throw new Error('Failed to upload image');
+        
+        const { url: serverUrl } = await response.json();
+  
+        // Create ImageMessage for Y.js
+        const imageMessage: ImageMessage = {
+          id: pictureResource.id,
+          nodeId: pictureResource.nodeId,
+          type: 'picture',
+          title: pictureResource.title,
+          serverUrl,
+          description: pictureResource.description,
+          source: pictureResource.source
+        };
+  
+        // Update imageAssets
+        setImageAssets(prev => new Map(prev).set(pictureResource.id, pictureResource.image));
+  
+        // Update Y.Map with ImageMessage
+        ydoc.transact(() => {
+          const yMap = yResourcesMap.get(nodeId);
+          if (yMap) {
+            yMap.set(imageMessage.id, imageMessage);
+          }
+        });
+  
+      } catch (error) {
+        console.error('[ResourceContext] Error updating image:', error);
+        throw error;
       }
-
-      const previousResource = currentResources[resourceIndex];
-
-      // Update history: add current state to past
-      const currentHistory = resourceHistoryMap.get(nodeId) || initializeNodeHistory();
-      const newHistoryEntry: HistoryEntry = {
-        operationId: generateOperationId(),
-        type: OperationType.Atomic,
-        primaryNodeId: nodeId,
-        previousState: [...currentResources],
-        newState: [
-          ...currentResources.slice(0, resourceIndex),
-          updatedResource,
-          ...currentResources.slice(resourceIndex + 1),
-        ],
-      };
-      const updatedHistory = addHistoryEntry(currentHistory, newHistoryEntry);
-      const newHistoryMap = new Map(resourceHistoryMap);
-      newHistoryMap.set(nodeId, updatedHistory);
-      setResourceHistoryMap(newHistoryMap);
-
-      // Update the resources state immutably and Y.Map
+    } else {
+      // Handle non-image updates normally
       ydoc.transact(() => {
         const yMap = yResourcesMap.get(nodeId);
-        if (yMap && yMap.has(updatedResource.id)) {
+        if (yMap) {
           yMap.set(updatedResource.id, updatedResource);
         }
       });
-    },
-    [resources, resourceHistoryMap, yResourcesMap, ydoc]
-  );
+    }
+  }, [resources, yResourcesMap, ydoc]);
+
 
   /**
    * Selects all resources associated with a specific node.
+   *
    * @param nodeId - The ID of the node.
    * @returns An array of resources.
    */
-  const selectResources = useCallback(
-    (nodeId: string): ResourceCard[] => {
-      return resources.get(nodeId) || [];
-    },
-    [resources]
-  );
+  const selectResources = useCallback((nodeId: string): ResourceCard[] => {
+    const nodeResources = resources.get(nodeId) || [];
+    return nodeResources.map(resource => {
+      if (resource.type === 'picture' && 'serverUrl' in resource) {
+        // This is an ImageMessage
+        return convertImageMessageToPictureResource(resource as ImageMessage, imageAssets);
+      }
+      return resource;
+    });
+  }, [resources, imageAssets]);
 
   /**
    * Selects all cue cards associated with a specific node.
+   *
    * @param nodeId - The ID of the node.
    * @returns An array of CueCard resources.
    */
@@ -306,20 +427,21 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Selects all pictures associated with a specific node.
+   *
    * @param nodeId - The ID of the node.
    * @returns An array of Picture resources.
    */
-  const selectPictures = useCallback(
-    (nodeId: string): PictureResource[] => {
-      return (resources.get(nodeId) || []).filter(
-        (resource): resource is PictureResource => resource.type === 'picture'
-      );
-    },
-    [resources]
-  );
+  const selectPictures = useCallback((nodeId: string): PictureResource[] => {
+    const nodeResources = resources.get(nodeId) || [];
+    return nodeResources
+      .filter((resource): resource is ImageMessage => 
+        resource.type === 'picture' && 'serverUrl' in resource)
+      .map(message => convertImageMessageToPictureResource(message, imageAssets));
+  }, [resources, imageAssets]);
 
   /**
    * Selects all practice sheets associated with a specific node.
+   *
    * @param nodeId - The ID of the node.
    * @returns An array of PracticeSheet resources.
    */
@@ -333,7 +455,37 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   );
 
   /**
-   * Sets the entire resources map (useful for loading documents).
+   * Fetches images for a remote replica based on received ImageMessages and updates imageAssets.
+   *
+   * @param messages - Array of ImageMessage objects containing metadata for images to fetch.
+   */
+  const fetchImageOnUpdate = useCallback(async (messages: ImageMessage[]) => {
+    const newImages = new Map<string, File>();
+
+    await Promise.all(messages.map(async (message) => {
+      if (!imageAssets.has(message.id) && !fetchingImages.current.has(message.id)) {
+        fetchingImages.current.add(message.id);
+        try {
+          const response = await fetch(message.serverUrl);
+          const blob = await response.blob();
+          const file = new File([blob], `image_${message.id}`, { type: blob.type });
+          newImages.set(message.id, file);
+        } catch (error) {
+          console.error(`[ResourceContext] Error fetching image with id ${message.id}:`, error);
+        } finally {
+          fetchingImages.current.delete(message.id);
+        }
+      }
+    }));
+
+    if (newImages.size > 0) {
+      setImageAssets(prev => new Map([...prev, ...newImages]));
+    } 
+  }, [imageAssets]);
+
+  /**
+   * Sets the entire resources map.
+   *
    * @param newResources - The new resources map.
    */
   const setResources = useCallback((newResources: Map<string, ResourceCard[]>) => {
@@ -363,15 +515,15 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
     });
     console.log('Updated Resources State:', resources);
     console.log('********** Leaving setResources **********');
-  }, [ydoc, yResourcesMap]);
+  }, [ydoc, yResourcesMap, resources]);
 
   /**
-   * Transfers resources from one node to another.
-   * Now supports 'copy' and 'cut' commands.
+   * Transfers resources between nodes.
+   *
    * @param sourceNodeId - The ID of the source node.
    * @param targetNodeId - The ID of the target node.
-   * @param resourceIds - An array of resource IDs to transfer.
-   * @param command - The type of transfer: 'copy' or 'cut'. Defaults to 'cut'.
+   * @param resourceIds - The IDs of the resources to transfer.
+   * @param command - The type of transfer: 'copy' or 'cut'.
    */
   const transferResource = useCallback(
     (
@@ -386,7 +538,6 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
       );
 
       if (resourcesToTransfer.length === 0) {
-        // No valid resources to transfer; exit early
         return;
       }
 
@@ -492,10 +643,11 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   );
 
   /**
-   * Resets all resources (clears the map).
+   * Resets all resources in the Y.Doc.
    */
   const resetResources = useCallback(() => {
     setResourcesState(new Map());
+    setImageAssets(new Map());
     setResourceHistoryMap(new Map());
 
     ydoc.transact(() => {
@@ -506,93 +658,32 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   }, [yResourcesMap, ydoc]);
 
   /**
-   * Retrieves all resources of a specified type in a Map keyed by nodeId.
-   * @param type - The type of resource to retrieve ('cueCard' | 'picture' | 'practiceSheet').
-   * @returns Map of specified resource type arrays.
+   * Retrieves all resources of a specified type.
+   *
+   * @param type - The type of resource to retrieve.
+   * @returns A map of resources categorized by node ID.
    */
-  const getResourcesByType = useCallback(
-    (type: 'cueCard' | 'picture' | 'practiceSheet') => {
-      const resourceMap = new Map<string, ResourceCard[]>();
-      resources.forEach((resourceArray, nodeId) => {
-        const filteredResources = resourceArray.filter((resource) => resource.type === type);
-        if (filteredResources.length > 0) {
-          resourceMap.set(nodeId, filteredResources);
-        }
-      });
-      return resourceMap;
-    },
-    [resources]
-  );
-
-  /**
-   * Sets resources in the ResourceContext by replacing entries with those from the provided map.
-   * @param resourceMap - Map containing arrays of CueCardResource[], PictureResource[], or PracticeSheetResource[].
-   */
-  const setResourcesByMap = useCallback(
-    (
-      resourceMap: Map<string, CueCardResource[] | PictureResource[] | PracticeSheetResource[]>
-    ) => {
-      console.log('setResourcesByMap called with:', resourceMap);
-      
-      setResourcesState((prev) => {
-        const updatedResources = new Map(prev);
-  
-        resourceMap.forEach((newResources, nodeId) => {
-          const existingResources = updatedResources.get(nodeId) || [];
-          
-          // Determine the type of resources being added
-          const resourceType = newResources[0]?.type;
-          console.log(`Processing resources for nodeId: ${nodeId}, type: ${resourceType}`);
-  
-          // Filter existing resources to keep only those of different types
-          const filteredExisting = existingResources.filter(
-            resource => resource.type !== resourceType
-          );
-  
-          // Combine filtered existing resources with new resources
-          updatedResources.set(nodeId, [...filteredExisting, ...newResources]);
-        });
-  
-        console.log('Updated resources state:', updatedResources);
-        return updatedResources;
-      });
-  
-      // Update Y.Map
-      ydoc.transact(() => {
-        resourceMap.forEach((newResources, nodeId) => {
-          let yMap = yResourcesMap.get(nodeId);
-          if (!yMap) {
-            yMap = new Y.Map<ResourceCard>();
-            yResourcesMap.set(nodeId, yMap);
+  const getResourcesByType = useCallback((type: 'cueCard' | 'picture' | 'practiceSheet'): Map<string, ResourceCard[]> => {
+    const resourceMap = new Map<string, ResourceCard[]>();
+    resources.forEach((resourceArray, nodeId) => {
+      const filteredResources = resourceArray
+        .filter(resource => resource.type === type)
+        .map(resource => {
+          if (type === 'picture' && 'serverUrl' in resource) {
+            return convertImageMessageToPictureResource(resource as ImageMessage, imageAssets);
           }
-  
-          // Get the resource type
-          const resourceType = newResources[0]?.type;
-          
-          // Only clear resources of the same type
-          if (resourceType) {
-            const keysToDelete: string[] = [];
-            yMap.forEach((value, key) => {
-              if (value.type === resourceType) {
-                keysToDelete.push(key);
-              }
-            });
-            keysToDelete.forEach(key => yMap.delete(key));
-          }
-  
-          // Add new resources
-          newResources.forEach(resource => {
-            yMap.set(resource.id, resource);
-          });
+          return resource;
         });
-      });
-    },
-    [ydoc, yResourcesMap]
-  );
+      if (filteredResources.length > 0) {
+        resourceMap.set(nodeId, filteredResources);
+      }
+    });
+    return resourceMap;
+  }, [resources, imageAssets]);
 
   /**
    * Performs the undo operation for a specific node.
-   * Handles both atomic and binary compound operations.
+   *
    * @param nodeId - The ID of the node to undo.
    */
   const undo = useCallback(
@@ -601,7 +692,6 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
       const { updatedHistoryMap: newHistoryMap, revertStates } = undoOperation(updatedHistoryMap, nodeId);
 
       if (revertStates.size === 0) {
-        // No changes to revert
         return;
       }
 
@@ -636,7 +726,7 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Performs the redo operation for a specific node.
-   * Handles both atomic and binary compound operations.
+   *
    * @param nodeId - The ID of the node to redo.
    */
   const redo = useCallback(
@@ -645,7 +735,6 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
       const { updatedHistoryMap: newHistoryMap, applyStates } = redoOperation(updatedHistoryMap, nodeId);
 
       if (applyStates.size === 0) {
-        // No changes to apply
         return;
       }
 
@@ -680,6 +769,7 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Determines if an undo action is available for a node.
+   *
    * @param nodeId - The ID of the node.
    * @returns True if undo is possible, otherwise false.
    */
@@ -693,6 +783,7 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Determines if a redo action is available for a node.
+   *
    * @param nodeId - The ID of the node.
    * @returns True if redo is possible, otherwise false.
    */
@@ -704,11 +795,46 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
     [resourceHistoryMap]
   );
 
-  /**
-   * Context Value with Resource Management Functions
-   */
+
+  const saveImages = useCallback(async (): Promise<Map<string, ArrayBuffer>> => {
+    const savedImages = new Map<string, ArrayBuffer>();
+    
+    // Only save images that have corresponding ImageMessages in Y.map
+    const imageMessages = new Set<string>();
+    yResourcesMap.forEach((yMap) => {
+      yMap.forEach((resource: ResourceCard) => {
+        if (resource.type === 'picture' && 'serverUrl' in resource) {
+          imageMessages.add(resource.id);
+        }
+      });
+    });
+
+    // Save only images that have corresponding messages
+    for (const [imageId, imageFile] of imageAssets.entries()) {
+      if (imageMessages.has(imageId)) {
+        savedImages.set(imageId, await imageFile.arrayBuffer());
+      }
+    }
+    
+    return savedImages;
+  }, [yResourcesMap, imageAssets]);
+
+  const loadImages = useCallback((imageData: Map<string, ArrayBuffer>) => {
+    const newImages = new Map<string, File>();
+    
+    imageData.forEach((buffer, imageId) => {
+      const file = new File([buffer], `image_${imageId}`, { 
+        type: 'image/jpeg' // You might want to store/restore actual mime types
+      });
+      newImages.set(imageId, file);
+    });
+
+    setImageAssets(newImages);
+  }, []);
+
   const contextValue: ResourceContextType = useMemo(() => ({
     resources,
+    imageAssets,
     addResource,
     removeResource,
     editResource,
@@ -720,13 +846,16 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
     transferResource,
     resetResources,
     getResourcesByType,
-    setResourcesByMap,
+    fetchImageOnUpdate,
     undo,
     redo,
     undoAvailable,
     redoAvailable,
+    saveImages,
+    loadImages,
   }), [
     resources,
+    imageAssets,
     addResource,
     removeResource,
     editResource,
@@ -738,11 +867,13 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
     transferResource,
     resetResources,
     getResourcesByType,
-    setResourcesByMap,
+    fetchImageOnUpdate,
     undo,
     redo,
     undoAvailable,
     redoAvailable,
+    saveImages,
+    loadImages,
   ]);
 
   return (
@@ -752,15 +883,4 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </ResourceContext.Provider>
   );
-};
-
-/**
- * Custom hook to access the ResourceContext.
- */
-export const useResourceContext = () => {
-  const context = useContext(ResourceContext);
-  if (context === undefined) {
-    throw new Error('useResourceContext must be used within a ResourceProvider');
-  }
-  return context;
 };

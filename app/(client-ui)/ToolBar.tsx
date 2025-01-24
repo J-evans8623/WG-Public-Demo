@@ -20,7 +20,7 @@ import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { setPrimaryColor, setBackgroundColor } from '@/app/Library/Context/colorThemeActions';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import { useResourceContext } from '@/app/Library/Context/ResourceContext'; // Import ResourceContext
+import { useResourceContext } from '@/app/Library/Tests/Synchro/ResourceContext'; // Import ResourceContext
 
 const { Option } = Select;
 

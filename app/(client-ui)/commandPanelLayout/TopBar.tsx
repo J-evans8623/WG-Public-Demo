@@ -6,7 +6,7 @@ import ToolBar from './Toolbar-test';
 import { useFileContext } from '@/app/Library/Context/FileProvider';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
-import { useResourceContext } from '@/app/Library/Context/ResourceContext';
+import { useResourceContext } from '@/app/Library/Tests/Synchro/ResourceContext';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { setGetLayout, toggleResetMapSize } from '@/app/Library/Context/LayoutActions';

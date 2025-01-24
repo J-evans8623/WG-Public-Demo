@@ -1,47 +1,38 @@
-// WebSocketManager.tsx
-
 /**
  * @file WebSocketManager.tsx
  * @description
- * This file defines the WebSocketManager component and its context for managing WebSocket connections
- * within a React application. It handles the WebSocket lifecycle, integrates with Y.js for real-time
- * document synchronization, and provides connection state and control methods to child components.
- * The component ensures efficient state management and error handling for robust real-time collaboration.
+ * Manages WebSocket connections for real-time document synchronization using y-websocket.
  */
 
-import React, { createContext, ReactNode, useContext, useEffect, useState, useRef } from 'react';
-import { useFileContext } from './FileContext';
-import { useYDoc } from './YDocContext';
+import React, { createContext, ReactNode, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import { WebsocketProvider } from 'y-websocket';
+import { Awareness } from 'y-protocols/awareness';
+import { useYDoc, } from '@/app/Library/Tests/Synchro/Centralize/CentralYdoc';
 import { ApiContext } from '@/app/src/context/ApiContext';
 import { toast } from 'react-toastify';
 import * as Y from 'yjs';
+import { Descendant } from 'slate';
+import { ImageMessage } from '../../Definitions/Definitions';
+import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 
-/**
- * @interface WebSocketManagerContextType
- * @description
- * Defines the structure of the WebSocketManager context, including the connection state
- * and methods to connect and disconnect the WebSocket.
- */
 interface WebSocketManagerContextType {
   connectionState: 'disconnected' | 'connecting' | 'connected' | 'error';
   connect: () => Promise<void>;
   disconnect: () => void;
 }
 
-/**
- * @context WebSocketManagerContext
- * @description
- * Creates a React context for the WebSocketManager, providing connection state
- * and control methods to consumer components.
- */
+interface SerializedPictureResource {
+  id: string;
+  nodeId: string;
+  type: 'picture';
+  title: string;
+  imageData?: string; // Base64 encoded image data
+  description?: Descendant[];
+  source?: string;
+}
+
 const WebSocketManagerContext = createContext<WebSocketManagerContextType | null>(null);
 
-/**
- * @hook useWebSocketManager
- * @description
- * Custom hook to access the WebSocketManager context. Ensures that the hook is used within
- * a WebSocketManagerProvider.
- */
 export const useWebSocketManager = () => {
   const context = useContext(WebSocketManagerContext);
   if (!context) {
@@ -50,222 +41,251 @@ export const useWebSocketManager = () => {
   return context;
 };
 
-/**
- * @component WebSocketManagerProvider
- * @description
- * Main provider component that manages the WebSocket lifecycle, integrates with Y.js for
- * document synchronization, and provides connection state and control methods to its children.
- */
 export const WebSocketManagerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { driveFileId, isInitialized, isYDocInitialized } = useFileContext();
   const { getWebSocketUrl } = useContext(ApiContext);
-  const { ydoc, applyDocUpdate, getDocState } = useYDoc();
+  const { ydoc , driveFileId, isInitialized} = useYDoc();
   const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
-  const wsRef = useRef<WebSocket | null>(null);
+  const providerRef = useRef<WebsocketProvider | null>(null);
+  const isConnectingRef = useRef<boolean>(false);
+  const { fetchImageOnUpdate, imageAssets } = useResourceContext();
 
-  /**
-   * @section Y.js Integration
-   * Handles Y.js document updates by sending them through the WebSocket if the connection is open
-   * and the update did not originate from the WebSocket itself. Logs detailed information about each update.
-   */
-  useEffect(() => {
-    console.log('[WebSocketManager] Setting up Y.doc update handler');
+  // Create a function to handle provider cleanup
+  const cleanupProvider = useCallback(() => {
+    if (providerRef.current) {
+      console.log('[WebSocketManager] Cleaning up provider');
+      providerRef.current.destroy();
+      providerRef.current = null;
+      setConnectionState('disconnected');
+    }
+  }, []);
 
-    const handleUpdate = (update: Uint8Array, origin: any) => {
-      console.log('[WebSocketManager] Y.doc update detected:', {
-        updateSize: update.length,
-        updateType: update.constructor.name,
-        origin: origin,
-        wsState: wsRef.current?.readyState
+
+// Updated type for extractImageMessages function
+const extractImageMessages = useCallback((resourcesMap: Y.Map<any>): ImageMessage[] => {
+  const messages: ImageMessage[] = [];
+  
+  resourcesMap.forEach((nodeResources: any, nodeId: string) => {
+    // Check if nodeResources is a Y.Map
+    if (nodeResources instanceof Y.Map) {
+      nodeResources.forEach((resource: any, resourceId: string) => {
+        if (
+          resource && 
+          typeof resource === 'object' &&
+          resource.type === 'picture' && 
+          'serverUrl' in resource
+        ) {
+          messages.push({
+            id: resource.id,
+            nodeId,
+            type: 'picture',
+            serverUrl: resource.serverUrl,
+            title: resource.title,
+            description: resource.description,
+            source: resource.source
+          });
+        }
+      });
+    }
+  });
+  
+  return messages;
+}, []);
+  
+
+// Add update observer to monitor all changes
+useEffect(() => {
+  if (!ydoc) return;
+
+  const updateHandler = async (update: Uint8Array, origin: any) => {
+
+    console.log('[WebSocketManager] Update received:', {
+      updateSize: update.length,
+      origin: origin ? 'Provider' : 'Local',
+      timestamp: new Date().toISOString()
+    });
+
+    const resourcesMap = ydoc.getMap('resources');
+
+    // Create a function to handle resource changes
+    const handleResourceChange = async (event: Y.YMapEvent<any>) => {
+      const changedKeys = Array.from(event.changes.keys.keys());
+      console.log('[WebSocketManager] Resources updated:', {
+        keys: changedKeys,
+        timestamp: new Date().toISOString()
       });
 
-      if (wsRef.current?.readyState === WebSocket.OPEN && origin !== wsRef.current) {
-        console.log('[WebSocketManager] Sending update through WebSocket');
+      // Check if any of the changed resources contain image messages
+      if (changedKeys.length > 0) {
         try {
-          wsRef.current.send(update);
-          console.log('[WebSocketManager] Binary update sent successfully:', {
-            size: update.length,
-            timestamp: new Date().toISOString()
-          });
+          // Extract image messages from the updated resources
+          const imageMessages = extractImageMessages(resourcesMap);
+          const newImageMessages = imageMessages.filter(msg => !imageAssets.has(msg.id));
+          
+          if (newImageMessages.length > 0) {
+            console.log('[WebSocketManager] Found image messages to fetch:', imageMessages);
+            await fetchImageOnUpdate(newImageMessages);
+          }
         } catch (error) {
-          console.error('[WebSocketManager] Failed to send update:', error);
+          console.error('[WebSocketManager] Error processing image updates:', error);
         }
-      } else {
-        console.log('[WebSocketManager] Skipping update send:', {
-          hasWebSocket: !!wsRef.current,
-          readyState: wsRef.current?.readyState,
-          isFromWebSocket: origin === wsRef.current
-        });
       }
     };
 
-    ydoc.on('update', handleUpdate);
+    // Observe resource changes
+    resourcesMap.observe(handleResourceChange);
+
+    // Log current document state
+    try {
+      console.log('[WebSocketManager] Current document state:', {
+        totalResources: resourcesMap.size,
+        hasChanges: Y.encodeStateAsUpdate(ydoc).length > 0,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('[WebSocketManager] Error logging document state:', error);
+    }
 
     return () => {
-      console.log('[WebSocketManager] Cleaning up Y.doc update handler');
-      ydoc.off('update', handleUpdate);
+      resourcesMap.unobserve(handleResourceChange);
     };
-  }, [ydoc]);
+  };
 
-  /**
-   * @function connect
-   * @description
-   * Establishes the WebSocket connection by fetching the WebSocket URL, configuring binary data handling,
-   * setting up event handlers for open, message, error, and close events, and managing the connection state.
-   * Sends the initial Y.js document state upon successful connection.
-   */
-  const connect = async () => {
-    if (!driveFileId || !isInitialized || !isYDocInitialized) {
-      console.log('[WebSocketManager] Prerequisites not met for connection');
+  ydoc.on('update', updateHandler);
+  return () => {
+    ydoc.off('update', updateHandler);
+  };
+}, [ydoc, extractImageMessages, fetchImageOnUpdate]);
+
+
+  const connect = useCallback(async () => {
+    if (!driveFileId || !isInitialized || isConnectingRef.current) {
+      console.log('[WebSocketManager] Prerequisites not met for connection or already connecting');
       return;
     }
 
     try {
+      isConnectingRef.current = true;
       setConnectionState('connecting');
       const wsUrl = await getWebSocketUrl(driveFileId);
       console.log('[WebSocketManager] Establishing connection to:', wsUrl);
+
+      // Extract token and ensure it's a string
+      const token = wsUrl.split('?token=')[1] || '';
+
+      // Create awareness instance
+      const awareness = new Awareness(ydoc);
       
-      const newWs = new WebSocket(wsUrl);
-      wsRef.current = newWs;
+      // Configure WebSocket provider with default settings
+      const newProvider = new WebsocketProvider(wsUrl, driveFileId, ydoc, {
+        connect: true,
+        awareness,
+        params: { token }
+      });
 
-      // Configure for binary data
-      newWs.binaryType = 'arraybuffer';
-
-      /**
-       * @event onopen
-       * @description
-       * Handles the WebSocket open event by updating the connection state to 'connected',
-       * sending the initial Y.js document state, and displaying a success toast notification.
-       */
-      newWs.onopen = () => {
-        console.log('[WebSocketManager] Connection opened');
-        setConnectionState('connected');
-        
-        // Send initial state
-        const initialState = getDocState();
-        console.log('[WebSocketManager] Sending initial state:', {
-          stateSize: initialState.length,
-          stateType: initialState.constructor.name,
-          timestamp: new Date().toISOString()
-        });
-        newWs.send(initialState);
-        toast.info('Connected to collaboration room');
-      };
-
-      /**
-       * @event onmessage
-       * @description
-       * Handles incoming WebSocket messages by processing binary data,
-       * applying document updates, and logging relevant information.
-       */
-      newWs.onmessage = async (event) => {
-        console.log('[WebSocketManager] Message received:', {
-          dataType: event.data?.constructor?.name,
-          size: event.data?.byteLength || 0,
-          timestamp: new Date().toISOString()
-        });
-        
-        try {
-          let update: Uint8Array;
-
-          if (event.data instanceof ArrayBuffer) {
-            update = new Uint8Array(event.data);
-          } else if (event.data instanceof Blob) {
-            const arrayBuffer = await event.data.arrayBuffer();
-            update = new Uint8Array(arrayBuffer);
-          } else {
-            console.error('[WebSocketManager] Unexpected message format:', typeof event.data);
-            return;
-          }
-
-          console.log('[WebSocketManager] Applying update:', {
-            updateSize: update.length,
-            timestamp: new Date().toISOString()
-          });
-
-          applyDocUpdate(update);
-        } catch (error) {
-          console.error('[WebSocketManager] Error processing message:', error);
+      // Set up event listeners
+      newProvider.on('status', ({ status }: { status: string }) => {
+        console.log('[WebSocketManager] Connection status:', status);
+        switch (status) {
+          case 'connected':
+            setConnectionState('connected');
+            toast.info('Connected to collaboration room');
+            break;
+          case 'disconnected':
+            setConnectionState('disconnected');
+            toast.warn('WebSocket connection closed');
+            break;
+          case 'error':
+            setConnectionState('error');
+            toast.error('WebSocket encountered an error');
+            break;
         }
-      };
+      });
 
-      /**
-       * @event onerror
-       * @description
-       * Handles WebSocket errors by updating the connection state to 'error'
-       * and displaying an error toast notification.
-       */
-      newWs.onerror = (error) => {
-        console.error('[WebSocketManager] WebSocket error:', error);
+      // Handle sync status with enhanced logging
+      newProvider.on('sync', (isSynced: boolean) => {
+        console.log('[WebSocketManager] Sync status:', {
+          isSynced,
+          timestamp: new Date().toISOString(),
+          documentId: driveFileId,
+          provider: providerRef.current ? 'active' : 'inactive'
+        });
+
+        if (isSynced) {
+          // Log the state of resources after sync
+          try {
+            const resourcesMap = ydoc.getMap('resources');
+            console.log('[WebSocketManager] Resources after sync:', {
+              totalResources: resourcesMap.size,
+              resourceKeys: Array.from(resourcesMap.keys())
+            });
+            toast.success('Document synchronized');
+          } catch (error) {
+            console.error('[WebSocketManager] Error checking resources after sync:', error);
+          }
+        }
+      });
+
+      // Handle connection errors with correct event type
+      newProvider.on('connection-error', (event: Event, provider: WebsocketProvider) => {
+        console.error('[WebSocketManager] Connection error:', {
+          event,
+          provider: provider.roomname,
+          timestamp: new Date().toISOString()
+        });
         setConnectionState('error');
-        toast.error('WebSocket encountered an error');
-      };
+        toast.error('Failed to establish WebSocket connection');
+      });
 
-      /**
-       * @event onclose
-       * @description
-       * Handles the WebSocket close event by updating the connection state to 'disconnected',
-       * clearing the WebSocket reference, and displaying a warning toast notification.
-       */
-      newWs.onclose = () => {
-        console.log('[WebSocketManager] Connection closed');
-        setConnectionState('disconnected');
-        wsRef.current = null;
-        toast.warn('WebSocket connection closed');
-      };
+      providerRef.current = newProvider;
 
     } catch (error) {
       console.error('[WebSocketManager] Connection establishment failed:', error);
       setConnectionState('error');
       toast.error('Failed to establish WebSocket connection');
+    } finally {
+      isConnectingRef.current = false;
     }
-  };
+  }, [driveFileId, isInitialized, ydoc, getWebSocketUrl]);
 
-  /**
-   * @section State Management
-   * Monitors changes in connection prerequisites such as driveFileId, initialization states,
-   * and manages the WebSocket connection accordingly by connecting or disconnecting as needed.
-   */
+  const disconnect = useCallback(() => {
+    console.log('[WebSocketManager] Initiating disconnect');
+    cleanupProvider();
+  }, [cleanupProvider]);
+
+  // Handle automatic connection/disconnection based on prerequisites
   useEffect(() => {
-    console.log('[WebSocketManager] Connection prerequisites changed:', {
-      driveFileId,
-      isInitialized,
-      isYDocInitialized,
-      currentState: connectionState
+    const shouldConnect = driveFileId && isInitialized ;
+    
+    console.log('[WebSocketManager] Connection state check:', {
+      shouldConnect,
+      hasProvider: !!providerRef.current,
+      isConnecting: isConnectingRef.current,
+      connectionState
     });
 
-    const shouldConnect = driveFileId && isInitialized && isYDocInitialized;
-    
-    if (shouldConnect) {
+    if (shouldConnect && !providerRef.current && !isConnectingRef.current) {
       connect();
-    } else {
-      disconnect();
     }
-  }, [driveFileId, isInitialized, isYDocInitialized]);
 
-  /**
-   * @function disconnect
-   * @description
-   * Cleanly terminates the WebSocket connection by closing it, clearing the reference,
-   * and updating the connection state to 'disconnected'.
-   */
-  const disconnect = () => {
-    if (wsRef.current) {
-      console.log('[WebSocketManager] Initiating disconnect');
-      wsRef.current.close();
-      wsRef.current = null;
-      setConnectionState('disconnected');
-    }
-  };
+    return () => {
+      if (!shouldConnect && providerRef.current) {
+        disconnect();
+      }
+    };
+  }, [driveFileId, isInitialized, connect, disconnect, connectionState]);
 
-  /**
-   * @return
-   * Renders the WebSocketManagerContext.Provider, supplying the connection state
-   * and control methods to child components.
-   */
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => cleanupProvider();
+  }, [cleanupProvider]);
+
   return (
     <WebSocketManagerContext.Provider value={{ connectionState, connect, disconnect }}>
       {children}
     </WebSocketManagerContext.Provider>
   );
 };
+
+function fetchImageOnUpdate(imageMessages: ImageMessage[]) {
+  throw new Error('Function not implemented.');
+}

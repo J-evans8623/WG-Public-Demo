@@ -6,7 +6,6 @@ import React, { useState, useCallback, useEffect, useRef, memo, useContext} from
 import CueCardDisplay, { CueCardDisplayRef } from '@/app/Library/components/CardDisplay/CueCardDisplay';
 import { NodeSelectionProvider, useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import ModernModal from '@/app/Library/components/Modals/ModernModal';
-import { TreeDimensionsProvider, useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 import { useSubTreeContext, SubTreeProvider } from '@/app/Library/Context/SubTreeProvider';
 import { v4 as uuidv4 } from 'uuid';
 import { DndProvider } from 'react-dnd';
@@ -24,8 +23,8 @@ import { ColorThemeProvider, useColorThemeContext } from '@/app/Library/Context/
 import { FileProvider, useFileContext } from '@/app/Library/Tests/Synchro/FileContext';
 import { ResourceProvider, useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { setGetLayout } from '@/app/Library/Context/LayoutActions';
-import { YDocProvider } from '@/app/Library/Tests/Synchro/YDocContext';
-import { initializeNewDocument } from '@/app/Library/utils/documentUtils'; 
+import { YDocProvider, useYDoc } from '@/app/Library/Tests/Synchro/Centralize/CentralYdoc';
+import { initializeNewDocument } from '@/app/Library/Tests/Synchro/LoadDocumentUtils'; 
 import { WebSocketManagerProvider } from '../Library/Tests/Synchro/WebSocketManager';
 
 // Dynamic Tool Panes
@@ -61,11 +60,10 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
 
   // Use new context hooks
   
-  const { nodes, setNodes, createNewNode, updateNodeTitle, deleteNode, resetNodes, initNewDocument, transferNode } = useNodesContext();
+  const { nodes, createNewNode, updateNodeTitle, deleteNode, resetNodes, initNewDocument, transferNode } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
   const { dispatch: fileDispatch, fileName } = useFileContext();
   const { dispatch: colorThemeDispatch } = useColorThemeContext();
-  const { resetTreeDimensions } = useTreeDimensions();
   const { resetSubtrees } = useSubTreeContext();
 
 
@@ -80,6 +78,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   const [sourceNodeId, setSourceNodeId] = useState<string | ''>('');
   const { toggleNodeSelection, setTargetNodeId, clearSelection, selectNode } = useNodeSelection();
   const [modalKey, setModalKey] = useState<string>('');
+   const { createNewDocument } = useYDoc();
 
   /**
    * Opens the modal with the specified resource type and operation mode.
@@ -128,7 +127,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   }, [cueCardDisplayRef]);
 
   const handleInitNodes = useCallback(()=>{
-    initNewDocument(6,1800,1800) // bloomdepth , map width and height
+    initNewDocument() // bloomdepth , map width and height
   }, [initNewDocument]);
 
   /**
@@ -168,20 +167,14 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
    * Initializes a new document on first render.
    */
   useEffect(() => {
+    console.log('*****************Initializing application in app.tsx*********************');
     const initializeApp = async () => {
       try {
-        await initializeNewDocument(
-          resetNodes,
-          handleInitNodes,
-          layoutDispatch,
-          fileDispatch,
-          colorThemeDispatch,
-          resetTreeDimensions,
-          resetSubtrees,
-          resetResources,
-          6,
-          false
-        );
+    await initializeNewDocument(
+      createNewDocument,
+      layoutDispatch,
+      colorThemeDispatch,
+    );
         centerScroll();
       } catch (error) {
         console.error('Initialization Error:', error);
@@ -192,7 +185,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     };
 
     initializeApp();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    console.log('*************App.tsx Initialization Completed**************')
   }, []);
 
   const handleSignInSuccess = async () => {
@@ -399,10 +392,10 @@ export default function ClientLayout() {
     <DndProvider backend={HTML5Backend}>
     <FileProvider>
     <YDocProvider>
-      <WebSocketManagerProvider>
-      <TreeDimensionsProvider>
+      
         <NodeSelectionProvider>
           <ResourceProvider> {/* Wrap with centralized ResourceProvider */}
+          <WebSocketManagerProvider>
             <NodesProvider>
               <ZoomProvider>
                 <LayoutProvider>
@@ -414,10 +407,10 @@ export default function ClientLayout() {
                 </LayoutProvider>
               </ZoomProvider>
             </NodesProvider>
+            </WebSocketManagerProvider>
           </ResourceProvider>
         </NodeSelectionProvider>
-      </TreeDimensionsProvider>
-      </WebSocketManagerProvider>
+     
       </YDocProvider>
       </FileProvider>
     </DndProvider>
