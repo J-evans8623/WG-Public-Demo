@@ -22,9 +22,9 @@ import {
   createBinaryCompoundEntries,
   generateOperationId,
 } from '@/app/Library/utils/undoredo/historyutils';
-import { useYDoc } from '@/app/Library/Tests/Synchro/Centralize/CentralYdoc';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
 import * as Y from 'yjs';
-import { SystemActionType, SystemOrigin } from '@/app/Library/Tests/Synchro/Centralize/SystemOriginTypes';
+
 
 interface ResourceContextType {
   resources: Map<string, ResourceCard[]>;
@@ -202,15 +202,6 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
               // Add to imageAssets
               setImageAssets(prev => new Map(prev).set(newResource.id, initResource.image));
 
-              // Create resource with file and URLs
-             /**  newResource = {
-                ...resource,
-                id: initResource.id,
-                type: 'picture',
-                image: initResource.image,              // File is stored separately
-                localUrl: URL.createObjectURL(resource.image), // For local rendering  --> should probably be defined in save utils
-                serverUrl,                         // For remote replicas to fetch
-              } as PictureResource;  */
 
             } catch (error) {
               console.error('[ResourceContext] Error uploading image:', error);
@@ -460,6 +451,7 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
    * @param messages - Array of ImageMessage objects containing metadata for images to fetch.
    */
   const fetchImageOnUpdate = useCallback(async (messages: ImageMessage[]) => {
+    console.log('Attempting to fetch Image');
     const newImages = new Map<string, File>();
 
     await Promise.all(messages.map(async (message) => {

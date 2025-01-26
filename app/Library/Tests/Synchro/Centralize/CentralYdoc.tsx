@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useCallback, useState, useMemo, ReactNode } from 'react';
 import * as Y from 'yjs';
 import { toast } from 'react-toastify';
-import { ConceptNode, ResourceCard } from '@/app/Library/Definitions/Definitions';
-import { SubtreeData } from './SubtreeProvider';
+import { ConceptNode} from '@/app/Library/Definitions/Definitions';
+
 
 interface YDocContextType {
   // Document state
@@ -113,7 +113,7 @@ const [ydoc, setYDoc] = useState(() => new Y.Doc());
       console.error('Error creating new document:', error);
       toast.error('Failed to create new document');
     }
-  }, [ydoc]);
+  }, []);
 
 
   const loadData = useCallback(async (
@@ -167,17 +167,7 @@ const [ydoc, setYDoc] = useState(() => new Y.Doc());
     updateFileName,
     updateDriveId,
     loadData,
-  }), [
-    ydoc,
-    fileName,
-    driveFileId,
-    isInitialized,
-    createNewDocument,
-    applyUpdate,
-    getState,
-    updateFileName,
-    updateDriveId,
-  ]);
+  }), [ydoc, fileName, driveFileId, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, updateDriveId, loadData]);
 
   return (
     <YDocContext.Provider value={value}>

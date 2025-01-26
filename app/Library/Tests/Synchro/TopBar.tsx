@@ -13,7 +13,7 @@ import {
   saveDocument,
   prepareBloomDocx,
 } from './DocumentUtils';
-import {initializeNewDocument, loadDocument, loadDocumentFromDrive} from './LoadDocumentUtils'
+import {initializeNewDocument, loadDocument, loadDocumentFromDrive} from '@/app/Library/utils/LoadDocumentUtils'
 
 import {
   setFileName,
@@ -22,13 +22,13 @@ import {
   setInitialized,
   setYDocInitialized,
 } from '@/app/Library/Context/fileActions';
-import { ColorTheme, CueCardResource, FileActionType, ResourceType } from '@/app/Library/Definitions/Definitions';
+import { ColorTheme} from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { ApiContext } from '@/app/src/context/ApiContext';
 import FileSelectorModal from '@/app/Library/components/FileSelectorModal/FileSelectorModal';
 import { toast } from 'react-toastify';
-import { useYDoc } from '@/app/Library/Tests/Synchro/Centralize/CentralYdoc';
-import { useWebSocketManager } from './WebSocketManager'; // Hook for WebSocketManager
+import { useYDoc } from '@/app/Library/Context/YDocContext';
+
 
 interface TopBarProps {
   handleOpenToolPane: (

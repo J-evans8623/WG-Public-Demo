@@ -1,35 +1,24 @@
-// TopBar.tsx
-
+// TopBar.tsx (Updated)
 import React, { useRef, useCallback, useState, useEffect, useContext } from 'react';
 import MenuBar from '@/app/(client-ui)/MenuBar';
-import ToolBar from './Toolbar-test';
-import { useFileContext } from '@/app/Library/Context/FileProvider';
-import { useNodesContext } from '@/app/Library/Context/NodesProvider';
+import ToolBar from '@/app/(client-ui)/commandPanelLayout/Toolbar-test';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
-import { useResourceContext } from '@/app/Library/Tests/Synchro/ResourceContext';
-import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
+import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { setGetLayout, toggleResetMapSize } from '@/app/Library/Context/LayoutActions';
-import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
-import { useTreeDimensions } from '@/app/Library/Context/TreeDimensionsProvider';
 import {
   saveDocument,
-  loadDocument,
-  initializeNewDocument,
   prepareBloomDocx,
-  loadDocumentFromDrive,
-} from '@/app/Library/utils/documentUtils'; // Updated import path
-import {
-  setFileName,
-  setDriveFileId,
-  resetDriveFileId,
-} from '@/app/Library/Context/fileActions';
-import { ColorTheme, CueCardResource, ResourceType } from '@/app/Library/Definitions/Definitions';
+} from '@/app/Library/utils/documentUtils';
+import {initializeNewDocument, loadDocument, loadDocumentFromDrive} from '@/app/Library/utils/LoadDocumentUtils'
+import { ColorTheme} from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { ApiContext } from '@/app/src/context/ApiContext';
 import FileSelectorModal from '@/app/Library/components/FileSelectorModal/FileSelectorModal';
 import { toast } from 'react-toastify';
-import { useYDoc } from '@/app/Library/Context/YDocContext'; // Use YDocContext instead of WebSocketContext
+import { useYDoc } from '@/app/Library/Context/YDocContext';
+import { useWebSocketManager } from '@/app/Library/Context/WebSocketManager'; // Hook for WebSocketManager
+import { AutoSaveManager } from '@/app/Library/utils/AutoSaveManager';
 
 interface TopBarProps {
   handleOpenToolPane: (
@@ -54,32 +43,23 @@ const TopBar: React.FC<TopBarProps> = ({
   handleAuthButtonClick,
 }) => {
   // Access necessary contexts
-  const { fileName, driveFileId, dispatch: fileDispatch } = useFileContext();
-  const {
-    nodes,
-    setNodes,
-    createNewNode,
-    updateNodeTitle,
-    deleteNode,
-    resetNodes,
-    initNewDocument,
-    transferNode,
-  } = useNodesContext();
+
   
   const { clearSelection } = useNodeSelection();
   const { colorTheme, primaryColor, backgroundColor, dispatch: colorThemeDispatch } =
     useColorThemeContext();
-  const { resources, addResource, getResourcesByType, setResourcesByMap } = useResourceContext();
-  const { subtrees, setSubtrees, resetSubtrees } = useSubTreeContext();
+  const {  loadImages, saveImages } = useResourceContext();
+
   const { dispatch: layoutDispatch } = useLayoutContext();
-  const { resetTreeDimensions } = useTreeDimensions();
-  const { zoomLevel, baseZoomLevel, dispatch: zoomDispatch } = useZoomContext();
-  const { resetResources } = useResourceContext();
+
   const { loadFromDrive, autosaveDocument } =
     useContext(ApiContext);
 
+  // Access WebSocketManager
+  const { disconnect, connect } = useWebSocketManager();
+
   // Access Y.Doc from YDocContext
-  const { ydoc, provider, status, resetWebSocketAndYDoc } = useYDoc();
+  const { ydoc, loadData, createNewDocument, updateDriveId, updateFileName, fileName,driveFileId, isInitialized } = useYDoc();
 
   // State for Google Drive File Selector Modal
   const [isFileSelectorOpen, setIsFileSelectorOpen] = useState(false);
@@ -87,124 +67,86 @@ const TopBar: React.FC<TopBarProps> = ({
   // Ref for the hidden file input (if needed for device operations)
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // State to track if there are untracked changes for autosave
-  const [hasUntrackedChanges, setHasUntrackedChanges] = useState<boolean>(false);
+
 
   // State to track autosave status for visual feedback
   const [isAutosaving, setIsAutosaving] = useState<boolean>(false);
 
-  /**
-   * Initializes nodes for a new document.
-   */
-  const handleInitNodes = useCallback(() => {
-    console.log('Initializing new document with default nodes...');
-    initNewDocument(6, 1800, 1800); // bloomDepth, map width, and height
-  }, [initNewDocument]);
 
-  /**
-   * Triggers the autosave process by calling the `autosaveDocument` method from ApiContext.
-   */
-  const triggerAutosave = useCallback(async () => {
-    console.log('Checking if autosave is needed...', { hasUntrackedChanges });
-    if (!hasUntrackedChanges) {
-      console.log('No untracked changes. Skipping autosave.');
-      return;
-    }
+  const autoSaveManager = useRef<AutoSaveManager | null>(null);
 
-    console.log('Starting autosave process...');
-    try {
-      setIsAutosaving(true);
-
-      // Prepare the document for saving
-      console.log('Preparing `.bloomdocx` for autosave...');
-      const bloomDocx = await prepareBloomDocx(
-        ydoc,
-        nodes,
-        colorTheme as ColorTheme,
-        primaryColor,
-        backgroundColor,
-        fileName,
-        getResourcesByType('cueCard'),
-        subtrees,
-        getResourcesByType('picture'),
-        getResourcesByType('practiceSheet'),
-        driveFileId
-      );
-
-      console.log('`.bloomdocx` prepared. Converting to ArrayBuffer...');
-      const bloomDocxArrayBuffer = await bloomDocx.arrayBuffer();
-
-      console.log('Calling autosaveDocument with fileId:', driveFileId || '(none)');
-      const fileId = await autosaveDocument(bloomDocxArrayBuffer, fileName, driveFileId);
-
-      if (fileId !== driveFileId) {
-        console.log('New fileId detected. Updating context state with fileId:', fileId);
-        fileDispatch(setDriveFileId(fileId));
-      }
-
-      toast.success('Autosave completed successfully!');
-      setHasUntrackedChanges(false);
-      console.log('Autosave successful. hasUntrackedChanges set to false.');
-    } catch (error) {
-      console.error('Autosave error:', error);
-      toast.error('Autosave failed.');
-    } finally {
-      setIsAutosaving(false);
-      console.log('Autosave process ended.');
-    }
-  }, [hasUntrackedChanges, ydoc, nodes, colorTheme, primaryColor, backgroundColor, fileName, getResourcesByType, subtrees, driveFileId, autosaveDocument, fileDispatch]);
-
-  /**
-   * Effect to handle autosave when WebSocket sync occurs
-   * Depending on your implementation, you might need to handle Yjs updates here
-   * or within the YDocContext.
-   * If the YDocContext handles this internally, you might not need this.
-   */
+  
   useEffect(() => {
-    if (provider) {
-      const handleUpdate = () => {
-        console.log('Received Y.Doc update. Marking as having untracked changes.');
-        setHasUntrackedChanges(true);
-      };
+    
+    autoSaveManager.current = new AutoSaveManager(
+      ydoc,
+      async () => {
+        setIsAutosaving(true);
+        try {
+          const bloomDocx = await prepareBloomDocx(
+            ydoc,
+            colorTheme as ColorTheme,
+            primaryColor,
+            backgroundColor,
+            fileName,
+            saveImages,
+            driveFileId
+          );
+          console.log('Entering Autosave layer using autosaveManager instace : ', autoSaveManager.current)
 
-      // Listen to Yjs updates
-      ydoc.on('update', handleUpdate);
+          const bloomDocxArrayBuffer = await bloomDocx.arrayBuffer();
+          const fileId = await autosaveDocument(bloomDocxArrayBuffer, fileName, driveFileId);
+          updateDriveId(fileId);
+          
+          toast.success('Autosave completed successfully!');
+          console.log('*******************Exiting Autosave layer*****************')
+        } catch (error) {
+          console.error('Autosave error:', error);
+          toast.error('Autosave failed.');
+          throw error; // Propagate error to AutoSaveManager
+        } finally {
+          setIsAutosaving(false);
+        }
+      }
+    );
 
-      return () => {
-        ydoc.off('update', handleUpdate);
-      };
-    }
-  }, [provider, ydoc]);
+    return () => {
+      autoSaveManager.current?.destroy();
+    };
+  }, [ydoc, colorTheme, primaryColor, backgroundColor, fileName, driveFileId, saveImages, autosaveDocument, updateDriveId]);
+
 
   /**
    * Handler for creating a new document.
    */
-  const handleCreateNewDocument = useCallback(() => {
+  const handleCreateNewDocument = useCallback(async () => {
     console.log('handleCreateNewDocument called.');
+    
+    // 1. Get WebSocket manager to disconnect first
+    disconnect();
+    
+    // 2. Reset YDoc instance before any state changes
+    
+    // 3. Clear UI state that might trigger updates
     clearSelection();
     handleCloseAllModals();
-    
+
+    // 5. Initialize new document (this resets all application state)
     console.log('Initializing new document with default setup...');
-    initializeNewDocument(
-      resetNodes,
-      handleInitNodes,
+    await initializeNewDocument(
+      createNewDocument,
       layoutDispatch,
-      fileDispatch,
       colorThemeDispatch,
-      resetTreeDimensions,
-      resetSubtrees,
-      resetResources,
-      6, // bloomDepth
-      false // isInitialLoad
     );
-    fileDispatch(resetDriveFileId());
+  
+
     centerScroll();
     layoutDispatch(toggleResetMapSize());
+    
+    
+    console.log('New document setup complete.');
+  }, [centerScroll, clearSelection, colorThemeDispatch, createNewDocument, disconnect, handleCloseAllModals, layoutDispatch]);
 
-    setHasUntrackedChanges(false);
-    setIsAutosaving(false);
-    console.log('New document setup complete. hasUntrackedChanges reset to false.');
-  }, [clearSelection, handleCloseAllModals, resetNodes, handleInitNodes, layoutDispatch, fileDispatch, colorThemeDispatch, resetTreeDimensions, resetSubtrees, resetResources, centerScroll]);
 
   /**
    * Handler for changing the document title.
@@ -213,12 +155,12 @@ const TopBar: React.FC<TopBarProps> = ({
     (newTitle: string) => {
       console.log('Title change requested. New title:', newTitle);
       if (!newTitle.trim()) {
-        fileDispatch(setFileName('Untitled Document'));
+        updateFileName('Untitled Document');
       } else {
-        fileDispatch(setFileName(newTitle));
+        updateFileName(newTitle);
       }
     },
-    [fileDispatch]
+    [updateFileName]
   );
 
   /**
@@ -229,26 +171,20 @@ const TopBar: React.FC<TopBarProps> = ({
     try {
       await saveDocument(
         ydoc,
-        nodes,
         colorTheme as ColorTheme,
         primaryColor,
         backgroundColor,
         fileName,
-        getResourcesByType('cueCard'),
-        subtrees,
-        getResourcesByType('picture'),
-        getResourcesByType('practiceSheet'),
+        saveImages, // Helper function from ResourceContext
         driveFileId
       );
       toast.success('Document saved successfully!');
-      setHasUntrackedChanges(false);
-      setIsAutosaving(false);
-      console.log('Document saved. hasUntrackedChanges reset to false.');
+
     } catch (error) {
       console.error('Error saving document:', error);
       toast.error('Failed to save the document.');
     }
-  }, [ydoc, nodes, colorTheme, primaryColor, backgroundColor, fileName, getResourcesByType, subtrees, driveFileId]);
+  }, [ydoc, colorTheme, primaryColor, backgroundColor, fileName, saveImages, driveFileId]);
 
   /**
    * Handler for opening a document from the device.
@@ -258,36 +194,79 @@ const TopBar: React.FC<TopBarProps> = ({
     fileInputRef.current?.click();
   }, []);
 
+
   /**
-   * Handler for file input change (loading a `.bloomdocx` document from the local device).
+   * Handles saving the document to Google Drive (manual action).
    */
-  const handleFileChange = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSaveToGoogleDrive = useCallback(async () => {
+    try {
+      console.log('handleSaveToGoogleDrive triggered.');
+      toast.info('Saving to Google Drive...');
+  
+ 
+      // Set initialization states to prevent WebSocket from connecting during save
+
+      // Prepare the document
+      console.log('Preparing `.bloomdocx` for Google Drive save...');
+      const bloomDocx = await prepareBloomDocx(
+        ydoc,
+        colorTheme as ColorTheme,
+        primaryColor,
+        backgroundColor,
+        fileName,
+        saveImages, // Helper function from ResourceContext
+        driveFileId
+      );
+      const bloomDocxArrayBuffer = await bloomDocx.arrayBuffer();
+  
+      // Autosave
+      console.log('Calling autosaveDocument with fileId:', driveFileId || '(none)');
+      const fileId = await autosaveDocument(bloomDocxArrayBuffer, fileName, driveFileId);
+  
+      // Update FileContext state
+      updateDriveId(fileId);
+  
+      // Reconnect WebSocket
+      await connect();
+      console.log('WebSocket reconnected after save.');
+  
+      toast.success('File saved to Google Drive successfully!');
+    } catch (error) {
+      console.error('Error saving to Google Drive:', error);
+      toast.error('Failed to save to Google Drive.');
+    }
+  }, [ydoc, colorTheme, primaryColor, backgroundColor, fileName, saveImages, driveFileId, autosaveDocument, updateDriveId, connect]);
+
+
+    /**
+   * Handler for file input change (loading a `.bloomdocx` document) from the local device.
+   */
+    const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (file) {
-        console.log('File selected. Loading document from device:', file.name);
-        handleCloseAllModals();
-        clearSelection();
-        fileDispatch(resetDriveFileId());
         try {
+          console.log('File selected. Loading document from device:', file.name);
+          
+          // 1. Disconnect WebSocket
+          disconnect();
+                  
+          // 2. Reset UI state
+          handleCloseAllModals();
+          clearSelection();
+          
+          // 3. Load document
           await loadDocument(
-            ydoc,
             file,
-            setNodes,
-            setResourcesByMap,
-            setSubtrees,
-            fileDispatch,
-            colorThemeDispatch,
-            resetTreeDimensions,
-            resetSubtrees,
-            resetResources
+            loadData,
+            loadImages, // Helper function from ResourceContext
+            colorThemeDispatch
           );
+                  
+          // 4. Update layout and UI
           layoutDispatch(setGetLayout(true));
           centerScroll();
+                 
           toast.success('Document loaded successfully!');
-          setHasUntrackedChanges(false);
-          setIsAutosaving(false);
-          console.log('Document loaded from device. hasUntrackedChanges reset to false.');
         } catch (error) {
           console.error('Error loading document:', error);
           toast.error('Failed to load the document.');
@@ -297,122 +276,45 @@ const TopBar: React.FC<TopBarProps> = ({
           }
         }
       }
-    },
-    [
-      ydoc,
-      setNodes,
-      setResourcesByMap,
-      setSubtrees,
-      fileDispatch,
-      colorThemeDispatch,
-      layoutDispatch,
-      resetTreeDimensions,
-      resetSubtrees,
-      resetResources,
-      handleCloseAllModals,
-      clearSelection,
-      centerScroll,
-    ]
-  );
-
-  /**
-   * Handles saving the document to Google Drive (manual action).
-   */
-  const handleSaveToGoogleDrive = useCallback(async () => {
-    try {
-      console.log('handleSaveToGoogleDrive triggered.');
-      toast.info('Saving to Google Drive...');
-
-      console.log('Preparing `.bloomdocx` for Google Drive save...');
-      const bloomDocx = await prepareBloomDocx(
-        ydoc,
-        nodes,
-        colorTheme as ColorTheme,
-        primaryColor,
-        backgroundColor,
-        fileName,
-        getResourcesByType('cueCard'),
-        subtrees,
-        getResourcesByType('picture'),
-        getResourcesByType('practiceSheet'),
-        driveFileId
-      );
-      const bloomDocxArrayBuffer = await bloomDocx.arrayBuffer();
-
-      let fileId: string;
-      if (driveFileId) {
-        console.log('Existing fileId found:', driveFileId, '. Updating file in Drive...');
-        fileId = await autosaveDocument(bloomDocxArrayBuffer, fileName, driveFileId);
-      } else {
-        console.log('No existing fileId. Creating new file in Drive...');
-        fileId = await autosaveDocument(bloomDocxArrayBuffer, fileName);
-      }
-
-      fileDispatch(setDriveFileId(fileId));
-      toast.success('File saved to Google Drive successfully!');
-      setHasUntrackedChanges(false);
-      setIsAutosaving(false);
-      console.log('File saved to Google Drive. fileId updated to:', fileId);
-    } catch (error) {
-      console.error('Error saving to Google Drive:', error);
-      toast.error('Failed to save to Google Drive.');
-    }
-  }, [ydoc, nodes, colorTheme, primaryColor, backgroundColor, fileName, getResourcesByType, subtrees, driveFileId, fileDispatch, autosaveDocument]);
-
+    }, [centerScroll, clearSelection, colorThemeDispatch, disconnect, handleCloseAllModals, layoutDispatch, loadData, loadImages]);
+    
   /**
    * Handler for loading a document from Google Drive (through file selector).
    */
   const handleLoadFromGoogleDrive = useCallback(async (fileId: string) => {
-    console.log('handleLoadFromGoogleDrive called. FileId:', fileId);
     try {
+      console.log('****************************LOADING FROM GOOGLE DRIVE STARTING****************************')
+      console.log('handleLoadFromGoogleDrive called. FileId:', fileId);
       toast.info('Loading from Google Drive...');
-      const newYdoc = await resetWebSocketAndYDoc(fileId);
+      
+      // 1. Disconnect WebSocket
+      disconnect();
+      
+      // 2. Load file content
       const arrayBuffer = await loadFromDrive(fileId);
-
       const loadedFileName = `${fileId}.bloomdocx`;
-      console.log(`Creating File object from arrayBuffer for ${loadedFileName}`);
       const file = new File([arrayBuffer], loadedFileName, { type: 'application/octet-stream' });
-
+  
+      // 3. Load document content
       await loadDocumentFromDrive(
         file,
-        newYdoc,
-        setNodes,
-        setResourcesByMap,
-        setSubtrees,
-        fileDispatch,
-        colorThemeDispatch,
-        resetTreeDimensions,
-        resetSubtrees,
-        resetResources
+        loadData,
+        fileId,
+        loadImages, // Helper function from ResourceContext
+        colorThemeDispatch
       );
-
-      toast.success('File loaded from Google Drive successfully!');
+  
+      // 4. Update layout and UI
       layoutDispatch(setGetLayout(true));
-      fileDispatch(setDriveFileId(fileId));
       centerScroll();
-      setHasUntrackedChanges(false);
-      setIsAutosaving(false);
-      console.log('File loaded from Drive. fileId set to:', fileId);
+
+      console.log('****************************LOADING FROM GOOGLE DRIVE COMPLETE****************************')
+      toast.success('File loaded from Google Drive successfully!');
     } catch (error) {
       console.error('Error loading from Google Drive:', error);
       toast.error('Failed to load from Google Drive.');
     }
-  }, [
-    ydoc,
-    resetWebSocketAndYDoc,
-    loadFromDrive,
-    setNodes,
-    setResourcesByMap,
-    setSubtrees,
-    fileDispatch,
-    colorThemeDispatch,
-    resetTreeDimensions,
-    resetSubtrees,
-    resetResources,
-    layoutDispatch,
-    centerScroll,
-  ]);
-
+  }, [centerScroll, colorThemeDispatch, disconnect, layoutDispatch, loadData, loadImages, loadFromDrive]);
   /**
    * Opens the File Selector Modal for Google Drive operations.
    */
@@ -448,22 +350,6 @@ const TopBar: React.FC<TopBarProps> = ({
     console.log('Help button clicked.');
   }, []);
 
-  /**
-   * Handler for window unload event to perform immediate autosave if necessary.
-   */
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (hasUntrackedChanges) {
-        console.log('Before unload triggered. Attempting synchronous autosave...');
-        event.preventDefault();
-        event.returnValue = '';
-        // Synchronous autosave if possible (not always reliable in modern browsers)
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUntrackedChanges]);
 
   /**
    * Defines props for the TopBar's child components
@@ -531,7 +417,7 @@ const TopBar: React.FC<TopBarProps> = ({
             <span>Autosaving...</span>
           </div>
         ) : (
-          <span>All changes synchronized</span>
+          <span>{isInitialized ? 'All changes synchronized' : 'Not synchronized'}</span>
         )}
       </div>
 

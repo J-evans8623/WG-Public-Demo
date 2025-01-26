@@ -24,7 +24,7 @@ import {
 } from '@/app/Library/utils/undoredo/historyutils';
 import { useYDoc } from '@/app/Library/Tests/Synchro/Centralize/CentralYdoc';
 import * as Y from 'yjs';
-import { SystemActionType, SystemOrigin } from '@/app/Library/Tests/Synchro/Centralize/SystemOriginTypes';
+
 
 interface ResourceContextType {
   resources: Map<string, ResourceCard[]>;

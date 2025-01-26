@@ -23,16 +23,16 @@ import { ColorThemeProvider, useColorThemeContext } from '@/app/Library/Context/
 import { FileProvider, useFileContext } from '@/app/Library/Tests/Synchro/FileContext';
 import { ResourceProvider, useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { setGetLayout } from '@/app/Library/Context/LayoutActions';
-import { YDocProvider, useYDoc } from '@/app/Library/Tests/Synchro/Centralize/CentralYdoc';
-import { initializeNewDocument } from '@/app/Library/Tests/Synchro/LoadDocumentUtils'; 
-import { WebSocketManagerProvider } from '../Library/Tests/Synchro/WebSocketManager';
+import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext';
+import { initializeNewDocument } from '@/app/Library/utils/LoadDocumentUtils'; 
+import { WebSocketManagerProvider } from '@/app/Library/Context/WebSocketManager';
 
 // Dynamic Tool Panes
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { LoadingProvider } from '@/app/Library/Context/LoadingContext';
 import { useLoading } from '@/app/Library/Context/LoadingContext'; // Import the loading hook
 import GlobalLoadingScreen from '@/app/Library/components/loading-screen/GlobalLoadingScreen';
-import TopBar from  '@/app/Library/Tests/Synchro/TopBar'  //'./commandPanelLayout/TopBar';
+import TopBar from  './commandPanelLayout/TopBar'  //'./commandPanelLayout/TopBar';
 import LeftPanel from './commandPanelLayout/LeftPanel';
 import MainContent from './commandPanelLayout/MainContent';
 import RightPanel from './commandPanelLayout/RightPanel';

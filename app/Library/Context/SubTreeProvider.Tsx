@@ -1,5 +1,5 @@
 import React, { useCallback, createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
-import { useYDoc } from '@/app/Library/Tests/Synchro/Centralize/CentralYdoc';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
 import * as Y from 'yjs';
 
 
@@ -111,7 +111,7 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       ySubtreesMap.unobserveDeep(updateListener);
     };
-  }, [ySubtreesMap]);
+  }, [ySubtreesMap, ydoc]);
 
   const calculateSubtreeDimensions = useCallback((nodeId: string, subtreeData: SubtreeData) => {
     ydoc.transact(() => {

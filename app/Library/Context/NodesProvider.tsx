@@ -7,9 +7,9 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
-import { useYDoc } from '@/app/Library/Tests/Synchro/Centralize/CentralYdoc';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
 import * as Y from 'yjs';
-import { SystemActionType, SystemOrigin } from '@/app/Library/Tests/Synchro/Centralize/SystemOriginTypes';
+import { SystemActionType } from '@/app/Library/Tests/Synchro/Centralize/SystemOriginTypes';
 
 interface NodesContextValue {
   nodes: Map<string, ConceptNode>;
