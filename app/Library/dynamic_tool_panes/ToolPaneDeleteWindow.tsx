@@ -1,17 +1,18 @@
 // bloom-maps/app/Library/dynamic_tool_panes/ToolPaneDeleteWindow.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { setGetLayout } from '../Context/LayoutActions';
 import { useLayoutContext } from '../Context/LayoutProvider';
+import { ResourceCard } from '@/app/Library/Definitions/Definitions';
 import './ToolPane.css';
-import './ToolPaneDeleteWindow.css'; // Import the new CSS file
+import './ToolPaneDeleteWindow.css';
 import CardEntry from '@/app/Library/dynamic_tool_panes/CardEntry';
 
 interface ToolPaneDeleteWindowProps {
   sourceNodeId: string;
-  onClose: () => void; // New prop for closing the pane
+  onClose: () => void;
 }
 
 const ToolPaneDeleteWindow: React.FC<ToolPaneDeleteWindowProps> = ({ sourceNodeId, onClose }) => {
@@ -20,114 +21,129 @@ const ToolPaneDeleteWindow: React.FC<ToolPaneDeleteWindowProps> = ({ sourceNodeI
   const { dispatch: layoutDispatch } = useLayoutContext();
   const command = 'delete';
   const sourceNode = nodes.get(sourceNodeId);
-
-  // Fetch the current node to determine if it's a root node
   const currentNode = nodes.get(sourceNodeId);
+
   const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
+  const [sourceResources, setSourceResources] = useState<ResourceCard[]>([]);
+  const [loadingResources, setLoadingResources] = useState<Set<string>>(new Set());
+  const [resourceErrors, setResourceErrors] = useState<Set<string>>(new Set());
 
-  const getResources = (nodeId: string) => {
-    const resources = selectResources(nodeId);
-    return resources.map(resource => ({
-      ...resource,
-      resourceType: resource.type,
-    }));
-  };
+  // Fetch resources asynchronously when sourceNodeId changes
+  useEffect(() => {
+    const fetchResources = async () => {
+      if (sourceNodeId) {
+        try {
+          const resources = await selectResources(sourceNodeId);
+          setSourceResources(resources);
+          
+          // Update loading states for picture resources
+          const newLoadingResources = new Set<string>();
+          const newResourceErrors = new Set<string>();
+          
+          resources.forEach(resource => {
+            if (resource.type === 'picture') {
+              if ('status' in resource && resource.status === 'pending') {
+                newLoadingResources.add(resource.id);
+              } else if ('status' in resource && resource.status === 'error') {
+                newResourceErrors.add(resource.id);
+              }
+            }
+          });
+          
+          setLoadingResources(newLoadingResources);
+          setResourceErrors(newResourceErrors);
+        } catch (error) {
+          console.error('Error fetching resources:', error);
+        }
+      }
+    };
 
-  const resources = selectResources(sourceNodeId);
-  const sourceResources = sourceNodeId ? getResources(sourceNodeId) : [];
+    fetchResources();
+  }, [sourceNodeId, selectResources]);
 
-  /**
-   * Handles the deletion of a single resource.
-   *
-   * @param resourceId - The ID of the resource to delete.
-   */
-  const handleDeleteResource = (resourceId: string) => {
+  const handleDeleteResource = async (resourceId: string) => {
+    // Prevent deletion of loading resources
+    if (loadingResources.has(resourceId)) {
+      alert('Please wait for the resource to finish loading before deleting.');
+      return;
+    }
+
     removeResource(sourceNodeId, resourceId);
-    // Optionally, update the selectedResourceIds if the deleted resource was selected
     setSelectedResourceIds(prev => prev.filter(id => id !== resourceId));
   };
 
-  /**
-   * Handles the deletion of selected resources.
-   */
-  const handleDeleteSelectedResources = () => {
+  const handleDeleteSelectedResources = async () => {
     if (selectedResourceIds.length === 0) {
       alert('Please select at least one resource to delete.');
       return;
     }
 
-    // Confirm Deletion
+    // Check for loading resources
+    const hasLoadingResources = selectedResourceIds.some(id => loadingResources.has(id));
+    if (hasLoadingResources) {
+      alert('Please wait for all resources to finish loading before deleting.');
+      return;
+    }
+
     const confirmDelete = window.confirm('Are you sure you want to delete the selected resource(s)? This action cannot be undone.');
     if (!confirmDelete) {
       return;
     }
 
-    // Delete each selected resource
-    selectedResourceIds.forEach(resourceId => {
-      handleDeleteResource(resourceId);
-    });
+    for (const resourceId of selectedResourceIds) {
+      await handleDeleteResource(resourceId);
+    }
 
-    // Clear the selection after deletion
     setSelectedResourceIds([]);
     alert('Selected resource(s) have been deleted successfully.');
-
-    // Automatically close the pane after deletion
     onClose();
   };
 
-  /**
-   * Handles the deletion of the entire node.
-   */
-  const handleDeleteNode = () => {
+  const handleDeleteNode = async () => {
     if (!currentNode) {
       console.error(`Delete failed: Node with ID ${sourceNodeId} not found.`);
       return;
     }
 
-    // **Safeguard: Prevent deletion of the root node**
     if (currentNode.isRoot) {
       alert('The root node cannot be deleted.');
       return;
     }
 
-    // **Check if the node is a leaf**
     const isLeaf = !currentNode.childrenNodeIds || currentNode.childrenNodeIds.length === 0;
-
     if (!isLeaf) {
       alert('Only leaf nodes can be deleted. Please remove all child nodes before deleting this node.');
       return;
     }
 
-    // **Confirm Deletion**
+    // Check for loading resources
+    const hasLoadingResources = Array.from(loadingResources).length > 0;
+    if (hasLoadingResources) {
+      alert('Please wait for all resources to finish loading before deleting the node.');
+      return;
+    }
+
     const confirmDelete = window.confirm(`Are you sure you want to delete the node "${currentNode.title}"? This will also delete all associated data.`);
     if (!confirmDelete) {
       return;
     }
 
-    // **Delete Associated Resources**
-    resources.forEach((resource) => {
-      handleDeleteResource(resource.id);
-    });
+    for (const resource of sourceResources) {
+      await handleDeleteResource(resource.id);
+    }
 
-    // **Dispatch Delete Node Action**
     deleteNode(sourceNodeId);
     layoutDispatch(setGetLayout(true));
-
     alert(`Node "${currentNode.title}" has been deleted successfully.`);
-
-    // Automatically close the pane after node deletion
     onClose();
   };
 
   return (
     <div className="tool-pane-window">
-      {/* Delete Options Header */}
       {sourceNode ? (
         <div>
-          {/* Source Node Title */}
           <div className="multiline section-header">Concept : {sourceNode.title}</div>
 
-          {/* Delete Entire Node Section */}
           <div className="delete-node-section">
             <div className="delete-node-header">Delete Concept</div>
             <CardEntry
@@ -136,23 +152,21 @@ const ToolPaneDeleteWindow: React.FC<ToolPaneDeleteWindowProps> = ({ sourceNodeI
                 title: sourceNode.title,
               }}
               resourceType="conceptNode"
-              isSelected={false} // Entire node deletion; no selection
+              isSelected={false}
               isCut={false}
-              onSelect={() => { /* No selection needed for entire node */ }}
+              disabled={Array.from(loadingResources).length > 0}
+              onSelect={() => {}}
               command="delete"
-              onDelete={handleDeleteNode} // Pass the node deletion handler
+              onDelete={handleDeleteNode}
             />
             {currentNode?.isRoot && (
               <p className="delete-node-error">Cannot delete the root node.</p>
             )}
           </div>
 
-          {/* Divider */}
           <div className="section-divider"></div>
 
-          {/* Delete Resources Section */}
           <div className="tool-pane-section">
-            {/* Delete Resources Header */}
             <div className="section-header">Delete Resources</div>
             {sourceResources.length === 0 ? (
               <p>No resources associated with this node.</p>
@@ -162,18 +176,22 @@ const ToolPaneDeleteWindow: React.FC<ToolPaneDeleteWindowProps> = ({ sourceNodeI
                   <CardEntry
                     key={resource.id}
                     resource={resource}
-                    resourceType={resource.resourceType}
+                    resourceType={resource.type}
                     isSelected={selectedResourceIds.includes(resource.id)}
                     isCut={selectedResourceIds.includes(resource.id)}
+                    isLoading={loadingResources.has(resource.id)}
+                    hasError={resourceErrors.has(resource.id)}
+                    disabled={loadingResources.has(resource.id)}
                     onSelect={() => {
-                      // Toggle selection
-                      setSelectedResourceIds(prev => {
-                        if (prev.includes(resource.id)) {
-                          return prev.filter(id => id !== resource.id);
-                        } else {
-                          return [...prev, resource.id];
-                        }
-                      });
+                      if (!loadingResources.has(resource.id)) {
+                        setSelectedResourceIds(prev => {
+                          if (prev.includes(resource.id)) {
+                            return prev.filter(id => id !== resource.id);
+                          } else {
+                            return [...prev, resource.id];
+                          }
+                        });
+                      }
                     }}
                     command="delete"
                     onDelete={() => handleDeleteResource(resource.id)}
@@ -183,25 +201,22 @@ const ToolPaneDeleteWindow: React.FC<ToolPaneDeleteWindowProps> = ({ sourceNodeI
             )}
           </div>
 
-         {/* Button Container */}
-      <div className="button-container">
-        {/* Cancel Button */}
-        <button
-          className="cancel-button"
-          onClick={onClose}
-        >
-          Cancel
-        </button>
+          <div className="button-container">
+            <button
+              className="cancel-button"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
 
-        {/* Delete Button */}
-        <button
-          className="tool-pane-button global-delete-button"
-          onClick={handleDeleteSelectedResources}
-          disabled={selectedResourceIds.length === 0}
-        >
-          Delete
-        </button>
-      </div>
+            <button
+              className="tool-pane-button global-delete-button"
+              onClick={handleDeleteSelectedResources}
+              disabled={selectedResourceIds.length === 0 || Array.from(loadingResources).length > 0}
+            >
+              Delete
+            </button>
+          </div>
         </div>
       ) : (
         <p>No source node selected.</p>

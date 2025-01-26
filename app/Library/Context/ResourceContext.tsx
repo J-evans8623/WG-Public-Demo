@@ -9,7 +9,7 @@
  */
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
-import { ResourceCard,  PictureResource, PracticeSheetResource, CueCardResource, ImageMessage } from '@/app/Library/Definitions/Definitions';
+import { ResourceCard,  PictureResource, PracticeSheetResource, CueCardResource, ImageMessage, PictureResourceResult, FetchError } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 import {
   initializeNodeHistory,
@@ -32,14 +32,14 @@ interface ResourceContextType {
   addResource: (resource: Omit<ResourceCard, 'id'>) => Promise<void>;
   removeResource: (nodeId: string, resourceId: string) => void;
   editResource: (resource: ResourceCard) => void;
-  selectResources: (nodeId: string) => ResourceCard[];
+  selectResources: (nodeId: string) => Promise<ResourceCard[]>;
   selectCueCards: (nodeId: string) => CueCardResource[];
-  selectPictures: (nodeId: string) => PictureResource[];
+  selectPictures: (nodeId: string) => Promise<PictureResourceResult[]>;
   selectPracticeSheets: (nodeId: string) => PracticeSheetResource[];
   setResources: (newResources: Map<string, ResourceCard[]>) => void;
   transferResource: (sourceNodeId: string, targetNodeId: string, resourceIds: string[], command: 'copy' | 'cut') => void;
   resetResources: () => void;
-  getResourcesByType: (type: 'cueCard' | 'picture' | 'practiceSheet') => Map<string, ResourceCard[]>;
+  getResourcesByType: (type: 'cueCard' | 'picture' | 'practiceSheet') => Promise<Map<string, ResourceCard[]>>;
   fetchImageOnUpdate: (messages: ImageMessage[]) => Promise<void>;
   undo: (nodeId: string) => void;
   redo: (nodeId: string) => void;
@@ -48,6 +48,8 @@ interface ResourceContextType {
   saveImages: () => Promise<Map<string, ArrayBuffer>>;
   loadImages: (imageData: Map<string, ArrayBuffer>) => void;
 }
+
+
 
 const ResourceContext = createContext<ResourceContextType | undefined>(undefined);
 
@@ -66,7 +68,8 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   const [resources, setResourcesState] = useState<Map<string, ResourceCard[]>>(new Map());
   const [imageAssets, setImageAssets] = useState<Map<string, File>>(new Map());
 
-  const fetchingImages = useRef<Set<string>>(new Set());
+  const fetchingImages = useRef<Map<string, Promise<PictureResource>>>(new Map());
+  const failedFetches = useRef<Set<ImageMessage>>(new Set());
 
   useEffect(() => {
     const loadInitialResources = () => {
@@ -111,29 +114,140 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [yResourcesMap, ]);
 
+// Inside ResourceContext.tsx
 
-  const convertImageMessageToPictureResource = (message: ImageMessage, imageAssets: Map<string, File>): PictureResource => {
-    const file = imageAssets.get(message.id);
-    if (!file) {
-      throw new Error(`No image file found for resource ${message.id}`);
-    }
-    
-    return {
-      id: message.id,
-      nodeId: message.nodeId,
-      type: 'picture',
-      title: message.title,
-      serverUrl: message.serverUrl,
-      localUrl: URL.createObjectURL(file),
-      image: file,
-      description: message.description,
-      source: message.source
-    };
+const createPictureResource = (message: ImageMessage, file: File): PictureResource => {
+  return {
+    id: message.id,
+    nodeId: message.nodeId,
+    type: 'picture',
+    title: message.title,
+    serverUrl: message.serverUrl,
+    localUrl: URL.createObjectURL(file),
+    image: file,
+    description: message.description,
+    source: message.source
   };
+};
+
+
+const createFetchPromise = useCallback((message: ImageMessage): Promise<PictureResource> => {
+  return new Promise<PictureResource>((resolve, reject) => {
+    fetch(message.serverUrl)
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        const file = new File([blob], `image_${message.id}`, { type: blob.type });
+        setImageAssets(prev => new Map(prev).set(message.id, file));
+        const pictureResource: PictureResource = {
+          id: message.id,
+          nodeId: message.nodeId,
+          type: 'picture',
+          title: message.title,
+          serverUrl: message.serverUrl,
+          localUrl: URL.createObjectURL(file),
+          image: file,
+          description: message.description,
+          source: message.source
+        };
+        resolve(pictureResource);
+      })
+      .catch((error) => {
+        console.error(`[ResourceContext] Error fetching image with id ${message.id}:`, error);
+        const fetchError: FetchError = {
+          name: 'FetchError', // Add this line to fix error #4
+          type: 'network_error',
+          message: error.message,
+          retry: () => retryFetch(message)
+        };
+        reject(fetchError);
+      })
+      .finally(() => {
+        fetchingImages.current.delete(message.id);
+      });
+  });
+}, []);
+
+const retryFetch = useCallback(async (message: ImageMessage): Promise<PictureResource> => {
+  if (fetchingImages.current.has(message.id)) {
+    return fetchingImages.current.get(message.id)!;
+  }
+  const fetchPromise = createFetchPromise(message);
+  fetchingImages.current.set(message.id, fetchPromise);
+  return fetchPromise;
+}, [createFetchPromise]);
+
+const convertImageMessageToPictureResource = useCallback(async (
+  message: ImageMessage,
+  imageAssets: Map<string, File>
+): Promise<PictureResourceResult> => {
+  if (imageAssets.has(message.id)) {
+    return {
+      status: 'ready',
+      data: createPictureResource(message, imageAssets.get(message.id)!)
+    };
+  }
+
+  if (fetchingImages.current.has(message.id)) {
+    return {
+      status: 'pending',
+      data: fetchingImages.current.get(message.id)!
+    };
+  }
+
+  const fetchPromise = createFetchPromise(message);
+  fetchingImages.current.set(message.id, fetchPromise);
+  
+  return {
+    status: 'pending',
+    data: fetchPromise,
+    retry: () => retryFetch(message)
+  };
+}, [createFetchPromise, retryFetch]);
 
   // History map to track past and future states for each node
   const [resourceHistoryMap, setResourceHistoryMap] = useState<Map<string, HistoryState>>(new Map());
 
+
+  const fetchImageOnUpdate = useCallback(async (messages: ImageMessage[]) => {
+    console.log('Attempting to fetch Image');
+    const newImages = new Map<string, File>();
+  
+    await Promise.all(messages.map(async (message) => {
+      if (!imageAssets.has(message.id) && !fetchingImages.current.has(message.id)) {
+        try {
+          const pictureResource = await createFetchPromise(message);
+          newImages.set(message.id, pictureResource.image);
+        } catch (error) {
+          console.error(`[ResourceContext] Failed to fetch image ${message.id}:`, error);
+          if (error instanceof Error) {
+            // Assuming error has a 'retry' method as per FetchError
+            failedFetches.current.add(message);
+          }
+        }
+      }
+    }));
+  
+    if (newImages.size > 0) {
+      setImageAssets(prev => new Map([...prev, ...newImages]));
+    }
+  }, [createFetchPromise, imageAssets]);
+
+
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('Network reconnected. Retrying failed image fetches...');
+      failedFetches.current.forEach((message) => {
+        retryFetch(message);
+        failedFetches.current.delete(message);
+      });
+    };
+    
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [retryFetch]);
 
 
   /**
@@ -390,16 +504,20 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
    * @param nodeId - The ID of the node.
    * @returns An array of resources.
    */
-  const selectResources = useCallback((nodeId: string): ResourceCard[] => {
-    const nodeResources = resources.get(nodeId) || [];
-    return nodeResources.map(resource => {
-      if (resource.type === 'picture' && 'serverUrl' in resource) {
-        // This is an ImageMessage
-        return convertImageMessageToPictureResource(resource as ImageMessage, imageAssets);
-      }
-      return resource;
-    });
-  }, [resources, imageAssets]);
+// Inside ResourceContext.tsx
+
+const selectResources = useCallback(async (nodeId: string): Promise<ResourceCard[]> => {
+  const nodeResources = resources.get(nodeId) || [];
+  const resourceResults = await Promise.all(nodeResources.map(async (resource) => {
+    if (resource.type === 'picture' && 'serverUrl' in resource) {
+      const pictureResult = await convertImageMessageToPictureResource(resource as ImageMessage, imageAssets);
+      return pictureResult.status === 'ready' ? pictureResult.data : resource;
+    }
+    return resource;
+  }));
+  return resourceResults;
+}, [resources, convertImageMessageToPictureResource, imageAssets]);
+
 
   /**
    * Selects all cue cards associated with a specific node.
@@ -422,13 +540,19 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
    * @param nodeId - The ID of the node.
    * @returns An array of Picture resources.
    */
-  const selectPictures = useCallback((nodeId: string): PictureResource[] => {
+const selectPictures = useCallback(
+  async (nodeId: string): Promise<PictureResourceResult[]> => {
     const nodeResources = resources.get(nodeId) || [];
-    return nodeResources
+    const pictureResults = nodeResources
       .filter((resource): resource is ImageMessage => 
         resource.type === 'picture' && 'serverUrl' in resource)
       .map(message => convertImageMessageToPictureResource(message, imageAssets));
-  }, [resources, imageAssets]);
+      
+    return Promise.all(pictureResults);
+  },
+  [resources, convertImageMessageToPictureResource, imageAssets]
+);
+
 
   /**
    * Selects all practice sheets associated with a specific node.
@@ -445,35 +569,7 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
     [resources]
   );
 
-  /**
-   * Fetches images for a remote replica based on received ImageMessages and updates imageAssets.
-   *
-   * @param messages - Array of ImageMessage objects containing metadata for images to fetch.
-   */
-  const fetchImageOnUpdate = useCallback(async (messages: ImageMessage[]) => {
-    console.log('Attempting to fetch Image');
-    const newImages = new Map<string, File>();
 
-    await Promise.all(messages.map(async (message) => {
-      if (!imageAssets.has(message.id) && !fetchingImages.current.has(message.id)) {
-        fetchingImages.current.add(message.id);
-        try {
-          const response = await fetch(message.serverUrl);
-          const blob = await response.blob();
-          const file = new File([blob], `image_${message.id}`, { type: blob.type });
-          newImages.set(message.id, file);
-        } catch (error) {
-          console.error(`[ResourceContext] Error fetching image with id ${message.id}:`, error);
-        } finally {
-          fetchingImages.current.delete(message.id);
-        }
-      }
-    }));
-
-    if (newImages.size > 0) {
-      setImageAssets(prev => new Map([...prev, ...newImages]));
-    } 
-  }, [imageAssets]);
 
   /**
    * Sets the entire resources map.
@@ -655,24 +751,29 @@ export const ResourceProvider = ({ children }: { children: ReactNode }) => {
    * @param type - The type of resource to retrieve.
    * @returns A map of resources categorized by node ID.
    */
-  const getResourcesByType = useCallback((type: 'cueCard' | 'picture' | 'practiceSheet'): Map<string, ResourceCard[]> => {
+  const getResourcesByType = useCallback(async (type: 'cueCard' | 'picture' | 'practiceSheet'): Promise<Map<string, ResourceCard[]>> => {
     const resourceMap = new Map<string, ResourceCard[]>();
-    resources.forEach((resourceArray, nodeId) => {
-      const filteredResources = resourceArray
-        .filter(resource => resource.type === type)
-        .map(resource => {
-          if (type === 'picture' && 'serverUrl' in resource) {
-            return convertImageMessageToPictureResource(resource as ImageMessage, imageAssets);
-          }
-          return resource;
-        });
+    
+    for (const [nodeId, resourceArray] of resources.entries()) {
+      const filteredResources = await Promise.all(
+        resourceArray
+          .filter(resource => resource.type === type)
+          .map(async resource => {
+            if (type === 'picture' && 'serverUrl' in resource) {
+              const result = await convertImageMessageToPictureResource(resource as ImageMessage, imageAssets);
+              return result.status === 'ready' ? result.data : resource;
+            }
+            return resource;
+          })
+      );
+      
       if (filteredResources.length > 0) {
         resourceMap.set(nodeId, filteredResources);
       }
-    });
+    }
+    
     return resourceMap;
-  }, [resources, imageAssets]);
-
+  }, [resources, imageAssets, convertImageMessageToPictureResource]);
   /**
    * Performs the undo operation for a specific node.
    *

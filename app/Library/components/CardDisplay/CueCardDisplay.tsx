@@ -1,16 +1,12 @@
-// bloom-maps/app/Library/components/CardDisplay/CueCardDisplay.tsx
-
 import React, { useState, useCallback, useEffect, memo, forwardRef, useImperativeHandle } from 'react';
 import CueCard from './CueCard';
 import PictureCard from './PictureCard';
 import PracticeSheetCard from './PracticeSheetCard';
 import MatchingQuizModal from './MatchingQuizModal';
-import ImageCard from '@/app/Library/components/CardDisplay/p1/ImageCard'; // Import the new ImageCard component
-import { CueCardResource, IFillInBlankQuestion, IMultipleChoiceQuestion, IQuizQuestion, ITrueFalseQuestion, QuizType  } from '@/app/Library/Definitions/Definitions';
-import { useResourceContext } from '@/app/Library/Context/ResourceContext'; 
+import ImageCard from '@/app/Library/components/CardDisplay/p1/ImageCard';
+import { CueCardResource, IFillInBlankQuestion, IMultipleChoiceQuestion, IQuizQuestion, ITrueFalseQuestion, QuizType, PictureResource, PictureResourceResult } from '@/app/Library/Definitions/Definitions';
+import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-
-// Import new context
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { scrambleArray } from '@/app/Library/utils/QuizUtils';
 import ModalOverlayManager from '@/app/Library/components/CardDisplay/ModalOverlayManager';
@@ -19,10 +15,7 @@ import FillInBlankQuiz from './quiz/FillInBlankQuiz';
 import MultipleChoiceQuiz from './quiz/MultipleChoiceQuiz';
 import TrueFalseQuiz from './quiz/TrueFalseQuiz';
 
-/**
- * Default Cue Cards to display when no resources are visible.
- */
-const defaultCueCards: CueCardResource [] = [
+const defaultCueCards: CueCardResource[] = [
   {
     title: 'Add a new concept to get started!',
     content: [
@@ -37,44 +30,42 @@ const defaultCueCards: CueCardResource [] = [
   },
 ];
 
-
-/**
- * Props for CueCardDisplay component.
- */
 interface CueCardDisplayProps {
   centerPaneRef: React.RefObject<HTMLDivElement>;
-  toolPaneVisible: boolean; // Prop to indicate Tool Pane visibility
+  toolPaneVisible: boolean;
 }
 
-/**
- * Interface for imperative methods exposed via ref.
- */
 export interface CueCardDisplayRef {
   closeAllModals: () => void;
 }
 
-/**
- * CueCardDisplay Component
- *
- * Displays cue cards, picture cards, and practice sheet cards.
- * Manages modals for images and quizzes.
- */
 const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ centerPaneRef, toolPaneVisible }, ref) => {
   const { getSelectedNodeIds, clearSelection, deselectNode } = useNodeSelection();
   const { selectCueCards, selectPictures, selectPracticeSheets } = useResourceContext();
+  const { nodes } = useNodesContext();
 
   const [dismissedResourceIds, setDismissedResourceIds] = useState<Map<string, string[]>>(new Map());
   const [openedPictureModals, setOpenedPictureModals] = useState<{ id: string; content: React.ReactNode }[]>([]);
   const [overlayContent, setOverlayContent] = useState<React.ReactNode | null>(null);
-  
-  // Use new context for nodes
-  const { nodes } = useNodesContext();
+  const [pictureResults, setPictureResults] = useState<Map<string, PictureResourceResult[]>>(new Map());
 
   const selectedNodeIds = getSelectedNodeIds();
 
-  /**
-   * Effect to remove dismissed resources when node selection changes.
-   */
+  useEffect(() => {
+    const loadPictures = async () => {
+      const newPictureResults = new Map<string, PictureResourceResult[]>();
+      
+      for (const nodeId of selectedNodeIds) {
+        const results = await selectPictures(nodeId);
+        newPictureResults.set(nodeId, results);
+      }
+      
+      setPictureResults(newPictureResults);
+    };
+
+    loadPictures();
+  }, [selectedNodeIds, selectPictures]);
+
   useEffect(() => {
     setDismissedResourceIds((prev) => {
       const newMap = new Map(prev);
@@ -88,9 +79,6 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
     });
   }, [selectedNodeIds]);
 
-  /**
-   * Aggregates all cue cards from selected nodes.
-   */
   const cueCards = selectedNodeIds.flatMap((nodeId) =>
     selectCueCards(nodeId).map((cueCard) => ({
       ...cueCard,
@@ -99,20 +87,16 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
     }))
   );
 
-  /**
-   * Aggregates all picture cards from selected nodes.
-   */
-  const pictures = selectedNodeIds.flatMap((nodeId) =>
-    selectPictures(nodeId).map((picture) => ({
-      ...picture,
-      conceptNodeTitle: nodes.get(nodeId)?.title || 'Untitled',
-      nodeId,
-    }))
+  const visiblePictures = Array.from(pictureResults.entries()).flatMap(([nodeId, results]) =>
+    results
+      .filter((result) => !dismissedResourceIds.get(nodeId)?.includes(result.status === 'ready' ? (result.data as PictureResource).id : ''))
+      .map((result) => ({
+        ...result,
+        conceptNodeTitle: nodes.get(nodeId)?.title || 'Untitled',
+        nodeId,
+      }))
   );
 
-  /**
-   * Aggregates all practice sheet cards from selected nodes.
-   */
   const practiceSheets = selectedNodeIds.flatMap((nodeId) =>
     selectPracticeSheets(nodeId).map((practiceSheet) => ({
       ...practiceSheet,
@@ -123,33 +107,14 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
     }))
   );
 
-  /**
-   * Filters visible cue cards based on dismissed resources.
-   */
   const visibleCueCards = cueCards.filter(
     (cueCard) => !dismissedResourceIds.get(cueCard.nodeId)?.includes(cueCard.id)
   );
 
-  /**
-   * Filters visible picture cards based on dismissed resources.
-   */
-  const visiblePictures = pictures.filter(
-    (picture) => !dismissedResourceIds.get(picture.nodeId)?.includes(picture.id)
-  );
-
-  /**
-   * Filters visible practice sheet cards based on dismissed resources.
-   */
   const visiblePracticeSheets = practiceSheets.filter(
     (practiceSheet) => !dismissedResourceIds.get(practiceSheet.nodeId)?.includes(practiceSheet.id)
   );
 
-  /**
-   * Handles dismissal of a resource card.
-   *
-   * @param resourceId - The ID of the resource to dismiss.
-   * @param nodeId - The ID of the node to which the resource belongs.
-   */
   const handleDismissResource = useCallback(
     (resourceId: string, nodeId: string) => {
       setDismissedResourceIds((prev) => {
@@ -159,8 +124,10 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
 
         const allResourceIdsForNode = [
           ...selectCueCards(nodeId).map((card) => card.id),
-          ...selectPictures(nodeId).map((pic) => pic.id),
-          ...selectPracticeSheets(nodeId).map((sheet) => sheet.id),
+          ...practiceSheets.filter(sheet => sheet.nodeId === nodeId).map((sheet) => sheet.id),
+          ...Array.from(pictureResults.get(nodeId) || [])
+            .filter(result => result.status === 'ready')
+            .map(result => (result.data as PictureResource).id)
         ];
 
         const allDismissedForNode = allResourceIdsForNode.every((id) =>
@@ -175,15 +142,9 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
         return newMap;
       });
     },
-    [selectCueCards, selectPictures, selectPracticeSheets, deselectNode]
+    [selectCueCards, practiceSheets, pictureResults, deselectNode]
   );
 
-  /**
-   * Opens a picture modal with the provided content.
-   *
-   * @param pictureId - The ID of the picture.
-   * @param content - The React node to display in the modal.
-   */
   const handleOpenPictureModal = useCallback((pictureId: string, content: React.ReactNode) => {
     setOpenedPictureModals((prevModals) => {
       const isAlreadyOpened = prevModals.some((modal) => modal.id === pictureId);
@@ -194,147 +155,89 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
     });
   }, []);
 
-  /**
-   * Closes a specific picture modal.
-   *
-   * @param pictureId - The ID of the picture modal to close.
-   */
   const handleClosePictureModal = useCallback((pictureId: string) => {
     setOpenedPictureModals((prevModals) => prevModals.filter((modal) => modal.id !== pictureId));
     handleCloseOverlay();
   }, []);
 
-  /**
-   * Opens a quiz modal with the provided quiz content and title.
-   *
-   * @param quizTitle - The title of the quiz.
-   * @param quizContent - The raw quiz content string.
-   */
-/**
- * CueCardDisplay.tsx - Extended Quiz Modal Handler
- * 
- * Responsibilities:
- * - Renders different types of quiz modals based on the quiz type
- * - Manages quiz modal state through the ModalOverlayManager
- * - Handles quiz completion and scoring
- * 
- * Dependencies:
- * - FillInBlankQuiz.tsx: Renders fill-in-blank type quizzes
- * - MultipleChoiceQuiz.tsx: Renders multiple choice type quizzes
- * - TrueFalseQuiz.tsx: Renders true/false type quizzes
- * - MatchingQuizModal.tsx: Renders matching type quizzes (existing)
- * - ModalOverlayManager.tsx: Manages the modal display and state
- */
+  const handleOpenQuizModal = useCallback((
+    quizTitle: string, 
+    quizQuestions: IQuizQuestion[], 
+    quizType: QuizType
+  ) => {
+    let QuizComponent;
+    
+    switch (quizType) {
+      case 'FIB':
+        QuizComponent = (
+          <FillInBlankQuiz
+            title={quizTitle}
+            questions={quizQuestions as IFillInBlankQuestion[]}
+            onClose={handleCloseOverlay}
+            onComplete={(score) => {
+              alert(`Your score: ${score}/${quizQuestions.length}`);
+              handleCloseOverlay();
+            }}
+          />
+        );
+        break;
 
-/**
- * Handles opening quiz modals of different types.
- * 
- * @param quizTitle - The title of the quiz to be displayed
- * @param quizQuestions - Array of quiz questions specific to the quiz type
- * @param quizType - The type of quiz to be rendered ('matching', 'fillInBlank', 'multipleChoice', 'trueFalse')
- * 
- * @example
- * // Opening a fill-in-blank quiz
- * handleOpenQuizModal(
- *   "Geography Quiz",
- *   [{id: "1", questionText: "The capital of France is {{blank1}}", correctAnswers: {blank1: "Paris"}}],
- *   "fillInBlank"
- * );
- */
-const handleOpenQuizModal = useCallback((
-  quizTitle: string, 
-  quizQuestions: IQuizQuestion[], 
-  quizType: QuizType
-) => {
-  let QuizComponent;
-  
-  switch (quizType) {
-    case 'FIB':
-      QuizComponent = (
-        <FillInBlankQuiz
-          title={quizTitle}
-          questions={quizQuestions as IFillInBlankQuestion[]}
-          onClose={handleCloseOverlay}
-          onComplete={(score) => {
-            alert(`Your score: ${score}/${quizQuestions.length}`);
-            handleCloseOverlay();
-          }}
-        />
-      );
-      break;
+      case 'multipleChoice':
+        QuizComponent = (
+          <MultipleChoiceQuiz
+            title={quizTitle}
+            questions={quizQuestions as IMultipleChoiceQuestion[]}
+            onClose={handleCloseOverlay}
+            onComplete={(score) => {
+              alert(`Your score: ${score}/${quizQuestions.length}`);
+              handleCloseOverlay();
+            }}
+          />
+        );
+        break;
 
-    case 'multipleChoice':
-      QuizComponent = (
-        <MultipleChoiceQuiz
-          title={quizTitle}
-          questions={quizQuestions as IMultipleChoiceQuestion[]}
-          onClose={handleCloseOverlay}
-          onComplete={(score) => {
-            alert(`Your score: ${score}/${quizQuestions.length}`);
-            handleCloseOverlay();
-          }}
-        />
-      );
-      break;
+      case 'true-false':
+        QuizComponent = (
+          <TrueFalseQuiz
+            title={quizTitle}
+            questions={quizQuestions as ITrueFalseQuestion[]}
+            onClose={handleCloseOverlay}
+            onComplete={(score) => {
+              alert(`Your score: ${score}/${quizQuestions.length}`);
+              handleCloseOverlay();
+            }}
+          />
+        );
+        break;
 
-    case 'true-false':
-      QuizComponent = (
-        <TrueFalseQuiz
-          title={quizTitle}
-          questions={quizQuestions as ITrueFalseQuestion[]}
-          onClose={handleCloseOverlay}
-          onComplete={(score) => {
-            alert(`Your score: ${score}/${quizQuestions.length}`);
-            handleCloseOverlay();
-          }}
-        />
-      );
-      break;
+      case 'matching':
+      default:
+        QuizComponent = (
+          <MatchingQuizModal
+            title={quizTitle}
+            quiz={quizQuestions}
+            scrambledAnswers={scrambleArray(quizQuestions.map((q) => q.correctAnswer)) as string[]}
+            onClose={handleCloseOverlay}
+          />
+        );
+    }
 
-    case 'matching':
-    default:
-      QuizComponent = (
-        <MatchingQuizModal
-          title={quizTitle}
-          quiz={quizQuestions}
-          scrambledAnswers={scrambleArray(quizQuestions.map((q) => q.correctAnswer)) as string[]}
-          onClose={handleCloseOverlay}
-        />
-      );
-  }
+    setOverlayContent(QuizComponent);
+  }, []);
 
-  setOverlayContent(QuizComponent);
-}, []);
-
-  /**
-   * Closes the overlay content modal.
-   */
   const handleCloseOverlay = useCallback(() => {
     setOverlayContent(null);
   }, []);
 
-  /**
-   * Function to close all overlay modals.
-   * Resets both overlayContent and openedPictureModals.
-   */
   const closeAllModals = useCallback(() => {
     setOverlayContent(null);
     setOpenedPictureModals([]);
   }, []);
 
-  /**
-   * Expose the closeAllModals function to parent via ref.
-   */
   useImperativeHandle(ref, () => ({
     closeAllModals,
   }));
 
-  /**
-   * Handler to enter focus mode by setting overlayContent.
-   * This will render only the focused modal and hide others.
-   *
-   * @param content - The React node to set as the overlay content.
-   */
   const handleOpenOverlay = useCallback((content: React.ReactNode) => {
     setOverlayContent(content);
   }, []);
@@ -351,13 +254,12 @@ const handleOpenQuizModal = useCallback((
       }}
       data-testid="cue-card-display"
     >
-      {/* Clear All Button */}
       <div className="flex justify-end">
         <button
           onClick={() => {
             clearSelection();
             setDismissedResourceIds(new Map());
-            closeAllModals(); // Also close all modals when clearing
+            closeAllModals();
           }}
           className="px-2 py-1 bg-gray-300 rounded hover:bg-gray-400 text-sm"
         >
@@ -365,7 +267,6 @@ const handleOpenQuizModal = useCallback((
         </button>
       </div>
 
-      {/* Render Cue Cards */}
       {visibleCueCards.map((cueCard) => (
         <CueCard
           key={cueCard.id}
@@ -377,44 +278,46 @@ const handleOpenQuizModal = useCallback((
         />
       ))}
 
-      {/* Render Picture Cards */}
       {visiblePictures.map((picture) => (
         <PictureCard
-          key={picture.id}
-          id={picture.id}
-          title={picture.title}
-          image={picture.image}
-          source={picture.source || ''}
-          onOpenFullSize={() =>
-            handleOpenPictureModal(picture.id, (
-              <ImageCard
-                title={picture.title}
-                description={picture.description} // Assuming description is part of picture object
-                image={picture.image}
-                onDismiss={() => handleClosePictureModal(picture.id)}
-                onMaximize={(content) => handleOpenOverlay(content)} // New prop for maximizing
-                onMinimize={handleCloseOverlay} // New prop for minimizing
-              />
-            ))
-          }
-          onDismiss={() => handleDismissResource(picture.id, picture.nodeId)}
+          key={picture.status === 'ready' ? (picture.data as PictureResource).id : 'pending'}
+          id={picture.status === 'ready' ? (picture.data as PictureResource).id : 'pending'}
+          title={picture.status === 'ready' ? (picture.data as PictureResource).title : 'Loading...'}
+          pictureResult={picture}
+          source={picture.status === 'ready' ? (picture.data as PictureResource).source || '' : ''}
+          onOpenFullSize={() => {
+            if (picture.status === 'ready') {
+              const pictureData = picture.data as PictureResource;
+              handleOpenPictureModal(
+                pictureData.id,
+                <ImageCard
+                  title={pictureData.title}
+                  description={pictureData.description}
+                  image={pictureData.image}
+                  onDismiss={() => handleClosePictureModal(pictureData.id)}
+                  onMaximize={(content) => handleOpenOverlay(content)}
+                  onMinimize={handleCloseOverlay}
+                />
+              );
+            }
+          }}
+          onDismiss={() => picture.status === 'ready' && 
+            handleDismissResource((picture.data as PictureResource).id, picture.nodeId)}
         />
       ))}
 
-      {/* Render Practice Sheet Cards */}
       {visiblePracticeSheets.map((practiceSheet) => (
         <PracticeSheetCard
-    key={practiceSheet.id}
-    id={practiceSheet.id}
-    title={practiceSheet.title}
-    quizType={practiceSheet.quizType}
-    quizQuestions={practiceSheet.quizContent} // Updated to use `quizQuestions`
-    onOpenFullSize={() => handleOpenQuizModal(practiceSheet.title, practiceSheet.quizContent, practiceSheet.quizType)} // Pass title and questions
-    onDismiss={() => handleDismissResource(practiceSheet.id, practiceSheet.nodeId)}
-  />
+          key={practiceSheet.id}
+          id={practiceSheet.id}
+          title={practiceSheet.title}
+          quizType={practiceSheet.quizType}
+          quizQuestions={practiceSheet.quizContent}
+          onOpenFullSize={() => handleOpenQuizModal(practiceSheet.title, practiceSheet.quizContent, practiceSheet.quizType)}
+          onDismiss={() => handleDismissResource(practiceSheet.id, practiceSheet.nodeId)}
+        />
       ))}
 
-      {/* Render Default Cue Cards if No Resources are Visible */}
       {visibleCueCards.length === 0 && visiblePictures.length === 0 && visiblePracticeSheets.length === 0 &&
         defaultCueCards.map((cueCard) => (
           <CueCard
@@ -426,14 +329,13 @@ const handleOpenQuizModal = useCallback((
         ))
       }
 
-      {/* Render ModalOverlayManager with Updated Props */}
       <ModalOverlayManager
         overlayContent={overlayContent}
         setOverlayContent={setOverlayContent}
         openedPictureModals={openedPictureModals}
         handleClosePictureModal={handleClosePictureModal}
-        centerPaneRef={centerPaneRef} // Pass centerPaneRef to manage bounds relative to center pane
-        toolPaneVisible={toolPaneVisible} // Pass Tool Pane visibility to adjust draggable bounds
+        centerPaneRef={centerPaneRef}
+        toolPaneVisible={toolPaneVisible}
       />
     </div>
   );

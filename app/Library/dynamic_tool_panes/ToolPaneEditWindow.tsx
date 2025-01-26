@@ -9,42 +9,29 @@ import './ToolPane.css';
 import './proposal.css'
 import CardEntry from '@/app/Library/dynamic_tool_panes/CardEntry';
 import { toggleResourceSelection } from '@/app/Library/utils/copycutpaste/CutCopyPasteUtils';
-import EditIcon from '@mui/icons-material/Edit'; // Importing EditIcon
+import EditIcon from '@mui/icons-material/Edit';
 import { Descendant } from 'slate';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ToolPaneEditWindowProps {
   sourceNodeId: string;
-  onClose: () => void; // New prop for closing the pane
+  onClose: () => void;
 }
 
 const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, onClose }) => {
-  // Import contexts for nodes and resources
-  const { nodes, updateNodeTitle } = useNodesContext(); // Destructure dispatch from context
-  const { selectCueCards, selectPictures, selectPracticeSheets, editResource, selectResources } = useResourceContext();
-  
+  const { nodes, updateNodeTitle } = useNodesContext();
+  const { selectResources, editResource } = useResourceContext();
   const command = 'edit';
 
-  // Retrieve the source node
   const sourceNode = nodes.get(sourceNodeId); 
   const nodeTitle = sourceNode ? sourceNode.title : '';
 
-  // State for selected resources
   const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
-
-  // State for inline title editing
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [newTitle, setNewTitle] = useState<string>(nodeTitle);
-
-  // Effect to update newTitle when nodeTitle changes
-  useEffect(() => {
-    setNewTitle(nodeTitle);
-  }, [nodeTitle]);
-
-  // Fetch resources for the selected node
-  const cueCards = selectCueCards(sourceNodeId);
-  const pictures = selectPictures(sourceNodeId);
-  const practiceSheets = selectPracticeSheets(sourceNodeId);
+  const [sourceResources, setSourceResources] = useState<ResourceCard[]>([]);
+  const [loadingResources, setLoadingResources] = useState<Set<string>>(new Set());
+  const [resourceErrors, setResourceErrors] = useState<Set<string>>(new Set());
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,35 +39,61 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
   const [initialData, setInitialData] = useState<any>(null);
   const [modalKey, setModalKey] = useState<string>('');
 
-  // Helper function to get all resources for a given node
-  const getResources = (nodeId: string) => {
-    const resources = selectResources(nodeId);
-    return resources.map(resource => ({
-      ...resource,
-      resourceType: resource.type,
-    }));
-  };
+  // Effect to update newTitle when nodeTitle changes
+  useEffect(() => {
+    setNewTitle(nodeTitle);
+  }, [nodeTitle]);
 
-  const sourceResources = sourceNodeId ? getResources(sourceNodeId) : [];
+  // Fetch resources asynchronously when sourceNodeId changes
+  useEffect(() => {
+    const fetchResources = async () => {
+      if (sourceNodeId) {
+        try {
+          const resources = await selectResources(sourceNodeId);
+          setSourceResources(resources);
+          
+          // Update loading states for picture resources
+          const newLoadingResources = new Set<string>();
+          const newResourceErrors = new Set<string>();
+          
+          resources.forEach(resource => {
+            if (resource.type === 'picture') {
+              if ('status' in resource && resource.status === 'pending') {
+                newLoadingResources.add(resource.id);
+              } else if ('status' in resource && resource.status === 'error') {
+                newResourceErrors.add(resource.id);
+              }
+            }
+          });
+          
+          setLoadingResources(newLoadingResources);
+          setResourceErrors(newResourceErrors);
+        } catch (error) {
+          console.error('Error fetching resources:', error);
+        }
+      }
+    };
 
-  /**
-   * Handles the selection of a resource.
-   * Toggles the selection state of the resource.
-   *
-   * @param resourceId - The ID of the resource to select or deselect.
-   */
+    fetchResources();
+  }, [sourceNodeId, selectResources]);
+
   const handleResourceSelect = (resourceId: string) => {
+    // Prevent selection of loading resources
+    if (loadingResources.has(resourceId)) {
+      return;
+    }
+    
     const updatedSelection = toggleResourceSelection(resourceId, selectedResourceIds);
     setSelectedResourceIds(updatedSelection);
   };
 
-  /**
-   * Opens the modal for editing a specific resource type.
-   *
-   * @param type - The type of resource to edit ('cueCard', 'picture', 'practiceSheet').
-   * @param data - The data of the resource being edited.
-   */
-  const openEditModal = (type: 'cueCard' | 'picture' | 'practiceSheet', data: ResourceCard) => {
+  const openEditModal = async (type: 'cueCard' | 'picture' | 'practiceSheet', data: ResourceCard) => {
+    // Prevent editing of loading resources
+    if (loadingResources.has(data.id)) {
+      alert('Please wait for the resource to finish loading before editing.');
+      return;
+    }
+
     setResourceType(type);
   
     if (type === 'cueCard') {
@@ -88,7 +101,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
       setInitialData({
         id: cue.id,
         title: cue.title,
-        content: cue.content ,
+        content: cue.content,
         source: cue.source,
       });
     } else if (type === 'picture') {
@@ -107,7 +120,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
         initialPracticeSheetTitle: ps.title,
         initialPracticeSheetContent: {
           quizType: ps.content.quizType,
-          quizContent: ps.content.quizContent || [], // Match the new data shape
+          quizContent: ps.content.quizContent || [],
         },
       });
     }
@@ -115,15 +128,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
     setIsModalOpen(true);
   };
 
-  /**
-   * Handles the save action from the modal.
-   * Updates the resource with the edited data.
-   *
-   * @param resourceType - The type of resource being edited.
-   * @param nodeTitle - The title of the node containing the resource.
-   * @param ...otherParams - Additional parameters based on the resource type.
-   */
-  const handleSave = (
+  const handleSave = async (
     resourceType: 'cueCard' | 'picture' | 'practiceSheet',
     nodeTitle: string,
     cueCardTitle?: string,
@@ -152,16 +157,16 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
           nodeId: sourceNodeId,
           type: 'picture',
           title: cueCardTitle || initialData.title,
-          image : image || initialData.uploadedPicture,
+          image: image || initialData.uploadedPicture,
           description: pictureDescription,
-          source, 
+          source,
         } as PictureResource;
       } else if (resourceType === 'practiceSheet') {
         updatedResource = {
           id: initialData.id,
           nodeId: sourceNodeId,
           type: 'practiceSheet',
-          title: cueCardTitle || initialData.title, // Corrected to practiceSheetTitle
+          title: cueCardTitle || initialData.title,
           content: {
             quizType: practiceSheetContent?.quizType || initialData.initialPracticeSheetContent.quizType,
             quizContent: practiceSheetContent?.quizContent || initialData.initialPracticeSheetContent.quizContent,
@@ -172,36 +177,20 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
         return;
       }
 
-      // Update the resource in context
-      editResource(updatedResource);
-      
-      // Close the modal after saving
+      await editResource(updatedResource);
       setIsModalOpen(false);
-
-      // Automatically close the pane after saving edits
       onClose();
     }
   };
 
-  /**
-   * Handles the initiation of title editing.
-   */
   const handleEditTitle = () => {
     setIsEditingTitle(true);
   };
 
-  /**
-   * Handles the change in the title input field.
-   *
-   * @param event - The input change event.
-   */
   const handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setNewTitle(event.target.value);
   };
 
-  /**
-   * Handles the submission of the new title.
-   */
   const handleTitleSubmit = () => {
     const trimmedTitle = newTitle.trim();
     if (trimmedTitle && trimmedTitle !== nodeTitle) {
@@ -210,11 +199,6 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
     setIsEditingTitle(false);
   };
 
-  /**
-   * Handles key presses in the title input field.
-   *
-   * @param event - The keyboard event.
-   */
   const handleTitleKeyPress = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       handleTitleSubmit();
@@ -228,48 +212,45 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
     <div className="tool-pane-window">
       <h3>Edit Options</h3>
 
-      {/* Source Section */}
       <div className="tool-pane-section">
-        {/* Inline Editable Title */}
         <div className="multiline section-header proposal-scheme1-title-container">
-   
-  {isEditingTitle ? (
-    <input
-      type="text"
-      value={newTitle}
-      onChange={handleTitleChange}
-      onBlur={handleTitleSubmit}
-      onKeyDown={handleTitleKeyPress}
-      autoFocus
-      className="title-input proposal-scheme1-title-input"
-      aria-label="Edit node title"
-    />
-  ) : (
-    <>
-      <span className="node-title-text">{nodeTitle || 'N/A'}</span>
-      <EditIcon 
-        className="edit-icon proposal-scheme1-edit-icon" 
-        onClick={handleEditTitle} 
-        titleAccess="Edit Title"
-        aria-label="Edit Title"
-      />
-    </>
-  )}
-      </div>
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={newTitle}
+              onChange={handleTitleChange}
+              onBlur={handleTitleSubmit}
+              onKeyDown={handleTitleKeyPress}
+              autoFocus
+              className="title-input proposal-scheme1-title-input"
+              aria-label="Edit node title"
+            />
+          ) : (
+            <>
+              <span className="node-title-text">{nodeTitle || 'N/A'}</span>
+              <EditIcon 
+                className="edit-icon proposal-scheme1-edit-icon" 
+                onClick={handleEditTitle} 
+                titleAccess="Edit Title"
+                aria-label="Edit Title"
+              />
+            </>
+          )}
+        </div>
 
-
-        
-        {/* Resource List */}
         <div className="resource-list">
           {sourceResources.length > 0 ? (
             sourceResources.map((resource) => (
               <CardEntry
                 key={resource.id}
                 resource={resource}
-                resourceType={resource.resourceType}
+                resourceType={resource.type}
                 isSelected={selectedResourceIds.includes(resource.id)}
                 isCut={selectedResourceIds.includes(resource.id)}
-                onSelect={() => openEditModal(resource.resourceType, resource )}
+                isLoading={loadingResources.has(resource.id)}
+                hasError={resourceErrors.has(resource.id)}
+                disabled={loadingResources.has(resource.id)}
+                onSelect={() => openEditModal(resource.type, resource)}
                 command={command}
               />
             ))
@@ -279,9 +260,7 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
         </div>
       </div>
 
-      {/* Button Container */}
       <div className="button-container">
-        {/* Cancel Button */}
         <button
           className="cancel-button"
           onClick={onClose}
@@ -290,7 +269,6 @@ const ToolPaneEditWindow: React.FC<ToolPaneEditWindowProps> = ({ sourceNodeId, o
         </button>
       </div>
 
-      {/* ModernModal component to edit selected resource */}
       <ModernModal
         key={modalKey}
         isOpen={isModalOpen}

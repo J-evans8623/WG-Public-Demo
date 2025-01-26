@@ -1,6 +1,6 @@
 // bloom-maps/app/Library/dynamic_tool_panes/ToolPaneCutCopyWindow.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
@@ -10,12 +10,13 @@ import {
   markForTransfer,
   handlePaste
 } from '@/app/Library/utils/copycutpaste/CutCopyPasteUtils';
+import { ResourceCard } from '@/app/Library/Definitions/Definitions';
 import './ToolPane.css';
 
 interface ToolPaneCutCopyWindowProps {
   sourceNodeId: string;
   command: 'cut' | 'copy';
-  onClose: () => void; // New prop for closing the pane
+  onClose: () => void;
 }
 
 const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNodeId, command, onClose }) => {
@@ -24,50 +25,74 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
   const { targetNodeId } = useNodeSelection();
 
   const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
+  const [sourceResources, setSourceResources] = useState<ResourceCard[]>([]);
+  const [loadingResources, setLoadingResources] = useState<Set<string>>(new Set());
+  const [resourceErrors, setResourceErrors] = useState<Set<string>>(new Set());
 
   const sourceNode = nodes.get(sourceNodeId);
   const targetNode = targetNodeId ? nodes.get(targetNodeId) : null;
 
-  // Helper function to get resources for a given node
-  const getResources = (nodeId: string) => {
-    const resources = selectResources(nodeId);
-    return resources.map(resource => ({
-      ...resource,
-      resourceType: resource.type,
-    }));
-  };
+  // Load resources asynchronously when sourceNodeId changes
+  useEffect(() => {
+    const fetchResources = async () => {
+      if (sourceNodeId) {
+        try {
+          const resources = await selectResources(sourceNodeId);
+          setSourceResources(resources);
+          
+          // Update loading states for picture resources
+          const newLoadingResources = new Set<string>();
+          const newResourceErrors = new Set<string>();
+          
+          resources.forEach(resource => {
+            if (resource.type === 'picture') {
+              if ('status' in resource && resource.status === 'pending') {
+                newLoadingResources.add(resource.id);
+              } else if ('status' in resource && resource.status === 'error') {
+                newResourceErrors.add(resource.id);
+              }
+            }
+          });
+          
+          setLoadingResources(newLoadingResources);
+          setResourceErrors(newResourceErrors);
+        } catch (error) {
+          console.error('Error fetching resources:', error);
+        }
+      }
+    };
 
-  const sourceResources = sourceNodeId ? getResources(sourceNodeId) : [];
-  // Removed targetResources as per user instruction
+    fetchResources();
+  }, [sourceNodeId, selectResources]);
 
-  /**
-   * Handles the selection of a resource.
-   * Toggles the selection state of the resource.
-   *
-   * @param resourceId - The ID of the resource to select or deselect.
-   */
   const handleResourceSelect = (resourceId: string) => {
+    // Prevent selection of loading or error resources
+    if (loadingResources.has(resourceId) || resourceErrors.has(resourceId)) {
+      return;
+    }
+    
     const updatedSelection = toggleResourceSelection(resourceId, selectedResourceIds);
     setSelectedResourceIds(updatedSelection);
   };
 
-  /**
-   * Marks resources for transfer (cut or copy).
-   * This replaces the current selection with the specified resources.
-   *
-   * @param resourceIds - An array of resource IDs to mark for transfer.
-   */
   const handleMarkForTransfer = (resourceIds: string[]) => {
-    const updatedSelection = markForTransfer(resourceIds);
+    // Filter out any loading or error resources
+    const validResourceIds = resourceIds.filter(
+      id => !loadingResources.has(id) && !resourceErrors.has(id)
+    );
+    const updatedSelection = markForTransfer(validResourceIds);
     setSelectedResourceIds(updatedSelection);
   };
 
-  /**
-   * Executes the paste operation.
-   * Utilizes the handlePaste utility function to perform the transfer.
-   */
-  const handlePasteResources = () => {
+  const handlePasteResources = async () => {
     if (targetNodeId && selectedResourceIds.length > 0) {
+      // Verify no selected resources are still loading
+      const hasLoadingResources = selectedResourceIds.some(id => loadingResources.has(id));
+      if (hasLoadingResources) {
+        alert('Please wait for all resources to finish loading before pasting.');
+        return;
+      }
+
       const updatedSelection = handlePaste(
         sourceNodeId,
         targetNodeId,
@@ -76,27 +101,12 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
         transferResource,
       );
       setSelectedResourceIds(updatedSelection);
-      onClose(); // Automatically close the pane after paste
+      onClose();
     }
   };
-
-  /**
-   * Handles the 'Cut' or 'Copy' action triggered by the user.
-   * Marks the selected resources for transfer based on the command.
-   *
-   * @param selectedIds - An array of selected resource IDs.
-   */
-  const handleAction = (selectedIds: string[]) => {
-    if (selectedIds.length > 0) {
-      handleMarkForTransfer(selectedIds);
-    }
-  };
-
-  
 
   return (
     <div className="tool-pane-window">
-      {/* Source Section */}
       <div className="tool-pane-section">
         <div className="multiline section-header">Source Concept: {sourceNode?.title || 'N/A'}</div>
         <div className="resource-list">
@@ -105,9 +115,12 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
               <CardEntry
                 key={resource.id}
                 resource={resource}
-                resourceType={resource.resourceType}
+                resourceType={resource.type}
                 isSelected={selectedResourceIds.includes(resource.id)}
                 isCut={selectedResourceIds.includes(resource.id)}
+                isLoading={loadingResources.has(resource.id)}
+                hasError={resourceErrors.has(resource.id)}
+                disabled={loadingResources.has(resource.id) || resourceErrors.has(resource.id)}
                 onSelect={() => handleResourceSelect(resource.id)}
                 command={command}
               />
@@ -118,10 +131,8 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
         </div>
       </div>
 
-      {/* Divider */}
       <div className="section-divider"></div>
 
-      {/* Target Section - Retaining Original Section Name */}
       <div className="tool-pane-section">
         <div className="multiline section-header">Target Concept: {targetNode?.title || 'N/A'}</div>
         <div className="resource-list">
@@ -133,9 +144,12 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
                 <CardEntry
                   key={resource.id}
                   resource={resource}
-                  resourceType={resource.resourceType}
-                  isSelected={true} // Always selected in target
+                  resourceType={resource.type}
+                  isSelected={true}
                   isCut={command === 'cut'}
+                  isLoading={loadingResources.has(resource.id)}
+                  hasError={resourceErrors.has(resource.id)}
+                  disabled={loadingResources.has(resource.id) || resourceErrors.has(resource.id)}
                   onSelect={() => handleResourceSelect(resource.id)}
                 />
               );
@@ -146,9 +160,7 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
         </div>
       </div>
 
-{/* Button Container */}
-<div className="button-container">
-        {/* Cancel Button */}
+      <div className="button-container">
         <button
           className="cancel-button"
           onClick={onClose}
@@ -156,11 +168,14 @@ const ToolPaneCutCopyWindow: React.FC<ToolPaneCutCopyWindowProps> = ({ sourceNod
           Cancel
         </button>
 
-        {/* Paste Button */}
         <button
           className="tool-pane-button"
           onClick={handlePasteResources}
-          disabled={!targetNodeId || selectedResourceIds.length === 0}
+          disabled={
+            !targetNodeId || 
+            selectedResourceIds.length === 0 ||
+            selectedResourceIds.some(id => loadingResources.has(id) || resourceErrors.has(id))
+          }
         >
           Paste
         </button>

@@ -283,3 +283,19 @@ export interface PracticeSheetResource extends BaseResource {
  * Discriminated union type for all resources.
  */
 export type ResourceCard = CueCardResource | PictureResource | PracticeSheetResource  | ImageMessage;
+
+
+
+// Define the PictureResourceResult interface
+export interface PictureResourceResult {
+  status: 'ready' | 'pending' | 'error';
+  data: PictureResource | Promise<PictureResource>;
+  error?: FetchError;
+  retry?: () => Promise<PictureResource>;
+}
+
+// Define the FetchError interface
+export interface FetchError extends Error {
+  type: 'network_error' | 'not_found' | 'server_error';
+  retry?: () => Promise<PictureResource>;
+}

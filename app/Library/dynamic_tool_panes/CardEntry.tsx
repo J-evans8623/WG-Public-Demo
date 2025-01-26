@@ -7,14 +7,16 @@ interface CardEntryProps {
   resource: {
     id: string;
     title: string;
-    // Optionally include other resource-specific fields, e.g., image for pictures, quiz type for practice sheets
   };
-  resourceType: 'cueCard' | 'picture' | 'practiceSheet' | 'conceptNode'; // Added 'conceptNode'
+  resourceType: 'cueCard' | 'picture' | 'practiceSheet' | 'conceptNode';
   isSelected: boolean;
   isCut: boolean;
+  isLoading?: boolean;  // Added
+  hasError?: boolean;   // Added
+  disabled?: boolean;   // Added
   onSelect: (resourceId: string) => void;
-  command?: 'cut' | 'copy' | 'edit' | 'delete'; // Make command optional
-  onDelete?: (resourceId: string) => void; // Added onDelete for delete actions
+  command?: 'cut' | 'copy' | 'edit' | 'delete';
+  onDelete?: (resourceId: string) => void;
 }
 
 const CardEntry: React.FC<CardEntryProps> = ({
@@ -22,69 +24,75 @@ const CardEntry: React.FC<CardEntryProps> = ({
   resourceType,
   isSelected,
   isCut,
+  isLoading = false,
+  hasError = false,
+  disabled = false,
   onSelect,
   command,
   onDelete,
 }) => {
-  // Handle resource click (selection)
   const handleResourceClick = useCallback(
     (e: React.MouseEvent) => {
-      e.stopPropagation(); // Prevent event propagation to parent
-      onSelect(resource.id); // Trigger selection
+      e.stopPropagation();
+      if (!disabled) {
+        onSelect(resource.id);
+      }
     },
-    [resource.id, onSelect]
+    [resource.id, onSelect, disabled]
   );
 
-  // Determine classes based on state
-  // Determine classes based on state
-  const containerClasses = `card-entry-container ${
-    isSelected ? (command === 'delete' ? 'selected-delete' : 'selected') : ''
-  } ${isCut ? 'cut' : ''}`;
+  const containerClasses = `card-entry-container 
+    ${isSelected ? (command === 'delete' ? 'selected-delete' : 'selected') : ''} 
+    ${isCut ? 'cut' : ''} 
+    ${isLoading ? 'loading' : ''} 
+    ${hasError ? 'error' : ''} 
+    ${disabled ? 'disabled' : ''}`;
+
   const buttonClasses = 'card-entry-button';
 
-  // Determine icon based on resource type
   const getResourceIcon = () => {
     switch (resourceType) {
       case 'cueCard':
-        return '📝'; // Icon for Cue Card
+        return '📝';
       case 'picture':
-        return '🖼️'; // Icon for Picture
+        return isLoading ? '⌛' : hasError ? '❌' : '🖼️';
       case 'practiceSheet':
-        return '📄'; // Icon for Practice Sheet
+        return '📄';
       default:
-        return ''; // Default icon
+        return '';
     }
   };
 
   return (
     <div className={containerClasses} onClick={handleResourceClick}>
-      {/* Resource Type Icon */}
       <span className="card-entry-icon">{getResourceIcon()}</span>
 
-      {/* Resource Title */}
-      <span className="card-entry-title">{resource.title}</span>
+      <span className="card-entry-title">
+        {resource.title}
+        {isLoading && <span className="loading-text"> (Loading...)</span>}
+        {hasError && <span className="error-text"> (Failed to load)</span>}
+      </span>
 
-      {/* Action Buttons */}
       <div className="card-entry-actions">
-        {/* Conditionally render the Delete button if command is 'delete' and onDelete is provided */}
         {command === 'delete' && onDelete && (
           <button
             onClick={(e) => {
-              e.stopPropagation(); // Prevent triggering selection
-              onDelete(resource.id); // Trigger delete action
+              e.stopPropagation();
+              onDelete(resource.id);
             }}
             className={`${buttonClasses} delete-action-button`}
+            disabled={disabled}
             aria-label={`Delete ${resource.title}`}
           >
             Delete
           </button>
         )}
 
-        {/* Conditionally render other action buttons based on command */}
         {command && command !== 'delete' && (
           <button
             onClick={handleResourceClick}
             className={buttonClasses}
+            disabled={disabled}
             aria-label={`${command.charAt(0).toUpperCase() + command.slice(1)} ${resource.title}`}
           >
             {command.charAt(0).toUpperCase() + command.slice(1)}
