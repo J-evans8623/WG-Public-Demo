@@ -94,3 +94,18 @@
 .menu-bar-dropdowns .ant-dropdown-menu {
     z-index: 1000;
 }
+
+
+/* Update in MenuBar.css */
+.status-indicator-container {
+    display: flex;
+    align-items: center;
+    width: 200px; /* Fixed width */
+    height: 24px;
+  }
+  
+  .menu-bar-dropdowns {
+    display: flex;
+    align-items: center;
+    padding: 4px 0;
+  }

@@ -9,7 +9,7 @@ import { WebsocketProvider } from 'y-websocket';
 import { Awareness } from 'y-protocols/awareness';
 import { useYDoc, } from '@/app/Library/Context/YDocContext';
 import { ApiContext } from '@/app/src/context/ApiContext';
-import { toast } from 'react-toastify';
+//import { //toast } from 'react-//toastify';
 import * as Y from 'yjs';
 import { Descendant } from 'slate';
 import { ImageMessage } from '@/app/Library/Definitions/Definitions';
@@ -174,15 +174,15 @@ useEffect(() => {
         switch (status) {
           case 'connected':
             setConnectionState('connected');
-            toast.info('Connected to collaboration room');
+            //toast.info('Connected to collaboration room');
             break;
           case 'disconnected':
             setConnectionState('disconnected');
-            toast.warn('WebSocket connection closed');
+            //toast.warn('WebSocket connection closed');
             break;
           case 'error':
             setConnectionState('error');
-            toast.error('WebSocket encountered an error');
+            //toast.error('WebSocket encountered an error');
             break;
         }
       });
@@ -204,7 +204,7 @@ useEffect(() => {
               totalResources: resourcesMap.size,
               resourceKeys: Array.from(resourcesMap.keys())
             });
-            toast.success('Document synchronized');
+            //toast.success('Document synchronized');
           } catch (error) {
             console.error('[WebSocketManager] Error checking resources after sync:', error);
           }
@@ -219,7 +219,7 @@ useEffect(() => {
           timestamp: new Date().toISOString()
         });
         setConnectionState('error');
-        toast.error('Failed to establish WebSocket connection');
+        //toast.error('Failed to establish WebSocket connection');
       });
 
       providerRef.current = newProvider;
@@ -227,7 +227,7 @@ useEffect(() => {
     } catch (error) {
       console.error('[WebSocketManager] Connection establishment failed:', error);
       setConnectionState('error');
-      toast.error('Failed to establish WebSocket connection');
+      //toast.error('Failed to establish WebSocket connection');
     } finally {
       isConnectingRef.current = false;
     }

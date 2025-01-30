@@ -71,7 +71,7 @@ export class AutoSaveManager {
     this.saveCallback = saveCallback;
     this.config = {
       guaranteedSaveInterval: 60000, // 1 minute
-      inactivitySaveDelay: 10000,    // 10 seconds
+      inactivitySaveDelay: 3000,    // 10 seconds
       ...config
     };
 

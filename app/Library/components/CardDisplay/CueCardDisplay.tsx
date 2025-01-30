@@ -4,7 +4,7 @@ import PictureCard from './PictureCard';
 import PracticeSheetCard from './PracticeSheetCard';
 import MatchingQuizModal from './MatchingQuizModal';
 import ImageCard from '@/app/Library/components/CardDisplay/p1/ImageCard';
-import { CueCardResource, IFillInBlankQuestion, IMultipleChoiceQuestion, IQuizQuestion, ITrueFalseQuestion, QuizType, PictureResource, PictureResourceResult } from '@/app/Library/Definitions/Definitions';
+import { CueCardResource, IFillInBlankQuestion, IMultipleChoiceQuestion, IQuizQuestion, ITrueFalseQuestion, QuizType, PictureResource, PictureResourceResult, TextFileMessage } from '@/app/Library/Definitions/Definitions';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -14,6 +14,9 @@ import { Descendant } from 'slate';
 import FillInBlankQuiz from './quiz/FillInBlankQuiz';
 import MultipleChoiceQuiz from './quiz/MultipleChoiceQuiz';
 import TrueFalseQuiz from './quiz/TrueFalseQuiz';
+import FileCard from './FileCard/FileCard';
+import FileContent from './FileCard/FileContent';
+import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
 
 const defaultCueCards: CueCardResource[] = [
   {
@@ -48,8 +51,15 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
   const [openedPictureModals, setOpenedPictureModals] = useState<{ id: string; content: React.ReactNode }[]>([]);
   const [overlayContent, setOverlayContent] = useState<React.ReactNode | null>(null);
   const [pictureResults, setPictureResults] = useState<Map<string, PictureResourceResult[]>>(new Map());
+  const { getAllFiles } = useFileAsset();
+  const [files, setFiles] = useState<TextFileMessage[]>([]);
+
 
   const selectedNodeIds = getSelectedNodeIds();
+
+  useEffect(() => {
+    setFiles(getAllFiles());
+  }, [getAllFiles]);
 
   useEffect(() => {
     const loadPictures = async () => {
@@ -225,13 +235,19 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
     setOverlayContent(QuizComponent);
   }, []);
 
+
+
+
   const handleCloseOverlay = useCallback(() => {
     setOverlayContent(null);
   }, []);
 
+
+
   const closeAllModals = useCallback(() => {
     setOverlayContent(null);
     setOpenedPictureModals([]);
+   
   }, []);
 
   useImperativeHandle(ref, () => ({
@@ -328,6 +344,22 @@ const CueCardDisplay = forwardRef<CueCardDisplayRef, CueCardDisplayProps>(({ cen
           />
         ))
       }
+
+{files.map(file => (
+  <FileCard
+    key={file.id}
+    file={file}
+    onOpenFullSize={() => {
+      setOverlayContent(
+        <FileContent
+          file={file}
+          onClose={handleCloseOverlay}
+        />
+      );
+    }}
+    onDismiss={() => handleDismissResource(file.id, 'files')}
+  />
+))}
 
       <ModalOverlayManager
         overlayContent={overlayContent}

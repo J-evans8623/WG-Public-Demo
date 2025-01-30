@@ -64,6 +64,7 @@ export const useResourceContext = () => {
 export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   const { ydoc } = useYDoc();
   const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>('resources');
+  
 
   const [resources, setResourcesState] = useState<Map<string, ResourceCard[]>>(new Map());
   const [imageAssets, setImageAssets] = useState<Map<string, File>>(new Map());

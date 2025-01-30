@@ -20,6 +20,7 @@ interface NodesContextValue {
   resetNodes: () => void;
   initNewDocument: () => void;
   transferNode: (sourceNodeId: string, targetNodeId: string) => void;
+  getNodeTitle: (nodeId: string) => string | null;
 }
 
 
@@ -162,6 +163,8 @@ const initNewDocument = useCallback(() => {
         ...parentNode,
         childrenNodeIds: [...(parentNode.childrenNodeIds || []), newNodeId],
       });
+
+      console.log('New map:', yNodesMap);
     });
   }, [yNodesMap, ydoc]);
 
@@ -324,6 +327,12 @@ const initNewDocument = useCallback(() => {
     });
   }, [ydoc, yNodesMap]);
 
+
+  const getNodeTitle = useCallback((nodeId: string) => {
+    const node = yNodesMap.get(nodeId);
+    return node ? node.title : null;
+  }, [yNodesMap]);
+
   const contextValue: NodesContextValue = useMemo(() => ({
     nodes,
     setNodes,
@@ -333,7 +342,8 @@ const initNewDocument = useCallback(() => {
     resetNodes,
     initNewDocument,
     transferNode,
-  }), [nodes, setNodes, createNewNode, updateNodeTitle, deleteNode, resetNodes, initNewDocument, transferNode]);
+    getNodeTitle,
+  }), [nodes, setNodes, createNewNode, updateNodeTitle, deleteNode, resetNodes, initNewDocument, transferNode, getNodeTitle]);
 
   return (
     <NodesContext.Provider value={contextValue}>

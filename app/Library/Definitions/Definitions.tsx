@@ -299,3 +299,14 @@ export interface FetchError extends Error {
   type: 'network_error' | 'not_found' | 'server_error';
   retry?: () => Promise<PictureResource>;
 }
+
+export interface TextFileMessage {
+  id: string;
+  type: 'pdf' | 'txt' | 'doc' | 'docx';
+  title: string;
+  serverUrl: string;
+  uploadDate: Date;
+  size: number;
+  description?: string;
+}
+

@@ -27,6 +27,7 @@ interface MenuBarProps {
   onAuthButtonClick: () => void;
   onSaveToDrive: () => void;      // New prop for saving to Google Drive
   onOpenFromDrive: () => void;    // New prop for opening from Google Drive
+  children?: React.ReactNode;
 }
 
 const MenuBar: React.FC<MenuBarProps> = ({
@@ -40,6 +41,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   onAuthButtonClick,
   onSaveToDrive,
   onOpenFromDrive,
+  children,
 }) => {
   const { fileName} = useYDoc();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -264,10 +266,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
               autoFocus
               className="menu-bar-title-input"
             />
-          ) : (
-            <span onClick={handleTitleClick} className="menu-bar-title-text">
-              {fileName}
-            </span>
+          ) :  (
+            <div className="flex items-center">
+              <span onClick={handleTitleClick} className="menu-bar-title-text">
+                {fileName}
+              </span>
+
+            </div>
           )}
         </div>
 
@@ -300,6 +305,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
               Help 
             </Button>
           </Dropdown>
+          <div className="status-indicator-container ml-6">
+    {children}
+  </div>
 
            {/* Spacer to push Auth button to the right */}
            <div className="flex-grow"></div>

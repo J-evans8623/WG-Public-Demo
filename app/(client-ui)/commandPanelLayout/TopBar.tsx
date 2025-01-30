@@ -51,8 +51,9 @@ const TopBar: React.FC<TopBarProps> = ({
   const {  loadImages, saveImages } = useResourceContext();
 
   const { dispatch: layoutDispatch } = useLayoutContext();
+  const [statusText, setStatusText] = useState<string>('All changes saved to Drive');
 
-  const { loadFromDrive, autosaveDocument } =
+  const { loadFromDrive, autosaveDocument, isAuthenticated } =
     useContext(ApiContext);
 
   // Access WebSocketManager
@@ -74,47 +75,87 @@ const TopBar: React.FC<TopBarProps> = ({
 
 
   const autoSaveManager = useRef<AutoSaveManager | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'untracked'>('saved');
 
   
   useEffect(() => {
-    
-    autoSaveManager.current = new AutoSaveManager(
-      ydoc,
-      async () => {
-        setIsAutosaving(true);
-        try {
-          const bloomDocx = await prepareBloomDocx(
-            ydoc,
-            colorTheme as ColorTheme,
-            primaryColor,
-            backgroundColor,
-            fileName,
-            saveImages,
-            driveFileId
-          );
-          console.log('Entering Autosave layer using autosaveManager instace : ', autoSaveManager.current)
-
-          const bloomDocxArrayBuffer = await bloomDocx.arrayBuffer();
-          const fileId = await autosaveDocument(bloomDocxArrayBuffer, fileName, driveFileId);
-          updateDriveId(fileId);
-          
-          toast.success('Autosave completed successfully!');
-          console.log('*******************Exiting Autosave layer*****************')
-        } catch (error) {
-          console.error('Autosave error:', error);
-          toast.error('Autosave failed.');
-          throw error; // Propagate error to AutoSaveManager
-        } finally {
-          setIsAutosaving(false);
+    // Only initialize AutoSaveManager if user is authenticated
+    if (isAuthenticated) {
+      autoSaveManager.current = new AutoSaveManager(
+        ydoc,
+        async () => {
+          setSaveStatus('saving');
+          try {
+            const bloomDocx = await prepareBloomDocx(
+              ydoc,
+              colorTheme as ColorTheme,
+              primaryColor,
+              backgroundColor,
+              fileName,
+              saveImages,
+              driveFileId
+            );
+            console.log('Entering Autosave layer using autosaveManager instance : ', autoSaveManager.current)
+  
+            const bloomDocxArrayBuffer = await bloomDocx.arrayBuffer();
+            const fileId = await autosaveDocument(bloomDocxArrayBuffer, fileName, driveFileId);
+            updateDriveId(fileId);
+            
+            setSaveStatus('saved');
+        
+            console.log('*******************Exiting Autosave layer*****************')
+          } catch (error) {
+            console.error('Autosave error:', error);
+            throw error;
+          } 
         }
+      );
+    } else {
+      // If user is not authenticated, destroy existing AutoSaveManager
+      if (autoSaveManager.current) {
+        autoSaveManager.current.destroy();
+        autoSaveManager.current = null;
       }
-    );
-
+      // Set status to untracked when not authenticated
+      setSaveStatus('untracked');
+    }
+  
     return () => {
       autoSaveManager.current?.destroy();
     };
-  }, [ydoc, colorTheme, primaryColor, backgroundColor, fileName, driveFileId, saveImages, autosaveDocument, updateDriveId]);
+  }, [ydoc, colorTheme, primaryColor, backgroundColor, fileName, driveFileId, saveImages, autosaveDocument, updateDriveId, isAuthenticated]);
 
+  const getStatusText = () => {
+    if (!isAuthenticated) {
+      return 'Untracked changes';
+    }
+    switch (saveStatus) {
+      case 'saving':
+        return 'Saving changes...';
+      case 'saved':
+        return 'All changes saved to Drive';
+      case 'untracked':
+        return 'Untracked changes';
+      default:
+        return 'All changes saved to Drive';
+    }
+  };
+
+  const getStatusClassName = () => {
+    if (!isAuthenticated) {
+      return 'text-red-600 bg-red-50 px-2 py-1 rounded';
+    }
+    switch (saveStatus) {
+      case 'saving':
+        return 'text-[#333]';
+      case 'saved':
+        return 'text-[#333]';
+      case 'untracked':
+        return 'text-yellow-600';
+      default:
+        return 'text-[#333]';
+    }
+  };
 
   /**
    * Handler for creating a new document.
@@ -384,42 +425,40 @@ const TopBar: React.FC<TopBarProps> = ({
         onAuthButtonClick={handleAuthButtonClick}
         onSaveToDrive={handleSaveToGoogleDrive}
         onOpenFromDrive={handleOpenFromGoogleDrive}
-      />
+      >
+       {/* Render status indicator as children of MenuBar */}
+       <div className={`status-indicator ${getStatusClassName()}`}>
+        {saveStatus === 'saving' && (
+          <svg
+            className="animate-spin h-4 w-4 mr-2 inline"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+        )}
+        {getStatusText()}
+        </div>
+      </MenuBar>
 
+      
       <ToolBar
         onOpenToolPane={handleOpenToolPane}
         openModalWithResourceType={openModalWithResourceType}
       />
-
-      <div className="flex items-center px-4 py-2">
-        {isAutosaving ? (
-          <div className="flex items-center">
-            <svg
-              className="animate-spin h-5 w-5 mr-2 text-blue-500"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v8H4z"
-              ></path>
-            </svg>
-            <span>Autosaving...</span>
-          </div>
-        ) : (
-          <span>{isInitialized ? 'All changes synchronized' : 'Not synchronized'}</span>
-        )}
-      </div>
 
       <FileSelectorModal
         isOpen={isFileSelectorOpen}

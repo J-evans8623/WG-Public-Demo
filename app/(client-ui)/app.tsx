@@ -5,14 +5,9 @@
 import React, { useState, useCallback, useEffect, useRef, memo, useContext} from 'react';
 import CueCardDisplay, { CueCardDisplayRef } from '@/app/Library/components/CardDisplay/CueCardDisplay';
 import { NodeSelectionProvider, useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import ModernModal from '@/app/Library/components/Modals/ModernModal';
-import { useSubTreeContext, SubTreeProvider } from '@/app/Library/Context/SubTreeProvider';
-import { v4 as uuidv4 } from 'uuid';
+import { SubTreeProvider } from '@/app/Library/Context/SubTreeProvider';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { saveResource } from '@/app/Library/utils/ResourceSave/saveResource';
-import { IQuizQuestion, ResourceType, QuizType } from '@/app/Library/Definitions/Definitions';
-import { Descendant } from 'slate';
 import { ApiContext, ApiProvider,  } from '@/app/src/context/ApiContext';
 import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
 // Import new context providers and hooks
@@ -20,9 +15,8 @@ import { NodesProvider, useNodesContext } from '@/app/Library/Context/NodesProvi
 import { ZoomProvider, useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { LayoutProvider, useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { ColorThemeProvider, useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
-import { FileProvider, useFileContext } from '@/app/Library/Tests/Synchro/FileContext';
-import { ResourceProvider, useResourceContext } from '@/app/Library/Context/ResourceContext';
-import { setGetLayout } from '@/app/Library/Context/LayoutActions';
+import { FileProvider} from '@/app/Library/Tests/Synchro/FileContext';
+import { ResourceProvider} from '@/app/Library/Context/ResourceContext';
 import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext';
 import { initializeNewDocument } from '@/app/Library/utils/LoadDocumentUtils'; 
 import { WebSocketManagerProvider } from '@/app/Library/Context/WebSocketManager';
@@ -37,7 +31,7 @@ import LeftPanel from './commandPanelLayout/LeftPanel';
 import MainContent from './commandPanelLayout/MainContent';
 import RightPanel from './commandPanelLayout/RightPanel';
 import StatusBar from './commandPanelLayout/StatusBar';
-
+import { FileAssetProvider } from '../Library/Context/FileAssetContext';
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 const apiServerUrl = process.env.NEXT_PUBLIC_API_SERVER_URL || 'http://localhost:5000';
@@ -49,10 +43,9 @@ const apiServerUrl = process.env.NEXT_PUBLIC_API_SERVER_URL || 'http://localhost
  * including CueCardDisplay, ConceptMap, and ToolPane.
  */
 const ClientLayoutContent = memo(function ClientLayoutContent() {
-  const { isAuthenticated, isGuest, skipAuth, signIn } = useContext(ApiContext);  
+  const {  skipAuth, signIn } = useContext(ApiContext);  
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(true);
   const centerPaneRef = useRef<HTMLDivElement>(null);
-  const toolPaneRef = useRef<HTMLDivElement>(null); // Reference to the Tool Pane
   const cueCardDisplayRef = useRef<CueCardDisplayRef>(null); // Ref for CueCardDisplay
   const { isLoading, setLoading } = useLoading();
   const [windowWidth, setWindowWidth] = useState<number>(0);
@@ -60,20 +53,18 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
 
   // Use new context hooks
   
-  const { nodes, createNewNode, updateNodeTitle, deleteNode, resetNodes, initNewDocument, transferNode } = useNodesContext();
+  const { nodes, initNewDocument, } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
-  const { dispatch: fileDispatch, fileName } = useFileContext();
   const { dispatch: colorThemeDispatch } = useColorThemeContext();
-  const { resetSubtrees } = useSubTreeContext();
+
 
 
   // Use new centralized ResourceContext hook
-  const { addResource, resetResources } = useResourceContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalResourceType, setModalResourceType] = useState<'cueCard' | 'picture' | 'practiceSheet' | undefined>(undefined);
   const [modalNodeId, setModalNodeId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'addChild' | 'addResource'>('addResource');
-  const [activeOperation, setActiveOperation] = useState<'cut'| 'copy' | 'delete' | 'merge' |'edit'| null>(null); // Track the active tool pane
+  const [activeOperation, setActiveOperation] = useState<'cut'| 'copy' | 'delete' | 'merge' |'edit'|'addContent'| null>(null); // Track the active tool pane
   const [toolPaneVisible, setToolPaneVisible] = useState(false); // State to manage Tool Pane visibility
   const [sourceNodeId, setSourceNodeId] = useState<string | ''>('');
   const { toggleNodeSelection, setTargetNodeId, clearSelection, selectNode } = useNodeSelection();
@@ -88,17 +79,25 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
    * @param op - The operation mode ('resource' or 'node').
    */
   const openModalWithResourceType = (nodeId: string | null, resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined, op: 'resource' | 'node') => {
-    setModalNodeId(nodeId); // Set the node ID for the resource
-    if (op === 'node') {
-      setModalMode('addChild');
-    } else {
-      setModalMode('addResource');
-    }
-    // Specify the mode to indicate it's an "add" operation
-    setModalResourceType(resourceType); // Define which resource type is being added
-    setModalKey(uuidv4());
-    setIsModalOpen(true); // Finally, open the modal
+    handleCloseAllModals();
+    setSourceNodeId(nodeId as string);
+    setActiveOperation('addContent');
+    setToolPaneVisible(true);
+    clearSelection(); // Clear previous selections
+    selectNode(nodeId as string); // Select the source node
   };
+
+  /**
+   * 
+   *   handleCloseAllModals();
+  setSourceNodeId(nodeId);
+  setActiveOperation('addContent');
+  setToolPaneVisible(true);
+  clearSelection();
+  selectNode(nodeId);
+   * 
+   * 
+   */
 
   /**
    * Handles opening the Tool Pane with the specified operation and source node.
@@ -238,7 +237,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
    * @param pictureDescription - Description for picture cards (optional).
    * @param practiceSheetContent - Content for practice sheets (optional).
    */
-  const handleModalSave = useCallback((
+  /**const handleModalSave = useCallback((
     resourceType: ResourceType,
     nodeTitle: string,
     Title?: string,
@@ -292,6 +291,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     }
     setIsModalOpen(false); // Close the modal after saving
   }, [modalNodeId, modalMode, createNewNode, layoutDispatch, addResource, updateNodeTitle]);
+   */
 
   /**
    * Tracks if the center pane has been mounted to ensure refs are available.
@@ -340,7 +340,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   onClose={() => setIsAuthModalOpen(false)}
 />
 
-      {/* Modern Modal for Adding Resources or Nodes */}
+      {/* Modern Modal for Adding Resources or Nodes 
       <ModernModal
         key={modalKey}
         isOpen={isModalOpen}
@@ -349,7 +349,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
         initialNodeTitle={initialNodeTitle}
         mode={modalMode}
         selectedResourceType={modalResourceType}
-      />
+      />*/}
 
       {/* TopBar */}
       <TopBar {...topBarProps} />
@@ -371,7 +371,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
       </div>
 
       {/* StatusBar */}
-      <StatusBar />
+
     </div>
     </>
   );
@@ -392,7 +392,7 @@ export default function ClientLayout() {
     <DndProvider backend={HTML5Backend}>
     <FileProvider>
     <YDocProvider>
-      
+      <FileAssetProvider>
         <NodeSelectionProvider>
           <ResourceProvider> {/* Wrap with centralized ResourceProvider */}
           <WebSocketManagerProvider>
@@ -410,7 +410,7 @@ export default function ClientLayout() {
             </WebSocketManagerProvider>
           </ResourceProvider>
         </NodeSelectionProvider>
-     
+        </FileAssetProvider>
       </YDocProvider>
       </FileProvider>
     </DndProvider>
