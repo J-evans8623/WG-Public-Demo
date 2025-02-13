@@ -14,7 +14,7 @@ export function useCompositeLayout(
 ): Map<string, ConceptNode> {
   const { setNodes } = useNodesContext();
   const { getLayout, dispatch: layoutDispatch } = useLayoutContext();
-  const { calculateSubtreeDimensions, setSubtreePosition, subtrees, setSubtrees } = useSubTreeContext();
+  const { setSubtreePosition, subtrees, setSubtrees } = useSubTreeContext();
 
   useEffect(() => {
     if (!getLayout) {
@@ -128,7 +128,6 @@ export function useCompositeLayout(
     getLayout,
     setNodes,
     layoutDispatch,
-    calculateSubtreeDimensions,
     setSubtreePosition,
     setSubtrees, // Include setSubtrees in dependencies
     subtrees,

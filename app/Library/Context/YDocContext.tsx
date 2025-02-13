@@ -2,13 +2,14 @@ import React, { createContext, useContext, useCallback, useState, useMemo, React
 import * as Y from 'yjs';
 import { toast } from 'react-toastify';
 import { ConceptNode, ResourceCard } from '@/app/Library/Definitions/Definitions';
-
+import { v4 as uuidv4 } from 'uuid';
 
 interface YDocContextType {
   // Document state
   ydoc: Y.Doc;
   fileName: string;
   driveFileId?: string;
+  docFileID: string | null;
   isInitialized: boolean;
 
   // Document lifecycle methods
@@ -25,6 +26,8 @@ interface YDocContextType {
   // File metadata management
   updateFileName: (name: string) => void;
   updateDriveId: (id?: string) => void;
+
+  persistDoc: (local: boolean) => Uint8Array;
 }
 
 const YDocContext = createContext<YDocContextType | undefined>(undefined);
@@ -45,7 +48,8 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   // State management
 const [ydoc, setYDoc] = useState(() => new Y.Doc());
   const [fileName, setFileName] = useState('Untitled Document');
-  const [driveFileId, setDriveFileId] = useState<string>();
+  const [driveFileId, setDriveFileId] = useState<string>(); // Use this to save drive files
+  const [docFileID, setDocFileID] = useState<string | null>(null); 
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Y.js operations
@@ -62,16 +66,26 @@ const [ydoc, setYDoc] = useState(() => new Y.Doc());
     return Y.encodeStateAsUpdate(ydoc);
   }, [ydoc]);
 
+  const persistDoc = useCallback((local: boolean): Uint8Array => {
+    if (local) {
+      setDriveFileId(undefined);
+    }
+    // Return the encoded Y.Doc update (this binary update can be persisted)
+    return Y.encodeStateAsUpdate(ydoc);
+  }, [ydoc]);
+
   // Document lifecycle methods
   const createNewDocument = useCallback(async (): Promise<void> => {
     try {
       setIsInitialized(false);
 
       const newYDoc = new Y.Doc();
+      const newDocId = uuidv4();
       
       // Clear existing Y.doc state
       newYDoc.transact(() => {
         // Clear all shared data structures
+        newYDoc.getMap('metadata').clear();
         newYDoc.getMap('nodes').clear();
         newYDoc.getMap('resources').clear();
         newYDoc.getMap('subtrees').clear();
@@ -98,6 +112,7 @@ const [ydoc, setYDoc] = useState(() => new Y.Doc());
           height: 0,
           position: { x: 0, y: 0 }
         };
+        newYDoc.getMap('metadata').set('docFileID', newDocId);
         newYDoc.getMap('nodes').set(rootNode.id, rootNode);
         newYDoc.getMap('subtrees').set('sentinel-node', sentinelSubtree);
       }, { type: 'system', action: 'reset' });
@@ -105,6 +120,7 @@ const [ydoc, setYDoc] = useState(() => new Y.Doc());
       // Reset metadata
       setFileName('Untitled Document');
       setDriveFileId(undefined);
+      setDocFileID(newDocId);
       
       setYDoc(newYDoc);
       setIsInitialized(true);
@@ -134,7 +150,11 @@ const [ydoc, setYDoc] = useState(() => new Y.Doc());
       // Update metadata
       setFileName(fileName);
       setDriveFileId(driveFileId);
-      
+       // Retrieve the docFileID from the Y.Doc metadata map and update state.
+       const metadataMap = newYDoc.getMap('metadata');
+       const loadedDocFileID = metadataMap.get('docFileID') as string || null;
+       setDocFileID(loadedDocFileID);
+
       // Replace old YDoc with new one
       setYDoc(newYDoc);
       setIsInitialized(true);
@@ -169,7 +189,9 @@ const [ydoc, setYDoc] = useState(() => new Y.Doc());
     updateFileName,
     updateDriveId,
     loadData,
-  }), [ydoc, fileName, driveFileId, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, updateDriveId, loadData]);
+    persistDoc,
+    docFileID,
+  }), [ydoc, fileName, driveFileId, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, updateDriveId, loadData, persistDoc, docFileID]);
 
   return (
     <YDocContext.Provider value={value}>
@@ -177,3 +199,4 @@ const [ydoc, setYDoc] = useState(() => new Y.Doc());
     </YDocContext.Provider>
   );
 };
+

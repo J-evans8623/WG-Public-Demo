@@ -16,103 +16,10 @@
  */
 
 import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
-import {
-  ConceptNode,
-  CueCardResource,
-  SubtreeData,
-  PictureResource,
-  PracticeSheetResource,
-  SerializedDocument,
-  ColorTheme,
-  ResourceCard,
-} from '@/app/Library/Definitions/Definitions';
-
 import { resetColorTheme } from '@/app/Library/Context/colorThemeActions';
-import { Descendant } from 'slate';
 import { toast } from 'react-toastify';
-import * as Y from 'yjs';
 
 
-
-/**
- * Function to serialize cue cards.
- * Converts a Map of cue cards into an array of tuples for JSON serialization.
- * 
- * @param cueCards - Map where key is nodeId and value is an array of CueCardResource
- * @returns Array of [nodeId, CueCardResource[]] tuples
- */
-export const serializeCueCards = (cueCards: Map<string, CueCardResource[]>): [string, CueCardResource[]][] => {
-  return Array.from(cueCards.entries());
-};
-
-/**
- * Function to serialize practice sheets.
- * Converts a Map of practice sheets into an array of tuples for JSON serialization.
- * 
- * @param practiceSheets - Map where key is nodeId and value is an array of PracticeSheetResource
- * @returns Array of [nodeId, PracticeSheetResource[]] tuples
- */
-export const serializePracticeSheets = (
-  practiceSheets: Map<string, PracticeSheetResource[]>
-): [string, PracticeSheetResource[]][] => {
-  return Array.from(practiceSheets.entries());
-};
-
-/**
- * Function to serialize pictures.
- * Converts a Map of pictures into an array of tuples with image paths for JSON serialization.
- * 
- * @param pictures - Map where key is nodeId and value is an array of PictureResource
- * @returns Array of [nodeId, { id, title, imagePath, description }[]] tuples
- */
-export const serializePictures = (
-  pictures: Map<string, PictureResource[]>
-): [string, { id: string; title: string; imagePath: string; description?: Descendant[]; source?: string }[]][] => {
-  const serialized: [string, { id: string; title: string; imagePath: string; description?: Descendant[]; source?: string }[]][] = [];
-  pictures.forEach((pictureArray, nodeId) => {
-    const serializedPictures = pictureArray.map(pic => ({
-      id: pic.id,
-      title: pic.title,
-      // We keep imagePath reference; actual image binary goes separately.
-      imagePath: `document/images/${pic.id}_${pic.image?.name}`,
-      // Include the description directly as Descendant[]
-      description: pic.description || [{ type: 'paragraph', children: [{ text: '' }] }],
-      source: pic.source || '',
-    }));
-    serialized.push([nodeId, serializedPictures]);
-  });
-  return serialized;
-};
-
-/**
- * Function to serialize document data.
- * Converts nodes and styling information into a SerializedDocument object.
- * 
- * @param nodes - Map of ConceptNode with nodeId as key
- * @param colorTheme - Current color theme
- * @param primaryColor - Primary color of the theme
- * @param backgroundColor - Background color of the theme
- * @param fileName - Name of the document file
- * @returns SerializedDocument object
- */
-export const serializeDocument = (
-  nodes: Map<string, ConceptNode>,
-  colorTheme: ColorTheme,
-  primaryColor: string,
-  backgroundColor: string,
-  fileName: string
-): SerializedDocument => {
-  const nodesArray = Array.from(nodes.entries());
-
-  return {
-    nodes: nodesArray,
-    colorTheme,
-    primaryColor,
-    backgroundColor,
-    fileName,
-  };
-};
 
 /**
  * Function to initialize a new document with default settings using system transactions.
@@ -179,7 +86,6 @@ export const loadDocumentFromDrive = async (
     docState: Uint8Array
   ) => Promise<void>,
   fileId: string,
-  loadImages: (imageData: Map<string, ArrayBuffer>) => void,
   colorThemeDispatch: React.Dispatch<any>
 ): Promise<void> => {
   try {
@@ -220,7 +126,7 @@ export const loadDocumentFromDrive = async (
       const buffer = await file.async('arraybuffer');
       imageBuffers.set(imageId, buffer);
     }
-    loadImages(imageBuffers);
+    
 
     // 5. Initialize data with binary state
     await loadData(
@@ -249,7 +155,6 @@ export const loadDocument = async (
     driveFileId: string | undefined,
     docState: Uint8Array
   ) => Promise<void>,
-  loadImages: (imageData: Map<string, ArrayBuffer>) => void,
   colorThemeDispatch: React.Dispatch<any>
 ): Promise<void> => {
   try {
@@ -288,7 +193,7 @@ export const loadDocument = async (
       const buffer = await file.async('arraybuffer');
       imageBuffers.set(imageId, buffer);
     }
-    loadImages(imageBuffers);
+   
 
     // 5. Initialize data with binary state
     await loadData(metadata.fileName, metadata.fileId, yjsState);

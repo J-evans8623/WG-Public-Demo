@@ -3,7 +3,7 @@
  *
  * Handles AI-related operations, including:
  * - Interacting with OpenAI API for structured content generation.
- * - Validating and parsing API responses based on predefined schemas using `zodResponseFormat`.
+ * - Validating and parsing API responses based on predefined schemas using JSON Schema
  *
  * Responsibilities:
  * - Sends requests to OpenAI API using the `gpt-4o-mini` model with structured JSON outputs.

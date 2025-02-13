@@ -1,4 +1,5 @@
 //bloom-maps\app\Library\Definitions\Definitions.tsx
+import { constants } from 'crypto';
 import { Descendant } from 'slate';
 
 export interface CueCard {
@@ -208,34 +209,50 @@ export interface BaseResource {
   source?: string;
 }
 
-/**
+/***
+ * 
+ * v1 shows the legacy versions of the resources which are now depricated.
+ *
+
  * Interface for CueCard resources.
- */
-export interface CueCardResource extends BaseResource {
+ *
+export interface CueCardResourcev1 extends BaseResource {
   type: 'cueCard';
   content: Descendant[];
 }
 
-/**
+
  * Interface for Picture resources.
- */
-export interface PictureResource extends BaseResource {
+ *
+export interface PictureResourcev1 extends BaseResource {
   type: 'picture';
-  serverUrl?: string;    // URL for fetching from asset server
-  localUrl?: string;     // URL for accessing locally stored file
-  image: File;          // File object stored in ResourceContext
+  imageUrl: string;        // File object stored in ResourceContext
   description?: Descendant[];
 }
 
-export interface ImageMessage {
-  id: string;           // Matches PictureResource id
-  nodeId: string;       // Matches PictureResource nodeId
-  serverUrl: string;    // URL for fetching image
-  title: string;        // Matches PictureResource title
-  description?: Descendant[];  // Matches PictureResource description
-  source?: string;      // Matches PictureResource source
-  type: 'picture';      // Preserve type discrimination
+*/
+
+export interface CueCardResource extends BaseResource {
+  type: 'cueCard' ;
+  content: Record<string, any>; // The TipTap JSON representation
 }
+
+/**
+ * NEW: Interface for Note resources.
+ * A note is similar to a cue card but is used for longer text.
+ */
+export interface NoteResource extends BaseResource {
+  type: 'note';
+  content: Record<string, any>;
+}
+
+export interface PictureResource extends BaseResource {
+  type: 'picture';
+  imageUrl: string;
+  description?: Record<string, any>; // TipTap JSON for rich text description
+}
+
+
 
 export type QuizType = 'matching' | 'multipleChoice' | 'true-false' | 'FIB'; 
 
@@ -282,23 +299,9 @@ export interface PracticeSheetResource extends BaseResource {
 /**
  * Discriminated union type for all resources.
  */
-export type ResourceCard = CueCardResource | PictureResource | PracticeSheetResource  | ImageMessage;
+export type ResourceCard = CueCardResource | NoteResource | PictureResource | PracticeSheetResource ; //| ImageMessage;
 
 
-
-// Define the PictureResourceResult interface
-export interface PictureResourceResult {
-  status: 'ready' | 'pending' | 'error';
-  data: PictureResource | Promise<PictureResource>;
-  error?: FetchError;
-  retry?: () => Promise<PictureResource>;
-}
-
-// Define the FetchError interface
-export interface FetchError extends Error {
-  type: 'network_error' | 'not_found' | 'server_error';
-  retry?: () => Promise<PictureResource>;
-}
 
 export interface TextFileMessage {
   id: string;
@@ -309,4 +312,39 @@ export interface TextFileMessage {
   size: number;
   description?: string;
 }
+
+export interface LayoutConfig {
+  nodewidth: number;
+  nodeheight: number;
+  ILWidth: number;
+  ILvertspacing: number;
+  HVvertspacing: number;
+  padding: number;
+}
+
+export const layoutConfig: LayoutConfig = {
+  nodewidth : 210,
+  nodeheight : 80,
+  ILWidth : 48,
+  ILvertspacing: 115,
+  HVvertspacing : 145,
+  padding : 32,
+}
+
+/**
+ * export const layoutConfig: LayoutConfig = {
+  nodewidth : 325,
+  nodeheight : 125,
+  ILWidth : 75,
+  ILvertspacing: 175,
+  HVvertspacing : 225,
+  padding : 50,
+}
+
+
+ * 
+ * 
+ */
+
+
 

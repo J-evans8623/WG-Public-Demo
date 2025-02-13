@@ -15,7 +15,6 @@ export interface SubtreeData {
 
 interface SubTreeContextType {
   subtrees: Map<string, SubtreeData>;
-  calculateSubtreeDimensions: (nodeId: string, subtreeData: SubtreeData) => void;
   getTotalSubtreeWidths: () => number;
   getMaxSubtreeHeight: () => number;
   setSubtreePosition: (nodeId: string, position: { x: number; y: number }) => void;
@@ -113,12 +112,6 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [ySubtreesMap, ydoc]);
 
-  const calculateSubtreeDimensions = useCallback((nodeId: string, subtreeData: SubtreeData) => {
-    ydoc.transact(() => {
-      ySubtreesMap.set(nodeId, subtreeData);
-    });
-  }, [ydoc, ySubtreesMap]);
-
   const getTotalSubtreeWidths = useCallback(() => {
     let totalWidth = 0;
     subtrees.forEach((subtree) => {
@@ -130,8 +123,8 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
   const getMaxSubtreeHeight = useCallback(() => {
     let maxHeight = 0;
     subtrees.forEach((subtree) => {
-      if (subtree.height > maxHeight) {
-        maxHeight = subtree.height;
+      if (Math.abs(subtree.height) > maxHeight) {
+        maxHeight = Math.abs(subtree.height);
       }
     });
     return maxHeight;
@@ -216,7 +209,6 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
 
   const contextValue = useMemo(() => ({
     subtrees,
-    calculateSubtreeDimensions,
     getTotalSubtreeWidths,
     getMaxSubtreeHeight,
     setSubtreePosition,
@@ -229,7 +221,6 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     commitSwap,
   }), [
     subtrees,
-    calculateSubtreeDimensions,
     getTotalSubtreeWidths,
     getMaxSubtreeHeight,
     setSubtreePosition,

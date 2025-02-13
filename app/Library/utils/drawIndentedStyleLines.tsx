@@ -1,7 +1,8 @@
 // bloom-maps/app/Library/utils/drawIndentedStyleLines.tsx
 
 import React from 'react';
-import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+import { ConceptNode, layoutConfig } from '@/app/Library/Definitions/Definitions';
+
 
 export function drawIndentedStyleLines(
   nodes: Map<string, ConceptNode>,
@@ -11,8 +12,8 @@ export function drawIndentedStyleLines(
   const lineElements: JSX.Element[] = [];
 
   // Define default node dimensions
-  const nodeWidth = 325;
-  const nodeHeight = 125;
+  const nodeWidth = layoutConfig.nodewidth;
+  const nodeHeight = layoutConfig.nodeheight;
 
   const depthGreaterThanOneNodes = Array.from(nodes.values()).filter(node => node.depth > 1);
 

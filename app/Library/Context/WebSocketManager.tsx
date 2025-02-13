@@ -12,7 +12,6 @@ import { ApiContext } from '@/app/src/context/ApiContext';
 //import { //toast } from 'react-//toastify';
 import * as Y from 'yjs';
 import { Descendant } from 'slate';
-import { ImageMessage } from '@/app/Library/Definitions/Definitions';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 
 interface WebSocketManagerContextType {
@@ -47,12 +46,12 @@ export const WebSocketManagerProvider: React.FC<{ children: ReactNode }> = ({ ch
   const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const providerRef = useRef<WebsocketProvider | null>(null);
   const isConnectingRef = useRef<boolean>(false);
-  const { fetchImageOnUpdate, imageAssets } = useResourceContext();
+
 
   // Create a function to handle provider cleanup
   const cleanupProvider = useCallback(() => {
     if (providerRef.current) {
-      console.log('[WebSocketManager] Cleaning up provider');
+      //console.log('[WebSocketManager] Cleaning up provider');
       providerRef.current.destroy();
       providerRef.current = null;
       setConnectionState('disconnected');
@@ -61,8 +60,7 @@ export const WebSocketManagerProvider: React.FC<{ children: ReactNode }> = ({ ch
 
 
 // Updated type for extractImageMessages function
-const extractImageMessages = useCallback((resourcesMap: Y.Map<any>): ImageMessage[] => {
-  const messages: ImageMessage[] = [];
+/**const extractImageMessages = useCallback((resourcesMap: Y.Map<any>): ImageMessage[] => {
   
   resourcesMap.forEach((nodeResources: any, nodeId: string) => {
     // Check if nodeResources is a Y.Map
@@ -89,7 +87,7 @@ const extractImageMessages = useCallback((resourcesMap: Y.Map<any>): ImageMessag
   });
   
   return messages;
-}, []);
+}, []); */
   
 
 // Add update observer to monitor all changes
@@ -99,13 +97,13 @@ useEffect(() => {
   if (!ydoc) return;
 
   const updateHandler = async (update: Uint8Array, origin: any) => {
-    console.log('[WebSocketManager] Update received:', {
+    /*console.log('[WebSocketManager] Update received:', {
       updateSize: update.length,
       origin: origin ? 'Provider' : 'Local',
       timestamp: new Date().toISOString()
-    });
+    });*/
 
-    console.log('Origin Value is actually :', origin)
+    //console.log('Origin Value is actually :', origin)
 
     // Only process updates from other clients
     if (origin instanceof WebsocketProvider) {
@@ -113,20 +111,20 @@ useEffect(() => {
         const resourcesMap = ydoc.getMap('resources');
         
         // Extract and filter new image messages
-        const imageMessages = extractImageMessages(resourcesMap);
-        const newImageMessages = imageMessages.filter(msg => !imageAssets.has(msg.id));
+        //const imageMessages = extractImageMessages(resourcesMap);
+        //const newImageMessages = imageMessages.filter(msg => !imageAssets.has(msg.id));
         
-        if (newImageMessages.length > 0) {
-          console.log('[WebSocketManager] Found new images to fetch:', newImageMessages);
+       /** if (newImageMessages.length > 0) {
+          //console.log('[WebSocketManager] Found new images to fetch:', newImageMessages);
           await fetchImageOnUpdate(newImageMessages);
-        }
+        }  */
 
         // Log current document state
-        console.log('[WebSocketManager] Current document state:', {
+        /*console.log('[WebSocketManager] Current document state:', {
           totalResources: resourcesMap.size,
           hasChanges: Y.encodeStateAsUpdate(ydoc).length > 0,
           timestamp: new Date().toISOString()
-        });
+        });*/
       } catch (error) {
         console.error('[WebSocketManager] Error processing update:', error);
       }
@@ -140,12 +138,12 @@ useEffect(() => {
   return () => {
     ydoc.off('update', updateHandler);
   };
-}, [ydoc, extractImageMessages, fetchImageOnUpdate, imageAssets]);
+}, [ydoc]);
 
 
   const connect = useCallback(async () => {
     if (!driveFileId || !isInitialized || isConnectingRef.current) {
-      console.log('[WebSocketManager] Prerequisites not met for connection or already connecting');
+      /*console.log('[WebSocketManager] Prerequisites not met for connection or already connecting');*/
       return;
     }
 
@@ -153,7 +151,7 @@ useEffect(() => {
       isConnectingRef.current = true;
       setConnectionState('connecting');
       const wsUrl = await getWebSocketUrl(driveFileId);
-      console.log('[WebSocketManager] Establishing connection to:', wsUrl);
+      //console.log('[WebSocketManager] Establishing connection to:', wsUrl);
 
       // Extract token and ensure it's a string
       const token = wsUrl.split('?token=')[1] || '';
@@ -170,7 +168,7 @@ useEffect(() => {
 
       // Set up event listeners
       newProvider.on('status', ({ status }: { status: string }) => {
-        console.log('[WebSocketManager] Connection status:', status);
+        //console.log('[WebSocketManager] Connection status:', status);
         switch (status) {
           case 'connected':
             setConnectionState('connected');
@@ -189,21 +187,21 @@ useEffect(() => {
 
       // Handle sync status with enhanced logging
       newProvider.on('sync', (isSynced: boolean) => {
-        console.log('[WebSocketManager] Sync status:', {
+        /*console.log('[WebSocketManager] Sync status:', {
           isSynced,
           timestamp: new Date().toISOString(),
           documentId: driveFileId,
           provider: providerRef.current ? 'active' : 'inactive'
-        });
+        });*/
 
         if (isSynced) {
           // Log the state of resources after sync
           try {
             const resourcesMap = ydoc.getMap('resources');
-            console.log('[WebSocketManager] Resources after sync:', {
+            /*console.log('[WebSocketManager] Resources after sync:', {
               totalResources: resourcesMap.size,
               resourceKeys: Array.from(resourcesMap.keys())
-            });
+            });*/
             //toast.success('Document synchronized');
           } catch (error) {
             console.error('[WebSocketManager] Error checking resources after sync:', error);
@@ -234,7 +232,7 @@ useEffect(() => {
   }, [driveFileId, isInitialized, ydoc, getWebSocketUrl]);
 
   const disconnect = useCallback(() => {
-    console.log('[WebSocketManager] Initiating disconnect');
+    //console.log('[WebSocketManager] Initiating disconnect');
     cleanupProvider();
   }, [cleanupProvider]);
 
@@ -242,12 +240,12 @@ useEffect(() => {
   useEffect(() => {
     const shouldConnect = driveFileId && isInitialized ;
     
-    console.log('[WebSocketManager] Connection state check:', {
+    /*console.log('[WebSocketManager] Connection state check:', {
       shouldConnect,
       hasProvider: !!providerRef.current,
       isConnecting: isConnectingRef.current,
       connectionState
-    });
+    });*/
 
     if (shouldConnect && !providerRef.current && !isConnectingRef.current) {
       connect();

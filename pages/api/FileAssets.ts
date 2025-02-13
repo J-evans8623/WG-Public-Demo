@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { GridFSBucket } from 'mongodb';
 import multer from 'multer';
 import connectDB from '@/app/src/config/db';
+import { processDocument } from '@/app/src/services/TextPreprocessing/LessonModuleService';
 
 
 interface ProcessedFile {
@@ -111,7 +112,7 @@ async function storeFile(processed: ProcessedFile, originalName: string, size: n
 
     return {
         id: uploadStream.id.toString(),
-        url: `/api/files/${uploadStream.id}`,
+        url: `/api/FileAssets?id=${uploadStream.id}`,  // `/api/FileAssets?id=${uploadStream.id}`
         type: processed.type,
         title: originalName,
         size: size
@@ -149,6 +150,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 }
 
+async function extractTextFromFile(buffer: Buffer, mimeType: string): Promise<string> {
+    if (mimeType === 'text/plain') {
+      return buffer.toString('utf-8');
+    }
+    // Placeholder: For PDFs and DOCX, return an empty string or implement extraction.
+    console.warn(`Text extraction for MIME type ${mimeType} is not implemented yet.`);
+    return '';
+  }
+  
 async function handleUpload(req: NextApiRequest & { file?: Express.Multer.File }, res: NextApiResponse) {
     try {
         if (!req.file) {
@@ -157,6 +167,26 @@ async function handleUpload(req: NextApiRequest & { file?: Express.Multer.File }
 
         const processed = await processFile(req.file.buffer, req.file.mimetype);
         const stored = await storeFile(processed, req.file.originalname, req.file.size);
+
+        if (req.file.mimetype === 'text/plain') {
+            const extractedText = await extractTextFromFile(req.file.buffer, req.file.mimetype);
+            if (extractedText.trim().length > 0) {
+              // Fire-and-forget the document processing (so as not to delay the upload response).
+
+              const documentID = req.body.fileID;
+              console.log('FileAsset.ts is Invoking handleUpload.... with file id', documentID);
+              if (!documentID) {
+                console.warn("No fileID provided in form data; lesson module processing will not be associated with a document.");
+              }
+              setImmediate(() => {
+                processDocument(extractedText, documentID).catch(err => {
+                  console.error("Error processing lesson modules:", err);
+                });
+              });
+            }
+          } else {
+            console.log(`Skipping lesson module processing for MIME type: ${req.file.mimetype}`);
+          }
 
         res.status(200).json(stored);
     } catch (error) {

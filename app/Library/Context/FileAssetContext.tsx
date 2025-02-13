@@ -22,6 +22,7 @@ import React, {
 import * as Y from 'yjs';
 import { useYDoc } from './YDocContext';
 import { TextFileMessage } from '../Definitions/Definitions';
+import { v4 as uuidv4 } from 'uuid';
 
 interface FileAssetContextType {
   files: Map<string, TextFileMessage>;
@@ -63,7 +64,7 @@ const fetchFileContent = async (serverUrl: string, fileType: TextFileMessage['ty
 };
 
 export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { ydoc } = useYDoc();
+  const { ydoc, docFileID } = useYDoc();
   const yFileMap = ydoc.getMap<TextFileMessage>('fileAssets');
   const [files, setFiles] = useState<Map<string, TextFileMessage>>(new Map());
   const contentCache = useMemo(() => new Map<string, CachedContent>(), []);
@@ -123,8 +124,31 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
         throw new Error('Invalid file type. Only PDF, TXT, DOC, and DOCX files are allowed.');
       }
 
+      const resourceID = uuidv4();
+      const localUrl = URL.createObjectURL(file);
+      const fileId = docFileID!
+      console.log('FileAssetContext is Invoking addFile.... with file id', fileId);
+
+      const localFileMessage: TextFileMessage = {
+        id: resourceID,
+        type: getMimeTypeMapping(file.type),
+        title: file.name,
+        serverUrl: localUrl, // local preview URL
+        uploadDate: new Date(),
+        size: file.size
+      };
+
+      setFiles(prev => {
+        const newMap = new Map(prev);
+        newMap.set(resourceID, localFileMessage);
+        return newMap;
+      });
+
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('fileID', fileId);
+
+
 
       const response = await fetch('/api/FileAssets', {
         method: 'POST',
@@ -136,19 +160,19 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
         throw new Error(errorData.message || 'Failed to upload file');
       }
 
-      const { id, size, type } = await response.json();
+      const { size, url} = await response.json();
 
-      // Manually construct the correct serverUrl based on backend refactor
-      const serverUrl = `/api/FileAssets?id=${id}`;
+      
+      //const serverUrl = `/api/FileAssets?id=${id}`;
 
       // Log the serverUrl to confirm correctness
-      console.log(`File uploaded. ID: ${id}, Server URL: ${serverUrl}`);
+      console.log(`File uploaded. ID: ${resourceID}, Server URL: ${url}`);
 
       const fileMessage: TextFileMessage = {
-        id,
+        id : resourceID,
         type: getMimeTypeMapping(file.type),
         title: file.name,
-        serverUrl, // Correctly set to `/api/FileAssets?id={id}`
+        serverUrl: url, // Correctly set to `/api/FileAssets?id={id}`
         uploadDate: new Date(),
         size
       };
@@ -213,11 +237,11 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
    * For HTML and TXT, it fetches and returns the content as text.
    */
   const getFileContent = useCallback(async (fileId: string): Promise<string> => {
-    const cached = getCachedContent(fileId);
+   /** const cached = getCachedContent(fileId);
     if (cached) {
       console.log(`Fetching content from cache for file ID: ${fileId}`);
       return cached;
-    }
+    }  */
 
     const file = files.get(fileId);
     if (!file) throw new Error('File not found');

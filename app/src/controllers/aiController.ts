@@ -2,18 +2,17 @@
  * controllers/aiController.ts
  */
 
-import { Request, Response } from "express";
+import { NextApiRequest, NextApiResponse } from 'next';
 import AIService from "../services/aiService";
-import predefinedPrompts from "../config/predefined-prompts";
+import { lessonPrompt, predefinedPrompts } from "../config/predefined-prompts";
 import OpenAIClient from "../config/openai";
 import { lessonSchema } from "../schemas/lessonSchema";
 import { MatchingQuizSchema, MultipleChoiceSchema, FillInBlankSchema, TrueFalseSchema } from "../schemas/quizSchema";
-import multer from "multer";
 import pdfParse from "pdf-parse";
 import fs from "fs";
 import { IStructuredQuizResponse } from "../ai-definitions/Definitions";
+import { getLessonModule } from "../services/TextPreprocessing/LessonModuleService";
 
-const upload = multer({ dest: "uploads/" });
 
 // Define standardized quiz types that match the frontend enum
 enum StandardQuizType {
@@ -34,7 +33,7 @@ class AIController {
     return this.aiService;
   }
 
-  private static async extractText(req: Request): Promise<string> {
+  private static async extractText(req: NextApiRequest): Promise<string> {
     if (req.file) {
       const pdfBuffer = await fs.promises.readFile(req.file.path);
       const pdfData = await pdfParse(pdfBuffer);
@@ -50,27 +49,44 @@ class AIController {
     };
   }
 
-  public static async generateLesson(req: Request, res: Response): Promise<void> {
+  public static async generateLesson(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
       console.log("Lesson generation request received:", req.body);
-      const text = await AIController.extractText(req);
+      const { documentID, moduleID } = req.body;
 
-      if (!text) {
-        res.status(400).json({ error: "Invalid input. Text or a valid PDF is required." });
+      if (!documentID || !moduleID) {
+        res.status(400).json({ error: "Missing documentID or moduleID" });
         return;
       }
 
-      const aiService = AIController.getAIService();
-      console.log("AI Service initialized");
-      const lessonPrompt = predefinedPrompts['Lesson'];
+      const lessonModuleRecord = await getLessonModule(documentID, moduleID);
+      if (!lessonModuleRecord) {
+        res.status(404).json({ error: "Lesson module not found" });
+        return;
+      }
+
+      // Step 3: Concatenate text segments.
+      // Step 4: Extract precomputed metadata from the first segment.
+      // Step 5: Construct a dynamic lesson prompt.
+      const aggregatedText = lessonModuleRecord.textChunk;
+      const topic = lessonModuleRecord.topic;
+      const subtopics = lessonModuleRecord.subtopics;
+      const dynamiclessonPrompt = lessonPrompt(topic, subtopics);
 
       
+      const aiService = AIController.getAIService();
+      
+      console.log("AI Service initialized");
+      
+
+      // Step 6: Call the AI service to generate the lesson using the aggregated text and dynamic prompt.
       const structuredResponse = (await aiService.generateStructuredOutput(
         lessonSchema,
-        `[start of user input]${text}[end of user input]`,
-        lessonPrompt,
+        `[start of user input]${aggregatedText}[end of user input]`,
+        dynamiclessonPrompt,
       ));
 
+      // Step 7: Return the generated lesson.
       res.status(200).json(structuredResponse);
     } catch (error) {
       console.error("Error in generateLesson:", error);
@@ -78,7 +94,7 @@ class AIController {
     }
   }
 
-  public static async generateQuiz_multipleChoice(req: Request, res: Response): Promise<void> {
+  public static async generateQuiz_multipleChoice(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
       const text = await AIController.extractText(req);
       if (!text) {
@@ -109,7 +125,7 @@ class AIController {
     }
   }
 
-  public static async generateQuiz_trueFalse(req: Request, res: Response): Promise<void> {
+  public static async generateQuiz_trueFalse(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
       const text = await AIController.extractText(req);
       if (!text) {
@@ -140,7 +156,7 @@ class AIController {
     }
   }
 
-  public static async generateQuiz_fillInBlank(req: Request, res: Response): Promise<void> {
+  public static async generateQuiz_fillInBlank(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
       const text = await AIController.extractText(req);
       if (!text) {
@@ -171,7 +187,7 @@ class AIController {
     }
   }
 
-  public static async generateQuiz_matching(req: Request, res: Response): Promise<void> {
+  public static async generateQuiz_matching(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
       const text = await AIController.extractText(req);
       if (!text) {

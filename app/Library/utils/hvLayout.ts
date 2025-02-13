@@ -1,11 +1,12 @@
 import { SubtreeData } from '@/app/Library/Context/SubTreeProvider';
+import { layoutConfig } from '../Definitions/Definitions';
 
 // Main function to apply the HV layout algorithm
 // File scope variables to track left and right subtree lengths
 let leftSubtreeLength = 0;
 let rightSubtreeLength = 0;
 let nextNodeExist = false;
-let newNodeWidth = 325
+let newNodeWidth = layoutConfig.nodewidth;
 
 // Main function to apply the HV layout algorithm
 export function applyHVLayout(
@@ -13,8 +14,8 @@ export function applyHVLayout(
 ): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>();
 
-  const verticalOffset = 225; // Vertical offset for each subtree
-  const padding = 50; // Padding between subtrees
+  const verticalOffset = layoutConfig.HVvertspacing; // Vertical offset for each subtree
+  const padding = layoutConfig.padding; // Padding between subtrees
 
   // Helper function 1: Find the sentinel subtree directly by its hardcoded ID
   const sentinelSubtree = findSentinelSubtree(subtrees);
@@ -169,8 +170,8 @@ function initializeCumulativeWidths(
   
       // Check if the center subtree exists
       if (singleCenter?.nodeId) {
-        const spacing = 25; // Symmetrical spacing for a future second center subtree
-        const newNodeWidth = 325; // Fixed width for a new node
+        const spacing = layoutConfig.padding /2; // Symmetrical spacing for a future second center subtree
+        const newNodeWidth = layoutConfig.nodewidth; // Fixed width for a new node
   
         // Offset the single center subtree from the sentinel, preparing for the second one
         const centerX = sentinelX - ((singleCenter.subtree.width/2) + spacing);
@@ -242,7 +243,7 @@ function initializeCumulativeWidths(
     
         // Case 2: No new node, just balance the existing center subtrees
         if (leftCenter?.nodeId && rightCenter?.nodeId) {
-          const spacing = 25; // Spacing between the two center nodes
+          const spacing = layoutConfig.padding/2; // Spacing between the two center nodes
           cumulativeCenterWidths.set(leftCenter.nodeId, -(leftCenter.subtree.width / 2 + spacing));
           cumulativeCenterWidths.set(rightCenter.nodeId, rightCenter.subtree.width / 2 + spacing); //excessive spacing
         }
@@ -323,8 +324,8 @@ function placeCenterSubtrees(
     // Ensure both center subtrees have the necessary properties before setting their positions
     if (leftCenter && leftCenter.nodeId && rightCenter && rightCenter.nodeId) {
       // Use cumulative center widths to position center subtrees, ensuring proper spacing
-      const leftCenterX = cumulativeCenterWidths.get(leftCenter.nodeId) ?? sentinelSubtree.subtree.position!.x - 25;
-      const rightCenterX = cumulativeCenterWidths.get(rightCenter.nodeId) ?? sentinelSubtree.subtree.position!.x + 25;
+      const leftCenterX = cumulativeCenterWidths.get(leftCenter.nodeId) ?? sentinelSubtree.subtree.position!.x - (layoutConfig.padding / 2);
+      const rightCenterX = cumulativeCenterWidths.get(rightCenter.nodeId) ?? sentinelSubtree.subtree.position!.x + (layoutConfig.padding / 2);
 
       // Set the positions of the left and right center subtrees
       positions.set(leftCenter.nodeId, { x: leftCenterX, y: verticalOffset });

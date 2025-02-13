@@ -43,7 +43,7 @@ const ConceptMap = ({
   return (
     <div
       ref={mapRef}
-      className="relative bg-[#FEFEFE] overflow-hidden w-full h-full scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200"
+      className="relative bg-[#F6F6F6] overflow-hidden w-full h-full scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200"
       style={{
         transform: `scale(${zoomLevel})`,
         transformOrigin: 'center center',

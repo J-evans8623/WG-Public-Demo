@@ -1,5 +1,11 @@
 // ConceptNode.tsx
-
+/**
+ * This is original implementation of the concept map in the original development directory
+ * I incuded to add additional context. . Please take note that  openModalWithResourceType, and onNodeclick
+ * are NOT NEEDED in the new implementation because we are implementing the CRUD operations directely into the new bloom-maps\app\studygraph\(studygraph)\components\layout\Canvas\ConceptNode.tsx
+ * 
+ * 
+ */
 import React, { memo, useCallback } from 'react';
 import { ConceptNode as NodeType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';

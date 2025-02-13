@@ -1,6 +1,8 @@
 import React from 'react';
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 import { SubtreeData } from '@/app/Library/Context/SubTreeProvider';
+import { layoutConfig } from '@/app/Library/Definitions/Definitions';
+
 
 export function drawHVStyleLines(
   nodes: Map<string, ConceptNode>,
@@ -11,8 +13,8 @@ export function drawHVStyleLines(
   const lineElements: JSX.Element[] = [];
 
   // Define default width and height of nodes
-  const nodeWidth = 325;
-  const nodeHeight = 125;
+  const nodeWidth = layoutConfig.nodewidth;
+  const nodeHeight = layoutConfig.nodeheight;
 
   // Get the root node
   const rootNode = Array.from(nodes.values()).find(node => node.isRoot);
@@ -32,7 +34,7 @@ export function drawHVStyleLines(
 
   if (filteredSubtrees.size === 1) {
     // Only one subtree (ignoring the sentinel)
-    const [nodeId, subtreeData] = filteredSubtrees.entries().next().value;
+    const [nodeid ,subtreeData] = filteredSubtrees.entries().next().value;
 
     // Fallback to 0 if position is undefined
     const childCCP = {
@@ -60,7 +62,7 @@ export function drawHVStyleLines(
       if (x > rightmostX) rightmostX = x;
     });
 
-    const anchorY = rootPCP.y + 50;
+    const anchorY = rootPCP.y + layoutConfig.padding;
 
     // Draw horizontal anchor line
     lineElements.push(
@@ -77,7 +79,7 @@ export function drawHVStyleLines(
     lineElements.push(
       <path
         key={`curve-root-to-anchor`}
-        d={`M ${rootPCP.x},${rootPCP.y} Q ${rootPCP.x},${anchorY - 25} ${rootPCP.x},${anchorY}`}
+        d={`M ${rootPCP.x},${rootPCP.y} Q ${rootPCP.x},${anchorY - (layoutConfig.padding/2)} ${rootPCP.x},${anchorY}`}
         stroke={strokeColor}
         strokeWidth={lineWidth}
         fill="none"

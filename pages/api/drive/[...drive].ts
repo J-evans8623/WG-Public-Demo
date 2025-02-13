@@ -7,6 +7,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { GoogleDriveService } from '../../../app/src/services/googleDrive';
 import { GoogleOAuthManager } from '../../../app/src/auth/oauth';
 import { RedisSessionManager } from '../../../app/src/auth/session';
+import { sessionManager } from '@/app/src/auth/singletons';
 import { AuthConfig } from '../../../app/src/auth/types';
 import dotenv from 'dotenv';
 import { parse } from 'cookie';
@@ -26,10 +27,10 @@ const authConfig: AuthConfig = {
 };
 
 // 2) Instantiate the OAuth Manager
-const oauthManager = new GoogleOAuthManager(authConfig);
+//const oauthManager = new GoogleOAuthManager(authConfig);
 
 // 3) Instantiate Session Manager with the OAuth manager
-const sessionManager = new RedisSessionManager(oauthManager);
+//const sessionManager = new RedisSessionManager(oauthManager);
 
 // 4) Instantiate the Google Drive Service with the injected session manager
 const driveService = new GoogleDriveService(sessionManager);

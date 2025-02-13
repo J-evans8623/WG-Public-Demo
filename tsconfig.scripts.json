@@ -1,0 +1,13 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+      "noEmit": false,
+      "outDir": "./dist",
+      "module": "commonjs"  // CommonJS is preferred for Node scripts
+    },
+    "include": [
+      "setSchema.ts",      // Add any other scripts you want to compile, e.g., server.ts
+      "server.ts"
+    ]
+  }
+  

@@ -42,19 +42,18 @@ import { toast } from 'react-toastify';
  * @param fileId - Optional file identifier for collaborative documents
  */
 export const saveDocument = async (
-  ydoc: Y.Doc,
+  persistDoc: (local: boolean) => Uint8Array,
   colorTheme: ColorTheme,
   primaryColor: string,
   backgroundColor: string,
   fileName: string,
-  saveImages: () => Promise<Map<string, ArrayBuffer>>,
   fileId?: string
 ): Promise<void> => {
   const zip = new JSZip();
 
   try {
     // 1. Serialize Y.doc state
-    const yUpdate = Y.encodeStateAsUpdate(ydoc);
+    const yUpdate = persistDoc(true);
     zip.file('document/yjsState.bin', yUpdate);
 
     // 2. Save color theme preferences
@@ -71,12 +70,6 @@ export const saveDocument = async (
       fileId
     };
     zip.file('document/metadata.json', JSON.stringify(metadata));
-
-    // 4. Save images
-    const imageBuffers = await saveImages();
-    for (const [imageId, buffer] of imageBuffers.entries()) {
-      zip.file(`document/images/${imageId}`, buffer);
-    }
 
     // Generate and save ZIP
     const content = await zip.generateAsync({ type: 'blob' });
@@ -106,19 +99,18 @@ export const saveDocument = async (
  * @returns A `Blob` representing the `.bloomdocx` file.
  */
 export const prepareBloomDocx = async (
-  ydoc: Y.Doc,
+  persistDoc: (local: boolean) => Uint8Array,
   colorTheme: ColorTheme,
   primaryColor: string,
   backgroundColor: string,
   fileName: string,
-  saveImages: () => Promise<Map<string, ArrayBuffer>>,
   fileId?: string
 ): Promise<Blob> => {
   const zip = new JSZip();
 
   try {
     // Same logic as saveDocument, but returns Blob instead of saving
-    const yUpdate = Y.encodeStateAsUpdate(ydoc);
+    const yUpdate = persistDoc(false);
     zip.file('document/yjsState.bin', yUpdate);
 
     const styles = {
@@ -133,11 +125,6 @@ export const prepareBloomDocx = async (
       fileId
     };
     zip.file('document/metadata.json', JSON.stringify(metadata));
-
-    const imageBuffers = await saveImages();
-    for (const [imageId, buffer] of imageBuffers.entries()) {
-      zip.file(`document/images/${imageId}`, buffer);
-    }
 
     return await zip.generateAsync({ type: 'blob' });
   } catch (error) {

@@ -30,7 +30,7 @@ const ResourceToolBar: React.FC<ResourceToolBarProps> = ({
   activeOperation,
   onClose
 }) => {
-  const { addResource } = useResourceContext();
+  const { addResource, addPictureResource } = useResourceContext();
   const { createNewNode, getNodeTitle, updateNodeTitle } = useNodesContext();
   const { addFile } = useFileAsset();
   const { dispatch: layoutDispatch } = useLayoutContext();
@@ -178,13 +178,12 @@ const ResourceToolBar: React.FC<ResourceToolBarProps> = ({
       if (formData.file) {
         const fileType = formData.file.type.toLowerCase();
         if (fileType.startsWith('image/')) {
-          await addResource({
+          await addPictureResource({
             nodeId: targetNodeId,
             type: 'picture',
             title: formData.resourceTitle,
-            image: formData.file,
             description: showDescription ? formData.content : undefined
-          } as Omit<PictureResource, 'id'>);
+          } as Omit<PictureResource, 'id'|'image'>, formData.file);
         } else {
           await addFile(formData.file);
         }

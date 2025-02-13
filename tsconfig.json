@@ -40,9 +40,11 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "app/**/*.d.ts",
-    "app/src/services/*.js", "../Archived/SessionDocumentMapper.ts", "../Archived/FileProvider.tsx", "../Archived/fileReducer.ts" ,
+    "app/src/services/*.js", "../Archived/SessionDocumentMapper.ts", "../Archived/FileProvider.tsx", "../Archived/fileReducer.ts", "../Archived/FileContext.tsx" ,
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "Archived",
+    "Archived/**/*",
   ]
 }

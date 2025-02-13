@@ -1,0 +1,170 @@
+// src/app/Library/components/CardDisplay.tsx
+
+import React from 'react';
+import { Plus, ChevronDown, HelpCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ResizeHandle } from '../shared/ResizeHandle';
+import AddResourceDropdown, { ResourceType as CardResourceType } from './AddResourceDropdown';
+import ResourceDisplay from './ResourceDisplay';
+import { useResourceSync } from '@/app/studygraph/(studygraph)/components/hooks/useResourceSync';
+import useCardCrudOperations from '@/app/studygraph/(studygraph)/components/hooks/useCardCrudOperations';
+
+// Utility function to map resource context type to CardDisplay type.
+function mapResourceTypeForDisplay(
+  resourceType: 'cueCard' | 'note' | 'picture' | 'practiceSheet'
+): CardResourceType {
+  switch (resourceType) {
+    case 'cueCard': return 'cuecard';
+    case 'note': return 'note';
+    case 'picture': return 'image';
+    case 'practiceSheet': return 'quiz';
+    default: return 'cuecard';
+  }
+}
+
+export interface CardDisplayProps {
+  width: number;
+  isEditMode: boolean;
+  currentTopicTitle: string; // Provided for resource creation
+  onEditToggle: () => void;
+  onResize: (width: number) => void;
+}
+
+export const CardDisplay: React.FC<CardDisplayProps> = ({
+  width,
+  isEditMode,
+  currentTopicTitle,
+  onEditToggle,
+  onResize,
+}) => {
+  // Use the updated hook that provides synced resources.
+  const { selectedNodeIds, cueCards, pictures, practiceSheets, notes } = useResourceSync();
+  // Combine the resource arrays.
+  // (Assuming useResourceSync now returns 'notes' as well.)
+  const combinedResources = [...cueCards, ...notes, ...pictures, ...practiceSheets];
+
+  // Import CRUD operations from our custom hook.
+  const { createResource, updateResource, deleteResource } = useCardCrudOperations();
+
+  // Handler for adding a new resource.
+  const handleAddResource = async (type: CardResourceType) => {
+    if (selectedNodeIds.length === 0) {
+      console.warn('No node selected. Cannot add resource.');
+      return;
+    }
+    // For simplicity, use the first selected node.
+    const nodeId = selectedNodeIds[0];
+    try {
+      if (type === 'cuecard' || type === 'note' || type === 'quiz') {
+        // For 'quiz', note that it maps to a practiceSheet.
+        await createResource({ nodeId, type, title: 'New Resource', content: '' });
+      } else if (type === 'image') {
+        // In a real implementation, integrate with a file picker.
+        const dummyImageFile = new File(['dummy content'], 'dummy.png', { type: 'image/png' });
+        await createResource({ nodeId, type, title: 'New Image Resource', image: dummyImageFile, description: '' });
+      }
+    } catch (error) {
+      console.error('Error creating resource:', error);
+    }
+  };
+
+  // Handler for updating a resource.
+  const handleSave = async (id: string, updatedData: Partial<any>) => {
+    const resource = combinedResources.find((res: any) => res.id === id);
+    if (!resource) {
+      console.warn('Resource not found');
+      return;
+    }
+    try {
+      await updateResource(resource, updatedData);
+    } catch (error) {
+      console.error('Error updating resource:', error);
+    }
+  };
+
+  // Handler for deleting a resource.
+  const handleDelete = (id: string, nodeId: string) => {
+    deleteResource(nodeId, id);
+  };
+
+  return (
+    <div className="relative h-full" style={{ width }}>
+      <div className="h-full bg-[#F8F9FA] border-l flex flex-col">
+        {/* Header section */}
+        <div className="p-4 border-b flex justify-between items-center bg-[#F8F9FA] sticky top-0 z-10">
+          <h2 className="font-semibold text-xl text-gray-800">Resources</h2>
+          <div className="relative">
+            <AddResourceDropdown
+              newResourceType={null}
+              onSelectType={(type: CardResourceType) => {
+                handleAddResource(type);
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Main content area */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {selectedNodeIds.length > 0 ? (
+            combinedResources.length > 0 ? (
+              combinedResources.map((resource: any) => (
+                <ResourceDisplay
+                  key={resource.id}
+                  id={resource.id}
+                  type={mapResourceTypeForDisplay(resource.type)}
+                  topicTitle={resource.conceptNodeTitle || currentTopicTitle}
+                  title={resource.title}
+                  content={
+                    typeof resource.content === 'string'
+                      ? resource.content
+                      : JSON.stringify(resource.content)
+                  }
+                  isEditing={false}
+                  typeColors={{
+                    cuecard: 'bg-white border-gray-200 hover:bg-gray-50',
+                    note: 'bg-white border-gray-200 hover:bg-gray-50',
+                    image: 'bg-white border-gray-200 hover:bg-gray-50',
+                    quiz: 'bg-white border-gray-200 hover:bg-gray-50',
+                  }}
+                  onTitleChange={(title: string) => handleSave(resource.id, { title })}
+                  onContentChange={(content: string) => handleSave(resource.id, { content })}
+                  onCancel={() => {}}
+                  onSave={() => handleSave(resource.id, {})}
+                  onEdit={() => handleSave(resource.id, {})}
+                  onDelete={() => handleDelete(resource.id, resource.nodeId)}
+                  onAskAI={() => {}}
+                  onImageCaption={() => {}}
+                />
+              ))
+            ) : (
+              <p className="text-gray-600">
+                No resources available for the selected nodes.
+              </p>
+            )
+          ) : (
+            <p className="text-gray-600">
+              Select one or more nodes to view their resources.
+            </p>
+          )}
+        </div>
+
+        {/* Footer section */}
+        <div className="border-t p-4 bg-gray-50 sticky bottom-0">
+          <Button
+            variant="outline"
+            className="w-full bg-[#F8F9FA] hover:bg-gradient-to-r hover:from-sky-500 hover:to-indigo-500 hover:text-white transition-all duration-300 text-base py-2"
+            onClick={() => {
+              // Handle AI assistant interaction.
+            }}
+          >
+            <HelpCircle className="h-4 w-4 mr-2" />
+            Ask AI Assistant
+          </Button>
+        </div>
+      </div>
+      <ResizeHandle placement="left" onDrag={onResize} />
+    </div>
+  );
+};
+
+export default CardDisplay;

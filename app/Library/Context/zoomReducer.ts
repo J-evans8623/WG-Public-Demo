@@ -1,7 +1,7 @@
 // bloom-maps/app/Library/Context/zoomReducer.ts
 import { ZoomAction, ZoomActionType } from '@/app/Library/Definitions/Definitions';
 
-const baseZoomLvl = 0.7;
+const baseZoomLvl = 1;
 
 export interface ZoomState {
   zoomLevel: number;

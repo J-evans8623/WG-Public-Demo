@@ -3,19 +3,19 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef, memo, useContext} from 'react';
-import CueCardDisplay, { CueCardDisplayRef } from '@/app/Library/components/CardDisplay/CueCardDisplay';
+import { CueCardDisplayRef } from '@/app/Library/components/CardDisplay/CueCardDisplay';
 import { NodeSelectionProvider, useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { SubTreeProvider } from '@/app/Library/Context/SubTreeProvider';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { ApiContext, ApiProvider,  } from '@/app/src/context/ApiContext';
+import {  ApiProvider,  } from '@/app/src/context/ApiContext';
 import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
 // Import new context providers and hooks
 import { NodesProvider, useNodesContext } from '@/app/Library/Context/NodesProvider';
-import { ZoomProvider, useZoomContext } from '@/app/Library/Context/ZoomProvider';
+import { ZoomProvider,} from '@/app/Library/Context/ZoomProvider';
 import { LayoutProvider, useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { ColorThemeProvider, useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
-import { FileProvider} from '@/app/Library/Tests/Synchro/FileContext';
+
 import { ResourceProvider} from '@/app/Library/Context/ResourceContext';
 import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext';
 import { initializeNewDocument } from '@/app/Library/utils/LoadDocumentUtils'; 
@@ -30,11 +30,10 @@ import TopBar from  './commandPanelLayout/TopBar'  //'./commandPanelLayout/TopBa
 import LeftPanel from './commandPanelLayout/LeftPanel';
 import MainContent from './commandPanelLayout/MainContent';
 import RightPanel from './commandPanelLayout/RightPanel';
-import StatusBar from './commandPanelLayout/StatusBar';
 import { FileAssetProvider } from '../Library/Context/FileAssetContext';
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
-const apiServerUrl = process.env.NEXT_PUBLIC_API_SERVER_URL || 'http://localhost:5000';
+
 
 /**
  * ClientLayoutContent Component
@@ -43,32 +42,22 @@ const apiServerUrl = process.env.NEXT_PUBLIC_API_SERVER_URL || 'http://localhost
  * including CueCardDisplay, ConceptMap, and ToolPane.
  */
 const ClientLayoutContent = memo(function ClientLayoutContent() {
-  const {  skipAuth, signIn } = useContext(ApiContext);  
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(true);
   const centerPaneRef = useRef<HTMLDivElement>(null);
   const cueCardDisplayRef = useRef<CueCardDisplayRef>(null); // Ref for CueCardDisplay
   const { isLoading, setLoading } = useLoading();
   const [windowWidth, setWindowWidth] = useState<number>(0);
-  const [isInitialized, setIsInitialized] = useState<boolean>(false);
+
 
   // Use new context hooks
   
-  const { nodes, initNewDocument, } = useNodesContext();
+  const {  initNewDocument, } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
   const { dispatch: colorThemeDispatch } = useColorThemeContext();
-
-
-
-  // Use new centralized ResourceContext hook
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalResourceType, setModalResourceType] = useState<'cueCard' | 'picture' | 'practiceSheet' | undefined>(undefined);
-  const [modalNodeId, setModalNodeId] = useState<string | null>(null);
-  const [modalMode, setModalMode] = useState<'addChild' | 'addResource'>('addResource');
   const [activeOperation, setActiveOperation] = useState<'cut'| 'copy' | 'delete' | 'merge' |'edit'|'addContent'| null>(null); // Track the active tool pane
   const [toolPaneVisible, setToolPaneVisible] = useState(false); // State to manage Tool Pane visibility
   const [sourceNodeId, setSourceNodeId] = useState<string | ''>('');
   const { toggleNodeSelection, setTargetNodeId, clearSelection, selectNode } = useNodeSelection();
-  const [modalKey, setModalKey] = useState<string>('');
    const { createNewDocument } = useYDoc();
 
   /**
@@ -86,18 +75,6 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     clearSelection(); // Clear previous selections
     selectNode(nodeId as string); // Select the source node
   };
-
-  /**
-   * 
-   *   handleCloseAllModals();
-  setSourceNodeId(nodeId);
-  setActiveOperation('addContent');
-  setToolPaneVisible(true);
-  clearSelection();
-  selectNode(nodeId);
-   * 
-   * 
-   */
 
   /**
    * Handles opening the Tool Pane with the specified operation and source node.
@@ -187,26 +164,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
     console.log('*************App.tsx Initialization Completed**************')
   }, []);
 
-  const handleSignInSuccess = async () => {
-    try {
-      await signIn(); // Context-managed sign-in
-      setIsAuthModalOpen(false);
-    } catch (error) {
-      console.error('Error during sign-in:', error);
-    }
-  };
-  
-  
-
-  const handleSignInFailure = () => {
-    alert('Google login failed.');
-  };
-
-  const handleSkipAuth = () => {
-    skipAuth();
-    setIsAuthModalOpen(false);
-  };
-
+ 
     /**
    * Handler to open the AuthPromptModal from MenuBar.
    */
@@ -214,85 +172,7 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
       setIsAuthModalOpen(true);
     };
 
-  /**
-   * Determines the initial node title based on modal mode and node ID.
-   */
-  const initialNodeTitle =
-    modalMode === 'addChild'
-      ? 'New Concept'
-      : modalNodeId
-      ? nodes.get(modalNodeId)?.title || ''
-      : '';
-
-  /**
-   * Handles saving the modal data and adding resources or nodes accordingly.
-   *
-   * @param resourceType - The type of resource to add.
-   * @param nodeTitle - The title of the node.
-   * @param Title - Additional title information (optional).
-   * @param cueCardContent - Content for cue cards (optional).
-   * @param bloomLevel - Bloom's taxonomy level (optional).
-   * @param image - Image file for picture cards (optional).
-   * @param source - Source information (optional).
-   * @param pictureDescription - Description for picture cards (optional).
-   * @param practiceSheetContent - Content for practice sheets (optional).
-   */
-  /**const handleModalSave = useCallback((
-    resourceType: ResourceType,
-    nodeTitle: string,
-    Title?: string,
-    cueCardContent?: Descendant[],
-    bloomLevel?: 1 | 2 | 3 | 4 | 5 | 6,
-    image?: File | null,
-    source?: string,
-    pictureDescription?: Descendant[],
-    practiceSheetContent?: {
-      quizType: QuizType,
-      quizContent: IQuizQuestion[];
-    }
-  ) => {
-    console.log('handleModalSave called');
-    if (modalNodeId) {
-      if (modalMode === 'addChild') {
-        const newNodeId = uuidv4();
-        createNewNode(nodeTitle || 'New Concept', modalNodeId, newNodeId);
-        layoutDispatch(setGetLayout(true));
-
-        if (Title || cueCardContent || image || practiceSheetContent) {
-          saveResource({
-            resourceType,
-            nodeId: newNodeId,
-            addResource,
-            Title,
-            cueCardContent,
-            image,
-            pictureDescription,
-            practiceSheetContent,
-            source,
-          });
-        }
-      } else if (modalMode === 'addResource') {
-        updateNodeTitle(modalNodeId, nodeTitle);
-
-        if (Title || cueCardContent || image || practiceSheetContent) {
-          saveResource({
-            resourceType,
-            nodeId: modalNodeId,
-            addResource,
-            Title,
-            cueCardContent,
-            image,
-            pictureDescription,
-            practiceSheetContent,
-            source,
-          });
-        }
-      }
-    }
-    setIsModalOpen(false); // Close the modal after saving
-  }, [modalNodeId, modalMode, createNewNode, layoutDispatch, addResource, updateNodeTitle]);
-   */
-
+ 
   /**
    * Tracks if the center pane has been mounted to ensure refs are available.
    */
@@ -340,17 +220,6 @@ const ClientLayoutContent = memo(function ClientLayoutContent() {
   onClose={() => setIsAuthModalOpen(false)}
 />
 
-      {/* Modern Modal for Adding Resources or Nodes 
-      <ModernModal
-        key={modalKey}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleModalSave}
-        initialNodeTitle={initialNodeTitle}
-        mode={modalMode}
-        selectedResourceType={modalResourceType}
-      />*/}
-
       {/* TopBar */}
       <TopBar {...topBarProps} />
 
@@ -390,7 +259,6 @@ export default function ClientLayout() {
     <GoogleOAuthProvider clientId={clientId}>
     <ApiProvider>
     <DndProvider backend={HTML5Backend}>
-    <FileProvider>
     <YDocProvider>
       <FileAssetProvider>
         <NodeSelectionProvider>
@@ -412,7 +280,6 @@ export default function ClientLayout() {
         </NodeSelectionProvider>
         </FileAssetProvider>
       </YDocProvider>
-      </FileProvider>
     </DndProvider>
     </ApiProvider>
     </GoogleOAuthProvider>

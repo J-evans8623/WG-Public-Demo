@@ -137,6 +137,7 @@ const initNewDocument = useCallback(() => {
    * @param newNodeId - The unique ID for the new node.
    */
   const createNewNode = useCallback((title: string, parentNodeId: string, newNodeId: string) => {
+    console.log('Calling createNewNode....')
     const parentNode = yNodesMap.get(parentNodeId);
     if (!parentNode) {
       console.error(`Parent node with ID ${parentNodeId} not found.`);
@@ -166,6 +167,7 @@ const initNewDocument = useCallback(() => {
 
       console.log('New map:', yNodesMap);
     });
+    console.log('Leaving createNewNode....')
   }, [yNodesMap, ydoc]);
 
   /**

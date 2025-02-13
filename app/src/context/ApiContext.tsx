@@ -57,7 +57,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
         if (response.ok) {
           const data = await response.json();
           if (data.session) {
-            setUser({ email: data.session.email, accountType: data.session.accountType });
+            setUser({ email: data.session.email, accountType: data.session.accountType });// do this on the backend
           } else {
             console.log('No active session found.');
           }

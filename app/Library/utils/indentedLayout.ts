@@ -1,4 +1,5 @@
-import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+import { ConceptNode, layoutConfig } from '@/app/Library/Definitions/Definitions';
+
 
 interface SubtreeDimension {
   minX: number;
@@ -15,8 +16,10 @@ export function applyIndentedLayout(
 ): { updatedNodes: Map<string, ConceptNode>; subtreeDimension: SubtreeDimension } {
   const updatedNodes = new Map(nodes);
 
-  const indentationWidth = 75;
-  const verticalSpacing = 175;
+  const indentationWidth = layoutConfig.ILWidth;//75;
+  const verticalSpacing = layoutConfig.ILvertspacing ;// 175;
+  const nodewidth = layoutConfig.nodewidth; // styling 325
+  const nodeheight = layoutConfig.nodeheight; // 125 
 
   let minX = 0;
   let maxX = 0;
@@ -72,8 +75,8 @@ export function applyIndentedLayout(
     });
   }
 
-  const subtreeWidth = maxX - minX + 325;
-  const subtreeHeight = maxY - minY + 125;
+  const subtreeWidth = maxX - minX + nodewidth;
+  const subtreeHeight = maxY - minY + nodeheight;
 
   const subtreeDimension: SubtreeDimension = {
     minX,

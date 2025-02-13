@@ -15,21 +15,21 @@
  * - UUID for unique identifiers
  */
 
-import React, { useState, useContext, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useContext, ChangeEvent, FormEvent, useEffect } from 'react';
 import { ApiContext } from '../../../src/context/ApiContext';
 import { useResourceContext } from '../../Context/ResourceContext';
 import { useNodesContext } from '../../Context/NodesProvider';
-import { generateAIContent } from '../../utils/api';
+import {  getLessonListAPI, generateAILesson, generateAIQuiz } from '../../utils/aiServiceApi';
 import { Button, Select, Upload, message, Spin } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
-import { translateLessonToCueCards, translateQuizToPracticeSheets } from './responseTranslator';
+import { translateQuizToPracticeSheets } from './responseTranslator';
 import { saveResource } from '../../utils/ResourceSave/saveResource';
 import './GenerateAIForm.css';
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
-import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { useSubTreeContext, SubtreeData } from '@/app/Library/Context/SubTreeProvider';
 import { compositeLayout } from './layoutUtils';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
 const { Option } = Select;
 
 export enum QuizType {
@@ -56,17 +56,19 @@ interface GenerateAIFormProps {
  * @returns JSX Element representing the AI generation form.
  */
 const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }) => {
-  const { user } = useContext(ApiContext);
+
   const { addResource } = useResourceContext();
   const { setNodes, nodes, updateNodeTitle } = useNodesContext();
   const [generationOption, setGenerationOption] = useState<'Lesson' | 'Quiz'>('Lesson');
-  const [inputType, setInputType] = useState<'text' | 'pdf'>('text');
   const [textInput, setTextInput] = useState<string>('');
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const { subtrees, setSubtrees } = useSubTreeContext();
   const [quizType, setQuizType] = useState<QuizType>(QuizType.MULTIPLE_CHOICE);
+  const { docFileID } = useYDoc();
+  const [selectedModuleID, setSelectedModuleID] = useState<string>('');
+  const [lessonModules, setLessonModules] = useState<Array<{ moduleID: string; topic: string }>>([]);
+
   /**
    * Handler for generation option change.
    * 
@@ -80,18 +82,6 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
     setQuizType(value);
   };
 
-  /**
-   * Handler for input type change.
-   * 
-   * @param value - The selected input type ('text' or 'pdf').
-   */
-  const handleInputTypeChange = (value: 'text' | 'pdf') => {
-    setInputType(value);
-    // Reset inputs when changing input type
-    setTextInput('');
-    setPdfFile(null);
-    setError('');
-  };
 
   /**
    * Handler for text input change.
@@ -102,23 +92,32 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
     setTextInput(e.target.value);
   };
 
-  /**
-   * Handler for PDF upload.
-   * 
-   * @param info - Information about the uploaded file.
-   */
-  const handlePdfUpload = (info: any) => {
-    if (info.file.status === 'done' || info.file.status === 'uploading') {
-      // Accept only PDF files
-      const file = info.file.originFileObj as File;
-      if (file && file.type === 'application/pdf') {
-        setPdfFile(file);
-        setError('');
-      } else {
-        message.error('Only PDF files are allowed.');
-      }
-    }
+    // Fetch available lesson modules when the component mounts or when docFileID changes
+    useEffect(() => {
+      const fetchLessonModules = async () => {
+        if (!docFileID) return;
+        try {
+          const list = await getLessonListAPI(docFileID);
+          setLessonModules(list);
+          // Optionally auto-select the first module if available
+          if (list.length > 0) {
+            setSelectedModuleID(list[0].moduleID);
+          }
+        } catch (err) {
+          console.error('Error fetching lesson modules:', err);
+          setError('Failed to load lesson modules.');
+        }
+      };
+      fetchLessonModules();
+    }, [docFileID]);
+
+
+      // Handler for lesson module selection from dropdown
+  const handleModuleSelection = (value: string) => {
+    setSelectedModuleID(value);
   };
+
+
 
   const processAIResponse = async (responseData: any) => {
     try {
@@ -318,22 +317,31 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
     setError('');
     setLoading(true);
 
-    if (!user || !user.accessToken) {
-      setError('Please log in to use AI services.');
-      setLoading(false);
+    if (!docFileID) {
+      setError('No document found for processing.');
       return;
     }
 
-    try {
-      const responseData = await generateAIContent({
-        option: generationOption,
-        quizType: generationOption === 'Quiz' ? quizType : undefined,
-        inputType: 'text',
-        text: textInput,
-      }, user.accessToken);
+    if (!selectedModuleID) {
+      setError('Please select a lesson module.');
+      return;
+    }
+    setLoading(true);
 
-      await processAIResponse(responseData);
-      message.success(`${generationOption} generated successfully!`);
+  try {
+      if (generationOption === 'Lesson') {
+        // Call the generateAILesson API with documentID and moduleID
+        const lessonContent = await generateAILesson(docFileID, selectedModuleID);
+        // Here you might further process the lessonContent (e.g., update context or navigate)
+        processAIResponse(lessonContent);
+        console.log('Generated Lesson Content:', lessonContent);
+        message.success('Lesson generated successfully!');
+      } else if (generationOption === 'Quiz') {
+        // Call the generateAIQuiz API with documentID and moduleID
+        const quizContent = await generateAIQuiz(docFileID, selectedModuleID);
+        console.log('Generated Quiz Content:', quizContent);
+        message.success('Quiz generated successfully!');
+      }
       onClose();
     } catch (err) {
       console.error('AI Generation error:', err);
@@ -361,7 +369,7 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
           </Select>
         </div>
 
-        {/* Quiz Type Selection - Only show when Quiz is selected */}
+        {/* If Quiz is selected, show Quiz Type selection */}
         {generationOption === 'Quiz' && (
           <div className="form-group">
             <label htmlFor="quizType">Select Quiz Type:</label>
@@ -379,35 +387,23 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
           </div>
         )}
 
-        {/* Text Input */}
-        {inputType === 'text' && (
-          <div className="form-group">
-            <label htmlFor="textInput">Enter Text:</label>
-            <textarea
-              id="textInput"
-              value={textInput}
-              onChange={handleTextChange}
-              placeholder="Enter your study content..."
-              rows={6}
-              required
-            />
-          </div>
-        )}
-
-        {/* PDF Upload */}
-        {inputType === 'pdf' && (
-          <div className="form-group">
-            <label htmlFor="pdfUpload">Attach PDF:</label>
-            <Upload
-              beforeUpload={() => false} // Prevent automatic upload
-              accept="application/pdf"
-              onChange={handlePdfUpload}
-              showUploadList={true}
-            >
-              <Button icon={<UploadOutlined />}>Click to Upload</Button>
-            </Upload>
-          </div>
-        )}
+        {/* Lesson Module Dropdown */}
+        <div className="form-group">
+          <label htmlFor="lessonModule">Select Lesson Module:</label>
+          <Select
+            id="lessonModule"
+            value={selectedModuleID}
+            onChange={handleModuleSelection}
+            style={{ width: '100%' }}
+            placeholder="Loading lesson modules..."
+          >
+            {lessonModules.map((module) => (
+              <Option key={module.moduleID} value={module.moduleID}>
+                {module.topic} (ID: {module.moduleID})
+              </Option>
+            ))}
+          </Select>
+        </div>
 
         {/* Error Message */}
         {error && <p className="error-message">{error}</p>}

@@ -8,12 +8,12 @@
  * Dependencies:
  * - /utils/webSocketToken.ts for token operations.
  * - /utils/SessionDocumentMapper.ts for session-document mapping.
- * - cookie for parsing cookies.
+ * - authenticateRequest for session validation.
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { generateWebSocketToken } from '@/app/src/utils/webSocketToken';
-import cookie from 'cookie';
+import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 
 // Utility to parse the path segments
 const getPathSegments = (req: NextApiRequest): string[] => {
@@ -22,16 +22,6 @@ const getPathSegments = (req: NextApiRequest): string[] => {
     return realtime;
   }
   return realtime ? [realtime] : [];
-};
-
-
-const parseCookies = (cookieHeader: string | undefined): Record<string, string> => {
-  if (!cookieHeader) return {};
-  return cookieHeader.split(';').reduce((acc, cookie) => {
-    const [key, value] = cookie.split('=').map((v) => v.trim());
-    if (key && value) acc[key] = decodeURIComponent(value);
-    return acc;
-  }, {} as Record<string, string>);
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -49,21 +39,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(400).json({ error: 'Missing documentId' });
         }
 
+        // Authenticate the incoming request using the centralized helper.
+        const sessionData = await authenticateRequest(req, res);
+        if (!sessionData) return; // If authentication fails, authenticateRequest already handles the response.
+
+        // Generate a WebSocket token using authenticated session data (using userId or sessionId as needed)
+        console.log(`Generating WebSocket token for userId=${sessionData.userId}, documentId=${documentId}...`);
         try {
-          console.log('About to read cookie values...', req.headers.cookie);
-          const cookies = req.headers.cookie ?parseCookies(req.headers.cookie): {}; // The error appears to occur on this line, the console log statement never prints the returned value
-          console.log(`Printing cookie.parse output :  ${cookies}`);
-          const sessionId = cookies.sessionId;
-
-          if (!sessionId) {
-            console.warn('No sessionId found in cookies.');
-            return res.status(401).json({ error: 'Unauthorized: No session found' });
-          }
-
-          console.log(`Generating WebSocket token for sessionId=${sessionId}, documentId=${documentId}...`);
-          const token = generateWebSocketToken(sessionId, documentId);
-          console.log('Generated Token : ',token);
-
+          const token = generateWebSocketToken(sessionData.userId, documentId);
+          console.log('Generated WebSocket token:', token);
           return res.status(200).json({ token });
         } catch (error: any) {
           console.error('Error generating WebSocket token:', error);
@@ -76,6 +60,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
     default:
-      res.status(404).json({ error: 'Route not found' });
+      return res.status(404).json({ error: 'Route not found' });
   }
 }
