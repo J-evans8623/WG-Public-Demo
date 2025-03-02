@@ -1,14 +1,27 @@
+/**
+ * @file HomeScreen.tsx
+ * @description
+ *   Home Screen component that displays recent files and quick actions.
+ *   When a file is clicked, it calls the provided onFileSelect callback to load the file.
+ */
+
 import React, { useState, useEffect, useContext } from 'react';
 import { ApiContext, DriveFile } from '@/app/src/context/ApiContext';
 import { Book, FileText, Plus, Clock } from 'lucide-react';
 
-const HomeScreen = () => {
+// Define props including the onFileSelect callback.
+interface HomeScreenProps {
+  onFileSelect: (fileId: string) => void;
+}
+
+const HomeScreen: React.FC<HomeScreenProps> = ({ onFileSelect }) => {
   const { listFiles } = useContext(ApiContext);
   const [recentFiles, setRecentFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [greeting, setGreeting] = useState('');
 
   useEffect(() => {
+    // Determine greeting based on the current time.
     const getGreeting = () => {
       const hour = new Date().getHours();
       if (hour < 12) return 'Good morning';
@@ -19,6 +32,10 @@ const HomeScreen = () => {
     fetchRecentFiles();
   }, []);
 
+  /**
+   * @function fetchRecentFiles
+   * @description Fetches recent files from the API.
+   */
   const fetchRecentFiles = async () => {
     try {
       const files = await listFiles('');
@@ -94,8 +111,10 @@ const HomeScreen = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {recentFiles.slice(0, 6).map((file: DriveFile) => (
+              // When a file is clicked, trigger onFileSelect with the file ID.
               <div 
                 key={file.id} 
+                onClick={() => onFileSelect(file.id)}
                 className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer p-4"
               >
                 <div className="flex items-start gap-3">

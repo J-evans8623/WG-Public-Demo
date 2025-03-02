@@ -52,7 +52,7 @@ export function translateQuizToPracticeSheets(quizResponse: any, nodeId: string)
               return {
                   id: uuidv4(),
                   type: 'matching',
-                  question: question.matchingTerm,
+                  question: question.matchingQuestion,
                   correctAnswer: question.matchingAnswer,
               };
           

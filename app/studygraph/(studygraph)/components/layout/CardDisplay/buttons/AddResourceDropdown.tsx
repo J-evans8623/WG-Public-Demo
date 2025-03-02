@@ -29,10 +29,10 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
     <div className="group inline-block relative">
       <button
         type="button"
-        className="flex items-center gap-1.5 whitespace-nowrap font-medium transition-colors bg-[#2563EB] text-white hover:bg-[#1D4ED8] rounded-md px-2.5 py-1.5 h-8 text-sm focus:outline-none"
+        className="flex items-center gap-1.5 whitespace-nowrap font-medium transition-colors bg-gray-800 text-white hover:bg-[#1D4ED8] rounded-md px-2.5 py-1.5 h-8 text-sm focus:outline-none"
       >
         <Plus className="h-4 w-4 stroke-[1.5]" />
-        Add
+        Add card
         <ChevronDown className="h-4 w-4 stroke-[1.5]" />
       </button>
       {/* Add a transparent bridge to prevent menu from closing */}

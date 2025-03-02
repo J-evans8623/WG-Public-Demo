@@ -305,7 +305,7 @@ export type ResourceCard = CueCardResource | NoteResource | PictureResource | Pr
 
 export interface TextFileMessage {
   id: string;
-  type: 'pdf' | 'txt' | 'doc' | 'docx';
+  type: 'pdf' | 'txt' | 'pptx' | 'docx';
   title: string;
   serverUrl: string;
   uploadDate: Date;
@@ -331,20 +331,15 @@ export const layoutConfig: LayoutConfig = {
   padding : 32,
 }
 
-/**
- * export const layoutConfig: LayoutConfig = {
-  nodewidth : 325,
-  nodeheight : 125,
-  ILWidth : 75,
-  ILvertspacing: 175,
-  HVvertspacing : 225,
-  padding : 50,
+export const mapviewthemes = {
+  modern: {
+    leftPane: 'bg-slate-100 text-slate-800',
+    canvas: 'bg-white text-slate-800',
+    rightPane: 'bg-slate-50 text-slate-800',
+    header: 'bg-slate-200 text-slate-800',
+    accent: 'bg-blue-600',
+    border: 'border-slate-200',
+  }
+
 }
-
-
- * 
- * 
- */
-
-
 

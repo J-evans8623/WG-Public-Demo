@@ -1,4 +1,4 @@
-//// y-websocket-server.js
+// y-websocket-server.js
 
 /**
  * @file y-websocket-server.js

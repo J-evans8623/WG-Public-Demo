@@ -1,21 +1,19 @@
 // /app/layout.tsx
-
 import React from 'react';
 import '@/app/globals.css';
+import Head from 'next/head';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <Head>
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf_viewer.min.css"
+        />
+      </Head>
       <body className="h-screen w-screen overflow-hidden bg-[#F9FBFD]">
-        {/* Static server-rendered content here */}
-        <div className="flex items-center justify-between bg-[#F9FBFD]">
-          {/* Placeholder for static elements */}
-        </div>
-
-        {/* Wrapper with subtle margins to allow space without affecting client-ui layout */}
-        <div className="w-full h-full px-1 py-0">
-          {children} {/* Nested layouts and pages go here */}
-        </div>
+        {children}
       </body>
     </html>
   );

@@ -1,0 +1,4105 @@
+
+// y-websocket-server.js
+
+//// y-websocket-server.js
+
+/**
+ * @file y-websocket-server.js
+ * @description
+ * This file sets up and manages the WebSocket server for real-time collaboration.
+ * It handles client connections, message broadcasting, Redis integration for cross-instance synchronization,
+ * logging, and graceful shutdowns. The server ensures secure token-based authentication and maintains
+ * detailed logs for monitoring and debugging purposes.
+ */
+
+// Import necessary modules and configurations
+const dotenv = require('dotenv');
+const path = require('path');
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
+const http = require('http');
+const WebSocket = require('ws');
+const { WebSocketServer } = WebSocket;
+const { setupWSConnection } = require('y-websocket/bin/utils');
+const { validateWebSocketToken } = require('../utils/webSocketToken.js');
+const winston = require('winston');
+const Redis = require('ioredis');
+
+/**
+ * @section Logging System
+ * Configures the Winston logger to handle logging with timestamps, different log levels,
+ * and outputs to both console and file. It also replaces the default console methods
+ * with enhanced logging capabilities.
+ */
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf(({ timestamp, level, message }) => {
+      if (typeof message === 'object') {
+        return `${timestamp} [${level.toUpperCase()}]: ${JSON.stringify(message)}`;
+      }
+      return `${timestamp} [${level.toUpperCase()}]: ${message}`;
+    })
+  ),
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: 'server.log', level: 'info' })
+  ]
+});
+
+// Replace console methods with enhanced logging
+console.log = (...args) => {
+  const message = args.map(arg => 
+    typeof arg === 'object' ? JSON.stringify(arg) : arg
+  ).join(' ');
+  logger.info(message);
+};
+
+console.error = (...args) => {
+  const message = args.map(arg => 
+    typeof arg === 'object' ? JSON.stringify(arg) : arg
+  ).join(' ');
+  logger.error(message);
+};
+
+/**
+ * @section Redis Integration
+ * Sets up Redis publishers and subscribers for message persistence and cross-instance synchronization.
+ * Utilizes Redis Pub/Sub functionality to handle real-time message distribution across different server instances.
+ */
+const redisConfig = {
+  host: process.env.REDIS_HOST || '127.0.0.1',
+  port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
+  username: 'default',
+  password: process.env.REDIS_PASSWORD || undefined,
+};
+
+const redisPublisher = new Redis(redisConfig);
+const redisSubscriber = new Redis(redisConfig);
+
+/**
+ * @section Server Setup
+ * Creates the HTTP server and initializes the WebSocket server. Configures the server to listen on a specified port.
+ */
+const server = http.createServer();
+const wss = new WebSocketServer({ server });
+
+// Track connected clients using a Map for efficient client management
+const connectedClients = new Map();
+
+/**
+ * @function Connection Handler
+ * @description
+ * Handles new WebSocket connections by validating tokens, tracking clients, managing sessions,
+ * and setting up message handlers for each client. Ensures secure connections and manages
+ * the lifecycle of each WebSocket connection.
+ */
+wss.on('connection', (ws, req) => {
+  logger.info('[WebSocket] New connection established');
+  
+  // Parse the token from the connection URL
+  const url = new URL(req.url || '', `http://${req.headers.host}`);
+  const token = url.searchParams.get('token');
+  
+  if (!token) {
+    logger.warn('[WebSocket] Connection rejected: No token provided');
+    ws.close(1008, 'Authentication token missing');
+    return;
+  }
+
+  try {
+    // Validate the token and extract payload
+    const cleanToken = token.split('/')[0];
+    const payload = validateWebSocketToken(cleanToken);
+    const { sessionId, documentId } = payload;
+
+    logger.info('[WebSocket] Token validated', { sessionId, documentId });
+
+    // Track connection info
+    const connectionInfo = {
+      sessionId,
+      documentId,
+      timestamp: Date.now()
+    };
+
+    ws.connectionInfo = connectionInfo;
+    connectedClients.set(ws, connectionInfo);
+
+    /**
+     * @event message
+     * @description
+     * Handles incoming binary messages from clients, logs the details,
+     * broadcasts the message to other relevant clients, and persists the message using Redis.
+     */
+    ws.on('message', (message) => {
+      logger.info('[WebSocket] Message received', {
+        documentId: ws.connectionInfo?.documentId,
+        messageType: message instanceof Buffer ? 'Buffer' : typeof message,
+        messageSize: message.length,
+        timestamp: new Date().toISOString()
+      });
+
+      try {
+        // Ensure message is a Buffer
+        const messageBuffer = Buffer.isBuffer(message) ? message : Buffer.from(message);
+
+        // Broadcast to connected clients
+        const connectedClientsCount = Array.from(wss.clients).filter(
+          client => client.connectionInfo?.documentId === documentId
+        ).length;
+
+        logger.info('[WebSocket] Broadcasting update', {
+          documentId,
+          connectedClients: connectedClientsCount,
+          updateSize: messageBuffer.length
+        });
+
+        wss.clients.forEach((client) => {
+          if (client !== ws && 
+              client.readyState === WebSocket.OPEN && 
+              client.connectionInfo?.documentId === documentId) {
+            
+            logger.info('[WebSocket] Sending to client', {
+              targetSessionId: client.connectionInfo?.sessionId,
+              updateSize: messageBuffer.length
+            });
+            
+            client.send(messageBuffer);
+          }
+        });
+
+        // Store in Redis for persistence and cross-instance sync
+        const channel = `doc-${documentId}`;
+        redisPublisher.publish(channel, messageBuffer.toString('base64'));
+
+
+      } catch (error) {
+        logger.error('[WebSocket] Error broadcasting message', {
+          error: error.message,
+          stack: error.stack
+        });
+      }
+    });
+
+    /**
+     * @event close
+     * @description
+     * Handles client disconnections by removing them from the connected clients map
+     * and logging the disconnection event.
+     */
+    ws.on('close', () => {
+      logger.info('[WebSocket] Client disconnected', { sessionId, documentId });
+      connectedClients.delete(ws);
+    });
+
+    /**
+     * @event error
+     * @description
+     * Handles errors encountered by the client by logging detailed error information.
+     */
+    ws.on('error', (error) => {
+      logger.error('[WebSocket] Client error', {
+        sessionId,
+        error: error.message,
+        stack: error.stack
+      });
+    });
+
+    logger.info('[WebSocket] Client connected', { sessionId, documentId });
+
+  } catch (error) {
+    logger.error('[WebSocket] Connection rejected', {
+      error: error.message,
+      stack: error.stack
+    });
+    ws.close(1008, 'Invalid or expired token');
+  }
+});
+
+/**
+ * @function Redis Message Handler
+ * @description
+ * Listens for messages published on Redis channels and broadcasts them to the appropriate clients.
+ * Ensures that binary data is correctly handled and sent to targeted clients based on document ID.
+ */
+redisSubscriber.on('message', (channel, message) => {
+  const documentId = channel.replace('doc-', '');
+  const messageBuffer = Buffer.from(message, 'base64');
+  
+  logger.info('[Redis] Message received', {
+    documentId,
+    messageSize: messageBuffer.length
+  });
+  
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN && 
+        client.connectionInfo?.documentId === documentId) {
+      client.send(messageBuffer);
+    }
+  });
+});
+
+/**
+ * @section Redis Subscription
+ * Subscribes to Redis channels that follow the pattern 'doc-*' to listen for document updates.
+ * Logs the subscription status and handles any subscription errors.
+ */
+redisSubscriber.psubscribe('doc-*', (err, count) => {
+  if (err) {
+    logger.error('[Redis] Subscription error', { error: err.message });
+  } else {
+    logger.info('[Redis] Subscribed to channels', { count });
+  }
+});
+
+/**
+ * @section Error Handlers
+ * Sets up global error handlers for the WebSocket and HTTP servers to log detailed error information.
+ */
+wss.on('error', (error) => {
+  logger.error('[WebSocket] Server error', {
+    error: error.message,
+    stack: error.stack
+  });
+});
+
+server.on('error', (error) => {
+  logger.error('[HTTP] Server error', {
+    error: error.message,
+    stack: error.stack
+  });
+});
+
+/**
+ * @section Start Server
+ * Initiates the HTTP server to listen on the specified port and logs the server start event.
+ */
+const PORT = process.env.Y_WEBSOCKET_PORT ? parseInt(process.env.Y_WEBSOCKET_PORT) : 1234;
+server.listen(PORT, () => {
+  logger.info('[Server] Started', { port: PORT });
+});
+
+/**
+ * @section Graceful Shutdown
+ * Handles the SIGTERM signal to gracefully shut down the WebSocket and HTTP servers,
+ * ensuring all resources are cleaned up and connections are properly terminated.
+ */
+process.on('SIGTERM', () => {
+  logger.info('[Server] Shutting down');
+  wss.close(() => {
+    logger.info('[WebSocket] Server closed');
+    server.close(() => {
+      logger.info('[HTTP] Server closed');
+      process.exit(0);
+    });
+  });
+});
+
+
+// WebSocketManager.tsx
+
+/**
+ * @file WebSocketManager.tsx
+ * @description
+ * Manages WebSocket connections for real-time document synchronization using y-websocket.
+ */
+
+import React, { createContext, ReactNode, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import { WebsocketProvider } from 'y-websocket';
+import { Awareness } from 'y-protocols/awareness';
+import { useYDoc, } from '@/app/Library/Context/YDocContext';
+import { ApiContext } from '@/app/src/context/ApiContext';
+//import { //toast } from 'react-//toastify';
+import * as Y from 'yjs';
+import { Descendant } from 'slate';
+import { useResourceContext } from '@/app/Library/Context/ResourceContext';
+
+interface WebSocketManagerContextType {
+  connectionState: 'disconnected' | 'connecting' | 'connected' | 'error';
+  connect: () => Promise<void>;
+  disconnect: () => void;
+}
+
+interface SerializedPictureResource {
+  id: string;
+  nodeId: string;
+  type: 'picture';
+  title: string;
+  imageData?: string; // Base64 encoded image data
+  description?: Descendant[];
+  source?: string;
+}
+
+const WebSocketManagerContext = createContext<WebSocketManagerContextType | null>(null);
+
+export const useWebSocketManager = () => {
+  const context = useContext(WebSocketManagerContext);
+  if (!context) {
+    throw new Error('useWebSocketManager must be used within a WebSocketManagerProvider');
+  }
+  return context;
+};
+
+export const WebSocketManagerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { getWebSocketUrl } = useContext(ApiContext);
+  const { ydoc , driveFileId, isInitialized} = useYDoc();
+  const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const providerRef = useRef<WebsocketProvider | null>(null);
+  const isConnectingRef = useRef<boolean>(false);
+
+
+  // Create a function to handle provider cleanup
+  const cleanupProvider = useCallback(() => {
+    if (providerRef.current) {
+      //console.log('[WebSocketManager] Cleaning up provider');
+      providerRef.current.destroy();
+      providerRef.current = null;
+      setConnectionState('disconnected');
+    }
+  }, []);
+
+
+// Updated type for extractImageMessages function
+/**const extractImageMessages = useCallback((resourcesMap: Y.Map<any>): ImageMessage[] => {
+  
+  resourcesMap.forEach((nodeResources: any, nodeId: string) => {
+    // Check if nodeResources is a Y.Map
+    if (nodeResources instanceof Y.Map) {
+      nodeResources.forEach((resource: any, resourceId: string) => {
+        if (
+          resource && 
+          typeof resource === 'object' &&
+          resource.type === 'picture' && 
+          'serverUrl' in resource
+        ) {
+          messages.push({
+            id: resource.id,
+            nodeId,
+            type: 'picture',
+            serverUrl: resource.serverUrl,
+            title: resource.title,
+            description: resource.description,
+            source: resource.source
+          });
+        }
+      });
+    }
+  });
+  
+  return messages;
+}, []); */
+  
+
+// Add update observer to monitor all changes
+// In WebSocketManager.tsx, replace the current useEffect with:
+
+useEffect(() => {
+  if (!ydoc) return;
+
+  const updateHandler = async (update: Uint8Array, origin: any) => {
+    /*console.log('[WebSocketManager] Update received:', {
+      updateSize: update.length,
+      origin: origin ? 'Provider' : 'Local',
+      timestamp: new Date().toISOString()
+    });*/
+
+    //console.log('Origin Value is actually :', origin)
+
+    // Only process updates from other clients
+    if (origin instanceof WebsocketProvider) {
+      try {
+        const resourcesMap = ydoc.getMap('resources');
+        
+        // Extract and filter new image messages
+        //const imageMessages = extractImageMessages(resourcesMap);
+        //const newImageMessages = imageMessages.filter(msg => !imageAssets.has(msg.id));
+        
+       /** if (newImageMessages.length > 0) {
+          //console.log('[WebSocketManager] Found new images to fetch:', newImageMessages);
+          await fetchImageOnUpdate(newImageMessages);
+        }  */
+
+        // Log current document state
+        /*console.log('[WebSocketManager] Current document state:', {
+          totalResources: resourcesMap.size,
+          hasChanges: Y.encodeStateAsUpdate(ydoc).length > 0,
+          timestamp: new Date().toISOString()
+        });*/
+      } catch (error) {
+        console.error('[WebSocketManager] Error processing update:', error);
+      }
+    }
+  };
+
+  // Set up observer
+  ydoc.on('update', updateHandler);
+
+  // Clean up observer
+  return () => {
+    ydoc.off('update', updateHandler);
+  };
+}, [ydoc]);
+
+
+  const connect = useCallback(async () => {
+    if (!driveFileId || !isInitialized || isConnectingRef.current) {
+      /*console.log('[WebSocketManager] Prerequisites not met for connection or already connecting');*/
+      return;
+    }
+
+    try {
+      isConnectingRef.current = true;
+      setConnectionState('connecting');
+      const wsUrl = await getWebSocketUrl(driveFileId);
+      //console.log('[WebSocketManager] Establishing connection to:', wsUrl);
+
+      // Extract token and ensure it's a string
+      const token = wsUrl.split('?token=')[1] || '';
+
+      // Create awareness instance
+      const awareness = new Awareness(ydoc);
+      
+      // Configure WebSocket provider with default settings
+      const newProvider = new WebsocketProvider(wsUrl, driveFileId, ydoc, {
+        connect: true,
+        awareness,
+        params: { token }
+      });
+
+      // Set up event listeners
+      newProvider.on('status', ({ status }: { status: string }) => {
+        //console.log('[WebSocketManager] Connection status:', status);
+        switch (status) {
+          case 'connected':
+            setConnectionState('connected');
+            //toast.info('Connected to collaboration room');
+            break;
+          case 'disconnected':
+            setConnectionState('disconnected');
+            //toast.warn('WebSocket connection closed');
+            break;
+          case 'error':
+            setConnectionState('error');
+            //toast.error('WebSocket encountered an error');
+            break;
+        }
+      });
+
+      // Handle sync status with enhanced logging
+      newProvider.on('sync', (isSynced: boolean) => {
+        /*console.log('[WebSocketManager] Sync status:', {
+          isSynced,
+          timestamp: new Date().toISOString(),
+          documentId: driveFileId,
+          provider: providerRef.current ? 'active' : 'inactive'
+        });*/
+
+        if (isSynced) {
+          // Log the state of resources after sync
+          try {
+            const resourcesMap = ydoc.getMap('resources');
+            /*console.log('[WebSocketManager] Resources after sync:', {
+              totalResources: resourcesMap.size,
+              resourceKeys: Array.from(resourcesMap.keys())
+            });*/
+            //toast.success('Document synchronized');
+          } catch (error) {
+            console.error('[WebSocketManager] Error checking resources after sync:', error);
+          }
+        }
+      });
+
+      // Handle connection errors with correct event type
+      newProvider.on('connection-error', (event: Event, provider: WebsocketProvider) => {
+        console.error('[WebSocketManager] Connection error:', {
+          event,
+          provider: provider.roomname,
+          timestamp: new Date().toISOString()
+        });
+        setConnectionState('error');
+        //toast.error('Failed to establish WebSocket connection');
+      });
+
+      providerRef.current = newProvider;
+
+    } catch (error) {
+      console.error('[WebSocketManager] Connection establishment failed:', error);
+      setConnectionState('error');
+      //toast.error('Failed to establish WebSocket connection');
+    } finally {
+      isConnectingRef.current = false;
+    }
+  }, [driveFileId, isInitialized, ydoc, getWebSocketUrl]);
+
+  const disconnect = useCallback(() => {
+    //console.log('[WebSocketManager] Initiating disconnect');
+    cleanupProvider();
+  }, [cleanupProvider]);
+
+  // Handle automatic connection/disconnection based on prerequisites
+  useEffect(() => {
+    const shouldConnect = driveFileId && isInitialized ;
+    
+    /*console.log('[WebSocketManager] Connection state check:', {
+      shouldConnect,
+      hasProvider: !!providerRef.current,
+      isConnecting: isConnectingRef.current,
+      connectionState
+    });*/
+
+    if (shouldConnect && !providerRef.current && !isConnectingRef.current) {
+      connect();
+    }
+
+    return () => {
+      if (!shouldConnect && providerRef.current) {
+        disconnect();
+      }
+    };
+  }, [driveFileId, isInitialized, connect, disconnect, connectionState]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => cleanupProvider();
+  }, [cleanupProvider]);
+
+  return (
+    <WebSocketManagerContext.Provider value={{ connectionState, connect, disconnect }}>
+      {children}
+    </WebSocketManagerContext.Provider>
+  );
+};
+
+
+// YDocContext.tsx
+
+import React, { createContext, useContext, useCallback, useState, useMemo, ReactNode } from 'react';
+import * as Y from 'yjs';
+import { toast } from 'react-toastify';
+import { ConceptNode, ResourceCard } from '@/app/Library/Definitions/Definitions';
+import { v4 as uuidv4 } from 'uuid';
+
+interface YDocContextType {
+  // Document state
+  ydoc: Y.Doc;
+  fileName: string;
+  driveFileId?: string;
+  docFileID: string | null;
+  isInitialized: boolean;
+
+  // Document lifecycle methods
+  createNewDocument: () => Promise<void>;
+  loadData: (
+    fileName: string,
+    driveFileId: string | undefined,
+    docState: Uint8Array  // Changed to accept binary state
+  ) => Promise<void>; 
+  // Y.js management
+  applyUpdate: (update: Uint8Array) => void;
+  getState: () => Uint8Array;
+  
+  // File metadata management
+  updateFileName: (name: string) => void;
+  updateDriveId: (id?: string) => void;
+
+  persistDoc: (local: boolean) => Uint8Array;
+}
+
+const YDocContext = createContext<YDocContextType | undefined>(undefined);
+
+export const useYDoc = () => {
+  const context = useContext(YDocContext);
+  if (!context) {
+    throw new Error('useYDoc must be used within YDocProvider');
+  }
+  return context;
+};
+
+interface YDocProviderProps {
+  children: ReactNode;
+}
+
+export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
+  // State management
+const [ydoc, setYDoc] = useState(() => new Y.Doc());
+  const [fileName, setFileName] = useState('Untitled Document');
+  const [driveFileId, setDriveFileId] = useState<string>(); // Use this to save drive files
+  const [docFileID, setDocFileID] = useState<string | null>(null); 
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Y.js operations
+  const applyUpdate = useCallback((update: Uint8Array): void => {
+    try {
+      Y.applyUpdate(ydoc, update);
+    } catch (error) {
+      console.error('Error applying update:', error);
+      toast.error('Failed to apply document update');
+    }
+  }, [ydoc]);
+
+  const getState = useCallback((): Uint8Array => {
+    return Y.encodeStateAsUpdate(ydoc);
+  }, [ydoc]);
+
+  const persistDoc = useCallback((local: boolean): Uint8Array => {
+    if (local) {
+      setDriveFileId(undefined);
+    }
+    // Return the encoded Y.Doc update (this binary update can be persisted)
+    return Y.encodeStateAsUpdate(ydoc);
+  }, [ydoc]);
+
+  // Document lifecycle methods
+  const createNewDocument = useCallback(async (): Promise<void> => {
+    try {
+      setIsInitialized(false);
+
+      const newYDoc = new Y.Doc();
+      const newDocId = uuidv4();
+      
+      // Clear existing Y.doc state
+      newYDoc.transact(() => {
+        // Clear all shared data structures
+        newYDoc.getMap('metadata').clear();
+        newYDoc.getMap('nodes').clear();
+        newYDoc.getMap('resources').clear();
+        newYDoc.getMap('subtrees').clear();
+
+
+          const rootNode: ConceptNode = {
+            id: 'node-1',
+            title: 'Root Concept',
+            parentNodeId: undefined,
+            childrenNodeIds: [],
+            x: 0,
+            y: 0,
+            isRoot: true,
+            depth: 0
+          };
+
+        // Initialize sentinel node in subtrees
+        const sentinelSubtree = {
+          minX: 0,
+          maxX: 0,
+          minY: 0,
+          maxY: 0,
+          width: 0,
+          height: 0,
+          position: { x: 0, y: 0 }
+        };
+        newYDoc.getMap('metadata').set('docFileID', newDocId);
+        newYDoc.getMap('nodes').set(rootNode.id, rootNode);
+        newYDoc.getMap('subtrees').set('sentinel-node', sentinelSubtree);
+      }, { type: 'system', action: 'reset' });
+
+      // Reset metadata
+      setFileName('Untitled Document');
+      setDriveFileId(undefined);
+      setDocFileID(newDocId);
+      
+      setYDoc(newYDoc);
+      setIsInitialized(true);
+      toast.success('New document created');
+    } catch (error) {
+      console.error('Error creating new document:', error);
+      toast.error('Failed to create new document');
+    }
+  }, []);
+
+
+  const loadData = useCallback(async (
+    fileName: string,
+    driveFileId: string | undefined,
+    docState: Uint8Array
+  ): Promise<void> => {
+    try {
+      console.log('Starting loadData operation...');
+      setIsInitialized(false);
+  
+      // Create new YDoc and apply the state directly
+      const newYDoc = new Y.Doc();
+      newYDoc.transact(() => {
+        Y.applyUpdate(newYDoc, docState);
+      }, { type: 'system', action: 'loadData' });
+  
+      // Update metadata
+      setFileName(fileName);
+      setDriveFileId(driveFileId);
+       // Retrieve the docFileID from the Y.Doc metadata map and update state.
+       const metadataMap = newYDoc.getMap('metadata');
+       const loadedDocFileID = metadataMap.get('docFileID') as string || null;
+       setDocFileID(loadedDocFileID);
+
+      // Replace old YDoc with new one
+      setYDoc(newYDoc);
+      setIsInitialized(true);
+  
+      console.log('loadData completed successfully');
+    } catch (error) {
+      console.error('Error in loadData:', error);
+      toast.error('Failed to load document data');
+      throw error;
+    }
+  }, []);
+
+
+  // File metadata management
+  const updateFileName = useCallback((name: string): void => {
+    setFileName(name.trim() || 'Untitled Document');
+  }, []);
+
+  const updateDriveId = useCallback((id?: string): void => {
+    setDriveFileId(id);
+  }, []);
+
+  // Context value
+  const value = useMemo((): YDocContextType => ({
+    ydoc,
+    fileName,
+    driveFileId,
+    isInitialized,
+    createNewDocument,
+    applyUpdate,
+    getState,
+    updateFileName,
+    updateDriveId,
+    loadData,
+    persistDoc,
+    docFileID,
+  }), [ydoc, fileName, driveFileId, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, updateDriveId, loadData, persistDoc, docFileID]);
+
+  return (
+    <YDocContext.Provider value={value}>
+      {children}
+    </YDocContext.Provider>
+  );
+};
+
+
+
+// SubTreeProvider.tsx
+
+import React, { useCallback, createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
+import * as Y from 'yjs';
+
+
+export interface SubtreeData {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  width: number;
+  height: number;
+  position?: { x: number; y: number };
+}
+
+interface SubTreeContextType {
+  subtrees: Map<string, SubtreeData>;
+  getTotalSubtreeWidths: () => number;
+  getMaxSubtreeHeight: () => number;
+  setSubtreePosition: (nodeId: string, position: { x: number; y: number }) => void;
+  resetSubtrees: () => void;
+  setSubtrees: (newSubtrees: Map<string, SubtreeData>) => void;
+  draggingSubtreeId: string | null;
+  targetSubtreeId: string | null;
+  setDraggingSubtreeId: (id: string | null) => void;
+  setTargetSubtreeId: (id: string | null) => void;
+  commitSwap: () => void;
+}
+
+const SubTreeContext = createContext<SubTreeContextType | undefined>(undefined);
+
+export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
+  const { ydoc } = useYDoc();
+  const ySubtreesMap = ydoc.getMap<SubtreeData>('subtrees');
+  
+  const [subtrees, setSubtreesState] = useState<Map<string, SubtreeData>>(new Map());
+  const [draggingSubtreeId, setDraggingSubtreeId] = useState<string | null>(null);
+  const [targetSubtreeId, setTargetSubtreeId] = useState<string | null>(null);
+
+  // Initialize sentinel node with system action origin
+  useEffect(() => {
+    const sentinelNodeId = 'sentinel-node';
+    const sentinelSubtree: SubtreeData = {
+      minX: 0,
+      maxX: 0,
+      minY: 0,
+      maxY: 0,
+      width: 0,
+      height: 0,
+      position: { x: 0, y: 0 },
+    };
+
+    // Initialize with system action origin to prevent tracking as user update
+    ydoc.transact(() => {
+      if (!ySubtreesMap.has(sentinelNodeId)) {
+        ySubtreesMap.set(sentinelNodeId, sentinelSubtree);
+      }
+    }, { type: 'system', action: 'initialize' });
+  }, [ydoc, ySubtreesMap]);
+
+  // Sync with Y.js
+  useEffect(() => {
+    const loadInitialSubtrees = () => {
+      const initialSubtrees = new Map<string, SubtreeData>();
+      
+      // Check if sentinel node exists, if not create it as a system action
+      const sentinelNodeId = 'sentinel-node';
+      if (!ySubtreesMap.has(sentinelNodeId)) {
+        const sentinelSubtree: SubtreeData = {
+          minX: 0,
+          maxX: 0,
+          minY: 0,
+          maxY: 0,
+          width: 0,
+          height: 0,
+          position: { x: 0, y: 0 },
+        };
+        
+        ydoc.transact(() => {
+          ySubtreesMap.set(sentinelNodeId, sentinelSubtree);
+        }, { type: 'system', action: 'initialize' });
+      }
+      
+      // Load all subtrees including sentinel
+      ySubtreesMap.forEach((value, key) => {
+        initialSubtrees.set(key, value);
+      });
+      setSubtreesState(initialSubtrees);
+    };
+
+    loadInitialSubtrees();
+
+    const updateListener = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
+      // Explicitly filter out system actions related to initialization
+      if (transaction.origin?.type === 'system' && 
+          ['initialize', 'reset'].includes((transaction.origin as any).action)) {
+        console.log('[SubTreeProvider] Ignoring system initialization update:', transaction.origin);
+        return;
+      }
+
+      const updatedSubtrees = new Map<string, SubtreeData>();
+      ySubtreesMap.forEach((value, key) => {
+        updatedSubtrees.set(key, value);
+      });
+      setSubtreesState(updatedSubtrees);
+    };
+
+    ySubtreesMap.observeDeep(updateListener);
+
+    return () => {
+      ySubtreesMap.unobserveDeep(updateListener);
+    };
+  }, [ySubtreesMap, ydoc]);
+
+  const getTotalSubtreeWidths = useCallback(() => {
+    let totalWidth = 0;
+    subtrees.forEach((subtree) => {
+      totalWidth += subtree.width;
+    });
+    return totalWidth;
+  }, [subtrees]);
+
+  const getMaxSubtreeHeight = useCallback(() => {
+    let maxHeight = 0;
+    subtrees.forEach((subtree) => {
+      if (Math.abs(subtree.height) > maxHeight) {
+        maxHeight = Math.abs(subtree.height);
+      }
+    });
+    return maxHeight;
+  }, [subtrees]);
+
+  const setSubtreePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
+    ydoc.transact(() => {
+      const subtree = ySubtreesMap.get(nodeId);
+      if (subtree) {
+        ySubtreesMap.set(nodeId, { ...subtree, position });
+      }
+    });
+  }, [ydoc, ySubtreesMap]);
+
+  const resetSubtrees = useCallback(() => {
+    ydoc.transact(() => {
+      ySubtreesMap.clear();
+      
+      // Re-add sentinel node
+      const sentinelNodeId = 'sentinel-node';
+      const sentinelSubtree: SubtreeData = {
+        minX: 0,
+        maxX: 0,
+        minY: 0,
+        maxY: 0,
+        width: 0,
+        height: 0,
+        position: { x: 0, y: 0 },
+      };
+      ySubtreesMap.set(sentinelNodeId, sentinelSubtree);
+    }, { type: 'system', action: 'reset' });
+  }, [ydoc, ySubtreesMap]);
+
+  const setSubtrees = useCallback((
+    newSubtrees: Map<string, SubtreeData>,
+    options?: { isInitialization?: boolean }
+  ) => {
+    const transactionOptions = options?.isInitialization 
+      ? { type: 'system' as const, action: 'initialize' as const }
+      : undefined;
+
+    ydoc.transact(() => {
+      ySubtreesMap.clear();
+      
+      // Ensure sentinel node exists
+      const sentinelNodeId = 'sentinel-node';
+      const sentinelSubtree: SubtreeData = {
+        minX: 0,
+        maxX: 0,
+        minY: 0,
+        maxY: 0,
+        width: 0,
+        height: 0,
+        position: { x: 0, y: 0 },
+      };
+      
+      if (!newSubtrees.has(sentinelNodeId)) {
+        newSubtrees.set(sentinelNodeId, sentinelSubtree);
+      }
+      
+      newSubtrees.forEach((subtree, nodeId) => {
+        ySubtreesMap.set(nodeId, subtree);
+      });
+    }, transactionOptions);
+  }, [ydoc, ySubtreesMap]);
+
+  const commitSwap = useCallback(() => {
+    if (draggingSubtreeId && targetSubtreeId) {
+      ydoc.transact(() => {
+        const draggingSubtree = ySubtreesMap.get(draggingSubtreeId);
+        const targetSubtree = ySubtreesMap.get(targetSubtreeId);
+        if (draggingSubtree && targetSubtree) {
+          const tempPosition = draggingSubtree.position;
+          ySubtreesMap.set(draggingSubtreeId, { ...draggingSubtree, position: targetSubtree.position });
+          ySubtreesMap.set(targetSubtreeId, { ...targetSubtree, position: tempPosition });
+        }
+      });
+    }
+    setDraggingSubtreeId(null);
+    setTargetSubtreeId(null);
+  }, [ydoc, ySubtreesMap, draggingSubtreeId, targetSubtreeId]);
+
+  const contextValue = useMemo(() => ({
+    subtrees,
+    getTotalSubtreeWidths,
+    getMaxSubtreeHeight,
+    setSubtreePosition,
+    resetSubtrees,
+    setSubtrees,
+    draggingSubtreeId,
+    targetSubtreeId,
+    setDraggingSubtreeId,
+    setTargetSubtreeId,
+    commitSwap,
+  }), [
+    subtrees,
+    getTotalSubtreeWidths,
+    getMaxSubtreeHeight,
+    setSubtreePosition,
+    resetSubtrees,
+    setSubtrees,
+    draggingSubtreeId,
+    targetSubtreeId,
+    setDraggingSubtreeId,
+    setTargetSubtreeId,
+    commitSwap,
+  ]);
+
+  return <SubTreeContext.Provider value={contextValue}>{children}</SubTreeContext.Provider>;
+};
+
+export const useSubTreeContext = () => {
+  const context = useContext(SubTreeContext);
+  if (context === undefined) {
+    throw new Error('useSubTreeContext must be used within a SubTreeProvider');
+  }
+  return context;
+};
+
+export const serializeSubtrees = (subtrees: Map<string, SubtreeData>): [string, SubtreeData][] => {
+  return Array.from(subtrees.entries());
+};
+
+// ResourceContext.tsx
+
+// ResourceContext.tsx
+
+/**
+ * @file ResourceContext.tsx
+ * @description
+ * Provides the Resource context, managing resources within the Y.Doc.
+ * Decouples image file data from Y.js data structures by introducing a separate imageAssets state.
+ * Ensures synchronization of image metadata and reliable image display across all replicas.
+ */
+
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
+import { ResourceCard,  PictureResource, PracticeSheetResource, CueCardResource, NoteResource } from '@/app/Library/Definitions/Definitions';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  initializeNodeHistory,
+  addHistoryEntry,
+  undoOperation,
+  redoOperation,
+  HistoryState,
+  HistoryEntry,
+  OperationType,
+  createBinaryCompoundEntries,
+  generateOperationId,
+} from '@/app/Library/utils/undoredo/historyutils';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
+import * as Y from 'yjs';
+
+
+interface ResourceContextType {
+  resources: Map<string, ResourceCard[]>;
+  addResource: (resource: Omit<ResourceCard, 'id'>) => Promise<void>;
+  addPictureResource: (resource: Omit<PictureResource, 'id'|'image'>, image:File)  => void;
+  removeResource: (nodeId: string, resourceId: string) => void;
+  editResource: (resource: ResourceCard) => void;
+  editPictureResource: (
+    resource: PictureResource,
+    newImage: boolean,
+    image?: File
+  ) => Promise<void>;
+  selectResources: (nodeId: string) => ResourceCard[];
+  selectCueCards: (nodeId: string) => CueCardResource[];
+  selectPictures: (nodeId: string) => PictureResource[];
+  selectPracticeSheets: (nodeId: string) => PracticeSheetResource[];
+  setResources: (newResources: Map<string, ResourceCard[]>) => void;
+  transferResource: (sourceNodeId: string, targetNodeId: string, resourceIds: string[], command: 'copy' | 'cut') => void;
+  resetResources: () => void;
+  getResourcesByType: (type: 'cueCard' | 'picture' | 'practiceSheet') => Map<string, ResourceCard[]>;
+  undo: (nodeId: string) => void;
+  redo: (nodeId: string) => void;
+  undoAvailable: (nodeId: string) => boolean;
+  redoAvailable: (nodeId: string) => boolean;
+  addResourcev1: (params: { nodeId: string; type: 'cueCard' | 'note'  |'practiceSheet'; title: string; content: any; }) => Promise<void>;
+  addPictureResourcev1: (params: { nodeId: string; title: string; description?: any; }, image: File) => Promise<void>;
+  removeResourcev1: (nodeId: string, resourceId: string) => void;
+  editResourcev1: (resource: ResourceCard) => Promise<void>;
+  editPictureResourcev1: (resource: PictureResource, newImage: boolean, image?: File) => Promise<void>;
+}
+
+
+
+const ResourceContext = createContext<ResourceContextType | undefined>(undefined);
+
+export const useResourceContext = () => {
+  const context = useContext(ResourceContext);
+  if (context === undefined) {
+    throw new Error('useResourceContext must be used within a ResourceProvider');
+  }
+  return context;
+};
+
+export const ResourceProvider = ({ children }: { children: ReactNode }) => {
+  const { ydoc } = useYDoc();
+  const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>('resources');
+  const [resources, setResourcesState] = useState<Map<string, ResourceCard[]>>(new Map());
+
+  useEffect(() => {
+    const loadInitialResources = () => {
+      const initialResources = new Map<string, ResourceCard[]>();
+      yResourcesMap.forEach((yMap, nodeId) => {
+        const nodeResources: ResourceCard[] = [];
+        yMap.forEach((resource: ResourceCard) => {
+          nodeResources.push(resource);
+        });
+        initialResources.set(nodeId, nodeResources);
+      });
+      setResourcesState(initialResources);
+    };
+
+    loadInitialResources();
+
+    const updateListener = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
+      // Ignore system-originated updates
+      if (transaction.origin?.type === 'system') {
+        
+        console.log('Ignoring system-origin update:', transaction.origin.action);
+        return;
+      }
+
+      const updatedResources = new Map<string, ResourceCard[]>();
+      yResourcesMap.forEach((yMap, nodeId) => {
+        const nodeResources: ResourceCard[] = [];
+        yMap.forEach((resource: ResourceCard) => {
+          nodeResources.push(resource);
+        });
+        updatedResources.set(nodeId, nodeResources);
+      });
+
+      setResourcesState(updatedResources);
+
+    };
+
+    yResourcesMap.observeDeep(updateListener);
+
+    return () => {
+      yResourcesMap.unobserveDeep(updateListener);
+    };
+  }, [yResourcesMap, ]);
+
+  // History map to track past and future states for each node
+  const [resourceHistoryMap, setResourceHistoryMap] = useState<Map<string, HistoryState>>(new Map());
+
+  /**
+   * Adds a new resource to a node.
+   *
+   * @param resource - The resource to add (excluding the 'id' field).
+   */
+  const addResource = useCallback(
+    async (resource: Omit<ResourceCard, 'id'>) => {
+      console.log('********** Entering addResource **********');
+      console.log('Initial Resources:', resources);
+      console.log('Resource to Add:', resource);
+      if (!resource.type) {
+        throw new Error('Resource type is required');
+      }
+
+      let newResource: ResourceCard;
+
+      switch (resource.type) {
+        case 'cueCard':
+          if (!('content' in resource)) {
+            throw new Error('Content is required for CueCard');
+          }
+          newResource = { ...resource, id: uuidv4() } as CueCardResource;
+          break;
+
+         case 'practiceSheet':
+          if (!('content' in resource)) {
+            throw new Error('Content is required for PracticeSheet');
+          }
+          newResource = { ...resource, id: uuidv4() } as PracticeSheetResource;
+          break;
+
+        default:
+          throw new Error(`Unknown resource type: ${(resource as any).type}`);
+      }
+
+      const nodeId = newResource.nodeId;
+      const currentResources = resources.get(nodeId) || [];
+
+      // Update history
+      const currentHistory = resourceHistoryMap.get(nodeId) || initializeNodeHistory();
+      const newHistoryEntry: HistoryEntry = {
+        operationId: generateOperationId(),
+        type: OperationType.Atomic,
+        primaryNodeId: nodeId,
+        previousState: [...currentResources],
+        newState: [...currentResources, newResource],
+      };
+
+      const updatedHistory = addHistoryEntry(currentHistory, newHistoryEntry);
+      const newHistoryMap = new Map(resourceHistoryMap);
+      newHistoryMap.set(nodeId, updatedHistory);
+      setResourceHistoryMap(newHistoryMap);
+
+      // Update Y.Map - For pictures, the File object is null
+      ydoc.transact(() => {
+        let yMap = yResourcesMap.get(nodeId);
+        if (!yMap) {
+          yMap = new Y.Map<ResourceCard>();
+          yResourcesMap.set(nodeId, yMap);
+        }
+        console.log('[ResourceContext] Adding resource to Y.Map:', {
+          nodeId,
+          resource: newResource,
+        });
+        yMap.set(newResource.id, newResource);
+      });
+
+      console.log('********** Leaving addResource **********');
+    },
+    [resources, resourceHistoryMap, yResourcesMap, ydoc]
+  );
+
+
+  const addPictureResource = useCallback(
+    async (resource: Omit<PictureResource, 'id'|'image'>, image:File) => {
+
+          let newResource:PictureResource;
+
+            //let initResource = resource as PictureResource;
+            let newID = uuidv4();
+            const localUrl = URL.createObjectURL(image);
+
+            // 2. Construct the new PictureResource using the new (refactored) shape.
+            // Notice that we no longer keep a File object—only a URL.
+            const newPicture: PictureResource = {
+              id: newID,
+              nodeId: resource.nodeId,
+              type: 'picture',
+              title: resource.title,
+              imageUrl: localUrl, // temporary local URL for immediate preview
+              description: resource.description,
+              source: (resource as any).source, // if you have a source field, etc.
+            };
+
+            // Immediately update local state, using the local url. This local url can not be used in the yjs update !
+            
+            setResourcesState((prev) => {
+              const newMap = new Map(prev);
+              const current = newMap.get(resource.nodeId) || [];
+              newMap.set(resource.nodeId, [...current, newPicture]);
+              return newMap;
+            });
+            
+            // Take note that y.doc is only updated using the url returned by the server. The local url in the previous
+            // step is used to make an immedaite update, this avoids latency and allows the server upload to happen in the 'background'  in a second update.
+            // Thus there are two state updates, the first is handled locally in a data structure that is not tracked by Y.js,           
+           // this allows an immediate update. The second update has a dependency on the url returned by the server, this update is used to update the Y.Doc
+            try {              
+              const formData = new FormData();
+              formData.append('image', image);
+              
+              const response = await fetch('/api/asset', {
+                method: 'POST',
+                body: formData
+              });
+
+              if (!response.ok) {
+                throw new Error('Failed to upload image');
+              }
+
+              const { url: serverUrl } = await response.json();
+
+              // Create ImageMessage for Y.js
+               newResource = {
+                id: newID,
+                nodeId: resource.nodeId,
+                type: 'picture',
+                title: resource.title,
+                imageUrl: serverUrl,
+                description: resource.description,
+                source: resource.source
+              };
+
+            } catch (error) {
+              console.error('[ResourceContext] Error uploading image:', error);
+              throw error;
+            }
+     
+
+      const nodeId = newResource.nodeId;
+      const currentResources = resources.get(nodeId) || [];
+
+      // Update history
+      const currentHistory = resourceHistoryMap.get(nodeId) || initializeNodeHistory();
+      const newHistoryEntry: HistoryEntry = {
+        operationId: generateOperationId(),
+        type: OperationType.Atomic,
+        primaryNodeId: nodeId,
+        previousState: [...currentResources],
+        newState: [...currentResources, newResource],
+      };
+
+      const updatedHistory = addHistoryEntry(currentHistory, newHistoryEntry);
+      const newHistoryMap = new Map(resourceHistoryMap);
+      newHistoryMap.set(nodeId, updatedHistory);
+      setResourceHistoryMap(newHistoryMap);
+
+      // Update Y.Map - For pictures, the File object is null
+      ydoc.transact(() => {
+        let yMap = yResourcesMap.get(nodeId);
+        if (!yMap) {
+          yMap = new Y.Map<ResourceCard>();
+          yResourcesMap.set(nodeId, yMap);
+        }
+        console.log('[ResourceContext] Adding resource to Y.Map:', {
+          nodeId,
+          resource: newResource,
+        });
+        yMap.set(newResource.id, newResource);
+      });
+
+      console.log('********** Leaving addPictureResource **********');
+    },
+    [resources, resourceHistoryMap, yResourcesMap, ydoc]
+  );
+
+  /**
+ * @file ResourceContext.tsx
+ * @description
+ * This file provides the resource management context for the application. It manages various types
+ * of resources (such as cue cards, pictures, and practice sheets) by maintaining local state, history
+ * (for undo/redo), and a shared Y.Doc state for collaboration.
+ * 
+ * The editPictureResource function below is responsible for updating an existing PictureResource.
+ * It handles updating text fields (such as title or description) and, optionally, replacing the image.
+ * When a new image is provided, the function:
+ *   - Immediately updates the local state using a temporary local URL for preview.
+ *   - Uploads the new image to the server to obtain a permanent URL.
+ *   - Updates the resource history and synchronizes changes with the shared Y.Doc state.
+ */
+
+const editPictureResource = useCallback(
+  /**
+   * Updates an existing PictureResource in the shared resource state.
+   *
+   * This function updates the text and optionally the image of an existing PictureResource.
+   * If a new image is provided (newImage === true), the function:
+   *   Step 1: Creates a temporary local URL for an immediate preview.
+   *   Step 2: Updates the local state with the temporary URL.
+   *   Step 3: Uploads the new image file to the server to obtain a permanent URL.
+   *   Step 4: Updates the PictureResource with the server URL.
+   *
+   * After these steps, the function updates the resource history (to support undo/redo),
+   * updates the local resource state, and synchronizes the changes with the Y.Doc shared state.
+   *
+   * @param {PictureResource} updatedResource - The PictureResource with updated text fields.
+   * @param {boolean} newImage - Flag indicating whether a new image file is provided.
+   * @param {File} [image] - The new image file; required if newImage is true.
+   * @throws {Error} If newImage is true but no image file is provided, or if the image upload fails.
+   */
+  async (
+    updatedResource: PictureResource, // The PictureResource with new title/description (and possibly image)
+    newImage: boolean,                // Flag indicating whether the image is being replaced
+    image?: File                      // The new image file; must be provided if newImage is true
+  ) => {
+    // Step 0: Create a working copy of the updated resource.
+    let editedResource: PictureResource = { ...updatedResource };
+
+    // Step 1: If a new image is provided, handle the image update.
+    if (newImage) {
+      // Validate that an image file is provided.
+      if (!image) {
+        throw new Error("Image file must be provided when newImage is true.");
+      }
+      
+      // Step 1a: Create a temporary local URL for immediate image preview.
+      const localUrl = URL.createObjectURL(image);
+      editedResource.imageUrl = localUrl;
+
+      // Step 1b: Immediately update local state so the user sees the new image preview.
+      setResourcesState((prev) => {
+        const newMap = new Map(prev);
+        const current = newMap.get(updatedResource.nodeId) || [];
+        const updatedArr = current.map((res) =>
+          res.id === updatedResource.id ? editedResource : res
+        );
+        newMap.set(updatedResource.nodeId, updatedArr);
+        return newMap;
+      });
+
+      // Step 1c: Upload the new image file to the server.
+      try {
+        const formData = new FormData();
+        formData.append("image", image);
+
+        const response = await fetch("/api/asset", {
+          method: "POST",
+          body: formData,
+        });
+
+        // Check that the server response is successful.
+        if (!response.ok) {
+          throw new Error("Failed to upload new image.");
+        }
+
+        // Parse the server response to retrieve the permanent image URL.
+        const { url: serverUrl } = await response.json();
+
+        // Update the resource with the permanent server URL.
+        editedResource.imageUrl = serverUrl;
+      } catch (error) {
+        console.error(
+          "[ResourceContext] Error uploading new image in editPictureResource:",
+          error
+        );
+        throw error;
+      }
+    }
+    
+    // Step 2: Update text fields and other non-image-related updates (if any).
+    const nodeId = editedResource.nodeId;
+    const currentResources = resources.get(nodeId) || [];
+
+    // Step 3: Locate the existing resource in the local state.
+    const resourceIndex = currentResources.findIndex(
+      (res) => res.id === editedResource.id
+    );
+    if (resourceIndex === -1) {
+      console.error(
+        `[ResourceContext] editPictureResource: resource ${editedResource.id} not found for node ${nodeId}`
+      );
+      return;
+    }
+
+    // Step 4: Create a new array of resources with the updated PictureResource.
+    const newResourcesState = currentResources.map((res) =>
+      res.id === editedResource.id ? editedResource : res
+    );
+
+    // Step 5: Update the history state for undo/redo support.
+    const currentHistory = resourceHistoryMap.get(nodeId) || initializeNodeHistory();
+    const newHistoryEntry: HistoryEntry = {
+      operationId: generateOperationId(),
+      type: OperationType.Atomic,
+      primaryNodeId: nodeId,
+      previousState: [...currentResources],
+      newState: newResourcesState,
+    };
+
+    const updatedHistory = addHistoryEntry(currentHistory, newHistoryEntry);
+    const newHistoryMap = new Map(resourceHistoryMap);
+    newHistoryMap.set(nodeId, updatedHistory);
+    setResourceHistoryMap(newHistoryMap);
+
+    // Step 6: Update the local resources state with the edited resource.
+    setResourcesState((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(nodeId, newResourcesState);
+      return newMap;
+    });
+
+    // Step 7: Synchronize the update with the shared Y.Doc state.
+    ydoc.transact(() => {
+      let yMap = yResourcesMap.get(nodeId);
+      if (!yMap) {
+        yMap = new Y.Map<ResourceCard>();
+        yResourcesMap.set(nodeId, yMap);
+      }
+      yMap.set(editedResource.id, editedResource);
+    });
+  },
+  [resources, resourceHistoryMap, yResourcesMap, ydoc]
+);
+
+
+  /**
+   * Removes a resource from a node.
+   *
+   * @param nodeId - The ID of the node.
+   * @param resourceId - The ID of the resource to remove.
+   */
+  const removeResource = useCallback(
+    (nodeId: string, resourceId: string) => {
+      const currentResources = resources.get(nodeId) || [];
+      const resourceIndex = currentResources.findIndex((resource) => resource.id === resourceId);
+
+      if (resourceIndex === -1) {
+        return;
+      }
+
+      const resourceToRemove = currentResources[resourceIndex];
+
+      // Update history: add current state to past
+      const currentHistory = resourceHistoryMap.get(nodeId) || initializeNodeHistory();
+      const newHistoryEntry: HistoryEntry = {
+        operationId: generateOperationId(),
+        type: OperationType.Atomic,
+        primaryNodeId: nodeId,
+        previousState: [...currentResources],
+        newState: currentResources.filter((resource) => resource.id !== resourceId),
+      };
+      const updatedHistory = addHistoryEntry(currentHistory, newHistoryEntry);
+      const newHistoryMap = new Map(resourceHistoryMap);
+      newHistoryMap.set(nodeId, updatedHistory);
+      setResourceHistoryMap(newHistoryMap);
+
+      // Update Y.Map
+      ydoc.transact(() => {
+        const yMap = yResourcesMap.get(nodeId);
+        if (yMap && yMap.has(resourceId)) {
+          yMap.delete(resourceId);
+        }
+      });
+    },
+    [resources, resourceHistoryMap, yResourcesMap, ydoc]
+  );
+
+  /**f
+   * Edits an existing resource within the Y.Doc.
+   *DEPRICIATED AF
+   * @param updatedResource - The resource with updated fields.
+   * @param newImage - Flag indicating if the image was updated.
+   */
+  const editResource = useCallback(async (
+    updatedResource: ResourceCard, 
+    newImage: boolean = false
+  ) => {
+    const nodeId = updatedResource.nodeId;
+    const currentResources = resources.get(nodeId) || [];
+    const resourceIndex = currentResources.findIndex(
+      resource => resource.id === updatedResource.id
+    );
+  
+    if (resourceIndex === -1) return;
+
+      // Handle non-image updates normally
+      ydoc.transact(() => {
+        const yMap = yResourcesMap.get(nodeId);
+        if (yMap) {
+          yMap.set(updatedResource.id, updatedResource);
+        }
+      });
+    
+  }, [resources, yResourcesMap, ydoc]);
+
+
+    // Create a resource for cue cards or practice sheets.
+    const addResourcev1 = useCallback(
+      async (params: { nodeId: string; type: 'cueCard' | 'note' | 'practiceSheet'; title: string; content: any; }) => {
+        let newResource: ResourceCard;
+        if (params.type === 'cueCard') {
+          newResource = {
+            id: uuidv4(),
+            nodeId: params.nodeId,
+            type: 'cueCard',
+            title: params.title,
+            content: params.content,
+          } as CueCardResource;
+        } else if (params.type === 'note') {
+          newResource = {
+            id: uuidv4(),
+            nodeId: params.nodeId,
+            type: 'note',
+            title: params.title,
+            content: params.content,
+          } as NoteResource;
+        } else if (params.type === 'practiceSheet') {
+          newResource = {
+            id: uuidv4(),
+            nodeId: params.nodeId,
+            type: 'practiceSheet',
+            title: params.title,
+            content: params.content,
+          } as PracticeSheetResource;
+        } else {
+          throw new Error(`Unsupported resource type: ${params.type}`);
+        }
+    
+        // Update local state.
+        setResourcesState((prev) => {
+          const newMap = new Map(prev);
+          const current = newMap.get(params.nodeId) || [];
+          newMap.set(params.nodeId, [...current, newResource]);
+          return newMap;
+        });
+    
+        // Update the shared Y.Doc.
+        ydoc.transact(() => {
+          let yMap = yResourcesMap.get(params.nodeId);
+          if (!yMap) {
+            yMap = new Y.Map<ResourceCard>();
+            yResourcesMap.set(params.nodeId, yMap);
+          }
+          yMap.set(newResource.id, newResource);
+        });
+      },
+      [ydoc, yResourcesMap]
+    );
+  
+    // Create a picture resource and handle image upload.
+    const addPictureResourcev1 = useCallback(
+      async (
+        params: { nodeId: string; title: string; description?: any; },
+        image: File
+      ) => {
+        const newId = uuidv4();
+        // Create a temporary URL for immediate preview.
+        const localUrl = URL.createObjectURL(image);
+        const newPicture: PictureResource = {
+          id: newId,
+          nodeId: params.nodeId,
+          type: 'picture',
+          title: params.title,
+          imageUrl: localUrl,
+          description: params.description,
+        };
+  
+        // Update local state immediately for preview.
+        setResourcesState((prev) => {
+          const newMap = new Map(prev);
+          const current = newMap.get(params.nodeId) || [];
+          newMap.set(params.nodeId, [...current, newPicture]);
+          return newMap;
+        });
+  
+        // Simulate image upload to obtain a permanent URL.
+        try {
+          const formData = new FormData();
+          formData.append('image', image);
+          const response = await fetch('/api/asset', { method: 'POST', body: formData });
+          if (!response.ok) {
+            throw new Error('Failed to upload image');
+          }
+          const { url: serverUrl } = await response.json();
+          // Update the picture resource with the permanent URL.
+          const updatedPicture: PictureResource = {
+            ...newPicture,
+            imageUrl: serverUrl,
+          };
+  
+          // Update local state and Y.Doc with the updated picture resource.
+          setResourcesState((prev) => {
+            const newMap = new Map(prev);
+            const current = newMap.get(params.nodeId) || [];
+            const updatedResources = current.map((res) => (res.id === newId ? updatedPicture : res));
+            newMap.set(params.nodeId, updatedResources);
+            return newMap;
+          });
+  
+          ydoc.transact(() => {
+            let yMap = yResourcesMap.get(params.nodeId);
+            if (!yMap) {
+              yMap = new Y.Map<ResourceCard>();
+              yResourcesMap.set(params.nodeId, yMap);
+            }
+            yMap.set(updatedPicture.id, updatedPicture);
+          });
+        } catch (error) {
+          console.error('Error in addPictureResourcev1:', error);
+          throw error;
+        }
+      },
+      [ydoc, yResourcesMap]
+    );
+  
+    // Remove a resource.
+    const removeResourcev1 = useCallback(
+      (nodeId: string, resourceId: string) => {
+        setResourcesState((prev) => {
+          const newMap = new Map(prev);
+          const current = newMap.get(nodeId) || [];
+          newMap.set(nodeId, current.filter((resource) => resource.id !== resourceId));
+          return newMap;
+        });
+        ydoc.transact(() => {
+          const yMap = yResourcesMap.get(nodeId);
+          if (yMap && yMap.has(resourceId)) {
+            yMap.delete(resourceId);
+          }
+        });
+      },
+      [ydoc, yResourcesMap]
+    );
+  
+    // Edit a non-picture resource.
+    const editResourcev1 = useCallback(
+      async (resource: ResourceCard) => {
+        setResourcesState((prev) => {
+          const newMap = new Map(prev);
+          const current = newMap.get(resource.nodeId) || [];
+          const updated = current.map((res) => (res.id === resource.id ? resource : res));
+          newMap.set(resource.nodeId, updated);
+          return newMap;
+        });
+        ydoc.transact(() => {
+          let yMap = yResourcesMap.get(resource.nodeId);
+          if (!yMap) {
+            yMap = new Y.Map<ResourceCard>();
+            yResourcesMap.set(resource.nodeId, yMap);
+          }
+          yMap.set(resource.id, resource);
+        });
+      },
+      [ydoc, yResourcesMap]
+    );
+  
+    // Edit a picture resource – optionally replacing its image.
+    const editPictureResourcev1 = useCallback(
+      async (resource: PictureResource, newImage: boolean, image?: File) => {
+        let updatedResource: PictureResource = { ...resource };
+        if (newImage) {
+          if (!image) {
+            throw new Error('Image file must be provided when newImage is true.');
+          }
+          const localUrl = URL.createObjectURL(image);
+          updatedResource.imageUrl = localUrl;
+          // Update state immediately for preview.
+          setResourcesState((prev) => {
+            const newMap = new Map(prev);
+            const current = newMap.get(resource.nodeId) || [];
+            const updated = current.map((res) => (res.id === resource.id ? updatedResource : res));
+            newMap.set(resource.nodeId, updated);
+            return newMap;
+          });
+          // Upload the new image.
+          try {
+            const formData = new FormData();
+            formData.append('image', image);
+            const response = await fetch('/api/asset', { method: 'POST', body: formData });
+            if (!response.ok) {
+              throw new Error('Failed to upload new image');
+            }
+            const { url: serverUrl } = await response.json();
+            updatedResource.imageUrl = serverUrl;
+          } catch (error) {
+            console.error('Error in editPictureResourcev1 during image upload:', error);
+            throw error;
+          }
+        }
+        // Update text fields if needed.
+        setResourcesState((prev) => {
+          const newMap = new Map(prev);
+          const current = newMap.get(resource.nodeId) || [];
+          const updated = current.map((res) => (res.id === resource.id ? updatedResource : res));
+          newMap.set(resource.nodeId, updated);
+          return newMap;
+        });
+        ydoc.transact(() => {
+          let yMap = yResourcesMap.get(resource.nodeId);
+          if (!yMap) {
+            yMap = new Y.Map<ResourceCard>();
+            yResourcesMap.set(resource.nodeId, yMap);
+          }
+          yMap.set(updatedResource.id, updatedResource);
+        });
+      },
+      [ydoc, yResourcesMap]
+    );
+
+
+  /**
+   * Selects all resources associated with a specific node.
+   *
+   * @param nodeId - The ID of the node.
+   * @returns An array of resources.
+   */
+// Inside ResourceContext.tsx
+
+const selectResources = useCallback((nodeId: string): ResourceCard[] => {
+
+  return resources.get(nodeId) || [];
+}, [resources]);
+
+
+  /**
+   * Selects all cue cards associated with a specific node.
+   *
+   * @param nodeId - The ID of the node.
+   * @returns An array of CueCard resources.
+   */
+  const selectCueCards = useCallback(
+    (nodeId: string): CueCardResource[] => {
+      return (resources.get(nodeId) || []).filter(
+        (resource): resource is CueCardResource => resource.type === 'cueCard'
+      );
+    },
+    [resources]
+  );
+
+/**
+ * Selects all picture resources associated with a specific node.
+ * Now returns synchronously an array of PictureResource.
+ *
+ * @param nodeId - The ID of the node.
+ * @returns An array of PictureResource objects.
+ */
+const selectPictures = useCallback(
+    (nodeId: string): PictureResource[] => {
+      const nodeResources = resources.get(nodeId) || [];
+      return nodeResources.filter(
+        (resource): resource is PictureResource =>
+          resource.type === 'picture' && Boolean((resource as PictureResource).imageUrl)
+      );
+    },
+    [resources]
+  );
+  
+
+
+  /**
+   * Selects all practice sheets associated with a specific node.
+   *
+   * @param nodeId - The ID of the node.
+   * @returns An array of PracticeSheet resources.
+   */
+  const selectPracticeSheets = useCallback(
+    (nodeId: string): PracticeSheetResource[] => {
+      return (resources.get(nodeId) || []).filter(
+        (resource): resource is PracticeSheetResource => resource.type === 'practiceSheet'
+      );
+    },
+    [resources]
+  );
+
+
+
+  /**
+   * Sets the entire resources map.
+   *
+   * @param newResources - The new resources map.
+   */
+  const setResources = useCallback((newResources: Map<string, ResourceCard[]>) => {
+    console.log('********** Entering setResources **********');
+    console.log('Initial Resources State:', resources);
+    console.log('New Resources:', newResources);
+    setResourcesState(newResources);
+    setResourceHistoryMap(new Map()); // Reset history when setting new resources
+
+    ydoc.transact(() => {
+      // Clear existing Y.Maps
+      yResourcesMap.forEach((yMap) => {
+        yMap.clear();
+      });
+
+      // Populate Y.Maps with new resources
+      newResources.forEach((resourceArray, nodeId) => {
+        let yMap = yResourcesMap.get(nodeId);
+        if (!yMap) {
+          yMap = new Y.Map<ResourceCard>();
+          yResourcesMap.set(nodeId, yMap);
+        }
+        resourceArray.forEach(resource => {
+          yMap.set(resource.id, resource);
+        });
+      });
+    });
+    console.log('Updated Resources State:', resources);
+    console.log('********** Leaving setResources **********');
+  }, [ydoc, yResourcesMap, resources]);
+
+  /**
+   * Transfers resources between nodes.
+   *
+   * @param sourceNodeId - The ID of the source node.
+   * @param targetNodeId - The ID of the target node.
+   * @param resourceIds - The IDs of the resources to transfer.
+   * @param command - The type of transfer: 'copy' or 'cut'.
+   */
+  const transferResource = useCallback(
+    (
+      sourceNodeId: string,
+      targetNodeId: string,
+      resourceIds: string[],
+      command: 'copy' | 'cut' = 'cut'
+    ) => {
+      const sourceResources = resources.get(sourceNodeId) || [];
+      const resourcesToTransfer = sourceResources.filter((resource) =>
+        resourceIds.includes(resource.id)
+      );
+
+      if (resourcesToTransfer.length === 0) {
+        return;
+      }
+
+      const targetCurrentResources = resources.get(targetNodeId) || [];
+
+      if (command === 'copy') {
+        // Handle copy operation: add to target without removing from source
+        const transferredResources: ResourceCard[] = resourcesToTransfer.map((resource) => ({
+          ...resource,
+          id: uuidv4(),
+          nodeId: targetNodeId,
+        }));
+
+        // Update history: add current state to past for target node
+        const operationId = generateOperationId();
+        const targetHistory = resourceHistoryMap.get(targetNodeId) || initializeNodeHistory();
+
+        const newHistoryEntry: HistoryEntry = {
+          operationId,
+          type: OperationType.Atomic,
+          primaryNodeId: targetNodeId,
+          previousState: [...targetCurrentResources],
+          newState: [...targetCurrentResources, ...transferredResources],
+        };
+
+        const updatedTargetHistory = addHistoryEntry(targetHistory, newHistoryEntry);
+        const newHistoryMap = new Map(resourceHistoryMap);
+        newHistoryMap.set(targetNodeId, updatedTargetHistory);
+        setResourceHistoryMap(newHistoryMap);
+
+        // Update Y.Map
+        ydoc.transact(() => {
+          let yMap = yResourcesMap.get(targetNodeId);
+          if (!yMap) {
+            yMap = new Y.Map<ResourceCard>();
+            yResourcesMap.set(targetNodeId, yMap);
+          }
+          transferredResources.forEach(resource => {
+            yMap.set(resource.id, resource);
+          });
+        });
+      } else if (command === 'cut') {
+        // Handle cut operation: transfer and remove from source
+        const transferredResources: ResourceCard[] = resourcesToTransfer.map((resource) => ({
+          ...resource,
+          id: uuidv4(),
+          nodeId: targetNodeId,
+        }));
+
+        // Update history for source node
+        const operationId = generateOperationId();
+        const primaryHistory = resourceHistoryMap.get(sourceNodeId) || initializeNodeHistory();
+        const secondaryHistory = resourceHistoryMap.get(targetNodeId) || initializeNodeHistory();
+
+        const primaryNewState = sourceResources.filter(
+          (resource) => !resourceIds.includes(resource.id)
+        );
+        const secondaryNewState = [...targetCurrentResources, ...transferredResources];
+
+        const binaryEntries = createBinaryCompoundEntries(
+          operationId,
+          sourceNodeId,
+          [...sourceResources],
+          primaryNewState,
+          targetNodeId,
+          [...targetCurrentResources],
+          secondaryNewState
+        );
+
+        // Update history for both nodes
+        const updatedPrimaryHistory = addHistoryEntry(primaryHistory, binaryEntries[0]);
+        const updatedSecondaryHistory = addHistoryEntry(secondaryHistory, binaryEntries[1]);
+
+        const newHistoryMap = new Map(resourceHistoryMap);
+        newHistoryMap.set(sourceNodeId, updatedPrimaryHistory);
+        newHistoryMap.set(targetNodeId, updatedSecondaryHistory);
+        setResourceHistoryMap(newHistoryMap);
+
+        // Update Y.Map
+        ydoc.transact(() => {
+          const sourceYMap = yResourcesMap.get(sourceNodeId);
+          if (sourceYMap) {
+            resourceIds.forEach(resourceId => {
+              const resource = sourceYMap.get(resourceId);
+              if (resource) {
+                // Transfer to target node
+                const newResource = { ...resource, id: uuidv4(), nodeId: targetNodeId };
+                let targetYMap = yResourcesMap.get(targetNodeId);
+                if (!targetYMap) {
+                  targetYMap = new Y.Map<ResourceCard>();
+                  yResourcesMap.set(targetNodeId, targetYMap);
+                }
+                targetYMap.set(newResource.id, newResource);
+                // Remove from source node
+                sourceYMap.delete(resourceId);
+              }
+            });
+          }
+        });
+      }
+    },
+    [resources, resourceHistoryMap, yResourcesMap, ydoc]
+  );
+
+  /**
+   * Resets all resources in the Y.Doc.
+   */
+  const resetResources = useCallback(() => {
+    setResourcesState(new Map());
+    setResourceHistoryMap(new Map());
+
+    ydoc.transact(() => {
+      yResourcesMap.forEach((yMap) => {
+        yMap.clear();
+      });
+    });
+  }, [yResourcesMap, ydoc]);
+
+  /**
+   * Retrieves all resources of a specified type.
+   *
+   * @param type - The type of resource to retrieve.
+   * @returns A map of resources categorized by node ID.
+   */
+  const getResourcesByType = useCallback(
+    (type: 'cueCard' | 'picture' | 'practiceSheet'): Map<string, ResourceCard[]> => {
+      const resourceMap = new Map<string, ResourceCard[]>();
+      resources.forEach((resourceArray, nodeId) => {
+        const filteredResources = resourceArray.filter(resource => resource.type === type);
+        if (filteredResources.length > 0) {
+          resourceMap.set(nodeId, filteredResources);
+        }
+      });
+      return resourceMap;
+    },
+    [resources]
+  );
+  /**
+   * Performs the undo operation for a specific node.
+   *
+   * @param nodeId - The ID of the node to undo.
+   */
+  const undo = useCallback(
+    (nodeId: string) => {
+      const updatedHistoryMap = new Map(resourceHistoryMap);
+      const { updatedHistoryMap: newHistoryMap, revertStates } = undoOperation(updatedHistoryMap, nodeId);
+
+      if (revertStates.size === 0) {
+        return;
+      }
+
+      setResourceHistoryMap(newHistoryMap);
+
+      // Update the resources state with the reverted states
+      setResourcesState((prev) => {
+        const updatedResources = new Map(prev);
+        revertStates.forEach((state, id) => {
+          updatedResources.set(id, state);
+        });
+        return updatedResources;
+      });
+
+      // Update Y.Map accordingly
+      ydoc.transact(() => {
+        revertStates.forEach((state, nodeId) => {
+          let yMap = yResourcesMap.get(nodeId);
+          if (!yMap) {
+            yMap = new Y.Map<ResourceCard>();
+            yResourcesMap.set(nodeId, yMap);
+          }
+          yMap.clear();
+          state.forEach(resource => {
+            yMap.set(resource.id, resource);
+          });
+        });
+      });
+    },
+    [resourceHistoryMap, yResourcesMap, ydoc]
+  );
+
+  /**
+   * Performs the redo operation for a specific node.
+   *
+   * @param nodeId - The ID of the node to redo.
+   */
+  const redo = useCallback(
+    (nodeId: string) => {
+      const updatedHistoryMap = new Map(resourceHistoryMap);
+      const { updatedHistoryMap: newHistoryMap, applyStates } = redoOperation(updatedHistoryMap, nodeId);
+
+      if (applyStates.size === 0) {
+        return;
+      }
+
+      setResourceHistoryMap(newHistoryMap);
+
+      // Update the resources state with the applied states
+      setResourcesState((prev) => {
+        const updatedResources = new Map(prev);
+        applyStates.forEach((state, id) => {
+          updatedResources.set(id, state);
+        });
+        return updatedResources;
+      });
+
+      // Update Y.Map accordingly
+      ydoc.transact(() => {
+        applyStates.forEach((state, nodeId) => {
+          let yMap = yResourcesMap.get(nodeId);
+          if (!yMap) {
+            yMap = new Y.Map<ResourceCard>();
+            yResourcesMap.set(nodeId, yMap);
+          }
+          yMap.clear();
+          state.forEach(resource => {
+            yMap.set(resource.id, resource);
+          });
+        });
+      });
+    },
+    [resourceHistoryMap, yResourcesMap, ydoc]
+  );
+
+  /**
+   * Determines if an undo action is available for a node.
+   *
+   * @param nodeId - The ID of the node.
+   * @returns True if undo is possible, otherwise false.
+   */
+  const undoAvailable = useCallback(
+    (nodeId: string) => {
+      const history = resourceHistoryMap.get(nodeId);
+      return history ? history.past.length > 0 : false;
+    },
+    [resourceHistoryMap]
+  );
+
+  /**
+   * Determines if a redo action is available for a node.
+   *
+   * @param nodeId - The ID of the node.
+   * @returns True if redo is possible, otherwise false.
+   */
+  const redoAvailable = useCallback(
+    (nodeId: string) => {
+      const history = resourceHistoryMap.get(nodeId);
+      return history ? history.future.length > 0 : false;
+    },
+    [resourceHistoryMap]
+  );
+
+
+
+  const contextValue: ResourceContextType = useMemo(() => ({
+    resources,
+    addResource,
+    addPictureResource,
+    removeResource,
+    editResource,
+    editPictureResource,
+    selectResources,
+    selectCueCards,
+    selectPictures,
+    selectPracticeSheets,
+    setResources,
+    transferResource,
+    resetResources,
+    getResourcesByType,
+    undo,
+    redo,
+    undoAvailable,
+    redoAvailable,
+    addResourcev1,
+    addPictureResourcev1,
+    removeResourcev1,
+    editResourcev1,
+    editPictureResourcev1,
+  }), [
+    resources,
+    addResource,
+    removeResource,
+    editResource,
+    selectResources,
+    selectCueCards,
+    selectPictures,
+    selectPracticeSheets,
+    setResources,
+    transferResource,
+    resetResources,
+    getResourcesByType,
+    undo,
+    redo,
+    undoAvailable,
+    redoAvailable,
+    
+  ]);
+
+  return (
+    <ResourceContext.Provider
+      value={contextValue}
+    >
+      {children}
+    </ResourceContext.Provider>
+  );
+};
+
+
+// NodesProvider.tsx
+
+/**
+ * @file NodesProvider.tsx
+ * @description
+ * Provides the Nodes context, managing ConceptNodes within the Y.Doc.
+ * Filters out system-originated updates to prevent unwanted state changes.
+ */
+
+import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
+import * as Y from 'yjs';
+import { SystemActionType } from '@/app/Library/Tests/Synchro/Centralize/SystemOriginTypes';
+
+interface NodesContextValue {
+  nodes: Map<string, ConceptNode>;
+  setNodes: (nodes: Map<string, ConceptNode>, options?: { origin?: { type: 'system'; action: SystemActionType } }) => void;
+  createNewNode: (title: string, parentNodeId: string, newNodeId: string) => void;
+  updateNodeTitle: (nodeId: string, newTitle: string) => void;
+  deleteNode: (nodeId: string) => void;
+  resetNodes: () => void;
+  initNewDocument: () => void;
+  transferNode: (sourceNodeId: string, targetNodeId: string) => void;
+  getNodeTitle: (nodeId: string) => string | null;
+}
+
+
+interface SetNodesOptions {
+  origin?: { type: 'system'; action: SystemActionType };
+}
+const NodesContext = createContext<NodesContextValue | undefined>(undefined);
+
+export const useNodesContext = () => {
+  const context = useContext(NodesContext);
+  if (!context) {
+    throw new Error('useNodesContext must be used within a NodesProvider');
+  }
+  return context;
+};
+
+export const NodesProvider = ({ children }: { children: ReactNode }) => {
+  const { ydoc } = useYDoc();
+  const yNodesMap = ydoc.getMap<ConceptNode>('nodes');
+
+  const [nodes, setNodesState] = useState<Map<string, ConceptNode>>(new Map());
+
+  useEffect(() => {
+    const loadInitialNodes = () => {
+      const initialNodes = new Map<string, ConceptNode>(yNodesMap.entries());
+      setNodesState(initialNodes);
+    };
+
+    loadInitialNodes();
+
+    const updateListener = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
+      // Ignore system-originated updates
+      if (transaction.origin?.type === 'system') {
+        console.log('[NodesProvider] Ignoring system-origin update:', transaction.origin.action);
+        return;
+      }
+
+      const updatedNodes = new Map<string, ConceptNode>(yNodesMap.entries());
+      setNodesState(updatedNodes);
+    };
+
+    yNodesMap.observeDeep(updateListener);
+
+    return () => {
+      yNodesMap.unobserveDeep(updateListener);
+    };
+  }, [yNodesMap]);
+
+  /**
+   * Sets the entire nodes map.
+   *
+   * @param nodesMap - The new nodes map.
+   */
+  const setNodes = useCallback((
+    nodesMap: Map<string, ConceptNode>, 
+    options?: SetNodesOptions
+  ) => {
+    console.log('[NodesProvider] Setting nodes with options:', options);
+    
+    ydoc.transact(() => {
+      yNodesMap.clear();
+      nodesMap.forEach((node, nodeId) => {
+        yNodesMap.set(nodeId, node);
+      });
+    }, options?.origin); // Will be undefined for user actions
+  
+    console.log('[NodesProvider] Nodes set, map size:', nodesMap.size);
+  }, [ydoc, yNodesMap]);
+
+  /**
+   * Initializes a new document with a root node.
+   *
+   * @param bloomDepth - The depth of the bloom taxonomy.
+   * @param mapWidth - The width of the map.
+   * @param mapHeight - The height of the map.
+   */
+// Update in NodesProvider.tsx
+const initNewDocument = useCallback(() => {
+  console.log('********** Entering initNewDocument **********');
+  
+  // Create root node with initial state
+  const rootNode: ConceptNode = {
+    id: 'node-1',
+    title: 'Root Concept',
+    parentNodeId: undefined,
+    childrenNodeIds: [],
+    x: 0,
+    y: 0,
+    isRoot: true,
+    depth: 0
+  };
+
+  // Use Y.js transaction to update the shared data
+  ydoc.transact(() => {
+    // Clear existing nodes
+    yNodesMap.clear();
+    
+    // Set initial root node
+    yNodesMap.set(rootNode.id, rootNode);
+    
+    // Update local state
+    setNodesState(new Map([[rootNode.id, rootNode]]));
+  }, { origin: { type: 'system', action: 'initialize' } });
+
+  console.log('Updated Nodes State:', yNodesMap);
+  console.log('********** Leaving initNewDocument **********');
+}, [ydoc, yNodesMap]);
+
+  /**
+   * Creates a new node and adds it to the Y.Doc.
+   *
+   * @param title - The title of the new node.
+   * @param parentNodeId - The ID of the parent node.
+   * @param newNodeId - The unique ID for the new node.
+   */
+  const createNewNode = useCallback((title: string, parentNodeId: string, newNodeId: string) => {
+    console.log('Calling createNewNode....')
+    const parentNode = yNodesMap.get(parentNodeId);
+    if (!parentNode) {
+      console.error(`Parent node with ID ${parentNodeId} not found.`);
+      return;
+    }
+
+    const newDepth = (parentNode.depth || 0) + 1;
+
+    const newNode: ConceptNode = {
+      id: newNodeId,
+      title: title || `Untitled Concept ${yNodesMap.size + 1}`,
+      parentNodeId: parentNodeId,
+      childrenNodeIds: [],
+      x: undefined,
+      y: undefined,
+      isRoot: false,
+      depth: newDepth,
+    };
+
+    ydoc.transact(() => {
+      yNodesMap.set(newNodeId, newNode);
+      // Update parent node's children
+      yNodesMap.set(parentNodeId, {
+        ...parentNode,
+        childrenNodeIds: [...(parentNode.childrenNodeIds || []), newNodeId],
+      });
+
+      console.log('New map:', yNodesMap);
+    });
+    console.log('Leaving createNewNode....')
+  }, [yNodesMap, ydoc]);
+
+  /**
+   * Updates a node's title within the Y.Doc.
+   *
+   * @param nodeId - The ID of the node to update.
+   * @param newTitle - The new title for the node.
+   */
+  const updateNodeTitle = useCallback((nodeId: string, newTitle: string) => {
+    const node = yNodesMap.get(nodeId);
+    if (!node) {
+      console.error(`Node with ID ${nodeId} does not exist.`);
+      return;
+    }
+
+    ydoc.transact(() => {
+      yNodesMap.set(nodeId, { ...node, title: newTitle });
+    });
+  }, [yNodesMap, ydoc]);
+
+  /**
+   * Deletes a node from the Y.Doc.
+   *
+   * @param nodeId - The ID of the node to delete.
+   */
+  const deleteNode = useCallback((nodeId: string) => {
+    console.log('********** Entering deleteNode **********');
+    console.log('Initial Nodes State:', nodes);
+    console.log('Node to Delete:', nodeId);
+    const node = yNodesMap.get(nodeId);
+    if (!node) {
+      console.error(`Delete failed: Node with ID ${nodeId} does not exist.`);
+      return;
+    }
+
+    // Prevent deletion of the root node
+    if (node.isRoot) {
+      console.error(`Delete failed: The root node cannot be deleted.`);
+      return;
+    }
+
+    // Check if the node is a leaf
+    const isLeaf = !node.childrenNodeIds || node.childrenNodeIds.length === 0;
+    if (!isLeaf) {
+      console.error(`Delete failed: Node with ID ${nodeId} is not a leaf node.`);
+      return;
+    }
+
+    const parentNodeId = node.parentNodeId;
+    if (!parentNodeId) {
+      console.error(`Delete failed: Node with ID ${nodeId} does not have a valid parent.`);
+      return;
+    }
+
+    const parentNode = yNodesMap.get(parentNodeId);
+    if (!parentNode) {
+      console.error(`Delete failed: Parent node with ID ${parentNodeId} does not exist.`);
+      return;
+    }
+
+    ydoc.transact(() => {
+      // Remove the node
+      yNodesMap.delete(nodeId);
+
+      // Update parent's children list
+      yNodesMap.set(parentNodeId, {
+        ...parentNode,
+        childrenNodeIds: parentNode.childrenNodeIds?.filter((id: string) => id !== nodeId),
+      });
+    });
+    console.log('Updated Nodes State:', nodes);
+    console.log('********** Leaving deleteNode **********');
+  }, [yNodesMap, ydoc, nodes]);
+
+  /**
+   * Transfers a node from one parent to another within the Y.Doc.
+   *
+   * @param sourceNodeId - The ID of the node to transfer.
+   * @param targetNodeId - The ID of the target parent node.
+   */
+  const transferNode = useCallback((sourceNodeId: string, targetNodeId: string) => {
+    const sourceNode = yNodesMap.get(sourceNodeId);
+    const targetNode = yNodesMap.get(targetNodeId);
+
+    if (!sourceNode || !targetNode || sourceNode.isRoot) {
+      console.error(`Transfer failed: Invalid source or target node, or attempting to transfer the root node.`);
+      return;
+    }
+
+    // Prevent merging a node into itself
+    if (sourceNodeId === targetNodeId) {
+      console.error(`Transfer failed: Cannot merge a node into itself.`);
+      return;
+    }
+
+    // Prevent merging a parent into its descendant
+    const isDescendant = (nodeId: string, potentialDescendantId: string): boolean => {
+      const node = yNodesMap.get(nodeId);
+      if (!node) return false;
+      if (node.childrenNodeIds?.includes(potentialDescendantId)) {
+        return true;
+      }
+      return node.childrenNodeIds?.some((childId: string) => isDescendant(childId, potentialDescendantId)) || false;
+    };
+
+    if (isDescendant(sourceNodeId, targetNodeId)) {
+      console.error(`Transfer failed: Cannot merge a parent node into one of its descendants.`);
+      return;
+    }
+
+    // Prevent merging a node into its current parent
+    if (sourceNode.parentNodeId === targetNodeId) {
+      console.error(`Transfer failed: Cannot merge a node into its current parent.`);
+      return;
+    }
+
+    const sourceParentId = sourceNode.parentNodeId;
+    if (!sourceParentId) {
+      console.error(`Transfer failed: Source node ${sourceNodeId} does not have a valid parent.`);
+      return;
+    }
+
+    const sourceParent = yNodesMap.get(sourceParentId);
+    if (!sourceParent) {
+      console.error(`Transfer failed: Source parent node with ID ${sourceParentId} does not exist.`);
+      return;
+    }
+
+    const newDepth = (targetNode.depth || 0) + 1;
+
+    ydoc.transact(() => {
+      // Remove the source node from its current parent's children list
+      yNodesMap.set(sourceParentId, {
+        ...sourceParent,
+        childrenNodeIds: sourceParent.childrenNodeIds?.filter((id: string) => id !== sourceNodeId),
+      });
+
+      // Update the source node's parent and depth
+      yNodesMap.set(sourceNodeId, {
+        ...sourceNode,
+        parentNodeId: targetNodeId,
+        depth: newDepth,
+      });
+
+      // Add the source node to the target node's children list
+      yNodesMap.set(targetNodeId, {
+        ...targetNode,
+        childrenNodeIds: [...(targetNode.childrenNodeIds || []), sourceNodeId],
+      });
+    });
+  }, [yNodesMap, ydoc]);
+
+  /**
+   * Resets all nodes in the Y.Doc.
+   */
+  const resetNodes = useCallback(() => {
+    ydoc.transact(() => {
+      yNodesMap.clear();
+    });
+  }, [ydoc, yNodesMap]);
+
+
+  const getNodeTitle = useCallback((nodeId: string) => {
+    const node = yNodesMap.get(nodeId);
+    return node ? node.title : null;
+  }, [yNodesMap]);
+
+  const contextValue: NodesContextValue = useMemo(() => ({
+    nodes,
+    setNodes,
+    createNewNode,
+    updateNodeTitle,
+    deleteNode,
+    resetNodes,
+    initNewDocument,
+    transferNode,
+    getNodeTitle,
+  }), [nodes, setNodes, createNewNode, updateNodeTitle, deleteNode, resetNodes, initNewDocument, transferNode, getNodeTitle]);
+
+  return (
+    <NodesContext.Provider value={contextValue}>
+      {children}
+    </NodesContext.Provider>
+  );
+};
+
+
+// NodeSelectionContext.tsx
+
+// NodeSelectionContext.tsx
+import React, { createContext, useContext, useMemo, useState } from 'react';
+
+type NodeSelectionContextType = {
+  toggleNodeSelection: (nodeId: string) => void;
+  singleSelect: (nodeId: string) => void; 
+  multiSelect: (nodeId: string, isMulti?: boolean) => void;
+  isSelected: (nodeId: string) => boolean;
+  clearSelection: () => void;
+  getSelectedNodeIds: () => string[];
+  deselectNode: (nodeId: string) => void;
+  selectNode: (nodeId: string) => void;
+  targetNodeId: string | null;
+  setTargetNodeId: (nodeId: string) => void;
+  getTargetNodeId: () => string | null;
+  focusOnSelectedNode: () => string | null;
+  getFocusNode: () => string | null;
+  mergeSource: string | null;
+  initiateMerge: (nodeId: string) => void;
+  completeMerge: (targetNodeId: string, transfer: (sourceId: string, targetId: string) => void) => void;
+  StatusMessage: string;
+  setStatusMessage: (msg: string) => void;
+  // New properties for multi-select mode:
+  multiSelectEnabled: boolean;
+  toggleMultiSelectEnabled: () => void;
+};
+
+const NodeSelectionContext = createContext<NodeSelectionContextType | undefined>(undefined);
+
+export const NodeSelectionProvider = ({ children }: { children: React.ReactNode }) => {
+  const [selectedIDs, setSelectedIDs] = useState<string[]>([]);
+  const [targetNodeId, setTargetNodeIdState] = useState<string | null>(null);
+  const [mergeSource, setMergeSource] = useState<string | null>(null);
+  const [StatusMessage, setStatusMessage] = useState('');
+  // New state: whether multi-select mode is enabled
+  const [multiSelectEnabled, setMultiSelectEnabled] = useState<boolean>(false);
+
+  const toggleNodeSelection = (nodeId: string) => {
+    setSelectedIDs((prevSelected) =>
+      prevSelected.includes(nodeId) ? prevSelected.filter((id) => id !== nodeId) : [...prevSelected, nodeId]
+    );
+  };
+
+  const isSelected = (nodeId: string) => selectedIDs.includes(nodeId);
+  const clearSelection = () => setSelectedIDs([]);
+  const getSelectedNodeIds = () => selectedIDs;
+  const deselectNode = (nodeId: string) => {
+    setSelectedIDs((prevSelected) => prevSelected.filter((id) => id !== nodeId));
+  };
+  const selectNode = (nodeId: string) => {
+    setSelectedIDs((prevSelected) => (prevSelected.includes(nodeId) ? prevSelected : [...prevSelected, nodeId]));
+  };
+
+  const singleSelect = (nodeId: string) => {
+    // Replace selection with the single node.
+    setSelectedIDs([nodeId]);
+  };
+
+  const multiSelect = (nodeId: string, isMulti: boolean = false) => {
+    if (isMulti || multiSelectEnabled) {
+      // Toggle node in the current selection.
+      setSelectedIDs((prevSelected) => {
+        if (prevSelected.includes(nodeId)) {
+          return prevSelected.filter((id) => id !== nodeId);
+        } else {
+          return [...prevSelected, nodeId];
+        }
+      });
+    } else {
+      // Not in multi-select mode: behave like singleSelect.
+      setSelectedIDs([nodeId]);
+    }
+  };
+
+  const setTargetNodeId = (nodeId: string) => {
+    setTargetNodeIdState(nodeId);
+  };
+
+  const getTargetNodeId = () => targetNodeId;
+
+  const focusOnSelectedNode = (): string | null => {
+    if (selectedIDs.length === 0) return null;
+    const lastSelectedNode = selectedIDs[selectedIDs.length - 1];
+    setSelectedIDs([lastSelectedNode]);
+    return lastSelectedNode;
+  };
+
+  const getFocusNode = (): string | null => {
+    if (selectedIDs.length === 0) return null;
+    return selectedIDs[selectedIDs.length - 1];
+  };
+
+  // --- Merge Functions (with logging) ---
+  const initiateMerge = (nodeId: string) => {
+    console.log("Invoking initiateMerge issue12: nodeId =", nodeId);
+    setMergeSource(nodeId);
+    setSelectedIDs([nodeId]);
+    console.log("Leaving initiateMerge issue12: mergeSource set to", nodeId, "selectedIDs =", [nodeId]);
+  };
+
+  const completeMerge = (targetNodeId: string, transfer: (sourceId: string, targetId: string) => void) => {
+    console.log("Invoking completeMerge issue12: mergeSource =", mergeSource, "targetNodeId =", targetNodeId);
+    if (mergeSource && mergeSource !== targetNodeId) {
+      transfer(mergeSource, targetNodeId);
+      setMergeSource(null);
+      setSelectedIDs([]);
+    }
+    console.log("Leaving completeMerge issue12: mergeSource =", mergeSource, "selectedIDs cleared");
+  };
+
+  // New method to toggle multi-select mode.
+  const toggleMultiSelectEnabled = () => {
+    setMultiSelectEnabled((prev) => !prev);
+  };
+
+  const contextValue = useMemo(
+    () => ({
+      toggleNodeSelection,
+      isSelected,
+      singleSelect,
+      multiSelect,
+      clearSelection,
+      getSelectedNodeIds,
+      deselectNode,
+      selectNode,
+      setTargetNodeId,
+      getTargetNodeId,
+      targetNodeId,
+      focusOnSelectedNode,
+      getFocusNode,
+      mergeSource,
+      initiateMerge,
+      completeMerge,
+      StatusMessage,
+      setStatusMessage,
+      multiSelectEnabled,
+      toggleMultiSelectEnabled,
+    }),
+    [isSelected, getSelectedNodeIds, StatusMessage, multiSelectEnabled]
+  );
+
+  return <NodeSelectionContext.Provider value={contextValue}>{children}</NodeSelectionContext.Provider>;
+};
+
+export const useNodeSelection = () => {
+  const context = useContext(NodeSelectionContext);
+  if (context === undefined) {
+    throw new Error('useNodeSelection must be used within a NodeSelectionProvider');
+  }
+  return context;
+};
+
+
+// FileAssetContext.tsx
+
+// contexts/FileAssetContext.tsx
+
+/**
+ * 
+ * FileAssetContext provides an interface for all application logic that deals with uploading PDF, DOC, DOCX, and text files to the frontend client for use. 
+ * This file provides methods for users to upload their files and fetch content from the backend so users can read 
+ * the content of the files they uploaded. The application uses Y.Doc to facilitate a collaborative environment. 
+ * The TextFileMessage contains a URL to the files held on the backend associated with a specific concept map document. 
+ * Any logic pertaining to uploading and managing these files is handled here, making this file the sole point of contact with the backend.
+ * 
+ */
+
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  ReactNode
+} from 'react';
+import * as Y from 'yjs';
+import { useYDoc } from './YDocContext';
+import { TextFileMessage } from '../Definitions/Definitions';
+import { v4 as uuidv4 } from 'uuid';
+
+interface FileAssetContextType {
+  files: Map<string, TextFileMessage>;
+  addFile: (file: File) => Promise<void>;
+  removeFile: (fileId: string) => Promise<void>;
+  getAllFiles: () => TextFileMessage[];
+  getFileById: (fileId: string) => TextFileMessage | undefined;
+  getFileContent: (fileId: string) => Promise<string>;
+  clearCache: (fileId: string) => void;
+}
+
+interface CachedContent {
+  content: string;
+  timestamp: number;
+}
+
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+const FileAssetContext = createContext<FileAssetContextType | undefined>(undefined);
+
+/**
+ * fetchFileContent fetches the entire content of a file from the server.
+ * For PDFs, it returns the server URL to allow client-side rendering with react-pdf.
+ * For HTML and TXT files, it fetches and returns the content as text.
+ */
+const fetchFileContent = async (serverUrl: string, fileType: TextFileMessage['type']): Promise<string> => {
+  const response = await fetch(serverUrl);
+  if (!response.ok) {
+    throw new Error('Failed to fetch file content');
+  }
+
+  if (fileType === 'pdf') {
+    // For PDFs, return the server URL to be used by react-pdf
+    return serverUrl;
+  } else {
+    // For HTML and TXT, return the content as text
+    return await response.text();
+  }
+};
+
+export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { ydoc, docFileID } = useYDoc();
+  const yFileMap = ydoc.getMap<TextFileMessage>('fileAssets');
+  const [files, setFiles] = useState<Map<string, TextFileMessage>>(new Map());
+  const contentCache = useMemo(() => new Map<string, CachedContent>(), []);
+
+  // Initialize files from Y.js on mount
+  useEffect(() => {
+    const loadInitialFiles = () => {
+      const initialFiles = new Map<string, TextFileMessage>();
+      yFileMap.forEach((file, id) => {
+        initialFiles.set(id, file);
+      });
+      setFiles(initialFiles);
+    };
+
+    loadInitialFiles();
+
+    // Subscribe to Y.js changes
+    const updateListener = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
+      if (transaction.origin?.type === 'system') {
+        return;
+      }
+
+      const updatedFiles = new Map<string, TextFileMessage>();
+      yFileMap.forEach((file, id) => {
+        updatedFiles.set(id, file);
+      });
+      setFiles(updatedFiles);
+    };
+
+    yFileMap.observeDeep(updateListener);
+    return () => yFileMap.unobserveDeep(updateListener);
+  }, [yFileMap]);
+
+  const validateFileType = useCallback((file: File): boolean => {
+    const allowedTypes = [
+      'application/pdf',
+      'text/plain',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    return allowedTypes.includes(file.type);
+  }, []);
+
+  const getMimeTypeMapping = (mimeType: string): TextFileMessage['type'] => {
+    const mapping: Record<string, TextFileMessage['type']> = {
+      'application/pdf': 'pdf',
+      'text/plain': 'txt',
+      'application/msword': 'doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx'
+    };
+    return mapping[mimeType] || 'txt';
+  };
+
+  const addFile = useCallback(async (file: File) => {
+    try {
+      if (!validateFileType(file)) {
+        throw new Error('Invalid file type. Only PDF, TXT, DOC, and DOCX files are allowed.');
+      }
+
+      const resourceID = uuidv4();
+      const localUrl = URL.createObjectURL(file);
+      const fileId = docFileID!
+      console.log('FileAssetContext is Invoking addFile.... with file id', fileId);
+
+      const localFileMessage: TextFileMessage = {
+        id: resourceID,
+        type: getMimeTypeMapping(file.type),
+        title: file.name,
+        serverUrl: localUrl, // local preview URL
+        uploadDate: new Date(),
+        size: file.size
+      };
+
+      setFiles(prev => {
+        const newMap = new Map(prev);
+        newMap.set(resourceID, localFileMessage);
+        return newMap;
+      });
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fileID', fileId);
+
+
+
+      const response = await fetch('/api/FileAssets', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to upload file');
+      }
+
+      const { size, url} = await response.json();
+
+      
+      //const serverUrl = `/api/FileAssets?id=${id}`;
+
+      // Log the serverUrl to confirm correctness
+      console.log(`File uploaded. ID: ${resourceID}, Server URL: ${url}`);
+
+      const fileMessage: TextFileMessage = {
+        id : resourceID,
+        type: getMimeTypeMapping(file.type),
+        title: file.name,
+        serverUrl: url, // Correctly set to `/api/FileAssets?id={id}`
+        uploadDate: new Date(),
+        size
+      };
+
+      ydoc.transact(() => {
+        yFileMap.set(fileMessage.id, fileMessage);
+      });
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      throw error;
+    }
+  }, [ydoc, yFileMap, validateFileType]);
+
+  const removeFile = useCallback(async (fileId: string) => {
+    try {
+      await fetch(`/api/FileAssets?id=${fileId}`, {
+        method: 'DELETE'
+      });
+
+      ydoc.transact(() => {
+        yFileMap.delete(fileId);
+      });
+
+      // Clear cached content upon file removal
+      clearCache(fileId);
+    } catch (error) {
+      console.error('Error removing file:', error);
+      throw error;
+    }
+  }, [ydoc, yFileMap]);
+
+  const getAllFiles = useCallback(() => {
+    return Array.from(files.values());
+  }, [files]);
+
+  const getFileById = useCallback((fileId: string) => {
+    return files.get(fileId);
+  }, [files]);
+
+  const getCachedContent = (fileId: string): string | null => {
+    const cachedData = contentCache.get(fileId);
+    if (!cachedData) return null;
+
+    if (Date.now() - cachedData.timestamp > CACHE_DURATION) {
+      contentCache.delete(fileId);
+      return null;
+    }
+
+    return cachedData.content;
+  };
+
+  const setCachedContent = (fileId: string, content: string) => {
+    contentCache.set(fileId, {
+      content,
+      timestamp: Date.now()
+    });
+  };
+
+  /**
+   * getFileContent fetches the entire content of a file.
+   * For PDFs, it returns the server URL.
+   * For HTML and TXT, it fetches and returns the content as text.
+   */
+  const getFileContent = useCallback(async (fileId: string): Promise<string> => {
+   /** const cached = getCachedContent(fileId);
+    if (cached) {
+      console.log(`Fetching content from cache for file ID: ${fileId}`);
+      return cached;
+    }  */
+
+    const file = files.get(fileId);
+    if (!file) throw new Error('File not found');
+
+    console.log(`Fetching content from server for file ID: ${fileId}, URL: ${file.serverUrl}`);
+
+    const content = await fetchFileContent(file.serverUrl, file.type);
+    setCachedContent(fileId, content);
+    return content;
+  }, [files, contentCache]);
+
+  const clearCache = useCallback((fileId: string) => {
+    contentCache.delete(fileId);
+    console.log(`Cache cleared for file ID: ${fileId}`);
+  }, [contentCache]);
+
+  const value = useMemo(() => ({
+    files,
+    addFile,
+    removeFile,
+    getAllFiles,
+    getFileById,
+    getFileContent,
+    clearCache,
+  }), [files, addFile, removeFile, getAllFiles, getFileById, getFileContent, clearCache]);
+
+  return (
+    <FileAssetContext.Provider value={value}>
+      {children}
+    </FileAssetContext.Provider>
+  );
+};
+
+export const useFileAsset = () => {
+  const context = useContext(FileAssetContext);
+  if (!context) {
+    throw new Error('useFileAsset must be used within FileAssetProvider');
+  }
+  return context;
+};
+
+
+// TopBar.tsx
+
+// TopBar.tsx (Updated)
+import React, { useRef, useCallback, useState, useEffect, useContext } from 'react';
+import MenuBar from '@/app/(client-ui)/MenuBar';
+import ToolBar from '@/app/(client-ui)/commandPanelLayout/Toolbar-test';
+import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
+import { useResourceContext } from '@/app/Library/Context/ResourceContext';
+import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
+import { setGetLayout, toggleResetMapSize } from '@/app/Library/Context/LayoutActions';
+import {
+  saveDocument,
+  prepareBloomDocx,
+} from '@/app/Library/utils/documentUtils';
+import {initializeNewDocument, loadDocument, loadDocumentFromDrive} from '@/app/Library/utils/LoadDocumentUtils'
+import { ColorTheme} from '@/app/Library/Definitions/Definitions';
+import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
+import { ApiContext } from '@/app/src/context/ApiContext';
+import FileSelectorModal from '@/app/Library/components/FileSelectorModal/FileSelectorModal';
+import { toast } from 'react-toastify';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
+import { useWebSocketManager } from '@/app/Library/Context/WebSocketManager'; // Hook for WebSocketManager
+import { AutoSaveManager } from '@/app/Library/utils/AutoSaveManager';
+
+interface TopBarProps {
+  handleOpenToolPane: (
+    operation: 'cut' | 'copy' | 'delete' | 'merge' | 'edit' | null,
+    sourceNodeId: string
+  ) => void;
+  openModalWithResourceType: (
+    nodeId: string | null,
+    resourceType: 'cueCard' | 'picture' | 'practiceSheet' | undefined,
+    op: 'resource' | 'node'
+  ) => void;
+  handleCloseAllModals: () => void;
+  centerScroll: () => void;
+  handleAuthButtonClick: () => void;
+}
+
+const TopBar: React.FC<TopBarProps> = ({
+  handleOpenToolPane,
+  openModalWithResourceType,
+  handleCloseAllModals,
+  centerScroll,
+  handleAuthButtonClick,
+}) => {
+  // Access necessary contexts
+
+  
+  const { clearSelection } = useNodeSelection();
+  const { colorTheme, primaryColor, backgroundColor, dispatch: colorThemeDispatch } =
+    useColorThemeContext();
+
+
+  const { dispatch: layoutDispatch } = useLayoutContext();
+
+  const { loadFromDrive, autosaveDocument, isAuthenticated } =
+    useContext(ApiContext);
+
+  // Access WebSocketManager
+  const { disconnect, connect } = useWebSocketManager();
+
+  // Access Y.Doc from YDocContext
+  const { ydoc, loadData, createNewDocument, updateDriveId, updateFileName, fileName,driveFileId,persistDoc } = useYDoc();
+
+  // State for Google Drive File Selector Modal
+  const [isFileSelectorOpen, setIsFileSelectorOpen] = useState(false);
+
+  // Ref for the hidden file input (if needed for device operations)
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+
+
+  // State to track autosave status for visual feedback
+  const [isAutosaving, setIsAutosaving] = useState<boolean>(false);
+
+
+  const autoSaveManager = useRef<AutoSaveManager | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'untracked'>('saved');
+
+  
+  useEffect(() => {
+    // Only initialize AutoSaveManager if user is authenticated
+    if (isAuthenticated) {
+      autoSaveManager.current = new AutoSaveManager(
+        ydoc,
+        async () => {
+          setSaveStatus('saving');
+          try {
+            const bloomDocx = await prepareBloomDocx(
+             persistDoc,
+              colorTheme as ColorTheme,
+              primaryColor,
+              backgroundColor,
+              fileName,
+              driveFileId
+            );
+            console.log('Entering Autosave layer using autosaveManager instance : ', autoSaveManager.current)
+  
+            const bloomDocxArrayBuffer = await bloomDocx.arrayBuffer();
+            const fileId = await autosaveDocument(bloomDocxArrayBuffer, fileName, driveFileId);
+            updateDriveId(fileId);
+            
+            setSaveStatus('saved');
+        
+            console.log('*******************Exiting Autosave layer*****************')
+          } catch (error) {
+            console.error('Autosave error:', error);
+            throw error;
+          } 
+        }
+      );
+    } else {
+      // If user is not authenticated, destroy existing AutoSaveManager
+      if (autoSaveManager.current) {
+        autoSaveManager.current.destroy();
+        autoSaveManager.current = null;
+      }
+      // Set status to untracked when not authenticated
+      setSaveStatus('untracked');
+    }
+  
+    return () => {
+      autoSaveManager.current?.destroy();
+    };
+  }, [ydoc, colorTheme, primaryColor, backgroundColor, fileName, driveFileId, autosaveDocument, updateDriveId, isAuthenticated, persistDoc]);
+
+  const getStatusText = () => {
+    if (!isAuthenticated) {
+      return 'Untracked changes';
+    }
+    switch (saveStatus) {
+      case 'saving':
+        return 'Saving changes...';
+      case 'saved':
+        return 'All changes saved to Drive';
+      case 'untracked':
+        return 'Untracked changes';
+      default:
+        return 'All changes saved to Drive';
+    }
+  };
+
+  const getStatusClassName = () => {
+    if (!isAuthenticated) {
+      return 'text-red-600 bg-red-50 px-2 py-1 rounded';
+    }
+    switch (saveStatus) {
+      case 'saving':
+        return 'text-[#333]';
+      case 'saved':
+        return 'text-[#333]';
+      case 'untracked':
+        return 'text-yellow-600';
+      default:
+        return 'text-[#333]';
+    }
+  };
+
+  /**
+   * Handler for creating a new document.
+   */
+  const handleCreateNewDocument = useCallback(async () => {
+    console.log('handleCreateNewDocument called.');
+    
+    // 1. Get WebSocket manager to disconnect first
+    disconnect();
+    
+    // 2. Reset YDoc instance before any state changes
+    
+    // 3. Clear UI state that might trigger updates
+    clearSelection();
+    handleCloseAllModals();
+
+    // 5. Initialize new document (this resets all application state)
+    console.log('Initializing new document with default setup...');
+    await initializeNewDocument(
+      createNewDocument,
+      layoutDispatch,
+      colorThemeDispatch,
+    );
+  
+
+    centerScroll();
+    layoutDispatch(toggleResetMapSize());
+    
+    
+    console.log('New document setup complete.');
+  }, [centerScroll, clearSelection, colorThemeDispatch, createNewDocument, disconnect, handleCloseAllModals, layoutDispatch]);
+
+
+  /**
+   * Handler for changing the document title.
+   */
+  const handleTitleChange = useCallback(
+    (newTitle: string) => {
+      console.log('Title change requested. New title:', newTitle);
+      if (!newTitle.trim()) {
+        updateFileName('Untitled Document');
+      } else {
+        updateFileName(newTitle);
+      }
+    },
+    [updateFileName]
+  );
+
+  /**
+   * Handler for saving the document (manual save).
+   */
+  const handleSaveDocument = useCallback(async () => {
+    console.log('Manual save requested.');
+    try {
+      await saveDocument(
+        persistDoc,
+        colorTheme as ColorTheme,
+        primaryColor,
+        backgroundColor,
+        fileName,
+        driveFileId
+      );
+      toast.success('Document saved successfully!');
+
+    } catch (error) {
+      console.error('Error saving document:', error);
+      toast.error('Failed to save the document.');
+    }
+  }, [persistDoc, colorTheme, primaryColor, backgroundColor, fileName, driveFileId]);
+
+  /**
+   * Handler for opening a document from the device.
+   */
+  const handleOpenDocument = useCallback(() => {
+    console.log('handleOpenDocument triggered. Opening file dialog...');
+    fileInputRef.current?.click();
+  }, []);
+
+
+  /**
+   * Handles saving the document to Google Drive (manual action).
+   */
+  const handleSaveToGoogleDrive = useCallback(async () => {
+    try {
+      console.log('handleSaveToGoogleDrive triggered.');
+      toast.info('Saving to Google Drive...');
+  
+ 
+      // Set initialization states to prevent WebSocket from connecting during save
+
+      // Prepare the document
+      console.log('Preparing `.bloomdocx` for Google Drive save...');
+      const bloomDocx = await prepareBloomDocx(
+        persistDoc,
+        colorTheme as ColorTheme,
+        primaryColor,
+        backgroundColor,
+        fileName,
+        driveFileId
+      );
+      const bloomDocxArrayBuffer = await bloomDocx.arrayBuffer();
+  
+      // Autosave
+      console.log('Calling autosaveDocument with fileId:', driveFileId || '(none)');
+      const fileId = await autosaveDocument(bloomDocxArrayBuffer, fileName, driveFileId);
+  
+      // Update FileContext state
+      updateDriveId(fileId);
+  
+      // Reconnect WebSocket
+      await connect();
+      console.log('WebSocket reconnected after save.');
+  
+      toast.success('File saved to Google Drive successfully!');
+    } catch (error) {
+      console.error('Error saving to Google Drive:', error);
+      toast.error('Failed to save to Google Drive.');
+    }
+  }, [persistDoc, colorTheme, primaryColor, backgroundColor, fileName, driveFileId, autosaveDocument, updateDriveId, connect]);
+
+
+    /**
+   * Handler for file input change (loading a `.bloomdocx` document) from the local device.
+   */
+    const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (file) {
+        try {
+          console.log('File selected. Loading document from device:', file.name);
+          
+          // 1. Disconnect WebSocket
+          disconnect();
+                  
+          // 2. Reset UI state
+          handleCloseAllModals();
+          clearSelection();
+          
+          // 3. Load document
+          await loadDocument(
+            file,
+            loadData,
+            colorThemeDispatch
+          );
+                  
+          // 4. Update layout and UI
+          layoutDispatch(setGetLayout(true));
+          centerScroll();
+                 
+          toast.success('Document loaded successfully!');
+        } catch (error) {
+          console.error('Error loading document:', error);
+          toast.error('Failed to load the document.');
+        } finally {
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }
+      }
+    }, [centerScroll, clearSelection, colorThemeDispatch, disconnect, handleCloseAllModals, layoutDispatch, loadData]);
+    
+  /**
+   * Handler for loading a document from Google Drive (through file selector).
+   */
+  const handleLoadFromGoogleDrive = useCallback(async (fileId: string) => {
+    try {
+      console.log('****************************LOADING FROM GOOGLE DRIVE STARTING****************************')
+      console.log('handleLoadFromGoogleDrive called. FileId:', fileId);
+      toast.info('Loading from Google Drive...');
+      
+      // 1. Disconnect WebSocket
+      disconnect();
+      
+      // 2. Load file content
+      const arrayBuffer = await loadFromDrive(fileId);
+      const loadedFileName = `${fileId}.bloomdocx`;
+      const file = new File([arrayBuffer], loadedFileName, { type: 'application/octet-stream' });
+  
+      // 3. Load document content
+      await loadDocumentFromDrive(
+        file,
+        loadData,
+        fileId,
+        colorThemeDispatch
+      );
+  
+      // 4. Update layout and UI
+      layoutDispatch(setGetLayout(true));
+      centerScroll();
+
+      console.log('****************************LOADING FROM GOOGLE DRIVE COMPLETE****************************')
+      toast.success('File loaded from Google Drive successfully!');
+    } catch (error) {
+      console.error('Error loading from Google Drive:', error);
+      toast.error('Failed to load from Google Drive.');
+    }
+  }, [centerScroll, colorThemeDispatch, disconnect, layoutDispatch, loadData, loadFromDrive]);
+  /**
+   * Opens the File Selector Modal for Google Drive operations.
+   */
+  const handleOpenFromGoogleDrive = useCallback(() => {
+    console.log('Opening file selector modal for Google Drive files...');
+    setIsFileSelectorOpen(true);
+  }, []);
+
+  /**
+   * Closes the File Selector Modal.
+   */
+  const handleCloseFileSelector = useCallback(() => {
+    console.log('Closing file selector modal...');
+    setIsFileSelectorOpen(false);
+  }, []);
+
+  /**
+   * Handles the selection of a file from the File Selector Modal.
+   */
+  const handleFileSelect = useCallback(
+    (fileId: string) => {
+      console.log('File selected from Google Drive. FileId:', fileId);
+      handleLoadFromGoogleDrive(fileId);
+      handleCloseFileSelector();
+    },
+    [handleLoadFromGoogleDrive, handleCloseFileSelector]
+  );
+
+  /**
+   * Handler for help action.
+   */
+  const handleHelp = useCallback(() => {
+    console.log('Help button clicked.');
+  }, []);
+
+
+  return (
+    <div className="border-b border-gray-200 bg-white flex flex-col">
+      {/* Hidden file input for opening documents from device */}
+      <input
+        type="file"
+        accept=".bloomdocx"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+
+      <MenuBar
+        onTitleChange={handleTitleChange}
+        onNewDocument={handleCreateNewDocument}
+        onOpenFromDevice={handleOpenDocument}
+        onSaveToDevice={handleSaveDocument}
+        onHelp={handleHelp}
+        onOpenToolPane={handleOpenToolPane}
+        openModalWithResourceType={openModalWithResourceType}
+        onAuthButtonClick={handleAuthButtonClick}
+        onSaveToDrive={handleSaveToGoogleDrive}
+        onOpenFromDrive={handleOpenFromGoogleDrive}
+      >
+       {/* Render status indicator as children of MenuBar */}
+       <div className={`status-indicator ${getStatusClassName()}`}>
+        {saveStatus === 'saving' && (
+          <svg
+            className="animate-spin h-4 w-4 mr-2 inline"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+        )}
+        {getStatusText()}
+        </div>
+      </MenuBar>
+
+      
+      <ToolBar
+        onOpenToolPane={handleOpenToolPane}
+        openModalWithResourceType={openModalWithResourceType}
+      />
+
+      <FileSelectorModal
+        isOpen={isFileSelectorOpen}
+        onClose={handleCloseFileSelector}
+        onSelect={handleFileSelect}
+      />
+    </div>
+  );
+};
+
+export default TopBar;
+/***
+ * 
+ * TAKE NOTE ! THIS FILE IS DEPRECIATED IT SIMPLY PROVIDED TO YOU TO DEMONSTRATE HOW 
+ * FILES ARE SAVED, THIS IS THE LEGACY IMPLEMENTATION THAT ONLY ALLOWED ONE MAP TO BE SAVED PER FILE
+ * THE NEW IMPLEMENTATION IS FOUND IN THE 'STUDYGRAPH' DIRECTORY
+ * 
+ * 
+ * 
+ */
+
+// LoadDocumentUtils.ts
+
+/**
+ * @file documentUtils.ts
+ * @description 
+ * Utility functions for handling document serialization, saving, loading, and initialization.
+ * These functions manage the conversion of document data to and from JSON formats,
+ * handle file operations like saving and loading .bloomdocx files,
+ * and initialize new documents with default settings.
+ * 
+ * Additionally, this file implements mode-dependent functionality to handle
+ * different behaviors when operating in 'private' mode versus 'collaborate' mode.
+ * In 'collaborate' mode, additional metadata and conflict resolution information
+ * are included to maintain data integrity across multiple users.
+ * 
+ * This ensures that the application can seamlessly switch between private and
+ * collaborative workflows without compromising on functionality or performance.
+ */
+
+import JSZip from 'jszip';
+import { resetColorTheme } from '@/app/Library/Context/colorThemeActions';
+import { toast } from 'react-toastify';
+
+
+
+/**
+ * Function to initialize a new document with default settings using system transactions.
+ * All initialization operations are wrapped in a system transaction to prevent WebSocket updates.
+ * 
+ * @param ydoc - The Y.Doc instance to initialize
+ * @param resetNode - Function to reset nodes
+ * @param initNodes - Function to initialize nodes
+ * @param layoutDispatch - Dispatch function to update layout state
+ * @param fileDispatch - Dispatch function to update file-related state
+ * @param colorThemeDispatch - Dispatch function to update color theme state
+ * @param resetSubtrees - Function to reset subtrees
+ * @param resetResources - Function to reset resources
+ * @param bloomDepth - Depth level of the bloom taxonomy
+ * @param isInitialLoad - Flag to indicate if it's the initial load
+ * @param mapWidth - Width of the map layout
+ * @param mapHeight - Height of the map layout
+ */
+export const initializeNewDocument = async (
+     createNewDocument: () => Promise<void>,  
+    layoutDispatch: React.Dispatch<any>,
+    colorThemeDispatch: React.Dispatch<any>,
+    mapWidth: number = 1800,// used to make a layout dispatch call .. can be moved up to topbar.tsx 
+    mapHeight: number = 1800 // used to make a layout dispatch call .. can be moved up to topbar.tsx 
+  ): Promise<void> => {
+        try {
+
+        await createNewDocument();
+        console.log('Starting transactional document initialization');
+  
+
+        colorThemeDispatch(resetColorTheme()); 
+        
+  
+        // Second phase: Initialize new state
+        console.log('Initializing new document state...');
+        
+        // Set map size
+        layoutDispatch({ // this can be lifted to top bar.tsx
+          type: 'SET_MAP_SIZE', 
+          payload: { 
+            mapWidth: mapWidth || 1800, 
+            mapHeight: mapHeight || 1800 
+          } 
+        });
+  
+        console.log('Document initialization completed successfully');
+        toast.success('New document initialized successfully.');
+      } catch (error) {
+        console.error('Error initializing document:', error);
+        toast.error('Failed to initialize new document');
+        throw error;
+      }
+    }
+
+/**
+ * Loads a document from Google Drive using a system transaction.
+ */
+export const loadDocumentFromDrive = async (
+  file: Blob,
+  loadData: (
+    fileName: string,
+    driveFileId: string | undefined,
+    docState: Uint8Array
+  ) => Promise<void>,
+  fileId: string,
+  colorThemeDispatch: React.Dispatch<any>
+): Promise<void> => {
+  try {
+    console.log('Starting document load from drive');
+
+    const zip = new JSZip();
+    await zip.loadAsync(file);
+
+    // 1. Load Y.doc state
+    const yjsStateFile = zip.file('document/yjsState.bin');
+    if (!yjsStateFile) {
+      throw new Error('Invalid document format: missing Y.doc state');
+    }
+    const yjsState = await yjsStateFile.async('uint8array');
+
+    // 2. Load metadata
+    const metadataFile = await zip.file('document/metadata.json')?.async('string');
+    const metadata = metadataFile ? JSON.parse(metadataFile) : { 
+      fileName: `${fileId}.bloomdocx`
+    };
+
+    // 3. Load styles
+    const stylesFile = await zip.file('document/styles.json')?.async('string');
+    if (stylesFile) {
+      const { primaryColor, backgroundColor, colorTheme } = JSON.parse(stylesFile);
+      colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: primaryColor });
+      colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: backgroundColor });
+      colorThemeDispatch({ type: 'SET_COLOR_THEME', payload: colorTheme });
+    }
+
+    // 4. Load images
+    const imageBuffers = new Map<string, ArrayBuffer>();
+    const imageFiles = Object.entries(zip.files).filter(([path]) => 
+      path.startsWith('document/images/'));
+    
+    for (const [path, file] of imageFiles) {
+      const imageId = path.split('/').pop()!;
+      const buffer = await file.async('arraybuffer');
+      imageBuffers.set(imageId, buffer);
+    }
+    
+
+    // 5. Initialize data with binary state
+    await loadData(
+      metadata.fileName,
+      fileId,  // Use provided fileId
+      yjsState
+    );
+
+    toast.success('Document loaded successfully from Drive');
+  } catch (error) {
+    console.error('Error loading document from drive:', error);
+    toast.error('Failed to load document from drive');
+    throw error;
+  }
+};
+
+/**
+ * Loads a document from local storage using a system transaction.
+ */
+// In LoadDocumentUtils.ts
+
+export const loadDocument = async (
+  file: File,
+  loadData: (
+    fileName: string,
+    driveFileId: string | undefined,
+    docState: Uint8Array
+  ) => Promise<void>,
+  colorThemeDispatch: React.Dispatch<any>
+): Promise<void> => {
+  try {
+    const zip = new JSZip();
+    const content = await zip.loadAsync(file);
+
+    // 1. Load Y.doc state directly
+    const yjsStateFile = content.file('document/yjsState.bin');
+    if (!yjsStateFile) {
+      throw new Error('Invalid document format: missing Y.doc state');
+    }
+    const yjsState = await yjsStateFile.async('uint8array');
+
+    // 2. Load metadata
+    const metadataFile = await content.file('document/metadata.json')?.async('string');
+    const metadata = metadataFile ? JSON.parse(metadataFile) : { 
+      fileName: file.name.replace(/\.bloomdocx$/, '') 
+    };
+
+    // 3. Load styles
+    const stylesFile = await content.file('document/styles.json')?.async('string');
+    if (stylesFile) {
+      const { primaryColor, backgroundColor, colorTheme } = JSON.parse(stylesFile);
+      colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: primaryColor });
+      colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: backgroundColor });
+      colorThemeDispatch({ type: 'SET_COLOR_THEME', payload: colorTheme });
+    }
+
+    // 4. Load images
+    const imageBuffers = new Map<string, ArrayBuffer>();
+    const imageFiles = Object.entries(content.files).filter(([path]) => 
+      path.startsWith('document/images/'));
+    
+    for (const [path, file] of imageFiles) {
+      const imageId = path.split('/').pop()!;
+      const buffer = await file.async('arraybuffer');
+      imageBuffers.set(imageId, buffer);
+    }
+   
+
+    // 5. Initialize data with binary state
+    await loadData(metadata.fileName, metadata.fileId, yjsState);
+
+    toast.success('Document loaded successfully');
+  } catch (error) {
+    console.error('Error loading document:', error);
+    toast.error('Failed to load the document');
+    throw error;
+  }
+};
+
+
+
+// documentUtils.ts
+
+/**
+ * @file documentUtils.ts
+ * @description 
+ * Utility functions for handling document serialization, saving, loading, and initialization.
+ * These functions manage the conversion of document data to and from JSON formats,
+ * handle file operations like saving and loading .bloomdocx files,
+ * and initialize new documents with default settings.
+ * 
+ * Additionally, this file implements mode-dependent functionality to handle
+ * different behaviors when operating in 'private' mode versus 'collaborate' mode.
+ * In 'collaborate' mode, additional metadata and conflict resolution information
+ * are included to maintain data integrity across multiple users.
+ * 
+ * This ensures that the application can seamlessly switch between private and
+ * collaborative workflows without compromising on functionality or performance.
+ */
+
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import {
+  ColorTheme,
+} from '@/app/Library/Definitions/Definitions';
+
+import * as Y from 'yjs';
+import { toast } from 'react-toastify';
+
+
+/**
+ * Function to save the document as a `.bloomdocx` file.
+ * This function saves the file to the local device and triggers the file save dialog.
+ *
+ * @param ydoc - The Y.Doc instance to encode and include in the save
+ * @param nodes - Map of ConceptNode with nodeId as key
+ * @param colorTheme - Current color theme
+ * @param primaryColor - Primary color of the theme
+ * @param backgroundColor - Background color of the theme
+ * @param fileName - Name of the document file
+ * @param cueCards - Map of CueCardResource with nodeId as key
+ * @param subtrees - Map of SubtreeData with subtreeId as key
+ * @param pictures - Map of PictureResource with nodeId as key
+ * @param practiceSheets - Map of PracticeSheetResource with nodeId as key
+ * @param fileId - Optional file identifier for collaborative documents
+ */
+export const saveDocument = async (
+  persistDoc: (local: boolean) => Uint8Array,
+  colorTheme: ColorTheme,
+  primaryColor: string,
+  backgroundColor: string,
+  fileName: string,
+  fileId?: string
+): Promise<void> => {
+  const zip = new JSZip();
+
+  try {
+    // 1. Serialize Y.doc state
+    const yUpdate = persistDoc(true);
+    zip.file('document/yjsState.bin', yUpdate);
+
+    // 2. Save color theme preferences
+    const styles = {
+      primaryColor,
+      backgroundColor,
+      colorTheme
+    };
+    zip.file('document/styles.json', JSON.stringify(styles));
+
+    // 3. Save file metadata
+    const metadata = {
+      fileName,
+      fileId
+    };
+    zip.file('document/metadata.json', JSON.stringify(metadata));
+
+    // Generate and save ZIP
+    const content = await zip.generateAsync({ type: 'blob' });
+    saveAs(content, `${fileName || 'my_document'}.bloomdocx`);
+    toast.success('Document saved successfully!');
+  } catch (error) {
+    console.error('Error saving document:', error);
+    toast.error('Failed to save the document');
+    throw error;
+  }
+}
+
+/**
+ * Prepares a `.bloomdocx` file for saving to Google Drive or local storage.
+ * The created file can then be sent to the backend where it will be routed to Google Drive.
+ * @param ydoc - The Y.Doc instance to encode and include in the save
+ * @param nodes - Map of ConceptNode with nodeId as key
+ * @param colorTheme - Current color theme
+ * @param primaryColor - Primary color of the theme
+ * @param backgroundColor - Background color of the theme
+ * @param fileName - Name of the document file
+ * @param cueCards - Map of CueCardResource with nodeId as key
+ * @param subtrees - Map of SubtreeData with subtreeId as key
+ * @param pictures - Map of PictureResource with nodeId as key
+ * @param practiceSheets - Map of PracticeSheetResource with nodeId as key
+ * @param fileId - Optional file identifier for collaborative documents
+ * @returns A `Blob` representing the `.bloomdocx` file.
+ */
+export const prepareBloomDocx = async (
+  persistDoc: (local: boolean) => Uint8Array,
+  colorTheme: ColorTheme,
+  primaryColor: string,
+  backgroundColor: string,
+  fileName: string,
+  fileId?: string
+): Promise<Blob> => {
+  const zip = new JSZip();
+
+  try {
+    // Same logic as saveDocument, but returns Blob instead of saving
+    const yUpdate = persistDoc(false);
+    zip.file('document/yjsState.bin', yUpdate);
+
+    const styles = {
+      primaryColor,
+      backgroundColor,
+      colorTheme
+    };
+    zip.file('document/styles.json', JSON.stringify(styles));
+
+    const metadata = {
+      fileName,
+      fileId
+    };
+    zip.file('document/metadata.json', JSON.stringify(metadata));
+
+    return await zip.generateAsync({ type: 'blob' });
+  } catch (error) {
+    console.error('Error preparing document:', error);
+    toast.error('Failed to prepare the document');
+    throw error;
+  }
+};
+
+// AutoSaveManager.ts
+
+// AutoSaveManager.ts
+import * as Y from 'yjs';
+import { debounce } from 'lodash';
+import { WebsocketProvider } from 'y-websocket';
+import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Configuration interface for AutoSaveManager
+ */
+interface AutoSaveConfig {
+  guaranteedSaveInterval: number;  // Maximum time between saves if changes exist
+  inactivitySaveDelay: number;    // Time to wait after last change before saving
+}
+
+/**
+ * Manages automatic saving of Y.js documents with protection against concurrent saves
+ * and proper handling of local vs. remote changes.
+ */
+export class AutoSaveManager {
+  private ydoc: Y.Doc;
+  private config: AutoSaveConfig;
+  private lastSaveTime: number = 0;
+  private hasUntrackedChanges: boolean = false;
+  private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+  private guaranteedSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private saveCallback: () => Promise<void>;
+  private isAutosaving: boolean = false;
+  private savePromise: Promise<void> | null = null;
+  private nodesObserver: ((event: Y.YMapEvent<any>) => void) | null = null;
+  private resourcesObserver: ((event: Y.YMapEvent<any>) => void) | null = null;
+  private id: string;
+
+  /**
+   * Named handler for Y.Doc updates
+   */
+  private handleYdocUpdate = (update: Uint8Array, origin: any) => {
+    // Ignore updates from WebsocketProvider, 'autosave', and system actions
+    if (
+      origin instanceof WebsocketProvider ||
+      origin === 'autosave' ||
+      (origin && typeof origin === 'object' && origin.type === 'system')
+    ) {
+      console.log('[AutoSaveManager] Ignoring update from origin:', origin);
+      return;
+    }
+
+    const hasActualChanges = update.length > 0;
+    console.log('[AutoSaveManager] Update detected:', {
+      updateSize: update.length,
+      hasActualChanges,
+      origin: origin
+    });
+
+    if (hasActualChanges) {
+      this.handleLocalChange();
+    }
+  };
+
+  /**
+   * Creates a new AutoSaveManager instance
+   * @param ydoc - The Y.js document to monitor
+   * @param saveCallback - Function to call when saving is needed
+   * @param config - Optional configuration overrides
+   */
+  constructor(
+    ydoc: Y.Doc, 
+    saveCallback: () => Promise<void>,
+    config: Partial<AutoSaveConfig> = {}
+  ) {
+    this.ydoc = ydoc;
+    this.saveCallback = saveCallback;
+    this.config = {
+      guaranteedSaveInterval: 60000, // 1 minute
+      inactivitySaveDelay: 3000,    // 10 seconds
+      ...config
+    };
+
+    this.id = uuidv4();
+
+    this.setupObservers();
+    this.setupBeforeUnloadHandler();
+  }
+
+  /**
+   * Sets up observers for Y.js document changes
+   * Monitors both document-level updates and specific shared types
+   */
+  private setupObservers(): void {
+    console.log(`[AutoSaveManager ${this.id}] Setting up observers`);
+
+    // Attach the named handler
+    this.ydoc.on('update', this.handleYdocUpdate);
+
+    const nodesMap = this.ydoc.getMap('nodes');
+    const resourcesMap = this.ydoc.getMap('resources');
+
+    // Keep observers just for logging purposes but don't trigger saves
+    this.nodesObserver = (event: Y.YMapEvent<any>) => {
+      const hasChanges = event.changes.keys.size > 0 || 
+                        event.changes.delta.length > 0;
+      if (hasChanges) {
+        console.log('[AutoSaveManager] Nodes map changed');
+      }
+    };
+
+    this.resourcesObserver = (event: Y.YMapEvent<any>) => {
+      const hasChanges = event.changes.keys.size > 0 || 
+                        event.changes.delta.length > 0;
+      if (hasChanges) {
+        console.log('[AutoSaveManager] Resources map changed');
+      }
+    };
+
+    nodesMap.observe(this.nodesObserver);
+    resourcesMap.observe(this.resourcesObserver);
+  }
+
+  /**
+   * Sets up handler for page unload events to ensure changes are saved
+   */
+  private setupBeforeUnloadHandler(): void {
+    const beforeUnloadHandler = async (event: BeforeUnloadEvent) => {
+      if (this.hasUntrackedChanges) {
+        event.preventDefault();
+        event.returnValue = '';
+        
+        try {
+          await this.forceSave();
+        } catch (error) {
+          console.error('[AutoSaveManager] Failed to save before unload:', error);
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', beforeUnloadHandler);
+
+    // Store reference for removal
+    this.beforeUnloadHandler = beforeUnloadHandler;
+  }
+
+  // Store the beforeUnloadHandler to remove it later
+  private beforeUnloadHandler: ((event: BeforeUnloadEvent) => void) | null = null;
+
+  /**
+   * Handles local changes to the document
+   * Manages save timers and change tracking
+   */
+  private handleLocalChange(): void {
+    if (!this.isAutosaving) {
+      console.log('[AutoSaveManager] Local change detected, initiating save timers');
+      this.hasUntrackedChanges = true;
+      this.resetInactivityTimer();
+      this.ensureGuaranteedSaveTimer();
+    } else {
+      console.log('[AutoSaveManager] Save in progress, change tracking deferred');
+    }
+  }
+
+  /**
+   * Resets the inactivity timer with debouncing
+   * Saves after a period of inactivity
+   */
+  private resetInactivityTimer = debounce(async (): Promise<void> => {
+    if (this.inactivityTimer) {
+      clearTimeout(this.inactivityTimer);
+    }
+
+    this.inactivityTimer = setTimeout(async () => {
+      if (this.hasUntrackedChanges && !this.isAutosaving) {
+        console.log('Inactivity threshold reached attempting save.....')
+        await this.save();
+      }
+    }, this.config.inactivitySaveDelay);
+  }, 100);
+
+  /**
+   * Ensures the guaranteed save timer is running
+   * Forces a save after maximum interval if changes exist
+   */
+  private ensureGuaranteedSaveTimer(): void {
+    if (!this.guaranteedSaveTimer) {
+      this.guaranteedSaveTimer = setTimeout(async () => {
+        if (this.hasUntrackedChanges && !this.isAutosaving) {
+          console.log('Guaranteed save threshold reached attempting save.....')
+          await this.save();
+        }
+        this.guaranteedSaveTimer = null;
+      }, this.config.guaranteedSaveInterval);
+    }
+  }
+
+  /**
+   * Performs the actual save operation with concurrency protection
+   */
+  private async save(): Promise<void> {
+    console.log('[AutoSaveManager] Save requested:', {
+      hasUntrackedChanges: this.hasUntrackedChanges,
+      isAutosaving: this.isAutosaving,
+      lastSaveTime: this.lastSaveTime,
+      timeSinceLastSave: Date.now() - this.lastSaveTime
+    });
+
+    // Return existing promise if save is in progress
+    if (this.isAutosaving) {
+      console.log('[AutoSaveManager] Save already in progress, waiting...');
+      return this.savePromise || Promise.resolve();
+    }
+
+    if (!this.hasUntrackedChanges) {
+      console.log('[AutoSaveManager] No untracked changes, skipping save');
+      return Promise.resolve();
+    }
+
+    try {
+      this.isAutosaving = true;
+      this.savePromise = (async () => {
+        try {
+          await this.saveCallback();
+          this.lastSaveTime = Date.now();
+          this.hasUntrackedChanges = false;
+          this.clearTimers();
+        } finally {
+          this.isAutosaving = false;
+          this.savePromise = null;
+          console.log('AutoSave completed exiting save.....');
+        }
+      })();
+
+      return this.savePromise;
+    } catch (error) {
+      console.error('[AutoSaveManager] Save failed:', error);
+      this.isAutosaving = false;
+      this.savePromise = null;
+      throw error;
+    }
+  }
+
+  /**
+   * Forces an immediate save if there are untracked changes
+   */
+  public async forceSave(): Promise<void> {
+    if (this.hasUntrackedChanges || this.isAutosaving) {
+      return this.save();
+    }
+  }
+
+  /**
+   * Cleans up all active timers
+   */
+  private clearTimers(): void {
+    if (this.inactivityTimer) {
+      clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = null;
+    }
+    if (this.guaranteedSaveTimer) {
+      clearTimeout(this.guaranteedSaveTimer);
+      this.guaranteedSaveTimer = null;
+    }
+  }
+
+  /**
+   * Cleans up resources when the manager is destroyed
+   */
+  public destroy(): void {
+    console.log('[AutoSaveManager] Destroying instance');
+    this.clearTimers();
+    
+    if (this.ydoc) {
+      // Properly remove the named handler
+      this.ydoc.off('update', this.handleYdocUpdate);
+      
+      const nodesMap = this.ydoc.getMap('nodes');
+      const resourcesMap = this.ydoc.getMap('resources');
+      
+      // Properly unregister observers
+      if (this.nodesObserver) {
+        nodesMap.unobserve(this.nodesObserver);
+      }
+      if (this.resourcesObserver) {
+        resourcesMap.unobserve(this.resourcesObserver);
+      }
+    }
+    
+    if (this.beforeUnloadHandler) {
+      window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+      this.beforeUnloadHandler = null;
+    }
+  }
+}
+
+

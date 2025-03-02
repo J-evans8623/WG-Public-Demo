@@ -14,6 +14,7 @@ interface CreateResourceParams {
   content?: any; // For cue cards or notes
   image?: File;  // For picture resources
   description?: any; // For picture resources
+  mapId?:string;
 }
 
 // Utility function to map the CardDisplay type to the resource type used by ResourceContext.
@@ -44,7 +45,8 @@ const useCardCrudOperations = () => {
       }
       await addPictureResourcev1(
         { nodeId: params.nodeId, title: params.title, description: params.description },
-        params.image
+        params.image,
+        params.mapId
       );
       console.log('Image saved...')
     } else {
@@ -55,7 +57,7 @@ const useCardCrudOperations = () => {
         type: mappedType,
         title: params.title,
         content: params.content,
-      });
+      }, params.mapId);
     }
   };
 

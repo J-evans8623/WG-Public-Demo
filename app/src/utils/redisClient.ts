@@ -1,6 +1,5 @@
 // /server/utils/redisClient.ts
 
-import { createClient } from 'redis';
 import { getRedisConfig } from './redisConfig';
 import Redis from 'ioredis';
 

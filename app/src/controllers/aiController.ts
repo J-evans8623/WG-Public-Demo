@@ -1,20 +1,33 @@
 /**
- * controllers/aiController.ts
+ * aiController.ts
+ *
+ * This controller handles AI operations including lesson generation, quiz generation,
+ * question handling, and topic generation.
+ *
+ * Newly added: handleQuizTool – Implements the specialized quiz generation pipeline.
+ *
+ * Responsibilities of handleQuizTool:
+ *  1. Extracts from the request body:
+ *      - topicIds: Array of selected concept node IDs.
+ *      - quizTypes: Array of quiz types (supported values: multipleChoice, matching, FIB, true-false).
+ *      - includeDocs: Boolean flag for using uploaded document context.
+ *      - fileID, summary, summaryPresent, mapID, exportData.
+ *  2. If includeDocs is true, calls getTextContext(exportData, fileID) to retrieve additional context.
+ *  3. Constructs a final prompt that includes the export data, additional context (if any), and the quiz types.
+ *  4. Selects the appropriate JSON schema and system prompt based on the quiz type(s).
+ *  5. Invokes the AI service’s generateStructuredOutput and returns the structured quiz.
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import AIService from "../services/aiService";
 import { lessonPrompt, predefinedPrompts } from "../config/predefined-prompts";
 import OpenAIClient from "../config/openai";
-import { lessonSchema } from "../schemas/lessonSchema";
+import { lessonSchema, topicSchema } from "../schemas/lessonSchema";
 import { MatchingQuizSchema, MultipleChoiceSchema, FillInBlankSchema, TrueFalseSchema } from "../schemas/quizSchema";
-import pdfParse from "pdf-parse";
-import fs from "fs";
-import { IStructuredQuizResponse } from "../ai-definitions/Definitions";
-import { getLessonModule } from "../services/TextPreprocessing/LessonModuleService";
+import { getLessonModule } from "../services/TextPreprocessing/LessonModuleServicev1";
+import { getTextContext } from '@/app/src/services/TextPreprocessing/QuestionContextService';
+import { QAschema } from '@/app/src/schemas/QASchema';
 
-
-// Define standardized quiz types that match the frontend enum
 enum StandardQuizType {
   MULTIPLE_CHOICE = 'multipleChoice',
   MATCHING = 'matching',
@@ -25,196 +38,213 @@ enum StandardQuizType {
 class AIController {
   private static aiService: AIService | null = null;
 
+  // Returns a singleton AIService instance.
   private static getAIService(): AIService {
     if (!this.aiService) {
+      console.log('[AIController] Initializing AI Service');
       const openaiClient = OpenAIClient.getClient();
       this.aiService = new AIService(openaiClient);
     }
     return this.aiService;
   }
 
-  private static async extractText(req: NextApiRequest): Promise<string> {
-    if (req.file) {
-      const pdfBuffer = await fs.promises.readFile(req.file.path);
-      const pdfData = await pdfParse(pdfBuffer);
-      return pdfData.text.trim();
-    }
-    return req.body.text;
-  }
-
-  private static addStandardQuizType(response: IStructuredQuizResponse, quizType: StandardQuizType): IStructuredQuizResponse {
-    return {
-      ...response,
-      quizType // Add the standardized quiz type to the response
-    };
-  }
-
   public static async generateLesson(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
-      console.log("Lesson generation request received:", req.body);
+      console.log('[AIController] generateLesson called with body:', req.body);
       const { documentID, moduleID } = req.body;
-
       if (!documentID || !moduleID) {
         res.status(400).json({ error: "Missing documentID or moduleID" });
         return;
       }
-
       const lessonModuleRecord = await getLessonModule(documentID, moduleID);
+      console.log('[AIController] Retrieved lesson module record:', lessonModuleRecord);
       if (!lessonModuleRecord) {
         res.status(404).json({ error: "Lesson module not found" });
         return;
       }
-
-      // Step 3: Concatenate text segments.
-      // Step 4: Extract precomputed metadata from the first segment.
-      // Step 5: Construct a dynamic lesson prompt.
-      const aggregatedText = lessonModuleRecord.textChunk;
-      const topic = lessonModuleRecord.topic;
-      const subtopics = lessonModuleRecord.subtopics;
-      const dynamiclessonPrompt = lessonPrompt(topic, subtopics);
-
-      
+      const aggregatedText = lessonModuleRecord.original_text;
+      const curriculumMetadata = lessonModuleRecord.metadata; 
+      const dynamiclessonPrompt = lessonPrompt(curriculumMetadata, 'humanities');
       const aiService = AIController.getAIService();
-      
-      console.log("AI Service initialized");
-      
-
-      // Step 6: Call the AI service to generate the lesson using the aggregated text and dynamic prompt.
-      const structuredResponse = (await aiService.generateStructuredOutput(
+      console.log('[AIController] Calling generateStructuredOutput for lesson with dynamic prompt:', dynamiclessonPrompt);
+      const structuredResponse = await aiService.generateStructuredOutput(
         lessonSchema,
         `[start of user input]${aggregatedText}[end of user input]`,
         dynamiclessonPrompt,
-      ));
-
-      // Step 7: Return the generated lesson.
+      );
+      console.log('[AIController] Lesson generation structured response:', structuredResponse);
       res.status(200).json(structuredResponse);
     } catch (error) {
-      console.error("Error in generateLesson:", error);
+      console.error("[AIController] Error in generateLesson:", error);
       res.status(500).json({ error: "Failed to generate structured lesson." });
     }
   }
 
-  public static async generateQuiz_multipleChoice(req: NextApiRequest, res: NextApiResponse): Promise<void> {
+  public static async handleQuestion(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
-      const text = await AIController.extractText(req);
-      if (!text) {
-        res.status(400).json({ error: "Invalid input. Text or a valid PDF is required." });
+      console.log("[AIController] handleQuestion called with body:", req.body);
+      const { question, moduleID, summary, summaryPresent, textSelection, fileID } = req.body;
+      if (!question || !moduleID || !fileID) {
+        res.status(400).json({ error: "Missing question, moduleID, or fileID" });
         return;
       }
-
+      let combinedInput = question;
+      if (textSelection && typeof textSelection === 'string' && textSelection.trim().length > 0) {
+        combinedInput += " " + textSelection.trim();
+      }
+      console.log("[AIController] Combined input for QA:", combinedInput);
+      let retrievedContext = "";
+      if (summaryPresent === true) {
+        retrievedContext = await getTextContext(combinedInput, fileID);
+        console.log("[AIController] Retrieved additional context:", retrievedContext);
+      }
+      let finalPrompt = question;
+      if (summary && typeof summary === 'string' && summary.trim().length > 0) {
+        finalPrompt += "\nSummary: " + summary.trim();
+      }
+      if (retrievedContext && retrievedContext.trim().length > 0) {
+        finalPrompt += "\nContext: " + retrievedContext.trim();
+      }
+      console.log("[AIController] Final prompt for QA:", finalPrompt);
+      const systemPrompt = predefinedPrompts['QApipeline'];
+      console.log("[AIController] Using system prompt for QA:", systemPrompt);
       const aiService = AIController.getAIService();
-      const quizPrompt = predefinedPrompts['multipleChoice'];
-      
-
       const structuredResponse = await aiService.generateStructuredOutput(
-        MultipleChoiceSchema,
-        text,
-        "quiz_schema"
+        QAschema,
+        finalPrompt,
+        systemPrompt
       );
-
-      // Add the standardized quiz type before sending the response
-      const standardizedResponse = AIController.addStandardQuizType(
-        structuredResponse, 
-        StandardQuizType.MULTIPLE_CHOICE
-      );
-
-      res.status(200).json(standardizedResponse);
+      console.log("[AIController] QA structured response:", structuredResponse);
+      res.status(200).json(structuredResponse);
     } catch (error) {
-      console.error("Error in generateQuiz_multipleChoice:", error);
-      res.status(500).json({ error: "Failed to generate multiple choice quiz." });
+      console.error("[AIController] Error in handleQuestion:", error);
+      res.status(500).json({ error: "Failed to generate answer for the question." });
     }
   }
 
-  public static async generateQuiz_trueFalse(req: NextApiRequest, res: NextApiResponse): Promise<void> {
+  public static async handleTopicGeneration(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
-      const text = await AIController.extractText(req);
-      if (!text) {
-        res.status(400).json({ error: "Invalid input. Text or a valid PDF is required." });
+      console.log("[AIController] handleTopicGeneration called with body:", req.body);
+      const { userTopicRequest, exportData, moduleID, summary, summaryPresent, fileID } = req.body;
+      if (!userTopicRequest || !moduleID || !fileID) {
+        res.status(400).json({ error: "Missing required fields: userTopicRequest, moduleID, or fileID" });
         return;
       }
-
+      // Retrieve additional context based on the user's topic request.
+      const retrievedContext = await getTextContext(userTopicRequest, fileID);
+      console.log("[AIController] Retrieved context for topic generation:", retrievedContext);
+      // Construct final prompt.
+      let finalPrompt = "User Topic Request: " + userTopicRequest;
+      finalPrompt += "\nUpload: " + exportData;
+      finalPrompt += "\nContext: " + retrievedContext;
+      console.log("[AIController] Final prompt for topic generation:", finalPrompt);
+      const systemPrompt = predefinedPrompts['ExploreTopic'];
+      console.log("[AIController] Using system prompt for topic generation:", systemPrompt);
       const aiService = AIController.getAIService();
-      const quizPrompt = predefinedPrompts['trueFalse'];
-      
-
       const structuredResponse = await aiService.generateStructuredOutput(
-        TrueFalseSchema,
-        text,
-        "quiz_schema"
+        topicSchema,
+        finalPrompt,
+        systemPrompt
       );
-
-      // Add the standardized quiz type before sending the response
-      const standardizedResponse = AIController.addStandardQuizType(
-        structuredResponse, 
-        StandardQuizType.TRUE_FALSE
-      );
-
-      res.status(200).json(standardizedResponse);
+      console.log("[AIController] Topic generation structured response:", structuredResponse);
+      res.status(200).json(structuredResponse);
     } catch (error) {
-      console.error("Error in generateQuiz_trueFalse:", error);
-      res.status(500).json({ error: "Failed to generate true/false quiz." });
+      console.error("[AIController] Error in handleTopicGeneration:", error);
+      res.status(500).json({ error: "Failed to generate topic." });
     }
   }
 
-  public static async generateQuiz_fillInBlank(req: NextApiRequest, res: NextApiResponse): Promise<void> {
+  /**
+   * handleQuizTool
+   *
+   * Processes specialized quiz generation requests from the Quiz Tool.
+   * It extracts the following fields from the request body:
+   *   - topicIds: string[] (selected concept node IDs)
+   *   - quizTypes: string[] (supported values: multipleChoice, matching, FIB, true-false)
+   *   - includeDocs: boolean
+   *   - fileID, summary, summaryPresent, mapID, exportData: exported study data
+   *
+   * Based on the includeDocs flag:
+   *   - If true: Calls getTextContext on exportData to retrieve additional document context.
+   *   - If false: Uses exportData directly.
+   *
+   * Constructs a final prompt including the export data, additional context (if any),
+   * and a note of the selected quiz types.
+   *
+   * Then selects an appropriate JSON schema and system prompt based on the quiz type.
+   * Finally, calls generateStructuredOutput and returns the structured quiz response.
+   */
+  public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
-      const text = await AIController.extractText(req);
-      if (!text) {
-        res.status(400).json({ error: "Invalid input. Text or a valid PDF is required." });
+      console.log("[AIController] handleQuizTool called with body:", req.body);
+      const {
+        topicIds,
+        quizTypes,
+        includeDocs,
+        fileID,
+        summary,
+        summaryPresent,
+        mapID,
+        exportData
+      } = req.body;
+
+      if (!topicIds || !quizTypes || !fileID || !mapID || !exportData) {
+        res.status(400).json({ error: "Missing required fields for quiz generation." });
         return;
       }
 
-      const aiService = AIController.getAIService();
-      const quizPrompt = predefinedPrompts['fillInBlank'];
-      
-
-      const structuredResponse = await aiService.generateStructuredOutput(
-        FillInBlankSchema,
-        text,
-        "quiz_schema"
-      );
-
-      // Add the standardized quiz type before sending the response
-      const standardizedResponse = AIController.addStandardQuizType(
-        structuredResponse, 
-        StandardQuizType.FILL_IN_BLANK
-      );
-
-      res.status(200).json(standardizedResponse);
-    } catch (error) {
-      console.error("Error in generateQuiz_fillInBlank:", error);
-      res.status(500).json({ error: "Failed to generate fill in the blank quiz." });
-    }
-  }
-
-  public static async generateQuiz_matching(req: NextApiRequest, res: NextApiResponse): Promise<void> {
-    try {
-      const text = await AIController.extractText(req);
-      if (!text) {
-        res.status(400).json({ error: "Invalid input. Text or a valid PDF is required." });
-        return;
+      // Determine additional context if includeDocs is true.
+      let additionalContext = "";
+      if (includeDocs === true) {
+        additionalContext = await getTextContext(exportData, fileID);
+        console.log("[AIController] Additional context retrieved:", additionalContext);
       }
 
+      // Construct the final prompt.
+      // It always includes the export data and the quiz types.
+      let finalPrompt = "Export: " + exportData;
+      if (includeDocs === true && additionalContext.trim().length > 0) {
+        finalPrompt += "\nContext: " + additionalContext;
+      }
+      finalPrompt += "\nQuiz Types: " + quizTypes.join(", ");
+      console.log("[AIController] Final prompt for quiz generation:", finalPrompt);
+
+      // Mapping for system prompts and schemas.
+      const quizTypeMapping: { [key: string]: { promptKey: string, schema: any } } = {
+        "multipleChoice": { promptKey: "multipleChoice", schema: MultipleChoiceSchema },
+        "matching": { promptKey: "matching", schema: MatchingQuizSchema },
+        "FIB": { promptKey: "fillInBlank", schema: FillInBlankSchema },
+        "true-false": { promptKey: "trueFalse", schema: TrueFalseSchema }
+      };
+
+      let chosenSchema = MultipleChoiceSchema;
+      let systemPrompt = "";
+
+      if (quizTypes.length === 1) {
+        const mapping = quizTypeMapping[quizTypes[0]];
+        if (mapping) {
+          chosenSchema = mapping.schema;
+          systemPrompt = predefinedPrompts[mapping.promptKey] || "";
+        } else {
+          systemPrompt = "Generate a quiz based on the provided content.";
+        }
+      } else {
+        // If multiple quiz types are selected, use a composite prompt.
+        systemPrompt = "Generate a composite quiz that includes the following types: " + quizTypes.join(", ");
+      }
+      console.log("[AIController] Using system prompt:", systemPrompt);
+
       const aiService = AIController.getAIService();
-      const quizPrompt = predefinedPrompts['matching'];
-      
-
       const structuredResponse = await aiService.generateStructuredOutput(
-        MatchingQuizSchema,
-        text,
-        "quiz_schema"
+        chosenSchema,
+        finalPrompt,
+        systemPrompt
       );
-
-      // Add the standardized quiz type before sending the response
-      const standardizedResponse = AIController.addStandardQuizType(
-        structuredResponse, 
-        StandardQuizType.MATCHING
-      );
-
-      res.status(200).json(standardizedResponse);
+      console.log("[AIController] Quiz generation structured response:", structuredResponse);
+      res.status(200).json(structuredResponse);
     } catch (error) {
-      console.error("Error in generateQuiz_matching:", error);
-      res.status(500).json({ error: "Failed to generate matching quiz." });
+      console.error("[AIController] Error in handleQuizTool:", error);
+      res.status(500).json({ error: "Failed to generate quiz." });
     }
   }
 }

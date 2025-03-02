@@ -1,174 +1,99 @@
-/**
- * @file MapRenderer.tsx
- * @description Renders the map view including the root node and its subtrees.
- */
-
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
-import ConceptNode from './ConceptNode';
-import Subtree from './Subtree';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
 import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
+import ConceptNode from './ConceptNode';
+import Subtree from './Subtree';
+import '@/app/studygraph/(studygraph)/components/layout/hiddenScrollbar.css';
+import '@/app/studygraph/(studygraph)/components/layout/mapTheme.css'
 
 interface MapRendererProps {
   viewportRef: React.RefObject<HTMLDivElement>;
 }
 
 const MapRenderer: React.FC<MapRendererProps> = ({ viewportRef }) => {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-
+  const scrollableRef = useRef<HTMLDivElement>(null);
   const { zoomLevel } = useZoomContext();
   const { nodes } = useNodesContext();
-  const { subtrees, getTotalSubtreeWidths, getMaxSubtreeHeight } = useSubTreeContext();
-
-  //––– Note: All “base” numbers have been scaled by 0.75.
-  const [isPanning, setIsPanning] = useState(false);
-  const [panPosition, setPanPosition] = useState({ x: 243.75, y: 150 });
-  const [startPan, setStartPan] = useState({ x: 0, y: 0 });
-
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [initialRootPosition, setInitialRootPosition] = useState<{ x: number; y: number } | null>(null);
+  const { subtrees } = useSubTreeContext();
 
   const laidOutNodes = useCompositeLayout(nodes);
   const rootNode = Array.from(nodes.values()).find((node) => node.isRoot);
 
-  const SVGcontentWidth = getTotalSubtreeWidths();
-  const SVGcontentHeight = getMaxSubtreeHeight();
+  const { minX, maxX, minY, maxY } = useMemo(() => {
+    let minX_ = Infinity,
+      maxX_ = -Infinity;
+    let minY_ = Infinity,
+      maxY_ = -Infinity;
 
-  const centerMapOnRoot = useCallback(() => {
-    const BASE_OFFSET = { x: 243.75, y: 150 };
-    console.log(`Zoom level :${zoomLevel}`);
-    if (!viewportRef.current) return;
+    subtrees.forEach((subtree) => {
+      if (!subtree.position) return;
+      const left = subtree.position.x;
+      const right = subtree.position.x + subtree.width;
+      const top = subtree.position.y;
+      const bottom = subtree.position.y + subtree.height;
+      if (left < minX_) minX_ = left;
+      if (right > maxX_) maxX_ = right;
+      if (top < minY_) minY_ = top;
+      if (bottom > maxY_) maxY_ = bottom;
+    });
 
-    const viewportRect = viewportRef.current.getBoundingClientRect();
-    const viewportCenter = {
-      x: viewportRect.left + window.scrollX + viewportRect.width / 2,
-      y: viewportRect.top + window.scrollY + viewportRect.height / 2,
-    };
+    laidOutNodes.forEach((node) => {
+      if (node.x != null && node.y != null) {
+        if (node.x < minX_) minX_ = node.x;
+        if (node.x > maxX_) maxX_ = node.x;
+        if (node.y < minY_) minY_ = node.y;
+        if (node.y > maxY_) maxY_ = node.y;
+      }
+    });
 
-    let currentRootCenter;
-    if (rootRef.current) {
-      const currentRect = rootRef.current.getBoundingClientRect();
-      currentRootCenter = {
-        x: currentRect.left + window.scrollX + currentRect.width / 2,
-        y: currentRect.top + window.scrollY + currentRect.height / 2,
-      };
-    } else {
-      currentRootCenter = {
-        x: viewportCenter.x - (BASE_OFFSET.x / 2),
-        y: viewportCenter.y - (BASE_OFFSET.y / 2),
-      };
-    }
+    if (minX_ === Infinity) minX_ = 0;
+    if (maxX_ === -Infinity) maxX_ = 0;
+    if (minY_ === Infinity) minY_ = 0;
+    if (maxY_ === -Infinity) maxY_ = 0;
 
-    if (!initialRootPosition) {
-      setInitialRootPosition(currentRootCenter);
-      const dx = viewportCenter.x - currentRootCenter.x;
-      const dy = viewportCenter.y - currentRootCenter.y;
-      setPanPosition({ x: BASE_OFFSET.x + dx, y: BASE_OFFSET.y + dy });
-      return;
-    }
+    return { minX: minX_, maxX: maxX_, minY: minY_, maxY: maxY_ };
+  }, [laidOutNodes, subtrees]);
 
-    const dx = initialRootPosition.x - currentRootCenter.x;
-    const dy = initialRootPosition.y - currentRootCenter.y;
-    setPanPosition(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-  }, [viewportRef, initialRootPosition]);
-
-  const centerMapInViewport = useCallback(() => {
-    if (!viewportRef.current) return;
-    const viewportRect = viewportRef.current.getBoundingClientRect();
-    const viewportAbsolute = {
-      top: viewportRect.top + window.scrollY,
-      left: viewportRect.left + window.scrollX,
-      width: viewportRect.width,
-      height: viewportRect.height,
-    };
-    const viewportCenter = {
-      x: viewportAbsolute.left + viewportAbsolute.width / 2,
-      y: viewportAbsolute.top + viewportAbsolute.height / 2,
-    };
-
-    const intrinsicCenter = {
-      x: SVGcontentWidth ? SVGcontentWidth / 2 : 243.75,
-      y: SVGcontentHeight ? SVGcontentHeight / 2 : 150,
-    };
-
-    const newPanPosition = {
-      x: viewportCenter.x - intrinsicCenter.x * zoomLevel,
-      y: viewportCenter.y - intrinsicCenter.y * zoomLevel,
-    };
-
-    setPanPosition(newPanPosition);
-  }, [viewportRef, SVGcontentWidth, SVGcontentHeight, zoomLevel]);
-
-  useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-    const handleCenterMap = () => centerMapOnRoot();
-    viewport.addEventListener('centerMap', handleCenterMap);
-    return () => viewport.removeEventListener('centerMap', handleCenterMap);
-  }, [centerMapOnRoot, viewportRef]);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0 && mapRef.current) {
-      e.preventDefault();
-      setIsPanning(true);
-      setStartPan({
-        x: e.clientX - panPosition.x,
-        y: e.clientY - panPosition.y,
-      });
-      mapRef.current.style.cursor = 'grabbing';
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning) {
-      const newX = e.clientX - startPan.x;
-      const newY = e.clientY - startPan.y;
-      setPanPosition({ x: newX, y: newY });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsPanning(false);
-    if (mapRef.current) {
-      mapRef.current.style.cursor = 'grab';
-    }
-  };
+  const mapWidth = maxX - minX;
+  const mapHeight = maxY - minY;
 
   return (
-    <div 
-      ref={mapRef}
-      className="absolute inset-0 overflow-hidden bg-[#FAFAFA] cursor-grab select-none"
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+    <div
+      ref={scrollableRef}
+      className="absolute inset-0 overflow-auto map-canvas hidden-scrollbar"
     >
       <div
-        ref={contentRef}
-        data-testid="map-content"
-        className="absolute"
         style={{
-          transform: `translate(${panPosition.x / 16}rem, ${panPosition.y / 16}rem) scale(${zoomLevel})`,
-          transformOrigin: 'center center',
-          transition: isPanning ? 'none' : 'transform 0.3s ease',
-          width: `${SVGcontentWidth / 16}rem`,
-          height: `${SVGcontentHeight / 16}rem`,
+          position: 'relative',
+          margin: '200px auto 0',
+          width: `${mapWidth}px`,
+          height: `${mapHeight}px`,
         }}
       >
-        {rootNode && <ConceptNode ref={rootRef} key={rootNode.id} node={rootNode} />}
-        <svg
-          className="absolute top-0 left-0 w-full h-full pointer-events-none"
-          style={{ overflow: 'visible' }}
+        <div
+          style={{
+            position: 'absolute',
+            transform: `translate(${-minX}px, ${-minY}px) scale(${zoomLevel})`,
+            transformOrigin: 'top left',
+            width: `${mapWidth}px`,
+            height: `${mapHeight}px`,
+          }}
         >
-          {drawHVStyleLines(laidOutNodes, subtrees, 3)}
-        </svg>
-        {Array.from(subtrees.entries()).map(
-          ([nodeId, subtreeData]) =>
-            subtreeData.position && (
+          {rootNode && <ConceptNode key={rootNode.id} node={rootNode} />}
+          <svg
+            className="absolute top-0 left-0 pointer-events-none"
+            width={mapWidth}
+            height={mapHeight}
+            style={{ overflow: 'visible' }}
+          >
+            {drawHVStyleLines(laidOutNodes, subtrees, 3)}
+          </svg>
+          {Array.from(subtrees.entries()).map(([nodeId, subtreeData]) => {
+            if (!subtreeData.position) return null;
+            return (
               <Subtree
                 key={nodeId}
                 rootNodeId={nodeId}
@@ -182,8 +107,9 @@ const MapRenderer: React.FC<MapRendererProps> = ({ viewportRef }) => {
                   console.log('Node clicked:', nodeId);
                 }}
               />
-            )
-        )}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

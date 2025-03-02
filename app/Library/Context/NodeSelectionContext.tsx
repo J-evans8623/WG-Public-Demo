@@ -32,7 +32,6 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
   const [targetNodeId, setTargetNodeIdState] = useState<string | null>(null);
   const [mergeSource, setMergeSource] = useState<string | null>(null);
   const [StatusMessage, setStatusMessage] = useState('');
-  // New state: whether multi-select mode is enabled
   const [multiSelectEnabled, setMultiSelectEnabled] = useState<boolean>(false);
 
   const toggleNodeSelection = (nodeId: string) => {

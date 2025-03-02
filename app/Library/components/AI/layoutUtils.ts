@@ -1,4 +1,10 @@
 //bloom-maps\app\Library\components\AI\layoutUtils.ts
+/**
+ * This layout algorithm determines the positioon of a newly created node. It
+ * can only process 1 new node at a time. The parent node postion must be defined 
+ * before its child node.
+ * 
+ */
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 import { applyHVLayout } from '@/app/Library/utils/hvLayout';
 import { applyIndentedLayout } from '@/app/Library/utils/indentedLayout';

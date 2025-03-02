@@ -247,7 +247,7 @@ export const MatchingQuizSchema ={
               ],
               "description": "Specific quiz type."
             },
-            "matchingTerm": {
+            "matchingQuestion": {
               "type": "string",
               "description": "The question text or prompt for the matching."
             },
@@ -259,7 +259,7 @@ export const MatchingQuizSchema ={
           "required": [
             "id",
             "type",
-            "matchingTerm",
+            "matchingQuestion",
             "matchingAnswer"
           ],
           "additionalProperties": false

@@ -1,0 +1,178 @@
+/**
+ * CanvasToolBar.tsx
+ *
+ * Updates:
+ *   1) Added a new quiz icon button in the toolbar.
+ *   2) Clicking the button opens the QuizGeneratorModal.
+ */
+
+import React, { useState } from 'react';
+import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
+import { MousePointer, Search, ZoomIn, Share, FileQuestion } from 'lucide-react'; 
+import QuizGeneratorModal from './QuizGeneratorModal'; // Adjust path if needed
+
+interface PdfPageInfo {
+  current: number;
+  total: number;
+}
+
+interface CanvasToolbarProps {
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  activeView: 'conceptMap' | 'pdf';
+  onPdfPrevPage?: () => void;
+  onPdfNextPage?: () => void;
+  pdfPageInfo?: PdfPageInfo;
+}
+
+export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
+  onZoomIn,
+  onZoomOut,
+  activeView,
+  onPdfPrevPage,
+  onPdfNextPage,
+  pdfPageInfo,
+}) => {
+  const { multiSelectEnabled, toggleMultiSelectEnabled, getSelectedNodeIds } = useNodeSelection();
+  const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+
+  // Preselected topics come from currently selected node IDs
+  const preselectedTopicIds = getSelectedNodeIds();
+
+  return (
+    <div className="flex items-center space-x-4">
+      {/* Zoom In / Zoom Out Buttons */}
+      <button
+        onClick={onZoomIn}
+        className="p-2 rounded-md hover:bg-gray-100 text-gray-600 group relative inline-flex items-center justify-center"
+      >
+        <Search className="h-5 w-5" />
+        <span className="pointer-events-none absolute bottom-full mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-50">
+          Zoom In
+        </span>
+      </button>
+
+      <button
+        onClick={onZoomOut}
+        className="p-2 rounded-md hover:bg-gray-100 text-gray-600 group relative inline-flex items-center justify-center"
+      >
+        <ZoomIn className="h-5 w-5" />
+        <span className="pointer-events-none absolute bottom-full mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-50">
+          Zoom Out
+        </span>
+      </button>
+
+      <button
+        onClick={() => {}}
+        className="p-2 rounded-md hover:bg-gray-100 text-gray-600 group relative inline-flex items-center justify-center"
+      >
+        <Share className="h-5 w-5" />
+        <span className="pointer-events-none absolute bottom-full mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-50">
+          Share
+        </span>
+      </button>
+
+      {/* Multi-select toggle for concept maps */}
+      {activeView === 'conceptMap' && (
+        <button
+          onClick={toggleMultiSelectEnabled}
+          className={`
+            relative
+            p-2
+            rounded-md
+            hover:bg-gray-100
+            text-gray-600
+            group
+            inline-flex
+            items-center
+            justify-center
+            ${multiSelectEnabled ? 'bg-blue-100' : ''}
+          `}
+          title={multiSelectEnabled ? 'Multi-Select Enabled' : 'Single-Select Enabled'}
+        >
+          <MousePointer className="h-5 w-5" />
+          {multiSelectEnabled && (
+            <span
+              className="
+                absolute
+                -top-1
+                -right-1
+                w-4
+                h-4
+                bg-blue-500
+                text-white
+                text-xs
+                flex
+                items-center
+                justify-center
+                rounded-full
+              "
+            >
+              +
+            </span>
+          )}
+          <span className="pointer-events-none absolute bottom-full mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-50">
+            {multiSelectEnabled ? 'Multi-Select' : 'Single Select'}
+          </span>
+        </button>
+      )}
+
+      {/* PDF-specific controls */}
+      {activeView === 'pdf' && (
+        <>
+          <button
+            onClick={onPdfPrevPage}
+            className="p-2 rounded-md hover:bg-gray-100 text-gray-600 group relative inline-flex items-center justify-center"
+          >
+            <span className="sr-only">Previous Page</span>
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="pointer-events-none absolute bottom-full mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-50">
+              Previous Page
+            </span>
+          </button>
+
+          <button
+            onClick={onPdfNextPage}
+            className="p-2 rounded-md hover:bg-gray-100 text-gray-600 group relative inline-flex items-center justify-center"
+          >
+            <span className="sr-only">Next Page</span>
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="pointer-events-none absolute bottom-full mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-50">
+              Next Page
+            </span>
+          </button>
+
+          {pdfPageInfo && pdfPageInfo.total > 0 && (
+            <span className="ml-4 text-sm text-gray-700">
+              Page {pdfPageInfo.current} of {pdfPageInfo.total}
+            </span>
+          )}
+        </>
+      )}
+
+      {/* Quiz Tool Icon */}
+      <button
+        onClick={() => setIsQuizModalOpen(true)}
+        className="p-2 text-gray-600 hover:text-blue-500 bg-gray-100 rounded-md mx-2 group relative inline-flex items-center justify-center"
+      >
+        <FileQuestion className="h-5 w-5" />
+        <span className="pointer-events-none absolute bottom-full mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-50">
+          Open Quiz Generator
+        </span>
+      </button>
+
+      {/* The Quiz Generator Modal */}
+      <QuizGeneratorModal
+        isOpen={isQuizModalOpen}
+        onClose={() => setIsQuizModalOpen(false)}
+        preselectedTopicIds={preselectedTopicIds}
+      />
+    </div>
+  );
+};
+
+export default CanvasToolbar;

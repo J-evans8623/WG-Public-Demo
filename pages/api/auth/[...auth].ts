@@ -38,16 +38,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Ensure `auth` is always an array
   const route = Array.isArray(auth) ? auth[0] : auth;
 
-  console.log('Auth route accessed:', route);
-  console.log('Request method:', req.method);
 
   switch (route) {
     case 'login':
       if (req.method === 'GET') { // Use GET for direct redirection
-        console.log('Initiating login process...');
+        ////console.log('Initiating login process...');
         try {
           const authUrl = await oauthManager.initiateAuth();
-          console.log('Redirecting to Auth URL:', authUrl);
+          ////console.log('Redirecting to Auth URL:', authUrl);
           return res.redirect(authUrl); // Redirects the user to Google's auth page
         } catch (error) {
           console.error('Error during login:', error);
@@ -59,10 +57,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     case 'callback':
       if (req.method === 'GET') {
-        console.log('-------------[...auth].ts Handling OAuth callback...');
+        ////console.log('-------------[...auth].ts Handling OAuth callback...');
         const { code, state } = req.query;
-        console.log('Received authorization code:', code);
-        console.log('Received state:', state);
+        ////console.log('Received authorization code:', code);
+        ////console.log('Received state:', state);
 
         if (!code || typeof code !== 'string' || !state || typeof state !== 'string') {
           return res.status(400).send(`
@@ -75,7 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         try {
           const sessionData = await oauthManager.handleCallback(code, state);
-          console.log('Session data created:', sessionData);
+          ////console.log('Session data created:', sessionData);
           const sessionId = crypto.randomUUID();
           await sessionManager.createSession(sessionId, sessionData);
 
@@ -103,10 +101,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     case 'logout':
       if (req.method === 'POST') {
-        console.log('Handling logout...');
+        ////console.log('Handling logout...');
         const cookies = req.headers.cookie ? parse(req.headers.cookie) : {};
         const sessionId = cookies.sessionId;
-        console.log('Session ID from cookies:', sessionId);
+        ////console.log('Session ID from cookies:', sessionId);
 
         if (!sessionId) {
           console.error('No active session found');
@@ -115,7 +113,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         try {
           await sessionManager.destroySession(sessionId);
-          console.log('Session destroyed:', sessionId);
+          ////console.log('Session destroyed:', sessionId);
 
           res.setHeader(
             'Set-Cookie',
@@ -131,10 +129,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       case 'session':
         if (req.method === 'GET') {
-          console.log('------[...auth].ts session endpoint : Fetching session data...------');
+          ////console.log('------[...auth].ts session endpoint : Fetching session data...------');
           const cookies = req.headers.cookie ? parse(req.headers.cookie) : {};
           const sessionId = cookies.sessionId; // Safely access cookies
-          console.log('Session ID from cookies:', sessionId);
+          ////console.log('Session ID from cookies:', sessionId);
       
           if (!sessionId) {
             console.warn('No session ID provided. User might not be signed in.');
@@ -143,7 +141,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
           try {
             const sessionData = await sessionManager.getSession(sessionId);
-            console.log('Session data retrieved:', sessionData);
+            ////console.log('Session data retrieved:', sessionData);
       
             if (!sessionData) {
               console.warn('Session expired or not found');

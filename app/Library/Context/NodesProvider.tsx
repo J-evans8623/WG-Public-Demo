@@ -8,19 +8,22 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
+import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import * as Y from 'yjs';
 import { SystemActionType } from '@/app/Library/Tests/Synchro/Centralize/SystemOriginTypes';
 
 interface NodesContextValue {
   nodes: Map<string, ConceptNode>;
-  setNodes: (nodes: Map<string, ConceptNode>, options?: { origin?: { type: 'system'; action: SystemActionType } }) => void;
+  setNodes: (nodes: Map<string, ConceptNode>, options?: { origin?: { type: 'system'; action: SystemActionType } }, mapId?:string) => void;
   createNewNode: (title: string, parentNodeId: string, newNodeId: string) => void;
-  updateNodeTitle: (nodeId: string, newTitle: string) => void;
+  updateNodeTitle: (nodeId: string, newTitle: string, mapId?:string) => void;
   deleteNode: (nodeId: string) => void;
   resetNodes: () => void;
   initNewDocument: () => void;
   transferNode: (sourceNodeId: string, targetNodeId: string) => void;
   getNodeTitle: (nodeId: string) => string | null;
+  getRootNode: () => string;
+  getReviewNode: () => { id: string; exist: boolean };
 }
 
 
@@ -39,7 +42,9 @@ export const useNodesContext = () => {
 
 export const NodesProvider = ({ children }: { children: ReactNode }) => {
   const { ydoc } = useYDoc();
-  const yNodesMap = ydoc.getMap<ConceptNode>('nodes');
+  const { activeConceptMapId } = useLessonModule();
+  const nodesMapKey = `nodes:${activeConceptMapId}`;
+  const yNodesMap = ydoc.getMap<ConceptNode>(nodesMapKey);
 
   const [nodes, setNodesState] = useState<Map<string, ConceptNode>>(new Map());
 
@@ -69,6 +74,12 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [yNodesMap]);
 
+
+
+  const getRootNode = useCallback((): string => {
+    return 'node-1' ;
+  },[] );
+
   /**
    * Sets the entire nodes map.
    *
@@ -76,19 +87,42 @@ export const NodesProvider = ({ children }: { children: ReactNode }) => {
    */
   const setNodes = useCallback((
     nodesMap: Map<string, ConceptNode>, 
-    options?: SetNodesOptions
+    options?: SetNodesOptions,
+    mapID?: string,
   ) => {
     console.log('[NodesProvider] Setting nodes with options:', options);
+    const usedMapID = mapID || activeConceptMapId;
+    const nodesKey = `nodes:${usedMapID}`;
+    const yNodes = ydoc.getMap<ConceptNode>(nodesKey);
     
     ydoc.transact(() => {
-      yNodesMap.clear();
+      yNodes.clear();
       nodesMap.forEach((node, nodeId) => {
-        yNodesMap.set(nodeId, node);
+        yNodes.set(nodeId, node);
       });
     }, options?.origin); // Will be undefined for user actions
   
     console.log('[NodesProvider] Nodes set, map size:', nodesMap.size);
-  }, [ydoc, yNodesMap]);
+  }, [ydoc, activeConceptMapId]);
+
+  
+
+  /**
+   * getReviewNode
+   *
+   * Checks whether a dedicated review node exists in the current nodes map.
+   * The review node is identified by the fixed id "reviewNode".
+   *
+   * @returns An object with:
+   *   - id: "reviewNode"
+   *   - exist: true if the node exists, false otherwise.
+   */
+  const getReviewNode = useCallback((): { id: string; exist: boolean } => {
+    const reviewId = "reviewNode";
+    const exists = nodes.has(reviewId);
+    return { id: reviewId, exist: exists };
+  }, [nodes]);
+
 
   /**
    * Initializes a new document with a root node.
@@ -176,17 +210,39 @@ const initNewDocument = useCallback(() => {
    * @param nodeId - The ID of the node to update.
    * @param newTitle - The new title for the node.
    */
-  const updateNodeTitle = useCallback((nodeId: string, newTitle: string) => {
-    const node = yNodesMap.get(nodeId);
-    if (!node) {
-      console.error(`Node with ID ${nodeId} does not exist.`);
-      return;
-    }
+ /**
+ * Updates a node's title within the Y.Doc.
+ *
+ * @param nodeId - The ID of the node to update.
+ * @param newTitle - The new title for the node.
+ * @param mapID - Optional concept map ID. If omitted, falls back to activeConceptMapId.
+ */
+const updateNodeTitle = useCallback((
+  nodeId: string, 
+  newTitle: string, 
+  mapID?: string
+) => {
+  // Determine which map ID to use
+  const usedMapID = mapID || activeConceptMapId;
+  const nodesKey = `nodes:${usedMapID}`;
+  const yNodes = ydoc.getMap<ConceptNode>(nodesKey);
 
-    ydoc.transact(() => {
-      yNodesMap.set(nodeId, { ...node, title: newTitle });
-    });
-  }, [yNodesMap, ydoc]);
+  // Look up the node in the namespaced Y.Map
+  const node = yNodes.get(nodeId);
+  if (!node) {
+    console.error(`Node with ID ${nodeId} does not exist in map ${usedMapID}.`);
+    return;
+  }
+
+  console.log(`Node was found : ${node}`);
+  console.log(`Map was found: ${yNodes}`);
+
+  // Update the node’s title
+  ydoc.transact(() => {
+    yNodes.set(nodeId, { ...node, title: newTitle });
+  });
+}, [ydoc, activeConceptMapId]);
+
 
   /**
    * Deletes a node from the Y.Doc.
@@ -345,7 +401,9 @@ const initNewDocument = useCallback(() => {
     initNewDocument,
     transferNode,
     getNodeTitle,
-  }), [nodes, setNodes, createNewNode, updateNodeTitle, deleteNode, resetNodes, initNewDocument, transferNode, getNodeTitle]);
+    getRootNode,
+    getReviewNode,
+  }), [nodes,getRootNode, getReviewNode, setNodes, createNewNode, updateNodeTitle, deleteNode, resetNodes, initNewDocument, transferNode, getNodeTitle]);
 
   return (
     <NodesContext.Provider value={contextValue}>

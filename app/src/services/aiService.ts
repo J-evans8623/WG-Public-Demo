@@ -12,6 +12,7 @@
  * Dependencies:
  * - OpenAI client for API communication.
  */
+import { log } from '@/app/src/services/TextPreprocessing/utils/logger';
 import OpenAI from "openai";
 import { lessonSchema } from "../schemas/lessonSchema";
 import { MultipleChoiceSchema, TrueFalseSchema, MatchingQuizSchema,FillInBlankSchema } from "../schemas/quizSchema";
@@ -47,7 +48,8 @@ class AIService {
     systemPrompt: string
   ): Promise<any> {
     try {
-      console.log("Sending structured output request with input:", input);
+      console.log("aiService.ts input systemPrompt", systemPrompt)
+      console.log("aiService.ts input ", input);
 
       const response = await this.openai.beta.chat.completions.parse({
         model: "gpt-4o-mini",
@@ -72,7 +74,7 @@ class AIService {
         }
       });
 
-      console.log("Structured response received:", JSON.stringify(response, null, 2));
+      console.log("aiService.ts output: ", JSON.stringify(response, null, 2));
 
       return response.choices[0].message.parsed;
     } catch (error) {

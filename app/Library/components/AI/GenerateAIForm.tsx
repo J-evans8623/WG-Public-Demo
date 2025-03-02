@@ -118,7 +118,9 @@ const GenerateAIForm: React.FC<GenerateAIFormProps> = ({ onClose, sourceNodeId }
   };
 
 
-
+/***
+ * This a legacy implementation from the first version of the application
+ */
   const processAIResponse = async (responseData: any) => {
     try {
       console.log('1. GenerateAI-=== INITIAL SNAPSHOT ===');

@@ -1,0 +1,13 @@
+requests
+celery
+pytesseract
+Pillow
+PyMuPDF
+python-docx
+python-pptx
+fastapi
+uvicorn
+python-multipart
+python-dotenv
+redis
+pdf2image

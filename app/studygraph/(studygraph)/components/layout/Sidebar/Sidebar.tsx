@@ -20,7 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <div
       style={{ width: isDashboardExpanded ? '12rem' : '3rem' }}
-      className="fixed left-0 top-0 h-full bg-gray-800 transition-all duration-300 z-50"
+      className="bg-gray-800 transition-all duration-300 z-50"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >

@@ -1,4 +1,5 @@
-ENV Variables, note all values have been removed
+ENV Variables, note all values have been removed. This is mock up of the environment
+variables used in the node.js environment.
 
 
 NEXT_PUBLIC_GOOGLE_CLIENT_ID<*****REDACTED*****>

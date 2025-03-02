@@ -1,7 +1,7 @@
 import React, { useCallback, createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
+import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import * as Y from 'yjs';
-
 
 export interface SubtreeData {
   minX: number;
@@ -19,7 +19,7 @@ interface SubTreeContextType {
   getMaxSubtreeHeight: () => number;
   setSubtreePosition: (nodeId: string, position: { x: number; y: number }) => void;
   resetSubtrees: () => void;
-  setSubtrees: (newSubtrees: Map<string, SubtreeData>) => void;
+  setSubtrees : (newSubtrees: Map<string, SubtreeData>, options?: { isInitialization?: boolean }, mapID?:string) => void;
   draggingSubtreeId: string | null;
   targetSubtreeId: string | null;
   setDraggingSubtreeId: (id: string | null) => void;
@@ -31,7 +31,10 @@ const SubTreeContext = createContext<SubTreeContextType | undefined>(undefined);
 
 export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
   const { ydoc } = useYDoc();
-  const ySubtreesMap = ydoc.getMap<SubtreeData>('subtrees');
+  const { activeConceptMapId } = useLessonModule();
+  // Use namespaced key for subtrees based on the active concept map
+  const subtreesMapKey = `subtrees:${activeConceptMapId}`;
+  const ySubtreesMap = ydoc.getMap<SubtreeData>(subtreesMapKey);
   
   const [subtrees, setSubtreesState] = useState<Map<string, SubtreeData>>(new Map());
   const [draggingSubtreeId, setDraggingSubtreeId] = useState<string | null>(null);
@@ -50,7 +53,7 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
       position: { x: 0, y: 0 },
     };
 
-    // Initialize with system action origin to prevent tracking as user update
+    // Initialize with system action origin to prevent tracking as a user update
     ydoc.transact(() => {
       if (!ySubtreesMap.has(sentinelNodeId)) {
         ySubtreesMap.set(sentinelNodeId, sentinelSubtree);
@@ -62,8 +65,7 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const loadInitialSubtrees = () => {
       const initialSubtrees = new Map<string, SubtreeData>();
-      
-      // Check if sentinel node exists, if not create it as a system action
+      // Check if sentinel node exists; if not, create it
       const sentinelNodeId = 'sentinel-node';
       if (!ySubtreesMap.has(sentinelNodeId)) {
         const sentinelSubtree: SubtreeData = {
@@ -75,13 +77,11 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
           height: 0,
           position: { x: 0, y: 0 },
         };
-        
         ydoc.transact(() => {
           ySubtreesMap.set(sentinelNodeId, sentinelSubtree);
         }, { type: 'system', action: 'initialize' });
       }
-      
-      // Load all subtrees including sentinel
+      // Load all subtrees (including sentinel)
       ySubtreesMap.forEach((value, key) => {
         initialSubtrees.set(key, value);
       });
@@ -91,13 +91,11 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     loadInitialSubtrees();
 
     const updateListener = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
-      // Explicitly filter out system actions related to initialization
-      if (transaction.origin?.type === 'system' && 
-          ['initialize', 'reset'].includes((transaction.origin as any).action)) {
+      // Filter out system-origin updates
+      if (transaction.origin?.type === 'system' && ['initialize', 'reset'].includes((transaction.origin as any).action)) {
         console.log('[SubTreeProvider] Ignoring system initialization update:', transaction.origin);
         return;
       }
-
       const updatedSubtrees = new Map<string, SubtreeData>();
       ySubtreesMap.forEach((value, key) => {
         updatedSubtrees.set(key, value);
@@ -106,7 +104,6 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     };
 
     ySubtreesMap.observeDeep(updateListener);
-
     return () => {
       ySubtreesMap.unobserveDeep(updateListener);
     };
@@ -142,8 +139,6 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
   const resetSubtrees = useCallback(() => {
     ydoc.transact(() => {
       ySubtreesMap.clear();
-      
-      // Re-add sentinel node
       const sentinelNodeId = 'sentinel-node';
       const sentinelSubtree: SubtreeData = {
         minX: 0,
@@ -158,18 +153,14 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     }, { type: 'system', action: 'reset' });
   }, [ydoc, ySubtreesMap]);
 
-  const setSubtrees = useCallback((
-    newSubtrees: Map<string, SubtreeData>,
-    options?: { isInitialization?: boolean }
-  ) => {
-    const transactionOptions = options?.isInitialization 
-      ? { type: 'system' as const, action: 'initialize' as const }
-      : undefined;
+  const setSubtrees = useCallback((newSubtrees: Map<string, SubtreeData>, options?: { isInitialization?: boolean }, mapID?:string) => {
+    const usedMapID = mapID || activeConceptMapId;
+    const subtreesKey = `subtrees:${usedMapID}`;
+    const ySubtrees = ydoc.getMap<SubtreeData>(subtreesKey);
 
+    const transactionOptions = options?.isInitialization ? { type: 'system' as const, action: 'initialize' as const } : undefined;
     ydoc.transact(() => {
-      ySubtreesMap.clear();
-      
-      // Ensure sentinel node exists
+      ySubtrees.clear();
       const sentinelNodeId = 'sentinel-node';
       const sentinelSubtree: SubtreeData = {
         minX: 0,
@@ -180,16 +171,14 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
         height: 0,
         position: { x: 0, y: 0 },
       };
-      
       if (!newSubtrees.has(sentinelNodeId)) {
         newSubtrees.set(sentinelNodeId, sentinelSubtree);
       }
-      
       newSubtrees.forEach((subtree, nodeId) => {
-        ySubtreesMap.set(nodeId, subtree);
+        ySubtrees.set(nodeId, subtree);
       });
     }, transactionOptions);
-  }, [ydoc, ySubtreesMap]);
+  }, [ydoc,  activeConceptMapId]);
 
   const commitSwap = useCallback(() => {
     if (draggingSubtreeId && targetSubtreeId) {

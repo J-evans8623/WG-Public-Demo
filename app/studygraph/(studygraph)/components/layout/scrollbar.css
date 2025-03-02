@@ -1,0 +1,19 @@
+/* Minimal scrollbar for Chrome/Safari/Edge (WebKit) */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;       /* Scrollbar width */
+    height: 8px;      /* Horizontal scrollbar height */
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(0,0,0,0.3); /* A subtle dark thumb */
+    border-radius: 4px;               /* Rounded corners */
+  }
+  
+  /* Minimal scrollbar for Firefox */
+  .custom-scrollbar {
+    scrollbar-width: thin;                      /* “thin” or “auto” */
+    scrollbar-color: rgba(0,0,0,0.3) transparent;
+  }
+  

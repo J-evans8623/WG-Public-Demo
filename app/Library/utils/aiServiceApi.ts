@@ -2,96 +2,138 @@
  * aiServiceAPI.ts
  *
  * This utility file provides functions for making secure API calls from the frontend
- * to the centralized AI service layer. It handles operations for:
- *   - Retrieving the lesson module list associated with a specific document (bloomdocx)
- *   - Requesting AI-generated lesson content based on a selected lesson module
- *   - Requesting AI-generated quiz content (using the lesson module)
- *   - Asking a question based on highlighted text
+ * to the centralized AI service layer. In addition to existing functions for lesson,
+ * quiz, question, and topic processing, we now include a function for quiz generation
+ * that also sends the exported study data.
  *
  * All API calls include credentials as per our OAuth 2 PKCE guidelines.
  */
 
-export async function getLessonListAPI(documentID: string) {
-    console.log('aiServiceApi.ts invoking getLessonListAPI(documentID: string) ..... with ID', documentID)
-    const response = await fetch(
-      `/api/aiServiceLayer?action=getLessonList&documentID=${encodeURIComponent(documentID)}`,
-      {
-        credentials: 'include',
-      }
-    );
-    if (!response.ok) {
-      throw new Error('Failed to fetch lesson list');
-    }
-    return await response.json();
+export async function getLessonListAPI(documentID: string): Promise<any> {
+  console.log('[aiServiceAPI] getLessonListAPI called with documentID:', documentID);
+  const response = await fetch(
+    `/api/aiServiceLayer?action=getLessonList&documentID=${encodeURIComponent(documentID)}`,
+    { credentials: 'include' }
+  );
+  if (!response.ok) {
+    console.error('[aiServiceAPI] getLessonListAPI failed');
+    throw new Error('Failed to fetch lesson list');
   }
-  
-  export async function askQuestionAPI(textSelection: string, question: string) {
-    const response = await fetch('/api/aiServiceLayer?action=question', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ textSelection, question }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to ask question');
-    }
-    return await response.json();
+  const data = await response.json();
+  console.log('[aiServiceAPI] getLessonListAPI response:', data);
+  return data;
+}
+
+export async function askQuestionAPI(
+  question: string,
+  moduleID: string,
+  summary: string | null,
+  summaryPresent: boolean,
+  fileID: string
+): Promise<any> {
+  const payload = { question, moduleID, summary, summaryPresent, fileID };
+  console.log('[aiServiceAPI] askQuestionAPI payload:', payload);
+  const response = await fetch('/api/aiServiceLayer?action=question', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    console.error('[aiServiceAPI] askQuestionAPI failed');
+    throw new Error('Failed to ask question');
   }
-  
-  /**
-   * generateAILesson
-   *
-   * Requests the backend to generate a lesson based on a preprocessed lesson module.
-   * The request includes the documentID (the bloomdocx instance) and the moduleID (the specific lesson module).
-   *
-   * Steps:
-   * 1. Send a POST request to the "/api/aiServiceLayer?action=newLesson" endpoint.
-   * 2. Include the documentID and moduleID in the JSON request body.
-   * 3. Return the generated lesson content as a JSON response.
-   *
-   * @param documentID - The ID of the bloomdocx instance.
-   * @param moduleID - The ID of the lesson module to generate.
-   * @returns A promise that resolves to the generated lesson content.
-   */
-  export async function generateAILesson(documentID: string, moduleID: string) {
-    const response = await fetch('/api/aiServiceLayer?action=newLesson', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ documentID, moduleID }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to generate AI lesson');
-    }
-    return await response.json();
+  const data = await response.json();
+  console.log('[aiServiceAPI] askQuestionAPI response:', data);
+  return data;
+}
+
+export async function generateAILesson(documentID: string, moduleID: string) {
+  console.log('[aiServiceAPI] generateAILesson called with documentID:', documentID, 'moduleID:', moduleID);
+  const response = await fetch('/api/aiServiceLayer?action=newLesson', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ documentID, moduleID }),
+  });
+  if (!response.ok) {
+    console.error('[aiServiceAPI] generateAILesson failed');
+    throw new Error('Failed to generate AI lesson');
   }
-  
-  /**
-   * generateAIQuiz
-   *
-   * Requests the backend to generate a quiz based on a preprocessed lesson module.
-   * The request includes the documentID (the bloomdocx instance) and the moduleID (the specific lesson module)
-   * to create a quiz using the repurposed AI Service layer.
-   *
-   * Steps:
-   * 1. Send a POST request to the "/api/aiServiceLayer?action=newQuiz" endpoint.
-   * 2. Include the documentID and moduleID in the JSON request body.
-   * 3. Return the generated quiz content as a JSON response.
-   *
-   * @param documentID - The ID of the bloomdocx instance.
-   * @param moduleID - The ID of the lesson module for which the quiz is to be generated.
-   * @returns A promise that resolves to the generated quiz content.
-   */
-  export async function generateAIQuiz(documentID: string, moduleID: string) {
-    const response = await fetch('/api/aiServiceLayer?action=newQuiz', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ documentID, moduleID }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to generate AI quiz');
-    }
-    return await response.json();
+  const data = await response.json();
+  console.log('[aiServiceAPI] generateAILesson response:', data);
+  return data;
+}
+
+/**
+ * generateQuiz
+ *
+ * Sends a quiz generation request to the backend. The payload includes:
+ *  - topicIds: selected concept node IDs.
+ *  - quizTypes: an array of quiz type identifiers (supported values: multipleChoice, matching, FIB, true-false).
+ *  - includeDocs: boolean flag determining if uploaded document context should be included.
+ *  - fileID, summary, summaryPresent, mapID: metadata parameters.
+ *  - exportData: the JSON export of study data generated by the frontend.
+ *
+ * @returns A promise that resolves to the generated quiz response.
+ */
+export async function generateQuiz(payload: {
+  topicIds: string[];
+  quizTypes: string[];
+  includeDocs: boolean;
+  fileID: string;
+  summary: string | null;
+  summaryPresent: boolean;
+  mapID: string;
+  exportData: string;
+}): Promise<any> {
+  console.log('[aiServiceAPI] generateQuiz payload:', payload);
+  const response = await fetch('/api/aiServiceLayer?action=quizGenerator', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    console.error('[aiServiceAPI] generateQuiz failed');
+    throw new Error('Failed to generate quiz');
   }
-  
+  const data = await response.json();
+  console.log('[aiServiceAPI] generateQuiz response:', data);
+  return data;
+}
+
+/**
+ * generateTopic
+ *
+ * Sends a topic generation request to the backend with the following parameters:
+ *  - userTopicRequest: The user's requested topic string.
+ *  - exportData: The exported study data from the selected node.
+ *  - moduleID, summary, summaryPresent, fileID: Additional context parameters.
+ *
+ * @returns A promise that resolves to the generated topic response.
+ */
+export async function generateTopic(
+  userTopicRequest: string,
+  exportData: any,
+  moduleID: string,
+  summary: string | null,
+  summaryPresent: boolean,
+  fileID: string
+): Promise<any> {
+  const payload = { userTopicRequest, exportData, moduleID, summary, summaryPresent, fileID };
+  console.log('[aiServiceAPI] generateTopic payload:', payload);
+  const response = await fetch('/api/aiServiceLayer?action=generateTopic', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    console.error('[aiServiceAPI] generateTopic failed');
+    throw new Error('Failed to generate topic');
+  }
+  const data = await response.json();
+  console.log('[aiServiceAPI] generateTopic response:', data);
+  return data;
+}

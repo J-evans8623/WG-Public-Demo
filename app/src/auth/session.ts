@@ -31,7 +31,7 @@ export class RedisSessionManager implements SessionManager {
         sessionId,
         data,
         'EX',  // Set expiration using Redis command syntax
-        3600   // 1 hour in seconds
+        28800,   // 8 hour in seconds -> You need refresh logic
       );
       console.log('Session created successfully');
     } catch (error) {

@@ -1,0 +1,194 @@
+{
+  "name": "study_notes",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "main_topic": {
+        "type": "object",
+        "description": "Introduces the overall topic and lists learning objectives.",
+        "properties": {
+          "introduction": {
+            "type": "string",
+            "description": "Brief introduction to the entire topic."
+          },
+          "learning_objectives": {
+            "type": "array",
+            "description": "Objectives to be achieved after studying the module.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "primary_subtopics": {
+            "type": "array",
+            "description": "List of primary subtopics nested under the main topic.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "Title of the primary subtopic."
+                },
+                "lesson": {
+                  "type": "object",
+                  "description": "Contains details of the lesson for the primary subtopic.",
+                  "properties": {
+                    "lecture_note": {
+                      "type": "string",
+                      "description": "Detailed lecture note on the subtopic."
+                    },
+                    "flash_cards": {
+                      "type": "array",
+                      "description": "Flash cards relevant to the lesson.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "term": {
+                            "type": "string",
+                            "description": "Term or question on the flash card."
+                          },
+                          "definition": {
+                            "type": "string",
+                            "description": "Definition or answer on the flash card."
+                          }
+                        },
+                        "required": [
+                          "term",
+                          "definition"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "quiz": {
+                      "$ref": "#/$defs/matching_quiz"
+                    }
+                  },
+                  "required": [
+                    "lecture_note",
+                    "flash_cards",
+                    "quiz"
+                  ],
+                  "additionalProperties": false
+                },
+                "secondary_subtopic": {
+                  "type": "object",
+                  "description": "Optional secondary subtopic under the primary subtopic.",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "description": "Title of the secondary subtopic."
+                    },
+                    "lecture_note": {
+                      "type": "string",
+                      "description": "Lecture note for the secondary subtopic."
+                    },
+                    "flash_cards": {
+                      "type": "array",
+                      "description": "Flash cards relevant to the secondary subtopic.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "term": {
+                            "type": "string",
+                            "description": "Term or question on the flash card."
+                          },
+                          "definition": {
+                            "type": "string",
+                            "description": "Definition or answer on the flash card."
+                          }
+                        },
+                        "required": [
+                          "term",
+                          "definition"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "lecture_note",
+                    "flash_cards"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "title",
+                "lesson",
+                "secondary_subtopic"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "introduction",
+          "learning_objectives",
+          "primary_subtopics"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "main_topic"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+      "matching_quiz": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the quiz."
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the quiz."
+          },
+          "questions": {
+            "type": "array",
+            "description": "List of questions in the matching quiz.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Unique identifier for each question."
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "matching"
+                  ],
+                  "description": "Specific quiz type."
+                },
+                "matchingTerm": {
+                  "type": "string",
+                  "description": "The question text or prompt for the matching."
+                },
+                "matchingAnswer": {
+                  "type": "string",
+                  "description": "Single correct answer as a string."
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "matchingTerm",
+                "matchingAnswer"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "questions"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "strict": true
+}

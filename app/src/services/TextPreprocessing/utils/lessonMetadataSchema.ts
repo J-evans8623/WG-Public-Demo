@@ -11,27 +11,69 @@ export interface LessonMetadata {
   }
   
   // Optional: JSON Schema definition (for validation or documentation)
-  export const lessonMetadataJSONSchema = {
-    "name": "curriculum_designer",
+  export const lessonMetadataJSONSchema ={
+    "name": "lesson_module",
     "schema": {
       "type": "object",
       "properties": {
-        "topic": {
-          "type": "string",
-          "description": "The main topic title derived from the provided text."
+        "main_topic": {
+          "type": "object",
+          "description": "The root node containing the main topic and its associated subtopics.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "The title of the main topic."
+            },
+            "subtopics": {
+              "type": "array",
+              "description": "The subtopics related to the main topic.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "The title of the subtopic at depth 1."
+                  },
+                  "subtopics": {
+                    "type":  ["null", "array"],
+                    "description": "Optional nested subtopics related to this subtopic.",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "description": "The title of the subtopic at depth 2."
+                        }
+                      },
+                      "required": [
+                        "title"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "title",
+                  "subtopics"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "title",
+            "subtopics"
+          ],
+          "additionalProperties": false
         },
-        "subtopics": {
-          "type": "array",
-          "description": "A list of sub topic titles associated with the main topic.",
-          "items": {
-            "type": "string",
-            "description": "A sub topic title."
-          }
+        "summary": {
+          "type": "string",
+          "description": "A summary explaining the entire topic covered in the lesson module."
         }
       },
       "required": [
-        "topic",
-        "subtopics"
+        "main_topic",
+        "summary"
       ],
       "additionalProperties": false
     },

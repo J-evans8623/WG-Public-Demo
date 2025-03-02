@@ -1,4 +1,4 @@
-// components/layout/Sidebar/NavItems.tsx
+// NavItems.tsx
 import { Home, Map, BookOpen, HelpCircle, User } from 'lucide-react';
 
 export const navItems = [
@@ -6,7 +6,8 @@ export const navItems = [
   { icon: Map, label: 'ConceptMap', view: 'map' as const },
   { icon: BookOpen, label: 'Tutorial' },
   { icon: HelpCircle, label: 'Help' },
-  { icon: User, label: 'User Info' },
+  // Updated User Info item to include a view identifier:
+  { icon: User, label: 'User Info', view: 'user' as const },
 ];
 
-export type ViewType = 'home' | 'map';
+export type ViewType = 'home' | 'map' | 'user';

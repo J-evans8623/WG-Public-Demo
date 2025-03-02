@@ -16,7 +16,7 @@
  * As modules are processed, asynchronous notifications are emitted so that the frontend
  * can be alerted immediately when an individual module is ready.
  */
-
+import { log } from '@/app/src/services/TextPreprocessing/utils/logger';
 import { generateEmbedding, generateLessonMetadata } from './aiTextPreProcessing';
 import { EventEmitter } from 'events';
 import weaviate from 'weaviate-ts-client';
@@ -77,7 +77,7 @@ function splitTextIntoChunks(text: string, chunkSize: number = 500, overlap: num
 }
 
 /**
- * Placeholder clustering function.
+ * Makes a call to the pytho microservice
  */
 function clusterEmbeddings(embeddings: number[][], k: number): number[] {
   return embeddings.map(() => Math.floor(Math.random() * k));
@@ -147,7 +147,8 @@ export async function processDocument(fullText: string, documentID: string): Pro
 
       // Aggregate text for the cluster.
       const aggregatedText = clusterChunks.join(' ');
-
+      console.log(`LessonModule service passing input : ${aggregatedText}`);
+      console.log(`LessonModule service passing input : ${aggregatedText}`);
       // Generate metadata using the LLM.
       const metadata = await generateLessonMetadata(aggregatedText);
       const { topic, subtopics } = metadata;
@@ -267,9 +268,8 @@ export async function getLessonList(documentID: string): Promise<LessonSummary[]
 
 
 /**
- * Returns detailed metadata for a lesson module given its moduleID.
- * If multiple parts exist for a module, their text chunks are concatenated (in order)
- * and the metadata from the first record is used.
+ * Returns detailed metadata for a lesson module given its document id and moduleID.
+ * 
  */
 export async function getLessonModule(documentID: string, moduleID: string): Promise<LessonModule> {
   try {

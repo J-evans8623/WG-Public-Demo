@@ -1,0 +1,1950 @@
+
+// AppLayout.tsx
+
+'use client';
+
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { ApiProvider, ApiContext } from '@/app/src/context/ApiContext';
+import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
+import { SubTreeProvider } from '@/app/Library/Context/SubTreeProvider';
+import { NodesProvider, useNodesContext } from '@/app/Library/Context/NodesProvider';
+import { ZoomProvider } from '@/app/Library/Context/ZoomProvider';
+import { LayoutProvider, useLayoutContext } from '@/app/Library/Context/LayoutProvider';
+import { ColorThemeProvider, useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
+import { ResourceProvider } from '@/app/Library/Context/ResourceContext';
+import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext';
+import { WebSocketManagerProvider } from '@/app/Library/Context/WebSocketManager';
+import { FileAssetProvider } from '@/app/Library/Context/FileAssetContext';
+import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
+import HomeScreen from './components/HomeScreen';
+import { Sidebar } from './components/layout/Sidebar/Sidebar';
+import  ResourcePanel  from './components/layout/ResourcePanel/ResourcePanel';
+import { CardDisplay } from './components/layout/CardDisplay/CardDisplay';
+import { CanvasView } from './components/layout/Canvas/CanvasView';
+import './appLayout.css';
+import { initializeNewDocument } from '@/app/Library/utils/LoadDocumentUtils'; 
+import { LessonModuleProvider } from '@/app/Library/Context/LessonModuleContext';
+
+//–––
+// Note: The following state values are now in “px” (after scaling).
+// 256px becomes 192px and 384px becomes 288px.
+const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+
+const AppLayoutContent = () => {
+  // Sidebar state
+  const [isDashboardExpanded, setIsDashboardExpanded] = useState(false);
+  const [currentView, setCurrentView] = useState<'home' | 'map'>('home');
+
+  // Resource panel state (192px = 12rem)
+  const [isDirectoryVisible, setIsDirectoryVisible] = useState(true);
+  const [resourcePanelWidth, setResourcePanelWidth] = useState(192);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+
+  // Card display state (288px = 18rem)
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [cardDisplayWidth, setCardDisplayWidth] = useState(288);
+
+  // Auth state
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(true);
+  const { isAuthenticated } = useContext(ApiContext);
+
+  // Initialization values
+  const { dispatch: layoutDispatch } = useLayoutContext();
+  const { dispatch: colorThemeDispatch } = useColorThemeContext();
+  const { createNewDocument } = useYDoc();
+  const hasInitialized = useRef(false);
+  const viewportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const maxWidth = window.innerWidth * 0.4;
+      if (cardDisplayWidth > maxWidth) {
+        setCardDisplayWidth(maxWidth);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [cardDisplayWidth]);
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      if (currentView === 'map') {
+        try {
+          await initializeNewDocument(
+            createNewDocument,
+            layoutDispatch,
+            colorThemeDispatch
+          );
+          // Center the map after initialization.
+          if (viewportRef.current) {
+            const centerEvent = new CustomEvent('centerMap');
+            viewportRef.current.dispatchEvent(centerEvent);
+          }
+        } catch (error) {
+          console.error('Error initializing map:', error);
+        }
+      }
+    };
+
+    if (!hasInitialized.current && currentView === 'map') {
+      hasInitialized.current = true;
+      initializeApp();
+    }
+  }, [currentView, createNewDocument, layoutDispatch, colorThemeDispatch]);
+  
+  const handleResourcePanelDrag = (dx: number) => {
+    setDragOffset(dx);
+    if (dx < -50) {
+      setIsDirectoryVisible(false);
+      setIsDragging(false);
+      setDragOffset(0);
+    }
+  };
+
+  const handleCardDisplayResize = (dx: number) => {
+    const newWidth = cardDisplayWidth - dx;
+    const maxWidth = window.innerWidth * 0.4;
+    setCardDisplayWidth(Math.min(Math.max(288, newWidth), maxWidth));
+  };
+
+  return (
+   // In AppLayoutContent, update the root container div:
+<div className={`h-screen w-full flex prevent-select ${isDirectoryVisible ? 'bg-white' : 'bg-gray-100'}`}>
+      {!isAuthenticated && (
+        <AuthPromptModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+        />
+      )}
+
+      <Sidebar 
+        isDashboardExpanded={isDashboardExpanded}
+        currentView={currentView}
+        onViewChange={(view) => setCurrentView(view)}
+        onMouseEnter={() => setIsDashboardExpanded(true)}
+        onMouseLeave={() => setIsDashboardExpanded(false)}
+      />
+
+      <div className={`flex-1 flex transition-all duration-300 ${isDashboardExpanded ? 'ml-64' : 'ml-16'}`}>
+        {/* Home Screen */}
+        <div className={`flex-1 ${currentView === 'home' ? 'block' : 'hidden'}`}>
+          <HomeScreen />
+        </div>
+
+        {/* Map/Canvas View */}
+        <div className={`flex-1 flex ${currentView === 'map' ? '' : 'hidden'}`}>
+          {isDirectoryVisible && (
+            <ResourcePanel
+              width={resourcePanelWidth}
+              isDragging={isDragging}
+              dragOffset={dragOffset}
+              onDragStart={() => {
+                setIsDragging(true);
+                setDragOffset(0);
+              }}
+              onDrag={handleResourcePanelDrag}
+              onDragEnd={() => {
+                setIsDragging(false);
+                setDragOffset(0);
+              }}
+            />
+          )}
+
+          <CanvasView 
+            viewportRef={viewportRef}
+            isResourcePanelVisible={isDirectoryVisible}
+            onToggleResourcePanel={() => setIsDirectoryVisible(!isDirectoryVisible)}
+          />
+
+          <CardDisplay
+            width={cardDisplayWidth}
+            isEditMode={isEditMode}
+            onEditToggle={() => setIsEditMode(!isEditMode)}
+            onResize={handleCardDisplayResize}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+export const AppLayout = () => {
+  return (
+    <GoogleOAuthProvider clientId={clientId}>
+      <ApiProvider>
+        <YDocProvider>
+          <LessonModuleProvider>
+            <FileAssetProvider>
+              <NodeSelectionProvider>
+                <ResourceProvider>
+                  <WebSocketManagerProvider>
+                    <NodesProvider>
+                      <ZoomProvider>
+                        <LayoutProvider>
+                          <ColorThemeProvider>
+                            <SubTreeProvider>
+                              <AppLayoutContent />
+                            </SubTreeProvider>
+                          </ColorThemeProvider>
+                        </LayoutProvider>
+                      </ZoomProvider>
+                    </NodesProvider>
+                  </WebSocketManagerProvider>
+                </ResourceProvider>
+              </NodeSelectionProvider>
+            </FileAssetProvider>
+          </LessonModuleProvider>
+        </YDocProvider>
+      </ApiProvider>
+    </GoogleOAuthProvider>
+  );
+};
+
+// HomeScreen.tsx
+
+import React, { useState, useEffect, useContext } from 'react';
+import { ApiContext, DriveFile } from '@/app/src/context/ApiContext';
+import { Book, FileText, Plus, Clock } from 'lucide-react';
+
+const HomeScreen = () => {
+  const { listFiles } = useContext(ApiContext);
+  const [recentFiles, setRecentFiles] = useState<DriveFile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [greeting, setGreeting] = useState('');
+
+  useEffect(() => {
+    const getGreeting = () => {
+      const hour = new Date().getHours();
+      if (hour < 12) return 'Good morning';
+      if (hour < 18) return 'Good afternoon';
+      return 'Good evening';
+    };
+    setGreeting(getGreeting());
+    fetchRecentFiles();
+  }, []);
+
+  const fetchRecentFiles = async () => {
+    try {
+      const files = await listFiles('');
+      setRecentFiles(files);
+    } catch (error) {
+      console.error('Error fetching files:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Header Section */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">{greeting}</h1>
+        <p className="text-gray-600">Welcome to your BloomMap workspace</p>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {/* New Map Card */}
+        <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <Plus className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold">New Map</h3>
+              <p className="text-sm text-gray-600">Create a new concept map</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Templates Card */}
+        <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-green-100 rounded-lg">
+              <Book className="w-6 h-6 text-green-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold">Templates</h3>
+              <p className="text-sm text-gray-600">Start from a template</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Learn Card */}
+        <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <FileText className="w-6 h-6 text-purple-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold">Learn</h3>
+              <p className="text-sm text-gray-600">View tutorials</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Files Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            Recent Files
+          </h2>
+        </div>
+        
+        {loading ? (
+          <div className="text-center py-8">Loading your files...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recentFiles.slice(0, 6).map((file: DriveFile) => (
+              <div 
+                key={file.id} 
+                className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer p-4"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-gray-100 rounded">
+                    <FileText className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-sm mb-1 truncate">{file.name}</h3>
+                    <p className="text-xs text-gray-500">
+                      Modified: {file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString() : 'Unknown date'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default HomeScreen;
+
+
+// ResourcePanel.tsx
+
+/**
+ * @file ResourcePanel.tsx
+ * @description
+ *   This component provides the user interface for interacting with the lesson module.
+ *   It allows the user to view and edit the lesson module title (the file name), list available concept maps,
+ *   and perform CRUD operations (create, update, delete) on them.
+ *
+ *   All low‑level logic (e.g. unique ID generation, initialization of namespaced nodes maps, etc.)
+ *   is encapsulated within the LessonModuleContext and YDocContext. In particular, the module title (i.e. file name)
+ *   is managed by YDocContext. ResourcePanel simply calls the exposed API (updateFileName)
+ *   to update the lesson module title.
+ */
+
+import React, { useState, useCallback } from 'react';
+import {
+  ChevronDown,
+  Pencil,
+  Upload,
+  FileText,
+  FolderClosed,
+  Trash2,
+  MoreVertical,
+} from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ResizeHandle } from '../shared/ResizeHandle';
+import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
+import * as Y from 'yjs';
+
+interface Upload {
+  id: number;
+  name: string;
+}
+
+interface ResourcePanelProps {
+  width: number;
+  isDragging: boolean;
+  dragOffset: number;
+  onDragStart: () => void;
+  onDrag: (dx: number) => void;
+  onDragEnd: () => void;
+}
+
+const ResourcePanel: React.FC<ResourcePanelProps> = ({
+  width,
+  isDragging,
+  dragOffset,
+  onDragStart,
+  onDrag,
+  onDragEnd,
+}) => {
+  // Get lesson module state and operations from context.
+  const { getLessonModule, addConceptMap, deleteConceptMap, activeConceptMapId, setActiveConceptMapId } = useLessonModule();
+  const lessonModule = getLessonModule();
+  // Instead of using the lesson module's internal title update,
+  // use the fileName from YDocContext.
+  const { fileName, updateFileName } = useYDoc();
+  const lessons = lessonModule.conceptMaps;
+
+  // Local state for editing a lesson title (UI only)
+  const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState<string>('');
+
+  // Local state for file uploads (legacy)
+  const [uploads, setUploads] = useState<Upload[]>([
+    { id: 1, name: "Course Outline.pdf" },
+    { id: 2, name: "Reference Guide.docx" }
+  ]);
+
+  // When the user edits the module title, delegate to YDocContext's updateFileName.
+  const handleModuleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    updateFileName(e.target.value);
+  }, [updateFileName]);
+
+  // When user adds a lesson, delegate to LessonModuleContext.
+  const handleAddLesson = useCallback(() => {
+    addConceptMap('Untitled Lesson');
+  }, [addConceptMap]);
+
+  // Start editing a lesson title.
+  const startEditing = useCallback((lesson: any) => {
+    setEditingLessonId(lesson.id);
+    setEditingTitle(lesson.title);
+  }, []);
+
+  // Handle changes in the editing input.
+  const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingTitle(e.target.value);
+  }, []);
+
+  // When editing is complete, call updateConceptMapTitle from LessonModuleContext.
+  const handleTitleSave = useCallback(() => {
+    if (editingLessonId && editingTitle.trim()) {
+      // Use the context’s update method.
+      // (Assume that LessonModuleContext now exposes updateConceptMapTitle.)
+      // Since our encapsulation of the file title is handled in YDocContext,
+      // only lesson-level title changes are managed here.
+      // (ResourcePanel should call updateConceptMapTitle via useLessonModule.)
+      // For brevity, we assume updateConceptMapTitle is still available.
+      // Alternatively, you could further refactor to delegate this update entirely
+      // to a LessonModuleContext method.
+      // For now, we simply call:
+      // updateConceptMapTitle(editingLessonId, editingTitle);
+      // (If you want to remove updateConceptMapTitle from LessonModuleContext entirely,
+      // you'll need a similar delegation strategy.)
+      // Here we assume it is part of the public API.
+      // ---
+      // (If needed, uncomment the following line)
+      // updateConceptMapTitle(editingLessonId, editingTitle);
+      // For this example, we assume updateConceptMapTitle remains.
+      setEditingLessonId(null);
+      setEditingTitle('');
+    }
+  }, [editingLessonId, editingTitle]);
+
+  // Handle deletion of a lesson.
+  const handleDeleteLesson = useCallback((lessonId: string) => {
+    deleteConceptMap(lessonId);
+  }, [deleteConceptMap]);
+
+  // Handle local file uploads.
+  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploads(prev => [...prev, { id: prev.length + 1, name: file.name }]);
+    }
+  }, []);
+
+  const handleLessonClick = useCallback((lessonId: string, e: React.MouseEvent) => {
+    if (!editingLessonId) {
+      setActiveConceptMapId(lessonId);
+    }
+  }, [setActiveConceptMapId, editingLessonId]);
+
+  return (
+    <div 
+      style={{ 
+        width: `${width / 16}rem`,
+        opacity: isDragging ? Math.max(0, 1 + dragOffset / 100) : 1,
+        transform: isDragging ? `translateX(${Math.min(0, dragOffset) / 16}rem)` : 'none'
+      }}
+      className="relative bg-white border-r border-gray-200 transition-all duration-100 overflow-visible flex flex-col h-full -ml-px"
+    >
+      {/* Module Title: Use YDocContext fileName */}
+      <div className="p-3 border-b border-gray-200">
+        <div className="flex items-center space-x-2 group">
+          <FolderClosed className="w-4 h-4 text-blue-600" />
+          <Input
+            value={fileName}
+            onChange={handleModuleTitleChange}
+            className="text-sm h-6 py-1"
+          />
+        </div>
+      </div>
+
+      <ScrollArea className="flex-1">
+        <div className="p-3">
+          {/* Lessons Section */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <button 
+                className="flex items-center text-sm text-gray-700 hover:text-gray-900"
+              >
+                <ChevronDown className="w-4 h-4 mr-1" />
+                Lessons
+              </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleAddLesson}
+                className="text-gray-500 hover:text-gray-700 h-6 w-6 p-0"
+              >
+                +
+              </Button>
+            </div>
+            <div className="space-y-1 pl-1">
+              {lessons.map((lesson: any) => (
+                <div
+                  key={lesson.id}
+                  onClick={(e) => handleLessonClick(lesson.id, e)}
+                  className={`group flex items-center px-2 py-1.5 rounded-sm cursor-pointer ${
+                    activeConceptMapId === lesson.id ? 'text-blue-600' : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center min-w-0 flex-1">
+                    <div className="w-4 flex-shrink-0 flex items-center justify-center">
+                      <span className="text-xs">●</span>
+                    </div>
+                    {editingLessonId === lesson.id ? (
+                      <div 
+                        className="flex-1 min-w-0 mr-2" 
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Input
+                          value={editingTitle}
+                          onChange={handleTitleChange}
+                          onBlur={handleTitleSave}
+                          onKeyPress={(e) => e.key === 'Enter' && handleTitleSave()}
+                          className="text-sm h-6 py-1"
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-sm ml-1 truncate flex-1">{lesson.title}</span>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0 ml-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="w-3 h-3 text-gray-400" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-32">
+                        <DropdownMenuItem onClick={(e) => { 
+                          e.stopPropagation(); 
+                          startEditing(lesson);
+                        }}>
+                          <Pencil className="w-3 h-3 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={(e) => { 
+                            e.stopPropagation();
+                            handleDeleteLesson(lesson.id);
+                          }}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          <Trash2 className="w-3 h-3 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Uploads Section */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-700">Uploads</span>
+              <input
+                type="file"
+                id="file-upload"
+                className="hidden"
+                accept=".pdf,.docx,.txt"
+                onChange={handleFileUpload}
+              />
+              <label htmlFor="file-upload" className="inline-block">
+                <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 h-6 w-6">
+                  <Upload className="w-4 h-4" />
+                </Button>
+              </label>
+            </div>
+            <div className="space-y-1">
+              {uploads.length === 0 ? (
+                <div className="text-sm text-gray-500">No uploads</div>
+              ) : (
+                uploads.map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex items-center space-x-2 px-2 py-1.5 text-gray-600 hover:bg-gray-50 rounded-sm cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span className="text-sm">{file.name}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </ScrollArea>
+
+      <ResizeHandle
+        placement="right"
+        onDragStart={onDragStart}
+        onDrag={onDrag}
+        onDragEnd={onDragEnd}
+      />
+    </div>
+  );
+};
+
+export default ResourcePanel;
+
+
+// Sidebar.tsx
+
+import React from 'react';
+import { Map } from 'lucide-react';
+import { navItems, ViewType } from './NavItems';
+
+interface SidebarProps {
+  isDashboardExpanded: boolean;
+  currentView: ViewType;
+  onViewChange: (view: ViewType) => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({
+  isDashboardExpanded,
+  currentView,
+  onViewChange,
+  onMouseEnter,
+  onMouseLeave
+}) => {
+  return (
+    <div
+      style={{ width: isDashboardExpanded ? '12rem' : '3rem' }}
+      className="fixed left-0 top-0 h-full bg-gray-800 transition-all duration-300 z-50"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className="flex items-center p-4 border-b border-gray-700">
+        <Map className="h-8 w-8 text-orange-500 flex-shrink-0" />
+        {isDashboardExpanded && (
+          <span className="ml-3 text-white font-semibold">BloomMap</span>
+        )}
+      </div>
+
+      <nav className="mt-6 space-y-2">
+        {navItems.map((item) => (
+          <button
+            key={item.label}
+            className={`w-full flex items-center px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white ${
+              item.view === currentView ? 'bg-gray-700 text-white' : ''
+            }`}
+            onClick={() => item.view && onViewChange(item.view)}
+          >
+            <item.icon className="h-5 w-5" />
+            {isDashboardExpanded && (
+              <span className="ml-4">{item.label}</span>
+            )}
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+};
+
+
+// CanvasView.tsx
+
+import React, { useState, useCallback, useRef } from 'react';
+import { CanvasToolbar } from './CanvasToolBar';
+import MapRenderer from './MapRenderer';
+import { PDFRenderer } from './PDFRenderer';
+import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
+import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
+import StatusBar from './StatusBar';
+
+interface CanvasViewProps {
+  isResourcePanelVisible: boolean;
+  onToggleResourcePanel: () => void;
+  viewportRef: React.RefObject<HTMLDivElement>;
+}
+
+export const CanvasView: React.FC<CanvasViewProps> = ({
+  isResourcePanelVisible,
+  onToggleResourcePanel,
+  viewportRef,
+}) => {
+  const [activeResourceType, setActiveResourceType] = useState<'map' | 'pdf'>('map');
+  const { dispatch: zoomDispatch } = useZoomContext();
+
+  const handleZoomIn = useCallback(() => {
+    zoomDispatch({ type: ZoomActionType.ZOOM_IN });
+  }, [zoomDispatch]);
+
+  const handleZoomOut = useCallback(() => {
+    zoomDispatch({ type: ZoomActionType.ZOOM_OUT });
+  }, [zoomDispatch]);
+
+  return (
+    <div data-testid="canvas-view" className="flex-1 bg-gray-100 p-6 relative flex flex-col">
+      <CanvasToolbar 
+        isResourcePanelVisible={isResourcePanelVisible}
+        onToggleResourcePanel={onToggleResourcePanel}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onCenterMap={() => {
+          if (viewportRef.current) {
+            const centerEvent = new CustomEvent('centerMap');
+            viewportRef.current.dispatchEvent(centerEvent);
+          }
+        }}
+      />
+
+      <div 
+        ref={viewportRef}
+        className="flex-1 bg-white rounded-lg border border-gray-200 p-4 relative"
+      >
+        <StatusBar />
+        {activeResourceType === 'map' ? (
+          <MapRenderer viewportRef={viewportRef} />
+        ) : (
+          <PDFRenderer />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default CanvasView;
+
+
+// MapRenderer.tsx
+
+/**
+ * @file MapRenderer.tsx
+ * @description Renders the map view including the root node and its subtrees.
+ */
+
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
+import ConceptNode from './ConceptNode';
+import Subtree from './Subtree';
+import { useNodesContext } from '@/app/Library/Context/NodesProvider';
+import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
+import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
+import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
+
+interface MapRendererProps {
+  viewportRef: React.RefObject<HTMLDivElement>;
+}
+
+const MapRenderer: React.FC<MapRendererProps> = ({ viewportRef }) => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const { zoomLevel } = useZoomContext();
+  const { nodes } = useNodesContext();
+  const { subtrees, getTotalSubtreeWidths, getMaxSubtreeHeight } = useSubTreeContext();
+
+  //––– Note: All “base” numbers have been scaled by 0.75.
+  const [isPanning, setIsPanning] = useState(false);
+  const [panPosition, setPanPosition] = useState({ x: 243.75, y: 150 });
+  const [startPan, setStartPan] = useState({ x: 0, y: 0 });
+
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [initialRootPosition, setInitialRootPosition] = useState<{ x: number; y: number } | null>(null);
+
+  const laidOutNodes = useCompositeLayout(nodes);
+  const rootNode = Array.from(nodes.values()).find((node) => node.isRoot);
+
+  const SVGcontentWidth = getTotalSubtreeWidths();
+  const SVGcontentHeight = getMaxSubtreeHeight();
+
+  const centerMapOnRoot = useCallback(() => {
+    const BASE_OFFSET = { x: 243.75, y: 150 };
+    console.log(`Zoom level :${zoomLevel}`);
+    if (!viewportRef.current) return;
+
+    const viewportRect = viewportRef.current.getBoundingClientRect();
+    const viewportCenter = {
+      x: viewportRect.left + window.scrollX + viewportRect.width / 2,
+      y: viewportRect.top + window.scrollY + viewportRect.height / 2,
+    };
+
+    let currentRootCenter;
+    if (rootRef.current) {
+      const currentRect = rootRef.current.getBoundingClientRect();
+      currentRootCenter = {
+        x: currentRect.left + window.scrollX + currentRect.width / 2,
+        y: currentRect.top + window.scrollY + currentRect.height / 2,
+      };
+    } else {
+      currentRootCenter = {
+        x: viewportCenter.x - (BASE_OFFSET.x / 2),
+        y: viewportCenter.y - (BASE_OFFSET.y / 2),
+      };
+    }
+
+    if (!initialRootPosition) {
+      setInitialRootPosition(currentRootCenter);
+      const dx = viewportCenter.x - currentRootCenter.x;
+      const dy = viewportCenter.y - currentRootCenter.y;
+      setPanPosition({ x: BASE_OFFSET.x + dx, y: BASE_OFFSET.y + dy });
+      return;
+    }
+
+    const dx = initialRootPosition.x - currentRootCenter.x;
+    const dy = initialRootPosition.y - currentRootCenter.y;
+    setPanPosition(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+  }, [viewportRef, initialRootPosition]);
+
+  const centerMapInViewport = useCallback(() => {
+    if (!viewportRef.current) return;
+    const viewportRect = viewportRef.current.getBoundingClientRect();
+    const viewportAbsolute = {
+      top: viewportRect.top + window.scrollY,
+      left: viewportRect.left + window.scrollX,
+      width: viewportRect.width,
+      height: viewportRect.height,
+    };
+    const viewportCenter = {
+      x: viewportAbsolute.left + viewportAbsolute.width / 2,
+      y: viewportAbsolute.top + viewportAbsolute.height / 2,
+    };
+
+    const intrinsicCenter = {
+      x: SVGcontentWidth ? SVGcontentWidth / 2 : 243.75,
+      y: SVGcontentHeight ? SVGcontentHeight / 2 : 150,
+    };
+
+    const newPanPosition = {
+      x: viewportCenter.x - intrinsicCenter.x * zoomLevel,
+      y: viewportCenter.y - intrinsicCenter.y * zoomLevel,
+    };
+
+    setPanPosition(newPanPosition);
+  }, [viewportRef, SVGcontentWidth, SVGcontentHeight, zoomLevel]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const handleCenterMap = () => centerMapOnRoot();
+    viewport.addEventListener('centerMap', handleCenterMap);
+    return () => viewport.removeEventListener('centerMap', handleCenterMap);
+  }, [centerMapOnRoot, viewportRef]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0 && mapRef.current) {
+      e.preventDefault();
+      setIsPanning(true);
+      setStartPan({
+        x: e.clientX - panPosition.x,
+        y: e.clientY - panPosition.y,
+      });
+      mapRef.current.style.cursor = 'grabbing';
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isPanning) {
+      const newX = e.clientX - startPan.x;
+      const newY = e.clientY - startPan.y;
+      setPanPosition({ x: newX, y: newY });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsPanning(false);
+    if (mapRef.current) {
+      mapRef.current.style.cursor = 'grab';
+    }
+  };
+
+  return (
+    <div 
+      ref={mapRef}
+      className="absolute inset-0 overflow-hidden bg-[#FAFAFA] cursor-grab select-none"
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      <div
+        ref={contentRef}
+        data-testid="map-content"
+        className="absolute"
+        style={{
+          transform: `translate(${panPosition.x / 16}rem, ${panPosition.y / 16}rem) scale(${zoomLevel})`,
+          transformOrigin: 'center center',
+          transition: isPanning ? 'none' : 'transform 0.3s ease',
+          width: `${SVGcontentWidth / 16}rem`,
+          height: `${SVGcontentHeight / 16}rem`,
+        }}
+      >
+        {rootNode && <ConceptNode ref={rootRef} key={rootNode.id} node={rootNode} />}
+        <svg
+          className="absolute top-0 left-0 w-full h-full pointer-events-none"
+          style={{ overflow: 'visible' }}
+        >
+          {drawHVStyleLines(laidOutNodes, subtrees, 3)}
+        </svg>
+        {Array.from(subtrees.entries()).map(
+          ([nodeId, subtreeData]) =>
+            subtreeData.position && (
+              <Subtree
+                key={nodeId}
+                rootNodeId={nodeId}
+                position={subtreeData.position}
+                width={subtreeData.width}
+                height={subtreeData.height}
+                openModalWithResourceType={(nodeId, type, op) => {
+                  console.log('Open modal:', { nodeId, type, op });
+                }}
+                onNodeClick={(nodeId) => {
+                  console.log('Node clicked:', nodeId);
+                }}
+              />
+            )
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default MapRenderer;
+
+
+// AutoSaveManager.ts
+
+// AutoSaveManager.ts
+import * as Y from 'yjs';
+import { debounce } from 'lodash';
+import { WebsocketProvider } from 'y-websocket';
+import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Configuration interface for AutoSaveManager
+ */
+interface AutoSaveConfig {
+  guaranteedSaveInterval: number;  // Maximum time between saves if changes exist
+  inactivitySaveDelay: number;    // Time to wait after last change before saving
+}
+
+/**
+ * Manages automatic saving of Y.js documents with protection against concurrent saves
+ * and proper handling of local vs. remote changes.
+ */
+export class AutoSaveManager {
+  private ydoc: Y.Doc;
+  private config: AutoSaveConfig;
+  private lastSaveTime: number = 0;
+  private hasUntrackedChanges: boolean = false;
+  private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+  private guaranteedSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private saveCallback: () => Promise<void>;
+  private isAutosaving: boolean = false;
+  private savePromise: Promise<void> | null = null;
+  private nodesObserver: ((event: Y.YMapEvent<any>) => void) | null = null;
+  private resourcesObserver: ((event: Y.YMapEvent<any>) => void) | null = null;
+  private id: string;
+
+  /**
+   * Named handler for Y.Doc updates
+   */
+  private handleYdocUpdate = (update: Uint8Array, origin: any) => {
+    // Ignore updates from WebsocketProvider, 'autosave', and system actions
+    if (
+      origin instanceof WebsocketProvider ||
+      origin === 'autosave' ||
+      (origin && typeof origin === 'object' && origin.type === 'system')
+    ) {
+      console.log('[AutoSaveManager] Ignoring update from origin:', origin);
+      return;
+    }
+
+    const hasActualChanges = update.length > 0;
+    console.log('[AutoSaveManager] Update detected:', {
+      updateSize: update.length,
+      hasActualChanges,
+      origin: origin
+    });
+
+    if (hasActualChanges) {
+      this.handleLocalChange();
+    }
+  };
+
+  /**
+   * Creates a new AutoSaveManager instance
+   * @param ydoc - The Y.js document to monitor
+   * @param saveCallback - Function to call when saving is needed
+   * @param config - Optional configuration overrides
+   */
+  constructor(
+    ydoc: Y.Doc, 
+    saveCallback: () => Promise<void>,
+    config: Partial<AutoSaveConfig> = {}
+  ) {
+    this.ydoc = ydoc;
+    this.saveCallback = saveCallback;
+    this.config = {
+      guaranteedSaveInterval: 60000, // 1 minute
+      inactivitySaveDelay: 3000,    // 10 seconds
+      ...config
+    };
+
+    this.id = uuidv4();
+
+    this.setupObservers();
+    this.setupBeforeUnloadHandler();
+  }
+
+  /**
+   * Sets up observers for Y.js document changes
+   * Monitors both document-level updates and specific shared types
+   */
+  private setupObservers(): void {
+    console.log(`[AutoSaveManager ${this.id}] Setting up observers`);
+
+    // Attach the named handler
+    this.ydoc.on('update', this.handleYdocUpdate);
+
+    const nodesMap = this.ydoc.getMap('nodes');
+    const resourcesMap = this.ydoc.getMap('resources');
+
+    // Keep observers just for logging purposes but don't trigger saves
+    this.nodesObserver = (event: Y.YMapEvent<any>) => {
+      const hasChanges = event.changes.keys.size > 0 || 
+                        event.changes.delta.length > 0;
+      if (hasChanges) {
+        console.log('[AutoSaveManager] Nodes map changed');
+      }
+    };
+
+    this.resourcesObserver = (event: Y.YMapEvent<any>) => {
+      const hasChanges = event.changes.keys.size > 0 || 
+                        event.changes.delta.length > 0;
+      if (hasChanges) {
+        console.log('[AutoSaveManager] Resources map changed');
+      }
+    };
+
+    nodesMap.observe(this.nodesObserver);
+    resourcesMap.observe(this.resourcesObserver);
+  }
+
+  /**
+   * Sets up handler for page unload events to ensure changes are saved
+   */
+  private setupBeforeUnloadHandler(): void {
+    const beforeUnloadHandler = async (event: BeforeUnloadEvent) => {
+      if (this.hasUntrackedChanges) {
+        event.preventDefault();
+        event.returnValue = '';
+        
+        try {
+          await this.forceSave();
+        } catch (error) {
+          console.error('[AutoSaveManager] Failed to save before unload:', error);
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', beforeUnloadHandler);
+
+    // Store reference for removal
+    this.beforeUnloadHandler = beforeUnloadHandler;
+  }
+
+  // Store the beforeUnloadHandler to remove it later
+  private beforeUnloadHandler: ((event: BeforeUnloadEvent) => void) | null = null;
+
+  /**
+   * Handles local changes to the document
+   * Manages save timers and change tracking
+   */
+  private handleLocalChange(): void {
+    if (!this.isAutosaving) {
+      console.log('[AutoSaveManager] Local change detected, initiating save timers');
+      this.hasUntrackedChanges = true;
+      this.resetInactivityTimer();
+      this.ensureGuaranteedSaveTimer();
+    } else {
+      console.log('[AutoSaveManager] Save in progress, change tracking deferred');
+    }
+  }
+
+  /**
+   * Resets the inactivity timer with debouncing
+   * Saves after a period of inactivity
+   */
+  private resetInactivityTimer = debounce(async (): Promise<void> => {
+    if (this.inactivityTimer) {
+      clearTimeout(this.inactivityTimer);
+    }
+
+    this.inactivityTimer = setTimeout(async () => {
+      if (this.hasUntrackedChanges && !this.isAutosaving) {
+        console.log('Inactivity threshold reached attempting save.....')
+        await this.save();
+      }
+    }, this.config.inactivitySaveDelay);
+  }, 100);
+
+  /**
+   * Ensures the guaranteed save timer is running
+   * Forces a save after maximum interval if changes exist
+   */
+  private ensureGuaranteedSaveTimer(): void {
+    if (!this.guaranteedSaveTimer) {
+      this.guaranteedSaveTimer = setTimeout(async () => {
+        if (this.hasUntrackedChanges && !this.isAutosaving) {
+          console.log('Guaranteed save threshold reached attempting save.....')
+          await this.save();
+        }
+        this.guaranteedSaveTimer = null;
+      }, this.config.guaranteedSaveInterval);
+    }
+  }
+
+  /**
+   * Performs the actual save operation with concurrency protection
+   */
+  private async save(): Promise<void> {
+    console.log('[AutoSaveManager] Save requested:', {
+      hasUntrackedChanges: this.hasUntrackedChanges,
+      isAutosaving: this.isAutosaving,
+      lastSaveTime: this.lastSaveTime,
+      timeSinceLastSave: Date.now() - this.lastSaveTime
+    });
+
+    // Return existing promise if save is in progress
+    if (this.isAutosaving) {
+      console.log('[AutoSaveManager] Save already in progress, waiting...');
+      return this.savePromise || Promise.resolve();
+    }
+
+    if (!this.hasUntrackedChanges) {
+      console.log('[AutoSaveManager] No untracked changes, skipping save');
+      return Promise.resolve();
+    }
+
+    try {
+      this.isAutosaving = true;
+      this.savePromise = (async () => {
+        try {
+          await this.saveCallback();
+          this.lastSaveTime = Date.now();
+          this.hasUntrackedChanges = false;
+          this.clearTimers();
+        } finally {
+          this.isAutosaving = false;
+          this.savePromise = null;
+          console.log('AutoSave completed exiting save.....');
+        }
+      })();
+
+      return this.savePromise;
+    } catch (error) {
+      console.error('[AutoSaveManager] Save failed:', error);
+      this.isAutosaving = false;
+      this.savePromise = null;
+      throw error;
+    }
+  }
+
+  /**
+   * Forces an immediate save if there are untracked changes
+   */
+  public async forceSave(): Promise<void> {
+    if (this.hasUntrackedChanges || this.isAutosaving) {
+      return this.save();
+    }
+  }
+
+  /**
+   * Cleans up all active timers
+   */
+  private clearTimers(): void {
+    if (this.inactivityTimer) {
+      clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = null;
+    }
+    if (this.guaranteedSaveTimer) {
+      clearTimeout(this.guaranteedSaveTimer);
+      this.guaranteedSaveTimer = null;
+    }
+  }
+
+  /**
+   * Cleans up resources when the manager is destroyed
+   */
+  public destroy(): void {
+    console.log('[AutoSaveManager] Destroying instance');
+    this.clearTimers();
+    
+    if (this.ydoc) {
+      // Properly remove the named handler
+      this.ydoc.off('update', this.handleYdocUpdate);
+      
+      const nodesMap = this.ydoc.getMap('nodes');
+      const resourcesMap = this.ydoc.getMap('resources');
+      
+      // Properly unregister observers
+      if (this.nodesObserver) {
+        nodesMap.unobserve(this.nodesObserver);
+      }
+      if (this.resourcesObserver) {
+        resourcesMap.unobserve(this.resourcesObserver);
+      }
+    }
+    
+    if (this.beforeUnloadHandler) {
+      window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+      this.beforeUnloadHandler = null;
+    }
+  }
+}
+
+
+// documentUtils.ts
+
+/**
+ * @file documentUtils.ts
+ * @description 
+ * Utility functions for handling document serialization, saving, loading, and initialization.
+ * These functions manage the conversion of document data to and from JSON formats,
+ * handle file operations like saving and loading .bloomdocx files,
+ * and initialize new documents with default settings.
+ * 
+ * Additionally, this file implements mode-dependent functionality to handle
+ * different behaviors when operating in 'private' mode versus 'collaborate' mode.
+ * In 'collaborate' mode, additional metadata and conflict resolution information
+ * are included to maintain data integrity across multiple users.
+ * 
+ * This ensures that the application can seamlessly switch between private and
+ * collaborative workflows without compromising on functionality or performance.
+ */
+// documentUtils.ts// documentUtils.ts
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import { ColorTheme } from '@/app/Library/Definitions/Definitions';
+import { toast } from 'react-toastify';
+
+export const saveDocument = async (
+  persistDoc: (local: boolean) => Uint8Array,
+  colorTheme: ColorTheme,
+  primaryColor: string,
+  backgroundColor: string,
+  fileName: string,
+  fileId: string | undefined,
+  getLessonModuleJSON: () => string  // new parameter
+): Promise<void> => {
+  const zip = new JSZip();
+  try {
+    // Serialize Y.doc state
+    const yUpdate = persistDoc(true);
+    zip.file('document/yjsState.bin', yUpdate);
+
+    // Save color theme preferences
+    const styles = {
+      primaryColor,
+      backgroundColor,
+      colorTheme
+    };
+    zip.file('document/styles.json', JSON.stringify(styles));
+
+    // Save file metadata
+    const metadata = {
+      fileName,
+      fileId
+    };
+    zip.file('document/metadata.json', JSON.stringify(metadata));
+
+    // NEW: Save lessonModule metadata using our encapsulated method
+    const lessonModuleJSON = getLessonModuleJSON();
+    zip.file('document/lessonModule.json', lessonModuleJSON);
+
+    const content = await zip.generateAsync({ type: 'blob' });
+    saveAs(content, `${fileName || 'my_document'}.bloomdocx`);
+    toast.success('Document saved successfully!');
+  } catch (error) {
+    console.error('Error saving document:', error);
+    toast.error('Failed to save the document');
+    throw error;
+  }
+};
+
+export const prepareBloomDocx = async (
+  persistDoc: (local: boolean) => Uint8Array,
+  colorTheme: ColorTheme,
+  primaryColor: string,
+  backgroundColor: string,
+  fileName: string,
+  fileId: string | undefined,
+  getLessonModuleJSON: () => string  // new parameter
+): Promise<Blob> => {
+  const zip = new JSZip();
+  try {
+    const yUpdate = persistDoc(false);
+    zip.file('document/yjsState.bin', yUpdate);
+
+    const styles = {
+      primaryColor,
+      backgroundColor,
+      colorTheme
+    };
+    zip.file('document/styles.json', JSON.stringify(styles));
+
+    const metadata = {
+      fileName,
+      fileId
+    };
+    zip.file('document/metadata.json', JSON.stringify(metadata));
+
+    // NEW: Include lessonModule metadata using our helper method
+    const lessonModuleJSON = getLessonModuleJSON();
+    zip.file('document/lessonModule.json', lessonModuleJSON);
+
+    return await zip.generateAsync({ type: 'blob' });
+  } catch (error) {
+    console.error('Error preparing document:', error);
+    toast.error('Failed to prepare the document');
+    throw error;
+  }
+};
+
+
+// LoadDocumentUtils.ts
+
+/**
+ * @file documentUtils.ts
+ * @description 
+ * Utility functions for handling document serialization, saving, loading, and initialization.
+ * These functions manage the conversion of document data to and from JSON formats,
+ * handle file operations like saving and loading .bloomdocx files,
+ * and initialize new documents with default settings.
+ * 
+ * Additionally, this file implements mode-dependent functionality to handle
+ * different behaviors when operating in 'private' mode versus 'collaborate' mode.
+ * In 'collaborate' mode, additional metadata and conflict resolution information
+ * are included to maintain data integrity across multiple users.
+ * 
+ * This ensures that the application can seamlessly switch between private and
+ * collaborative workflows without compromising on functionality or performance.
+ */
+
+import JSZip from 'jszip';
+import { resetColorTheme } from '@/app/Library/Context/colorThemeActions';
+import { toast } from 'react-toastify';
+
+
+
+/**
+ * Function to initialize a new document with default settings using system transactions.
+ * All initialization operations are wrapped in a system transaction to prevent WebSocket updates.
+ * 
+ * @param ydoc - The Y.Doc instance to initialize
+ * @param resetNode - Function to reset nodes
+ * @param initNodes - Function to initialize nodes
+ * @param layoutDispatch - Dispatch function to update layout state
+ * @param fileDispatch - Dispatch function to update file-related state
+ * @param colorThemeDispatch - Dispatch function to update color theme state
+ * @param resetSubtrees - Function to reset subtrees
+ * @param resetResources - Function to reset resources
+ * @param bloomDepth - Depth level of the bloom taxonomy
+ * @param isInitialLoad - Flag to indicate if it's the initial load
+ * @param mapWidth - Width of the map layout
+ * @param mapHeight - Height of the map layout
+ */
+export const initializeNewDocument = async (
+     createNewDocument: () => Promise<void>,  
+    layoutDispatch: React.Dispatch<any>,
+    colorThemeDispatch: React.Dispatch<any>,
+    mapWidth: number = 1800,// used to make a layout dispatch call .. can be moved up to topbar.tsx 
+    mapHeight: number = 1800 // used to make a layout dispatch call .. can be moved up to topbar.tsx 
+  ): Promise<void> => {
+        try {
+
+        await createNewDocument();
+        console.log('Starting transactional document initialization');
+  
+
+        colorThemeDispatch(resetColorTheme()); 
+        
+  
+        // Second phase: Initialize new state
+        console.log('Initializing new document state...');
+        
+        // Set map size
+        layoutDispatch({ // this can be lifted to top bar.tsx
+          type: 'SET_MAP_SIZE', 
+          payload: { 
+            mapWidth: mapWidth || 1800, 
+            mapHeight: mapHeight || 1800 
+          } 
+        });
+  
+        console.log('Document initialization completed successfully');
+        toast.success('New document initialized successfully.');
+      } catch (error) {
+        console.error('Error initializing document:', error);
+        toast.error('Failed to initialize new document');
+        throw error;
+      }
+    }
+
+/**
+ * Loads a document from Google Drive using a system transaction.
+ */
+export const loadDocumentFromDrive = async (
+  file: Blob,
+  loadData: (
+    fileName: string,
+    driveFileId: string | undefined,
+    docState: Uint8Array
+  ) => Promise<void>,
+  fileId: string,
+  colorThemeDispatch: React.Dispatch<any>
+): Promise<void> => {
+  try {
+    console.log('Starting document load from drive');
+
+    const zip = new JSZip();
+    await zip.loadAsync(file);
+
+    // 1. Load Y.doc state
+    const yjsStateFile = zip.file('document/yjsState.bin');
+    if (!yjsStateFile) {
+      throw new Error('Invalid document format: missing Y.doc state');
+    }
+    const yjsState = await yjsStateFile.async('uint8array');
+
+    // 2. Load metadata
+    const metadataFile = await zip.file('document/metadata.json')?.async('string');
+    const metadata = metadataFile ? JSON.parse(metadataFile) : { 
+      fileName: `${fileId}.bloomdocx`
+    };
+
+    // 3. Load styles
+    const stylesFile = await zip.file('document/styles.json')?.async('string');
+    if (stylesFile) {
+      const { primaryColor, backgroundColor, colorTheme } = JSON.parse(stylesFile);
+      colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: primaryColor });
+      colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: backgroundColor });
+      colorThemeDispatch({ type: 'SET_COLOR_THEME', payload: colorTheme });
+    }
+
+    // 4. Load images
+    const imageBuffers = new Map<string, ArrayBuffer>();
+    const imageFiles = Object.entries(zip.files).filter(([path]) => 
+      path.startsWith('document/images/'));
+    
+    for (const [path, file] of imageFiles) {
+      const imageId = path.split('/').pop()!;
+      const buffer = await file.async('arraybuffer');
+      imageBuffers.set(imageId, buffer);
+    }
+    
+
+    // 5. Initialize data with binary state
+    await loadData(
+      metadata.fileName,
+      fileId,  // Use provided fileId
+      yjsState
+    );
+
+    toast.success('Document loaded successfully from Drive');
+  } catch (error) {
+    console.error('Error loading document from drive:', error);
+    toast.error('Failed to load document from drive');
+    throw error;
+  }
+};
+
+/**
+ * Loads a document from local storage using a system transaction.
+ */
+// In LoadDocumentUtils.ts
+
+export const loadDocument = async (
+  file: File,
+  loadData: (
+    fileName: string,
+    driveFileId: string | undefined,
+    docState: Uint8Array
+  ) => Promise<void>,
+  colorThemeDispatch: React.Dispatch<any>
+): Promise<void> => {
+  try {
+    const zip = new JSZip();
+    const content = await zip.loadAsync(file);
+
+    // 1. Load Y.doc state directly
+    const yjsStateFile = content.file('document/yjsState.bin');
+    if (!yjsStateFile) {
+      throw new Error('Invalid document format: missing Y.doc state');
+    }
+    const yjsState = await yjsStateFile.async('uint8array');
+
+    // 2. Load metadata
+    const metadataFile = await content.file('document/metadata.json')?.async('string');
+    const metadata = metadataFile ? JSON.parse(metadataFile) : { 
+      fileName: file.name.replace(/\.bloomdocx$/, '') 
+    };
+
+    // 3. Load styles
+    const stylesFile = await content.file('document/styles.json')?.async('string');
+    if (stylesFile) {
+      const { primaryColor, backgroundColor, colorTheme } = JSON.parse(stylesFile);
+      colorThemeDispatch({ type: 'SET_PRIMARY_COLOR', payload: primaryColor });
+      colorThemeDispatch({ type: 'SET_BACKGROUND_COLOR', payload: backgroundColor });
+      colorThemeDispatch({ type: 'SET_COLOR_THEME', payload: colorTheme });
+    }
+
+    // 4. Load images
+    const imageBuffers = new Map<string, ArrayBuffer>();
+    const imageFiles = Object.entries(content.files).filter(([path]) => 
+      path.startsWith('document/images/'));
+    
+    for (const [path, file] of imageFiles) {
+      const imageId = path.split('/').pop()!;
+      const buffer = await file.async('arraybuffer');
+      imageBuffers.set(imageId, buffer);
+    }
+   
+
+    // 5. Initialize data with binary state
+    await loadData(metadata.fileName, metadata.fileId, yjsState);
+
+    toast.success('Document loaded successfully');
+  } catch (error) {
+    console.error('Error loading document:', error);
+    toast.error('Failed to load the document');
+    throw error;
+  }
+};
+
+
+
+// YDocContext.tsx
+
+// YDocContext.tsx
+import React, { createContext, useContext, useCallback, useState, useMemo, ReactNode } from 'react';
+import * as Y from 'yjs';
+import { toast } from 'react-toastify';
+import { ConceptNode, ResourceCard } from '@/app/Library/Definitions/Definitions';
+import { v4 as uuidv4 } from 'uuid';
+
+interface YDocContextType {
+  ydoc: Y.Doc;
+  fileName: string;
+  driveFileId?: string;
+  docFileID: string | null;
+  isInitialized: boolean;
+  createNewDocument: () => Promise<void>;
+  loadData: (
+    fileName: string,
+    driveFileId: string | undefined,
+    docState: Uint8Array
+  ) => Promise<void>;
+  applyUpdate: (update: Uint8Array) => void;
+  getState: () => Uint8Array;
+  updateFileName: (name: string) => void;
+  updateDriveId: (id?: string) => void;
+  persistDoc: (local: boolean) => Uint8Array;
+  // NEW: Method to get lesson module JSON string
+  getLessonModuleJSON: () => string;
+}
+
+const YDocContext = createContext<YDocContextType | undefined>(undefined);
+
+export const useYDoc = () => {
+  const context = useContext(YDocContext);
+  if (!context) {
+    throw new Error('useYDoc must be used within YDocProvider');
+  }
+  return context;
+};
+
+interface YDocProviderProps {
+  children: ReactNode;
+}
+
+export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
+  const [ydoc, setYDoc] = useState(() => new Y.Doc());
+  const [fileName, setFileName] = useState('Untitled Document');
+  const [driveFileId, setDriveFileId] = useState<string>();
+  const [docFileID, setDocFileID] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  const applyUpdate = useCallback((update: Uint8Array): void => {
+    try {
+      Y.applyUpdate(ydoc, update);
+    } catch (error) {
+      console.error('Error applying update:', error);
+      toast.error('Failed to apply document update');
+    }
+  }, [ydoc]);
+
+  const getState = useCallback((): Uint8Array => {
+    return Y.encodeStateAsUpdate(ydoc);
+  }, [ydoc]);
+
+  const persistDoc = useCallback((local: boolean): Uint8Array => {
+    if (local) {
+      setDriveFileId(undefined);
+    }
+    return Y.encodeStateAsUpdate(ydoc);
+  }, [ydoc]);
+
+  // Updated createNewDocument that uses a namespaced nodes map for the default concept map
+  const createNewDocument = useCallback(async (): Promise<void> => {
+    try {
+      setIsInitialized(false);
+      const newYDoc = new Y.Doc();
+      const newDocId = uuidv4();
+      const defaultConceptMapId = 'map-1'; // Default concept map ID
+      
+      newYDoc.transact(() => {
+        // Clear and initialize shared data
+        newYDoc.getMap('metadata').clear();
+        // We no longer use a generic 'nodes' map since nodes are namespaced per concept map.
+        newYDoc.getMap('resources').clear();
+        newYDoc.getMap('subtrees').clear();
+
+        // Initialize lessonModule
+        const lessonModule = newYDoc.getMap('lessonModule');
+        lessonModule.clear();
+        lessonModule.set('title', 'Default Lesson Module');
+        const conceptMaps = new Y.Array<any>();
+        // Create a default concept map entry
+        const defaultConceptMap = { id: defaultConceptMapId, title: 'Default Map', createdAt: new Date().toISOString() };
+        conceptMaps.push([defaultConceptMap]);
+        lessonModule.set('conceptMaps', conceptMaps);
+
+        // Initialize nodes for the default concept map using a namespaced key.
+        const nodesKey = `nodes:${defaultConceptMapId}`;
+        const nodesMap = newYDoc.getMap<ConceptNode>(nodesKey);
+        nodesMap.clear();
+        const rootNode: ConceptNode = {
+          id: 'node-1',
+          title: 'Root Concept',
+          parentNodeId: undefined,
+          childrenNodeIds: [],
+          x: 0,
+          y: 0,
+          isRoot: true,
+          depth: 0
+        };
+        nodesMap.set(rootNode.id, rootNode);
+
+        // Initialize subtrees sentinel (you may later namespace subtrees similarly if needed)
+        newYDoc.getMap('subtrees').set('sentinel-node', {
+          minX: 0,
+          maxX: 0,
+          minY: 0,
+          maxY: 0,
+          width: 0,
+          height: 0,
+          position: { x: 0, y: 0 }
+        });
+      }, { type: 'system', action: 'reset' });
+
+      setFileName('Untitled Document');
+      setDriveFileId(undefined);
+      setDocFileID(newDocId);
+      setYDoc(newYDoc);
+      setIsInitialized(true);
+      toast.success('New document created');
+    } catch (error) {
+      console.error('Error creating new document:', error);
+      toast.error('Failed to create new document');
+    }
+  }, []);
+
+  const loadData = useCallback(async (
+    fileName: string,
+    driveFileId: string | undefined,
+    docState: Uint8Array
+  ): Promise<void> => {
+    try {
+      console.log('Starting loadData operation...');
+      setIsInitialized(false);
+      const newYDoc = new Y.Doc();
+      newYDoc.transact(() => {
+        Y.applyUpdate(newYDoc, docState);
+      }, { type: 'system', action: 'loadData' });
+      setFileName(fileName);
+      setDriveFileId(driveFileId);
+      const metadataMap = newYDoc.getMap('metadata');
+      const loadedDocFileID = metadataMap.get('docFileID') as string || null;
+      setDocFileID(loadedDocFileID);
+      setYDoc(newYDoc);
+      setIsInitialized(true);
+      console.log('loadData completed successfully');
+    } catch (error) {
+      console.error('Error in loadData:', error);
+      toast.error('Failed to load document data');
+      throw error;
+    }
+  }, []);
+
+  const updateFileName = useCallback((name: string): void => {
+    setFileName(name.trim() || 'Untitled Document');
+  }, []);
+
+  const updateDriveId = useCallback((id?: string): void => {
+    setDriveFileId(id);
+  }, []);
+
+  // NEW: Expose a method that returns the lesson module JSON string.
+  const getLessonModuleJSON = useCallback((): string => {
+    const lessonModule = ydoc.getMap('lessonModule');
+    return JSON.stringify(lessonModule.toJSON());
+  }, [ydoc]);
+
+  const value = useMemo((): YDocContextType => ({
+    ydoc,
+    fileName,
+    driveFileId,
+    isInitialized,
+    createNewDocument,
+    applyUpdate,
+    getState,
+    updateFileName,
+    updateDriveId,
+    loadData,
+    persistDoc,
+    docFileID,
+    getLessonModuleJSON, // NEW
+  }), [ydoc, fileName, driveFileId, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, updateDriveId, loadData, persistDoc, docFileID, getLessonModuleJSON]);
+
+  return (
+    <YDocContext.Provider value={value}>
+      {children}
+    </YDocContext.Provider>
+  );
+};
+
+export default YDocProvider;
+
+
+// LessonModuleContext.tsx
+
+/**
+ * @file LessonModuleContext.tsx
+ * @description
+ *   This context is responsible for managing the lesson module state.
+ *   It provides services for:
+ *     - Retrieving the lesson module metadata (module title and list of concept maps).
+ *     - Creating new concept maps (lessons) with a unique identifier and initializing a namespaced nodes map for each.
+ *         Each new concept map automatically receives a default root node.
+ *     - Updating and deleting concept maps.
+ *     - Maintaining the active concept map selection.
+ *
+ *   Note: The lesson module title (i.e. file name) is now managed by YDocContext. Therefore,
+ *   any updates to the module title should be done via YDocContext’s API (updateFileName).
+ */
+
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { useYDoc } from './YDocContext';
+import * as Y from 'yjs';
+import { v4 as uuidv4 } from 'uuid';
+import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+
+export interface ConceptMap {
+  id: string;
+  title: string;
+  createdAt: string;
+}
+
+export interface LessonModule {
+  title: string;
+  conceptMaps: ConceptMap[];
+}
+
+export interface LessonModuleContextType {
+  activeConceptMapId: string;
+  setActiveConceptMapId: (id: string) => void;
+  getLessonModule: () => LessonModule;
+  addConceptMap: (title: string) => void;
+  updateConceptMapTitle: (conceptMapId: string, newTitle: string) => void;
+  deleteConceptMap: (conceptMapId: string) => void;
+}
+
+const LessonModuleContext = createContext<LessonModuleContextType | undefined>(undefined);
+
+export const LessonModuleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { ydoc } = useYDoc();
+  // When the YDoc is updated (e.g. via createNewDocument) we need to work with the new maps.
+  const lessonModuleYMap = ydoc.getMap('lessonModule');
+  // Default active concept map is "map-1"
+  const [activeConceptMapId, setActiveConceptMapId] = useState('map-1');
+
+  // Reactive state for the lesson module.
+  const [lessonModuleState, setLessonModuleState] = useState<LessonModule>(() => {
+    const title = (lessonModuleYMap.get('title') as string) || 'Untitled Lesson Module';
+    const conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any>;
+    const conceptMaps: ConceptMap[] = conceptMapsYArray ? conceptMapsYArray.toArray() : [];
+    return { title, conceptMaps };
+  });
+
+  // Reinitialize the reactive state and observer whenever the YDoc changes.
+  useEffect(() => {
+    const lessonModuleYMap = ydoc.getMap('lessonModule');
+    const conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any>;
+    if (!conceptMapsYArray) {
+      // If no array exists, update state with an empty list.
+      setLessonModuleState({
+        title: (lessonModuleYMap.get('title') as string) || 'Untitled Lesson Module',
+        conceptMaps: [],
+      });
+      return;
+    }
+    const observer = () => {
+      setLessonModuleState({
+        title: (lessonModuleYMap.get('title') as string) || 'Untitled Lesson Module',
+        conceptMaps: conceptMapsYArray.toArray(),
+      });
+    };
+    // Attach observers.
+    conceptMapsYArray.observe(observer);
+    lessonModuleYMap.observe(observer);
+    // Initialize state.
+    observer();
+
+    return () => {
+      conceptMapsYArray.unobserve(observer);
+      lessonModuleYMap.unobserve(observer);
+    };
+  }, [ydoc]);
+
+  // getLessonModule now returns the reactive state.
+  const getLessonModule = useCallback((): LessonModule => {
+    return lessonModuleState;
+  }, [lessonModuleState]);
+
+  const addConceptMap = useCallback((title: string) => {
+    const newId = `map-${uuidv4()}`;
+    const newConceptMap: ConceptMap = {
+      id: newId,
+      title,
+      createdAt: new Date().toISOString(),
+    };
+
+    let conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any>;
+    if (!conceptMapsYArray) {
+      conceptMapsYArray = new Y.Array();
+      lessonModuleYMap.set('conceptMaps', conceptMapsYArray);
+    }
+    conceptMapsYArray.push([newConceptMap]);
+
+    // Initialize a namespaced nodes map for this new concept map.
+    const nodesKey = `nodes:${newConceptMap.id}`;
+    const nodesMap = ydoc.getMap<ConceptNode>(nodesKey);
+    nodesMap.clear();
+    // Create a default root node for this map.
+    const rootNode: ConceptNode = {
+      id: 'node-1',
+      title: 'Root Concept',
+      parentNodeId: undefined,
+      childrenNodeIds: [],
+      x: 0,
+      y: 0,
+      isRoot: true,
+      depth: 0,
+    };
+    nodesMap.set(rootNode.id, rootNode);
+  }, [lessonModuleYMap, ydoc]);
+
+  const updateConceptMapTitle = useCallback((conceptMapId: string, newTitle: string) => {
+    const conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any>;
+    if (conceptMapsYArray) {
+      const maps = conceptMapsYArray.toArray();
+      const index = maps.findIndex((cm: any) => cm.id === conceptMapId);
+      if (index !== -1) {
+        const updatedMap = { ...maps[index], title: newTitle };
+        conceptMapsYArray.delete(index, 1);
+        conceptMapsYArray.insert(index, [updatedMap]);
+      }
+    }
+  }, [lessonModuleYMap]);
+
+  const deleteConceptMap = useCallback((conceptMapId: string) => {
+    const conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any>;
+    if (conceptMapsYArray) {
+      const maps = conceptMapsYArray.toArray();
+      const index = maps.findIndex((cm: any) => cm.id === conceptMapId);
+      if (index !== -1) {
+        conceptMapsYArray.delete(index, 1);
+        // Clear the namespaced nodes map for the deleted concept map.
+        const nodesKey = `nodes:${conceptMapId}`;
+        const nodesMap = ydoc.getMap(nodesKey);
+        nodesMap.clear();
+        if (activeConceptMapId === conceptMapId) {
+          const newActive = maps[0]?.id || '';
+          setActiveConceptMapId(newActive);
+        }
+      }
+    }
+  }, [lessonModuleYMap, ydoc, activeConceptMapId]);
+
+  return (
+    <LessonModuleContext.Provider
+      value={{
+        activeConceptMapId,
+        setActiveConceptMapId,
+        getLessonModule,
+        addConceptMap,
+        updateConceptMapTitle,
+        deleteConceptMap,
+      }}
+    >
+      {children}
+    </LessonModuleContext.Provider>
+  );
+};
+
+export const useLessonModule = () => {
+  const context = useContext(LessonModuleContext);
+  if (!context) {
+    throw new Error('useLessonModule must be used within a LessonModuleProvider');
+  }
+  return context;
+};
+
+

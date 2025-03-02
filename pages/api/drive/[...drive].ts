@@ -5,8 +5,6 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { GoogleDriveService } from '../../../app/src/services/googleDrive';
-import { GoogleOAuthManager } from '../../../app/src/auth/oauth';
-import { RedisSessionManager } from '../../../app/src/auth/session';
 import { sessionManager } from '@/app/src/auth/singletons';
 import { AuthConfig } from '../../../app/src/auth/types';
 import dotenv from 'dotenv';
@@ -41,8 +39,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Ensure `drive` is always an array and get the first element
   const route = Array.isArray(drive) ? drive[0] : drive;
 
-  console.log('Drive route accessed:', route); // Updated to log `route` instead of `drive`
-  console.log('Request method:', req.method);
+  ////console.log('Drive route accessed:', route); // Updated to log `route` instead of `drive`
+  ////console.log('Request method:', req.method);
 
   // Parse cookies to extract sessionId
   const cookies = req.headers.cookie ? parse(req.headers.cookie) : {};
@@ -55,23 +53,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Validate or refresh the session to ensure the access token is valid
-    console.log('Validating session for sessionId:', sessionId);
+   // //console.log('Validating session for sessionId:', sessionId);
     const sessionData = await sessionManager.ensureValidSession(sessionId);
-    console.log('Validated session data:', sessionData);
+   // //console.log('Validated session data:', sessionData);
 
     switch (route) {
       case 'save':
-        console.log('Handling "save" route');
+       // //console.log('Handling "save" route');
         if (req.method === 'POST') {
           const { content, fileName } = req.body;
-          console.log('Received save request with content:', content);
+          ////console.log('Received save request with content:', content);
           if (!content) {
             console.warn('Save request missing content');
             return res.status(400).json({ error: 'Content is required for saving a document' });
           }
           // Pass the sessionId to driveService to retrieve session data
           const fileId = await driveService.saveDocument(sessionId, content, fileName);
-          console.log('Document saved with fileId:', fileId);
+          //console.log('Document saved with fileId:', fileId);
             
           return res.status(200).json({ fileId, fileName });
         }
@@ -79,17 +77,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         break;
 
         case 'update':
-          console.log('Handling "update" route');
+          //console.log('Handling "update" route');
           if (req.method === 'POST') {
             const { fileId, content } = req.body;
-            console.log('Received update request for fileId:', fileId);
+            //console.log('Received update request for fileId:', fileId);
             if (!fileId || !content) {
               console.warn('Update request missing fileId or content');
               return res.status(400).json({ error: 'fileId and content are required for updating a document' });
             }
             // Call updateDocument to update the existing file
             const updatedFileId = await driveService.updateDocument(sessionId, fileId, content);
-            console.log('Document updated with fileId:', updatedFileId);
+            //console.log('Document updated with fileId:', updatedFileId);
                 
             return res.status(200).json({ fileId: updatedFileId });
           }
@@ -97,17 +95,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           break;
 
           case 'load':
-            console.log('Handling "load" route');
+            //console.log('Handling "load" route');
             if (req.method === 'GET') {
               const { fileId } = req.query;
-              console.log('Loading file with fileId:', fileId);
+              //console.log('Loading file with fileId:', fileId);
               if (!fileId || typeof fileId !== 'string') {
                 console.warn('Invalid file ID provided:', fileId);
                 return res.status(400).json({ error: 'Invalid file ID' });
               }
               // Retrieve binary data
               const buffer = await driveService.loadDocument(sessionId, fileId);
-              console.log('File loaded:', buffer);
+              //console.log('File loaded:', buffer);
                         
               // Set appropriate headers for binary data
               res.setHeader('Content-Type', 'application/octet-stream');
@@ -121,13 +119,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         
 
         case 'list':
-          console.log('Handling "list" route');
+          //console.log('Handling "list" route');
           if (req.method === 'GET') {
             const { query } = req.query;
-            console.log('Listing files with query:', query);
+            //console.log('Listing files with query:', query);
             const searchQuery = typeof query === 'string' ? query : undefined;
             const files = await driveService.listFiles(sessionId, searchQuery);
-            console.log('Files retrieved:', files);
+            //console.log('Files retrieved:', files);
             return res.status(200).json({ files });
           }
           console.warn('Invalid method for "list" route:', req.method);

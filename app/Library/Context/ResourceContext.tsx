@@ -24,6 +24,7 @@ import {
 } from '@/app/Library/utils/undoredo/historyutils';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import * as Y from 'yjs';
+import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 
 
 interface ResourceContextType {
@@ -49,8 +50,8 @@ interface ResourceContextType {
   redo: (nodeId: string) => void;
   undoAvailable: (nodeId: string) => boolean;
   redoAvailable: (nodeId: string) => boolean;
-  addResourcev1: (params: { nodeId: string; type: 'cueCard' | 'note'  |'practiceSheet'; title: string; content: any; }) => Promise<void>;
-  addPictureResourcev1: (params: { nodeId: string; title: string; description?: any; }, image: File) => Promise<void>;
+  addResourcev1: (params: { nodeId: string; type: 'cueCard' | 'note'  |'practiceSheet'; title: string; content: any; }, mapID?:string) => Promise<void>;
+  addPictureResourcev1: (params: { nodeId: string; title: string; description?: any; }, image: File, mapID?:string) => Promise<void>;
   removeResourcev1: (nodeId: string, resourceId: string) => void;
   editResourcev1: (resource: ResourceCard) => Promise<void>;
   editPictureResourcev1: (resource: PictureResource, newImage: boolean, image?: File) => Promise<void>;
@@ -70,7 +71,9 @@ export const useResourceContext = () => {
 
 export const ResourceProvider = ({ children }: { children: ReactNode }) => {
   const { ydoc } = useYDoc();
-  const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>('resources');
+  const { activeConceptMapId } = useLessonModule();
+  const resourcesMapKey = `resources:${activeConceptMapId}`;
+  const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>(resourcesMapKey);
   const [resources, setResourcesState] = useState<Map<string, ResourceCard[]>>(new Map());
 
   useEffect(() => {
@@ -517,7 +520,13 @@ const editPictureResource = useCallback(
 
     // Create a resource for cue cards or practice sheets.
     const addResourcev1 = useCallback(
-      async (params: { nodeId: string; type: 'cueCard' | 'note' | 'practiceSheet'; title: string; content: any; }) => {
+      async (params: { nodeId: string; type: 'cueCard' | 'note' | 'practiceSheet'; title: string; content: any; }, mapID?:string) => {
+        console.log(`addResourceV1 invoked with activeConceptMapID ${activeConceptMapId}`);
+        console.log(`addResourceV1 invoked with parameter mapID ${mapID}`);
+        const usedMapID = mapID || activeConceptMapId;
+        const resourcesKey = `resources:${usedMapID}`;
+        const yResourceMap = ydoc.getMap<Y.Map<ResourceCard>>(resourcesKey);
+
         let newResource: ResourceCard;
         if (params.type === 'cueCard') {
           newResource = {
@@ -557,23 +566,27 @@ const editPictureResource = useCallback(
     
         // Update the shared Y.Doc.
         ydoc.transact(() => {
-          let yMap = yResourcesMap.get(params.nodeId);
+          let yMap = yResourceMap.get(params.nodeId);
           if (!yMap) {
             yMap = new Y.Map<ResourceCard>();
-            yResourcesMap.set(params.nodeId, yMap);
+            yResourceMap.set(params.nodeId, yMap);
           }
           yMap.set(newResource.id, newResource);
         });
       },
-      [ydoc, yResourcesMap]
+      [ydoc,activeConceptMapId]
     );
   
     // Create a picture resource and handle image upload.
     const addPictureResourcev1 = useCallback(
       async (
         params: { nodeId: string; title: string; description?: any; },
-        image: File
+        image: File,
+        mapID?: string
       ) => {
+        const usedMapID = mapID || activeConceptMapId;
+        const resourcesKey = `resources:${usedMapID}`;
+        const yResourceMap = ydoc.getMap<Y.Map<ResourceCard>>(resourcesKey)
         const newId = uuidv4();
         // Create a temporary URL for immediate preview.
         const localUrl = URL.createObjectURL(image);
@@ -619,10 +632,10 @@ const editPictureResource = useCallback(
           });
   
           ydoc.transact(() => {
-            let yMap = yResourcesMap.get(params.nodeId);
+            let yMap = yResourceMap.get(params.nodeId);
             if (!yMap) {
               yMap = new Y.Map<ResourceCard>();
-              yResourcesMap.set(params.nodeId, yMap);
+              yResourceMap.set(params.nodeId, yMap);
             }
             yMap.set(updatedPicture.id, updatedPicture);
           });

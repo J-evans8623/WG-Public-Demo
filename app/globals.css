@@ -138,3 +138,35 @@
   }
 }
 
+
+.textLayer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.textLayer > span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  pointer-events: all;
+}
+
+.textLayer > span::selection {
+  background: rgba(0, 0, 255, 0.2);
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

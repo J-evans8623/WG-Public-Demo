@@ -2,13 +2,14 @@ import React, { memo, useCallback, useState, useEffect, forwardRef } from 'react
 import { ConceptNode as NodeType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
-import { Plus, Trash2, Pencil, GitBranch } from 'lucide-react';
+import { Plus, Trash2, Pencil, GitBranch, Sparkles } from 'lucide-react';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { v4 as uuidv4 } from 'uuid';
 import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { setGetLayout } from '@/app/Library/Context/LayoutActions';
 import { layoutConfig } from '@/app/Library/Definitions/Definitions';
 import { createPortal } from 'react-dom';
+import TopicGeneratorModal from './TopicGeneratorModal';
 
 const GENERAL_SELECTED_COLOR = '#3B82F6';
 const CARET_COLOR = '#FF6500';
@@ -40,51 +41,48 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   const [isEditing, setIsEditing] = useState(false);
   const [localTitle, setLocalTitle] = useState(title);
 
-  // State and refs for the dropdown menu
+  // Hover menu (the "plus" button) state
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const menuRef = React.useRef<HTMLDivElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const menuTimeoutRef = React.useRef<NodeJS.Timeout>();
 
-  const handleSelect = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    const isMulti = multiSelectEnabled || e.ctrlKey || e.metaKey;
-    if (mergeSource !== null && mergeSource !== node.id) {
-      completeMerge(node.id, transferNode);
-      layoutDispatch(setGetLayout(true));
-      setStatusMessage('');
-    } else {
-      if (isMulti) {
-        multiSelect(node.id, true);
+  // For the "Topic Generator" modal
+  const [isTopicGeneratorOpen, setIsTopicGeneratorOpen] = useState(false);
+
+  // Node selection
+  const handleSelect = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const isMulti = multiSelectEnabled || e.ctrlKey || e.metaKey;
+      if (mergeSource !== null && mergeSource !== node.id) {
+        completeMerge(node.id, transferNode);
+        layoutDispatch(setGetLayout(true));
+        setStatusMessage('');
       } else {
-        singleSelect(node.id);
+        if (isMulti) {
+          multiSelect(node.id, true);
+        } else {
+          singleSelect(node.id);
+        }
       }
-    }
-  }, [node.id, mergeSource, multiSelectEnabled, multiSelect, singleSelect, completeMerge, transferNode, layoutDispatch, setStatusMessage]);
+    },
+    [node.id, mergeSource, multiSelectEnabled, multiSelect, singleSelect, completeMerge, transferNode, layoutDispatch, setStatusMessage]
+  );
 
-  const focusNodeId = getFocusNode();
-  const isCaretNode = node.id === focusNodeId;
-  const isTargetNode = node.id === targetNodeId && node.id !== focusNodeId;
-
-  let ringColor: string | null = null;
-  if (isCaretNode) {
-    ringColor = CARET_COLOR;
-  } else if (isTargetNode) {
-    ringColor = TARGET_COLOR;
-  } else if (isSelected(node.id) || node.id === targetNodeId) {
-    ringColor = GENERAL_SELECTED_COLOR;
-  }
-
+  // Double-click to edit node title
   const handleTitleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setIsEditing(true);
   }, []);
 
+  // Title change
   const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalTitle(e.target.value);
   }, []);
 
+  // Finish editing
   const finishEditing = useCallback(() => {
     const trimmedTitle = localTitle.trim();
     if (trimmedTitle && trimmedTitle !== title) {
@@ -105,6 +103,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
     [finishEditing, title]
   );
 
+  // Node manipulation
   const handleMergeInitiate = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -145,9 +144,13 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
     [isRoot, childrenNodeIds, node.id, deleteNode, layoutDispatch]
   );
 
-  const nodeColor = depth === 1 ? primaryColor : backgroundColor;
+  // "Explore Topic"
+  const handleExploreTopic = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsTopicGeneratorOpen(true);
+  }, []);
 
-  // Handle menu hover states
+  // Hover menu open/close logic
   const handleMenuEnter = useCallback(() => {
     if (menuTimeoutRef.current) {
       clearTimeout(menuTimeoutRef.current);
@@ -165,10 +168,9 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   const handleMenuLeave = useCallback(() => {
     menuTimeoutRef.current = setTimeout(() => {
       setShowMenu(false);
-    }, 150); // Small delay to allow moving to menu
+    }, 150);
   }, []);
 
-  // Handle opening the menu by calculating the button's position
   const handleMenuOpen = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (buttonRef.current) {
@@ -181,193 +183,245 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
     }
   }, []);
 
-  // Close the menu when clicking outside
+  // Close hover menu if user clicks outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        menuRef.current && !menuRef.current.contains(event.target as Node) &&
-        buttonRef.current && !buttonRef.current.contains(event.target as Node)
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
       ) {
         setShowMenu(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Visual styling for selection states
+  const focusNodeId = getFocusNode();
+  const isCaretNode = node.id === focusNodeId;
+  const isTargetNode = node.id === targetNodeId && node.id !== focusNodeId;
+
+  let ringColor: string | null = null;
+  if (isCaretNode) {
+    ringColor = CARET_COLOR;
+  } else if (isTargetNode) {
+    ringColor = TARGET_COLOR;
+  } else if (isSelected(node.id) || node.id === targetNodeId) {
+    ringColor = GENERAL_SELECTED_COLOR;
+  }
+
+  const nodeColor = depth === 1 ? primaryColor : backgroundColor;
+
   return (
-    <div
-      ref={isRoot ? ref : null}
-      onClick={handleSelect}
-      onMouseEnter={() => {
-        if (mergeSource && mergeSource !== node.id) {
-          setStatusMessage("Move here");
-        } else if (!mergeSource) {
-          setStatusMessage(title);
-        }
-      }}
-      onMouseLeave={() => {
-        setStatusMessage("");
-      }}
-      className={`relative flex flex-col items-center cursor-pointer group rounded-md shadow-md transition-all duration-200 ${
-        (isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id)
-          ? 'bg-blue-50 shadow-lg'
-          : 'bg-white shadow-md'
-      }`}
-      style={{
-        width: `${layoutConfig.nodewidth}px`,
-        height: `${layoutConfig.nodeheight}px`,
-        position: 'absolute',
-        left: `${x}px`,
-        top: `${y}px`,
-        backgroundColor: nodeColor,
-        zIndex: (isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id) ? 10 : 1,
-        border: (isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id)
-          ? 'none'
-          : `3px solid ${OUTLINE_COLOR}`,
-        boxSizing: 'border-box',
-        transition: 'none',
-      }}
-      role="button"
-      tabIndex={0}
-    >
-      {((isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id) && ringColor) && (
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          viewBox="0 0 325 125"
-          preserveAspectRatio="none"
-          style={{ zIndex: -1 }}
-        >
-          <rect
-            x="0"
-            y="0"
-            width="325"
-            height="125"
-            fill="none"
-            stroke={ringColor}
-            strokeWidth="8"
-            strokeDasharray="10 10"
-            className="animate-dash"
-          />
-        </svg>
-      )}
-
-      <div className="flex-1 flex items-center justify-center p-4">
-        {isEditing ? (
-          <input
-            type="text"
-            value={localTitle}
-            onChange={handleTitleChange}
-            onBlur={finishEditing}
-            onKeyDown={handleKeyDown}
-            autoFocus
-            className="text-center font-semibold text-gray-800"
-          />
-        ) : (
-          <p
-            className="text-center font-semibold text-gray-800 line-clamp-3"
-            onDoubleClick={handleTitleDoubleClick}
-            title="Double-click to edit title"
-          >
-            {title}
-          </p>
-        )}
-      </div>
-
-      {/* Menu Button positioned at bottom right */}
-      <div 
-        className="group/menu absolute bottom-2 right-2"
-        onMouseEnter={handleMenuEnter}
-        onMouseLeave={handleMenuLeave}
+    <>
+      {/* Main node element */}
+      <div
+        ref={isRoot ? ref : null}
+        onClick={handleSelect}
+        onMouseEnter={() => {
+          if (mergeSource && mergeSource !== node.id) {
+            setStatusMessage("Move here");
+          } else if (!mergeSource) {
+            setStatusMessage(title);
+          }
+        }}
+        onMouseLeave={() => {
+          setStatusMessage("");
+        }}
+        className={`relative flex flex-col items-center cursor-pointer group rounded-md shadow-md transition-all duration-200 ${
+          (isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id)
+            ? 'bg-blue-50 shadow-lg'
+            : 'bg-white shadow-md'
+        }`}
+        style={{
+          width: `${layoutConfig.nodewidth}px`,
+          height: `${layoutConfig.nodeheight}px`,
+          position: 'absolute',
+          left: `${x}px`,
+          top: `${y}px`,
+          backgroundColor: nodeColor,
+          zIndex: (isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id) ? 10 : 1,
+          border: (isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id)
+            ? 'none'
+            : `3px solid ${OUTLINE_COLOR}`,
+          boxSizing: 'border-box',
+          transition: 'none',
+        }}
+        role="button"
+        tabIndex={0}
       >
-        <button
-          ref={buttonRef}
-          onClick={handleMenuOpen}
-          className="p-1.5 rounded-full focus:outline-none bg-gray-200 shadow-md
-                     hover:bg-gray-900 transition-all duration-200
-                     group-hover/menu:bg-gray-900
-                     flex items-center justify-center"
-        >
-          <Plus className="w-5 h-5 text-gray-900 group-hover/menu:text-white transition-all duration-200" />
-        </button>
-      </div>
+        {/* Outline ring for selected/target node */}
+        {((isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id) && ringColor) && (
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            viewBox="0 0 325 125"
+            preserveAspectRatio="none"
+            style={{ zIndex: -1 }}
+          >
+            <rect
+              x="0"
+              y="0"
+              width="325"
+              height="125"
+              fill="none"
+              stroke={ringColor}
+              strokeWidth="8"
+              strokeDasharray="10 10"
+              className="animate-dash"
+            />
+          </svg>
+        )}
 
-      {/* Dropdown Menu rendered via portal */}
-      {showMenu && createPortal(
+        {/* Title */}
+        <div className="flex-1 flex items-center justify-center p-4">
+          {isEditing ? (
+            <input
+              type="text"
+              value={localTitle}
+              onChange={handleTitleChange}
+              onBlur={finishEditing}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="text-center font-semibold text-gray-800"
+            />
+          ) : (
+            <p
+              className="text-center font-semibold text-gray-800 line-clamp-3"
+              onDoubleClick={handleTitleDoubleClick}
+              title="Double-click to edit title"
+            >
+              {title}
+            </p>
+          )}
+        </div>
+
+        {/* Small "plus" button at bottom right */}
         <div
-          ref={menuRef}
+          className="group/menu absolute bottom-2 right-2"
           onMouseEnter={handleMenuEnter}
           onMouseLeave={handleMenuLeave}
-          className="fixed bg-white shadow-lg rounded-md border border-gray-200 py-1 w-36"
-          style={{
-            left: menuPosition.x,
-            top: menuPosition.y,
-          }}
         >
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAddChildNode(e);
-              setShowMenu(false);
-            }}
-            className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
-                     hover:bg-gray-50 transition-colors"
+            ref={buttonRef}
+            onClick={handleMenuOpen}
+            className="p-1.5 rounded-full focus:outline-none bg-gray-200 shadow-md
+                       hover:bg-gray-900 transition-all duration-200
+                       group-hover/menu:bg-gray-900
+                       flex items-center justify-center"
           >
-            <Plus className="w-4 h-4" />
-            <span>Add node</span>
+            <Plus className="w-5 h-5 text-gray-900 group-hover/menu:text-white transition-all duration-200" />
           </button>
+        </div>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleTitleDoubleClick(e);
-              setShowMenu(false);
-            }}
-            className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
-                     hover:bg-gray-50 transition-colors"
-          >
-            <Pencil className="w-4 h-4" />
-            <span>Edit title</span>
-          </button>
-
-          {!isRoot && (!childrenNodeIds || childrenNodeIds.length === 0) && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteNode(e);
-                setShowMenu(false);
+        {/* Hover menu: Add/Edit/Delete/Move/Explore */}
+        {showMenu &&
+          createPortal(
+            <div
+              ref={menuRef}
+              onMouseEnter={handleMenuEnter}
+              onMouseLeave={handleMenuLeave}
+              className="fixed bg-white shadow-lg rounded-md border border-gray-200 py-1 w-36"
+              style={{
+                left: menuPosition.x,
+                top: menuPosition.y,
               }}
-              className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
-                       hover:bg-gray-50 transition-colors"
             >
-              <Trash2 className="w-4 h-4" />
-              <span>Delete node</span>
-            </button>
-          )}
+              {/* Add Node */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddChildNode(e);
+                  setShowMenu(false);
+                }}
+                className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
+                         hover:bg-gray-50 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add node</span>
+              </button>
 
-          {mergeSource === null && !isRoot && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleMergeInitiate(e);
-                setShowMenu(false);
-              }}
-              className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
-                       hover:bg-gray-50 transition-colors"
-            >
-              <GitBranch className="w-4 h-4" />
-              <span>Move node</span>
-            </button>
+              {/* Edit Title */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTitleDoubleClick(e);
+                  setShowMenu(false);
+                }}
+                className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
+                         hover:bg-gray-50 transition-colors"
+              >
+                <Pencil className="w-4 h-4" />
+                <span>Edit title</span>
+              </button>
+
+              {/* Delete Node */}
+              {!isRoot && (!childrenNodeIds || childrenNodeIds.length === 0) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteNode(e);
+                    setShowMenu(false);
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
+                           hover:bg-gray-50 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete node</span>
+                </button>
+              )}
+
+              {/* Move Node */}
+              {mergeSource === null && !isRoot && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMergeInitiate(e);
+                    setShowMenu(false);
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
+                           hover:bg-gray-50 transition-colors"
+                >
+                  <GitBranch className="w-4 h-4" />
+                  <span>Move node</span>
+                </button>
+              )}
+
+              {/* Explore Topic */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleExploreTopic(e);
+                  setShowMenu(false);
+                }}
+                className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
+                         hover:bg-gray-50 transition-colors"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Explore Topic</span>
+              </button>
+            </div>,
+            document.body // or document.getElementById('modal-root') for the *menu*
           )}
-        </div>,
-        document.body
-      )}
-    </div>
+      </div>
+
+      {/* Render the modal in a top-level portal */}
+      {isTopicGeneratorOpen &&
+        createPortal(
+          <TopicGeneratorModal
+            isOpen={true}
+            onClose={() => setIsTopicGeneratorOpen(false)}
+            targetNodeId={node.id}
+          />,
+          document.getElementById('modal-root') || document.body
+        )}
+    </>
   );
 });
 
-ConceptNode.displayName = "ConceptNode";
+ConceptNode.displayName = 'ConceptNode';
 
 export default memo(
   ConceptNode,
