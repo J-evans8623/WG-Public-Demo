@@ -1,48 +1,45 @@
 /**
  * @file useLessonModuleMapper.ts
  * @description
- *   This hook maps lesson module metadata obtained from file uploads to the current
- *   lesson module state. It creates a new concept map for each lesson module and then
- *   asynchronously triggers the backend AI service to generate the lesson module details.
+ *   This hook listens to the lesson module list stored in LessonDataContext.
+ *   In the previous implementation, lesson modules were tracked in FileAssetContext.
+ *   Now, this hook is updated to:
+ *     - Listen to changes in the lesson module list provided by LessonDataContext.
+ *     - For each file, if multiple lesson modules are returned (all sharing the same file id),
+ *       generate unique ids for each lesson module so that they can be iterated over properly.
+ *     - Once all lesson modules have been processed, call clearLessonModuleList to avoid duplication.
  *
- *   Responsibilities:
- *     - For each lesson module summary (from file uploads), if not already present,
- *       create a new concept map by invoking addConceptMap.
- *     - Set each module’s loading status via addLoadingLesson before processing and remove
- *       it using removeLoadingLesson once processing is complete.
- *     - Parse and layout the AI-generated concept map, then update the lesson module with metadata.
- *
- *   This implementation supports multiple loading lesson modules concurrently.
+ *   This ensures a clean separation of file metadata and lesson data.
  *
  * @author  
  * @date    
  */
 
 import { useEffect, useCallback } from 'react';
-import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
-import { generateAILesson } from '@/app/Library/utils/aiServiceApi';
+import { useLessonData } from '@/app/Library/Context/LessonDataContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import useCardCrudOperations from './useCardCrudOperations';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { parseConceptMap } from './parseConceptMap';
+import { v4 as uuidv4 } from 'uuid';
 
 export function useLessonModuleMapper(): void {
-  const { lessonModuleLists } = useFileAsset();
+  // Retrieve lesson modules from LessonDataContext.
+  const { lessonModuleList, clearLessonModuleList } = useLessonData();
   const {
     updateLessonModule,
     addConceptMap,
-    getExistingLessonModules,
     addLoadingLesson,
     removeLoadingLesson,
   } = useLessonModule();
   const { updateNodeTitle, setNodes, getRootNode } = useNodesContext();
   const { createResource } = useCardCrudOperations();
   const { subtrees, setSubtrees } = useSubTreeContext();
-  const { docFileID } = useYDoc();
+  const { docFileID , updateFileName, getFileName} = useYDoc();
 
-  // Wrap these in useCallback to maintain stable references.
+  // Wrap setNodes and setSubtrees to pass additional parameters if needed.
   const wrappedSetNodes = useCallback(
     (nodesMap: Map<string, any>, mapID?: string) => {
       setNodes(nodesMap, undefined, mapID);
@@ -58,41 +55,65 @@ export function useLessonModuleMapper(): void {
   );
 
   useEffect(() => {
-    // Get existing module IDs from the persisted concept maps.
-    const existingModuleIDs = new Set(getExistingLessonModules());
-
-    // Iterate over each lesson module summary from the file asset.
-    lessonModuleLists.forEach((lessonModules) => {
-      lessonModules.forEach(async (moduleSummary) => {
-        // If the module already exists (has been processed), skip it.
-        if (existingModuleIDs.has(moduleSummary.moduleID)) {
-          return;
+    // Iterate over each lesson module in the LessonDataContext.
+    lessonModuleList.forEach(async (lessonModule, fileId) => {
+      // Check if lessonModule contains an array of lessonModules.
+      if (lessonModule && lessonModule.lessonModules && Array.isArray(lessonModule.lessonModules)) {
+        // Iterate over each individual lesson module.
+        for (let i = 0; i < lessonModule.lessonModules.length; i++) {
+          const singleLessonModule = lessonModule.lessonModules[i];
+          console.log(`useLessonModule mapper, here is a single lesson module for reference ${singleLessonModule}`)
+          // Generate a unique id by combining the fileId with a UUID.
+          const uniqueId = `${fileId}-${uuidv4()}`;
+          console.log(`[useLessonModuleMapper] Processing lesson module with uniqueId: ${uniqueId}`);
+          addLoadingLesson(uniqueId);
+          try {
+            // Create a new concept map for the individual lesson module.
+            const mapTitle =
+              singleLessonModule?.main_topic?.title || 'New Lesson Module';
+              if (i === 0) {
+                const currentFileName = getFileName().toLowerCase().trim();
+                if (currentFileName === 'untitled document') {
+                  updateFileName(mapTitle);
+                  console.log(`[useLessonModuleMapper] Updated file name to: ${mapTitle}`);
+                }
+              } 
+            const newMap = addConceptMap(mapTitle, uniqueId);
+            // Parse the lesson module using parseConceptMap.
+            await parseConceptMap(
+              singleLessonModule,
+              {
+                updateNodeTitle,
+                setNodes: wrappedSetNodes,
+                nodes: new Map(newMap.nodesMap.entries()),
+                createResource,
+                setSubtrees: wrappedSetSubtrees,
+                subtrees,
+                getRootNode,
+              },
+              newMap.id
+            );
+            // Update the lesson module with additional metadata.
+            updateLessonModule(uniqueId, {
+              topic: singleLessonModule.metadata.main_topic.title,
+              summary: singleLessonModule.metadata.summary,
+            });
+          } catch (error) {
+            console.error(`Error processing lesson module for id ${uniqueId}:`, error);
+          } finally {
+            removeLoadingLesson(uniqueId);
+          }
         }
-
-        // Mark the module as loading.
-        addLoadingLesson(moduleSummary.moduleID);
-
+      } else {
+        // Fallback: if lessonModules is not an array, treat the entire lessonModule as a single module.
+        console.log(`[useLessonModuleMapper] Fallback processing for fileId: ${fileId}`);
+        addLoadingLesson(fileId);
         try {
-          // Always create a new concept map for the module.
-          console.log(
-            `useLessonModuleMapper: invoking addConceptMap for module ID: ${moduleSummary.moduleID}`
-          );
-          const newMap = addConceptMap(
-            moduleSummary.mainTopicTitle || 'New Lesson Module',
-            moduleSummary.moduleID
-          );
-
-          console.log(
-            `Processing new lesson module: ${moduleSummary.moduleID}`
-          );
-          const aiLessonResponse = await generateAILesson(
-            docFileID!,
-            moduleSummary.moduleID
-          );
-
-          // Parse and layout the AI-generated concept map.
+          const mapTitle =
+            lessonModule?.metadata?.main_topic?.title || 'New Lesson Module';
+          const newMap = addConceptMap(mapTitle, fileId);
           await parseConceptMap(
-            aiLessonResponse,
+            lessonModule,
             {
               updateNodeTitle,
               setNodes: wrappedSetNodes,
@@ -104,36 +125,26 @@ export function useLessonModuleMapper(): void {
             },
             newMap.id
           );
-
-          // Update the lesson module with additional metadata.
-          updateLessonModule(moduleSummary.moduleID, {
-            topic: moduleSummary.mainTopicTitle,
-            summary: moduleSummary.summary,
+          updateLessonModule(fileId, {
+            topic: lessonModule.metadata.main_topic.title,
+            summary: lessonModule.metadata.summary,
           });
         } catch (error) {
-          console.error(
-            `Error processing lesson module ${moduleSummary.moduleID} for file ${docFileID}:`,
-            error
-          );
+          console.error(`Error processing lesson module for file ${fileId}:`, error);
         } finally {
-          // Remove the module from the loading set regardless of success or error.
-          removeLoadingLesson(moduleSummary.moduleID);
+          removeLoadingLesson(fileId);
         }
-      });
+      }
     });
-  }, [
-    lessonModuleLists,
-    addConceptMap,
-    updateLessonModule,
-    updateNodeTitle,
-    wrappedSetNodes,
-    wrappedSetSubtrees,
-    createResource,
-    subtrees,
-    getRootNode,
-    docFileID,
-    getExistingLessonModules,
-    addLoadingLesson,
-    removeLoadingLesson,
-  ]);
+
+    // Clear the lesson module list to prevent duplication.
+    if (lessonModuleList.size > 0) {
+      console.log(
+        `[useLessonModuleMapper] Clearing lesson module list. Current keys: ${Array.from(
+          lessonModuleList.keys()
+        )}`
+      );
+      clearLessonModuleList();
+    }
+  }, [lessonModuleList, addConceptMap, updateLessonModule, updateNodeTitle, wrappedSetNodes, wrappedSetSubtrees, createResource, subtrees, getRootNode, docFileID, addLoadingLesson, removeLoadingLesson, clearLessonModuleList, getFileName, updateFileName]);
 }

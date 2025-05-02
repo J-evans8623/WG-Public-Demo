@@ -12,16 +12,15 @@
  */
 
 export function lessonPrompt(metadata: any, domain: string = 'science'): string {
-  const { summary, ...metadataWithoutSummary } = metadata;
   
   let prompt = `[System Instruction]
 You are an AI assistant specializing in creating study notes. You will be given raw text containing the study material of a lesson module,
 and a curriculum containing the main Topic and its supporting subtopics entailed in the lesson module. 
 Based on the given topic and supporting subtopics produce a detailed lesson that enhances the provided study material. Do not create any
-additional topics that are not listed in the curriculum! If a topic has 'null' listed as its subtopic, then DO NOT add any nested subtopics to it.
+additional topics that are not listed in the curriculum! Additionally, YOU MUST cover EVERY given primary suptopic and secondary substopic !
 All of the subtopics
 Curriculum (JSON):
-${metadataWithoutSummary}
+${metadata}
 
 Step-by-Step Instructions:
 1. Start by creating a concise topic overview. The overview consists of a concise introduction of the main topic. The introduction should be grounded in the uploaded material. The overview should also include impactful 2-4 learning objectives that are connected to the subtopics of the uploaded material and will help the user master the subject matter. Use these learning objectives to guide the learning experience of the user.

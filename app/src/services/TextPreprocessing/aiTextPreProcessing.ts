@@ -101,7 +101,7 @@ Here is the hierarchical JSON object:
         { role: "user", content: prompt }
       ],
       temperature: 0.5,
-      max_completion_tokens: 400,
+      max_completion_tokens: 2000,
       response_format: {
         type: "json_schema",
         json_schema: {

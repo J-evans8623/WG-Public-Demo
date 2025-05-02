@@ -275,9 +275,9 @@ export const LessonModuleProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any>;
     if (!conceptMapsYArray) return { hasSummary: false, summary: null };
     const maps = conceptMapsYArray.toArray() as ConceptMap[];
-    const module = maps.find(cm => cm.id === moduleId);
-    if (module && module.summary && module.summary.trim().length > 0) {
-      return { hasSummary: true, summary: module.summary.trim() };
+    const Lmodule = maps.find(cm => cm.id === moduleId);
+    if (Lmodule && Lmodule.summary && Lmodule.summary.trim().length > 0) {
+      return { hasSummary: true, summary: Lmodule.summary.trim() };
     }
     return { hasSummary: false, summary: null };
   }, [lessonModuleYMap]);

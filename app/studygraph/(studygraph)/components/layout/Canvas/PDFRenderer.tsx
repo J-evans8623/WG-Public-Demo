@@ -1,42 +1,43 @@
-// PDFRenderer.tsx
-import React from 'react';
-import PdfViewer from './PdfViewer';
+// ===================== PDFRenderer.tsx =====================
+/**
+ * @file PDFRenderer.tsx
+ * @description
+ *   Simple wrapper that renders <PdfViewer /> when a fileUrl is provided,
+ *   otherwise shows a “no document selected” placeholder.
+ *
+ * Responsibilities:
+ *   - Check for null/undefined fileUrl.
+ *   - Forward scale, onPageChange, and ref to PdfViewer.
+ */
 
-export interface PdfRendererRef {
-  handlePrev: () => void;
-  handleNext: () => void;
-}
+import React, { forwardRef } from 'react';
+import PdfViewer, { PdfViewerRefType } from './PdfViewer';
 
 interface PDFRendererProps {
   fileUrl: string | null;
-  pdfViewerRef?: React.MutableRefObject<PdfRendererRef | null>;
-  onPageChange?: (current: number, total: number) => void;
-  // Add scale for PDF zoom
   scale?: number;
+  onPageChange?: (current: number, total: number) => void;
 }
 
-export const PDFRenderer: React.FC<PDFRendererProps> = ({
-  fileUrl,
-  pdfViewerRef,
-  onPageChange,
-  scale = 1.0,
-}) => {
-  if (!fileUrl) {
+const PDFRenderer = forwardRef<PdfViewerRefType, PDFRendererProps>(
+  ({ fileUrl, scale = 1.0, onPageChange }, ref) => {
+    if (!fileUrl) {
+      return (
+        <div className="h-full flex items-center justify-center text-gray-400">
+          No document selected. Please select an uploaded note.
+        </div>
+      );
+    }
     return (
-      <div className="h-full flex items-center justify-center text-gray-400">
-        No document selected. Please select an uploaded note.
-      </div>
+      <PdfViewer
+        ref={ref}
+        fileUrl={fileUrl}
+        scale={scale}
+        onPageChange={onPageChange}
+      />
     );
   }
+);
 
-  return (
-    <div className="h-full">
-      <PdfViewer
-        fileUrl={fileUrl}
-        pdfViewerRef={pdfViewerRef}
-        onPageChange={onPageChange}
-        scale={scale}
-      />
-    </div>
-  );
-};
+PDFRenderer.displayName = 'PDFRenderer';
+export default PDFRenderer;

@@ -97,20 +97,11 @@ const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
 
       // Export data from the selected node
       const exportData = exportStudyData([targetNodeId]);
-
-      // Retrieve summary information
-      const { hasSummary, summary } = getModuleSummary(activeConceptMapId);
-
-
-
       // Call the AI service
       const response = await generateTopic(
         topicRequest.trim(),
         exportData,
-        activeConceptMapId,
-        summary,
-        hasSummary,
-        docFileID || ''
+        docFileID as string
       );
 
       // Parse and update concept map
@@ -181,7 +172,7 @@ const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
 
         {/* Instructions */}
         <p className="text-sm text-gray-600 mb-4">
-          Select a topic on the map, tell me what you'd like to explore, and I'll expand your map with new insights.
+          Select a topic on the map, tell me what you want like to explore, and I will expand your map with new insights.
         </p>
 
         {/* Display selected node info */}

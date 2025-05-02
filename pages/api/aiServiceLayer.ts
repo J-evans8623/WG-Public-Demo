@@ -15,7 +15,7 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getLessonList } from '../../app/src/services/TextPreprocessing/LessonModuleService';
+import { getLessonList } from '../../app/src/services/TextPreprocessing/LessonModuleServicev1';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import AIController from '@/app/src/controllers/aiController';
 
@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return;
     }
 
-    // 2) Q&A pipeline
+    // 2) Q&A Chat pipeline
     if (action === 'question') {
       console.log('[aiServiceLayer] Routing to handleQuestion');
       await AIController.handleQuestion(req, res);

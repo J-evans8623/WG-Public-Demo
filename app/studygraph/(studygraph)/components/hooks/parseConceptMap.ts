@@ -96,6 +96,11 @@
  */
 import { v4 as uuidv4 } from 'uuid';
 import { compositeLayout } from '@/app/Library/components/AI/layoutUtils';
+import markdownIt from 'markdown-it';
+
+// Initialize markdown-it parser instance.
+const mdParser = new markdownIt();
+
 
 export async function parseConceptMap(
   responseData: any,
@@ -128,7 +133,7 @@ export async function parseConceptMap(
       nodeId: rootNodeId,
       type: 'note',
       title: 'Introduction',
-      content: responseData.main_topic.introduction,
+      content: mdParser.render(responseData.main_topic.introduction),
       mapId: mapID,
     });
   }
@@ -138,7 +143,7 @@ export async function parseConceptMap(
         nodeId: rootNodeId,
         type: 'cuecard',
         title: 'Learning Objective',
-        content: objective,
+        content:mdParser.render(objective),
         mapId: mapID,
       });
     }
@@ -214,7 +219,7 @@ export async function parseConceptMap(
             nodeId: subtopicNodeId,
             type: 'note',
             title: `${subtopic.title} Lecture Note`,
-            content: subtopic.lesson.lecture_note,
+            content: mdParser.render(subtopic.lesson.lecture_note),
             mapId: mapID,
           });
         }
@@ -224,7 +229,7 @@ export async function parseConceptMap(
               nodeId: subtopicNodeId,
               type: 'cuecard',
               title: card.term,
-              content: card.definition,
+              content: mdParser.render(card.definition),
               mapId: mapID,
             });
           }
@@ -244,7 +249,7 @@ export async function parseConceptMap(
           nodeId: subtopicNodeId,
           type: 'note',
           title: `${subtopic.title} Lecture Note`,
-          content: subtopic.lecture_note,
+          content: mdParser.render(subtopic.lecture_note),
           mapId: mapID,
         });
         if (subtopic.flash_cards && Array.isArray(subtopic.flash_cards)) {
@@ -253,7 +258,7 @@ export async function parseConceptMap(
               nodeId: subtopicNodeId,
               type: 'cuecard',
               title: card.term,
-              content: card.definition,
+              content:  mdParser.render(card.definition),
               mapId: mapID,
             });
           }
@@ -304,7 +309,7 @@ if (responseData?.main_topic?.quiz) {
     quizContent: aiQuiz.questions.map((q: any) => ({
       id: q.id,
       type: 'matching',
-      question: q.matchingTerm,      // Renaming from matchingTerm to question
+      question: q.matchingQuestion,      // Renaming from matchingTerm to question
       correctAnswer: q.matchingAnswer // Renaming from matchingAnswer to correctAnswer
     }))
   };

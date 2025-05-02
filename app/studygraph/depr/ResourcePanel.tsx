@@ -3,33 +3,28 @@
  * @description
  *   This component displays the resource panel which includes:
  *     - File name with inline editing.
- *     - A list of lessons with options to add, edit, and delete.
- *     - An uploads section for files.
+ *     - A list of lessons with options to add, edit, delete, and now generate a lesson manually.
+ *     - An uploads section for files with an option to conditionally generate a lesson upon upload.
  *
- *   Responsibilities:
- *     - Allow users to trigger file uploads.
- *     - Display a loading indicator in the uploads section while a file is being processed.
- *     - Display a loading indicator in the lessons section while a concept map is being generated.
- *     - Show the list of uploaded files only after the backend has returned a processed file.
- *     - Automatically switch the active view based on the item clicked:
- *         • Clicking a lesson switches to the Concept Map tab.
- *         • Clicking an upload switches to the Uploads tab.
+ *   New Responsibilities:
+ *     - Render a "Generate Lesson" button that opens the GenerateLessonModal.
+ *     - When a lesson is generated (via the modal), update:
+ *         (a) FileAssetContext with the returned TextFileMessage data using addGeneratedLessonFile.
+ *         (b) LessonDataContext with the lesson module list data from the response via addLessonModule.
  *
- *   Update:
- *     - The upload progress bar uses a flexible width of 6.25rem (~100px).
- *     - Automatic tab switching is performed in click handlers.
- *     - Removed percentage text next to the upload progress bar for a cleaner UI.
- *     - Displays a loading bar in the Lessons section when a concept map is being generated.
+ *   Updates:
+ *     - Replaced the previous <Button> for the "Generate Lesson" action with an icon-only <button>
+ *       element that shows a tooltip, in line with the requested prototype.
  *
- * @author  
- * @date    
+ * @author
+ * @date
  */
 
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import {
   Pencil,
   Plus,
-  Upload,
+  Upload as LucideUpload, // Renamed import to avoid confusion with the new icon
   FileText,
   FolderOpen,
   Trash2,
@@ -50,12 +45,13 @@ import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
 import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
+import { useLessonData } from '@/app/Library/Context/LessonDataContext';
 import '@/app/studygraph/(studygraph)/components/layout/mapTheme.css';
 import '@/app/studygraph/(studygraph)/components/layout/scrollbar.css';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
+import GenerateLessonModal from './GenerateLessonModal';
 
 interface ResourcePanelProps {
-  width: number; // Panel's width in REM when expanded.
   isDragging: boolean;
   dragOffset: number;
   onDragStart: () => void;
@@ -65,7 +61,6 @@ interface ResourcePanelProps {
 }
 
 const ResourcePanel: React.FC<ResourcePanelProps> = ({
-  width,
   isDragging,
   dragOffset,
   onDragStart,
@@ -73,7 +68,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   onDragEnd,
   isExpanded,
 }) => {
-  // Context hooks for lessons and files.
+  // Context hooks for lessons.
   const {
     getLessonModule,
     addConceptMap,
@@ -81,16 +76,24 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     activeConceptMapId,
     setActiveConceptMapId,
     updateConceptMapTitle,
-    isGeneratingLesson, // New state from LessonModuleContext.
+    isGeneratingLesson,
   } = useLessonModule();
   const lessonModule = getLessonModule();
   const lessons = lessonModule.conceptMaps;
 
-  const { getAllFiles, addFile, removeFile } = useFileAsset();
+  // Context hook for file assets.
+  const { getAllFiles, addFile, removeFile, addGeneratedLessonFile } = useFileAsset();
+
+  // Context hook for lesson data.
+  const { addLessonModule } = useLessonData();
+
+  // Other context hooks.
   const { setActiveView, setSelectedPdfUrl } = useViewSwitch();
   const { clearSelection } = useNodeSelection();
   const { getFileName, updateFileName } = useYDoc();
   const fileName = getFileName();
+
+  // Local state for file name editing.
   const [editingFileName, setEditingFileName] = useState(false);
   const [fileNameDraft, setFileNameDraft] = useState(fileName);
 
@@ -105,6 +108,13 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentFileName, setCurrentFileName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const width = 225; // Resource panel width
+
+  // New state: Checkbox to determine whether a lesson should be generated on file upload.
+  const [generateLesson, setGenerateLesson] = useState(true);
+
+  // State for managing the Generate Lesson modal.
+  const [showGenerateLessonModal, setShowGenerateLessonModal] = useState(false);
 
   // State for right-click context menu on lessons.
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lesson: any } | null>(null);
@@ -131,7 +141,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           const nextProgress = prev + Math.floor(Math.random() * 10 + 5);
-          return Math.min(nextProgress, 95); // Cap at 95% until server confirms.
+          return Math.min(nextProgress, 95);
         });
       }, 300);
     }
@@ -140,7 +150,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     };
   }, [isUploading, uploadProgress]);
 
-  /** Handler for adding a new lesson. */
+  /** Handler for adding a new lesson with default title. */
   const handleAddLesson = useCallback(() => {
     addConceptMap('Untitled Lesson');
   }, [addConceptMap]);
@@ -175,8 +185,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
   /**
    * handleLessonClick
-   * @description Handles clicks on a lesson item.
-   *              Automatically sets the active lesson ID and switches to the Concept Map view.
+   * @description Handles clicks on a lesson item and sets it as active.
    */
   const handleLessonClick = useCallback(
     (lessonId: string, e: React.MouseEvent) => {
@@ -185,7 +194,6 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
           clearSelection();
         }
         setActiveConceptMapId(lessonId);
-        // Automatically switch to the Concept Map tab.
         setActiveView('conceptMap');
       }
     },
@@ -194,8 +202,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
   /**
    * handleFileUpload
-   * @description Handles file selection and uploading.
-   *              Sets the uploading state and progress while waiting for the backend response.
+   * @description Handles file selection and uploading. Uses addFile from FileAssetContext.
    */
   const handleFileUpload = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,12 +212,12 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         setUploadProgress(0);
         setCurrentFileName(files[0].name);
         try {
-          // Await the addFile call so that file is added only after the backend responds.
-          await Promise.all(Array.from(files).map((file) => addFile(file)));
-          setUploadProgress(100); // Completed.
-          // Automatically switch to the Uploads view.
-          setActiveView('pdf');
-          // Reset state after complete animation.
+          await Promise.all(Array.from(files).map((file) => addFile(file, generateLesson)));
+          setUploadProgress(100);
+          if (generateLesson) {
+            // Optionally, auto-add a lesson placeholder.
+            addConceptMap(`Lesson for ${files[0].name}`);
+          }
           setTimeout(() => {
             setIsUploading(false);
             event.target.value = '';
@@ -221,14 +228,13 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         }
       }
     },
-    [addFile, setActiveView]
+    [addFile, addConceptMap, generateLesson]
   );
 
   /** Handles clicking on an uploaded file entry. */
   const handleFileEntryClick = useCallback(
     (file: TextFileMessage) => {
       setSelectedPdfUrl(file.serverUrl);
-      // Automatically switch to the Uploads view.
       setActiveView('pdf');
     },
     [setSelectedPdfUrl, setActiveView]
@@ -239,6 +245,44 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     updateFileName(fileNameDraft);
     setEditingFileName(false);
   }, [fileNameDraft, updateFileName]);
+
+  /**
+   * handleGenerateLessonSuccess
+   * @description
+   *   Callback invoked when GenerateLessonModal successfully generates lesson data.
+   *   It updates FileAssetContext with the returned text file message via addGeneratedLessonFile
+   *   and updates LessonDataContext with the lesson module list data using addLessonModule.
+   * @param responseData - The backend response containing file metadata and lesson modules.
+   */
+  const handleGenerateLessonSuccess = useCallback((responseData: any) => {
+    console.log('[ResourcePanel] handleGenerateLessonSuccess - Response data received:', responseData);
+
+    // Convert the backend response into a valid TextFileMessage.
+    const generatedFileMessage: TextFileMessage = {
+      id: responseData.id,
+      type: 'pdf', // The backend always returns the file as a PDF.
+      title: responseData.title,
+      serverUrl: responseData.url,
+      uploadDate: new Date(),
+      size: responseData.size,
+    };
+    console.log('[ResourcePanel] Creating TextFileMessage from responseData:', generatedFileMessage);
+
+    // Update FileAssetContext with the generated file message.
+    addGeneratedLessonFile(generatedFileMessage);
+    console.log('[ResourcePanel] addGeneratedLessonFile called. FileAssetContext updated.');
+
+    // Update LessonDataContext with the lesson modules.
+    if (responseData.id && responseData.lessonModules) {
+      console.log('[ResourcePanel] Updating LessonDataContext with fileId:', responseData.id, 'lessonModules:', responseData.lessonModules);
+      addLessonModule(responseData.id, { lessonModules: responseData.lessonModules });
+    }
+  }, [addGeneratedLessonFile, addLessonModule]);
+
+  // Handler to open the Generate Lesson Modal.
+  const openGenerateLessonModal = useCallback(() => {
+    setShowGenerateLessonModal(true);
+  }, []);
 
   // Dynamic width for expanded/collapsed state.
   const computedWidth = isExpanded ? `${width / 16}rem` : '0px';
@@ -290,142 +334,164 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
           <ScrollArea className="flex-1 p-4">
             {/* Lessons Section */}
-{/* Lessons Section */}
-<div className="mb-6">
-  <div className="flex items-center justify-between mb-2">
-    <span className="text-sm text-gray-700 font-small">Lessons</span>
-    <div className="flex items-center space-x-1">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleAddLesson}
-        className="text-gray-500 hover:text-gray-700 h-6 w-6 p-0"
-      >
-        <Plus size={16} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          if (activeConceptMapId) {
-            const lesson = lessons.find((l: any) => l.id === activeConceptMapId);
-            if (lesson) {
-              startEditingLesson(lesson);
-            }
-          }
-        }}
-        className="text-gray-500 hover:text-gray-700 h-6 w-6 p-0"
-      >
-        <Pencil size={16} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          if (activeConceptMapId) {
-            handleDeleteLesson(activeConceptMapId);
-          }
-        }}
-        className="text-gray-500 hover:text-gray-700 h-6 w-6 p-0"
-      >
-        <Trash2 size={16} />
-      </Button>
-    </div>
-  </div>
-  {/* Display loading indicator if a lesson module is generating */}
-  {isGeneratingLesson ? (
-    <div className="p-4 rounded-lg" style={{ backgroundColor: leftPaneBg }}>
-      <div className="mb-2">
-        <span className="text-sm" style={{ color: leftPaneText }}>
-          Generating lesson module...
-        </span>
-      </div>
-      {/* Indeterminate Progress Bar */}
-      <div className="rounded-full h-2" style={{ backgroundColor: bgSelected, width: "6.25rem" }}>
-        <div
-          className="h-2 rounded-full animate-pulse transition-all duration-300"
-          style={{
-            backgroundColor: leftPaneText,
-            opacity: 0.8,
-            width: "100%"
-          }}
-        ></div>
-      </div>
-    </div>
-  ) : (
-    <div className="space-y-2 pl-1 h-40 overflow-y-auto custom-scrollbar">
-      {lessons.map((lesson: any) => {
-        const isSelected = activeConceptMapId === lesson.id;
-        return (
-          <div
-            key={lesson.id}
-            onClick={(e) => handleLessonClick(lesson.id, e)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setContextMenu({ x: e.clientX, y: e.clientY, lesson });
-            }}
-            className={`cursor-pointer p-2 rounded transition-all duration-200 flex items-center gap-2 ${
-              isSelected ? 'map-selected' : 'map-border-l-transparent'
-            } map-hover`}
-            title={lesson.title}
-          >
-            {editingLessonId === lesson.id ? (
-              <div className="flex-1 min-w-0 mr-2" onClick={(e) => e.stopPropagation()}>
-                <Input
-                  value={editingTitle}
-                  onChange={handleLessonTitleChange}
-                  onBlur={handleLessonTitleSave}
-                  onKeyPress={(e) => e.key === 'Enter' && handleLessonTitleSave()}
-                  className="text-sm h-6 py-1"
-                  autoFocus
-                />
-              </div>
-            ) : (
-              <span className={isSelected ? 'font-small' : ''}>{lesson.title}</span>
-            )}
-            <div className="flex-shrink-0 ml-auto">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-700 font-small">Lessons</span>
+                {/* Compact container for four icon-only buttons */}
+                <div className="flex items-center space-x-0.5">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={handleAddLesson}
+                    className="text-gray-500 hover:text-gray-700 h-6 w-6 p-0"
+                    title="Add Lesson"
                   >
-                    <MoreVertical className="w-3 h-3 text-gray-400" />
+                    <Plus size={16} />
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-32">
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startEditingLesson(lesson);
-                      setContextMenu(null);
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (activeConceptMapId) {
+                        const lesson = lessons.find((l: any) => l.id === activeConceptMapId);
+                        if (lesson) {
+                          startEditingLesson(lesson);
+                        }
+                      }
                     }}
+                    className="text-gray-500 hover:text-gray-700 h-6 w-6 p-0"
+                    title="Edit Lesson"
                   >
-                    <Pencil className="w-3 h-3 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteLesson(lesson.id);
-                      setContextMenu(null);
+                    <Pencil size={16} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (activeConceptMapId) {
+                        handleDeleteLesson(activeConceptMapId);
+                      }
                     }}
-                    className="text-red-600 focus:text-red-600"
+                    className="text-gray-500 hover:text-gray-700 h-6 w-6 p-0"
+                    title="Delete Lesson"
                   >
-                    <Trash2 className="w-3 h-3 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <Trash2 size={16} />
+                  </Button>
+
+                  {/* Updated Generate Lesson button: icon-only with a tooltip */}
+                  <button
+                    className="p-1 rounded hover:bg-gray-100"
+                    title="Generate Lesson"
+                    onClick={openGenerateLessonModal}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              {isGeneratingLesson ? (
+                <div className="p-4 rounded-lg" style={{ backgroundColor: leftPaneBg }}>
+                  <div className="mb-2">
+                    <span className="text-sm" style={{ color: leftPaneText }}>
+                      Generating lesson module...
+                    </span>
+                  </div>
+                  <div className="rounded-full h-2" style={{ backgroundColor: bgSelected, width: "6.25rem" }}>
+                    <div
+                      className="h-2 rounded-full animate-pulse transition-all duration-300"
+                      style={{
+                        backgroundColor: leftPaneText,
+                        opacity: 0.8,
+                        width: "100%",
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 pl-1 h-40 overflow-y-auto custom-scrollbar">
+                  {lessons.map((lesson: any) => {
+                    const isSelected = activeConceptMapId === lesson.id;
+                    return (
+                      <div
+                        key={lesson.id}
+                        onClick={(e) => handleLessonClick(lesson.id, e)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setContextMenu({ x: e.clientX, y: e.clientY, lesson });
+                        }}
+                        className={`cursor-pointer p-2 rounded transition-all duration-200 flex items-center gap-2 ${
+                          isSelected ? 'map-selected' : 'map-border-l-transparent'
+                        } map-hover`}
+                        title={lesson.title}
+                      >
+                        {editingLessonId === lesson.id ? (
+                          <div className="flex-1 min-w-0 mr-2" onClick={(e) => e.stopPropagation()}>
+                            <Input
+                              value={editingTitle}
+                              onChange={handleLessonTitleChange}
+                              onBlur={handleLessonTitleSave}
+                              onKeyPress={(e) => e.key === 'Enter' && handleLessonTitleSave()}
+                              className="text-sm h-6 py-1"
+                              autoFocus
+                            />
+                          </div>
+                        ) : (
+                          <span className={isSelected ? 'font-small' : ''}>{lesson.title}</span>
+                        )}
+                        <div className="flex-shrink-0 ml-auto">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <MoreVertical className="w-3 h-3 text-gray-400" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-32">
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditingLesson(lesson);
+                                  setContextMenu(null);
+                                }}
+                              >
+                                <Pencil className="w-3 h-3 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteLesson(lesson.id);
+                                  setContextMenu(null);
+                                }}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <Trash2 className="w-3 h-3 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        );
-      })}
-    </div>
-  )}
-</div>
 
             {/* Uploads Section */}
             <div>
@@ -450,7 +516,8 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                   </Button>
                 </div>
               </div>
-              <div className="space-y-1 h-60 overflow-y-auto custom-scrollbar">
+
+              <div className="space-y-1 max-h-60 overflow-y-auto custom-scrollbar">
                 {isUploading ? (
                   <div className="p-4 rounded-lg" style={{ backgroundColor: leftPaneBg }}>
                     <div className="mb-2">
@@ -467,7 +534,6 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                         {currentFileName}
                       </span>
                     </div>
-                    {/* Progress Bar Container: Using 6.25rem (~100px) for flexible sizing */}
                     <div
                       className="rounded-full h-2"
                       style={{ backgroundColor: bgSelected, width: "6.25rem" }}
@@ -488,7 +554,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                 ) : (
                   getAllFiles().length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-4 px-2 border-2 border-dashed map-border rounded-md">
-                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                      <LucideUpload className="w-8 h-8 text-gray-400 mb-2" />
                       <p className="text-sm text-gray-500 text-center">
                         Drag and drop files here or click the upload button above
                       </p>
@@ -509,6 +575,21 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                     ))
                   )
                 )}
+              </div>
+
+              <div className="pl-4 mt-2">
+                <div className="flex items-center mb-1">
+                  <input
+                    type="checkbox"
+                    id="generateLessonCheckbox"
+                    className="mr-2"
+                    checked={generateLesson}
+                    onChange={(e) => setGenerateLesson(e.target.checked)}
+                  />
+                  <label htmlFor="generateLessonCheckbox" className="text-sm" title="Automatically generates a lesson upon upload">
+                    Generate lesson
+                  </label>
+                </div>
               </div>
             </div>
           </ScrollArea>
@@ -552,6 +633,14 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                 </button>
               </div>
             </div>
+          )}
+
+          {/* Render GenerateLessonModal when triggered */}
+          {showGenerateLessonModal && (
+            <GenerateLessonModal
+              onClose={() => setShowGenerateLessonModal(false)}
+              onSuccess={handleGenerateLessonSuccess}
+            />
           )}
         </>
       )}

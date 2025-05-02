@@ -234,7 +234,7 @@ export interface PictureResourcev1 extends BaseResource {
 
 export interface CueCardResource extends BaseResource {
   type: 'cueCard' ;
-  content: Record<string, any>; // The TipTap JSON representation
+  content: string; // HTML string
 }
 
 /**
@@ -243,7 +243,7 @@ export interface CueCardResource extends BaseResource {
  */
 export interface NoteResource extends BaseResource {
   type: 'note';
-  content: Record<string, any>;
+  content: string;  // HTML string
 }
 
 export interface PictureResource extends BaseResource {
@@ -305,7 +305,7 @@ export type ResourceCard = CueCardResource | NoteResource | PictureResource | Pr
 
 export interface TextFileMessage {
   id: string;
-  type: 'pdf' | 'txt' | 'pptx' | 'docx';
+  type: 'pdf' | 'txt' | 'doc' | 'docx' | 'pptx';
   title: string;
   serverUrl: string;
   uploadDate: Date;

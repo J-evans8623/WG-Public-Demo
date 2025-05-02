@@ -11,11 +11,9 @@
  *     - Update shared state (and Y.Doc) only after a successful response.
  *     - Provide helper functions for file retrieval and caching.
  *
- *   Note: We now delay updating the file list until the backend responds, so that an incomplete
- *         (or unprocessed) file is not shown in the UI.
- *
- * @author  
- * @date    
+ *   SECURITY UPDATE:
+ *     All outgoing API calls now include credentials (using credentials: 'include')
+ *     to ensure that the backend receives the necessary authentication details.
  */
 
 import React, {
@@ -47,6 +45,7 @@ export interface FileAssetContextType {
   getFileById: (fileId: string) => TextFileMessage | undefined;
   getFileContent: (fileId: string) => Promise<string>;
   clearCache: (fileId: string) => void;
+  addGeneratedLessonFile: (fileMessage: TextFileMessage) => void;
 }
 
 interface CachedContent {
@@ -67,7 +66,7 @@ const FileAssetContext = createContext<FileAssetContextType | undefined>(undefin
  * @returns Promise that resolves to the file content.
  */
 const fetchFileContent = async (serverUrl: string, fileType: TextFileMessage['type']): Promise<string> => {
-  const response = await fetch(serverUrl);
+  const response = await fetch(serverUrl, { credentials: 'include' });
   if (!response.ok) {
     throw new Error('Failed to fetch file content');
   }
@@ -81,9 +80,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [lessonModuleLists, setLessonModuleLists] = useState<Map<string, LessonSummary[]>>(new Map());
   const contentCache = useMemo(() => new Map<string, CachedContent>(), []);
 
-  // ---------------------------------------------------------------------------
   // Initialize files from Y.js on mount and subscribe to changes.
-  // ---------------------------------------------------------------------------
   useEffect(() => {
     const loadInitialFiles = () => {
       const initialFiles = new Map<string, TextFileMessage>();
@@ -108,9 +105,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
     return () => yFileMap.unobserveDeep(updateListener);
   }, [yFileMap]);
 
-  // ---------------------------------------------------------------------------
-  // Utility functions to validate file MIME types.
-  // ---------------------------------------------------------------------------
+  // Utility function to validate file MIME types.
   const validateFileType = useCallback((file: File): boolean => {
     const allowedTypes = [
       'application/pdf',
@@ -132,57 +127,54 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
     return mapping[mimeType] || 'txt';
   };
 
-  // ---------------------------------------------------------------------------
-  // addFile: Handles uploading a file, processing it, and storing file metadata.
-  // ---------------------------------------------------------------------------
+  /**
+   * addFile
+   * @description Handles uploading a file, processing it, and storing file metadata.
+   *              Now sends secure API calls by including credentials.
+   */
   const addFile = useCallback(async (file: File) => {
     try {
-      // Step 1: Validate the file type.
       if (!validateFileType(file)) {
         throw new Error('Invalid file type. Only PDF, TXT, DOC, and DOCX files are allowed.');
       }
-
-      // Step 2: Generate a unique ID.
       const resourceID = uuidv4();
-      const fileId = docFileID!; // Provided by YDoc
+      const docFileid =  docFileID!;
+      const fileId =  uuidv4();
+      console.log('Invoking addFile with doc file id', docFileid);
       console.log('Invoking addFile with file id', fileId);
 
-      // Step 3: Prepare the form data for file upload.
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('DocID', docFileid);
       formData.append('fileID', fileId);
 
-      // Step 4: Call the backend API for file upload.
       const response = await fetch('/api/FileAssets', {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'include' // Securely send session data
       });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to upload file');
       }
 
-      // Step 5: Parse the API response.
       const responseData = await response.json();
       const { size, url, lessonModules } = responseData;
       console.log(`File uploaded. ID: ${resourceID}, Server URL: ${url}`);
 
-      // Step 6: Build the final file message object using the server URL.
       const fileMessage: TextFileMessage = {
         id: resourceID,
-        type: getMimeTypeMapping(file.type),
+        type: file.type === 'application/pdf' ? 'pdf' : 'txt',
         title: file.name,
-        serverUrl: url, // URL returned by backend (fully processed)
+        serverUrl: url,
         uploadDate: new Date(),
         size
       };
 
-      // Step 7: Update the shared Y.Doc with the file message.
       ydoc.transact(() => {
         yFileMap.set(fileMessage.id, fileMessage);
       });
 
-      // Step 8: If lesson module metadata is returned, store it in state.
       if (lessonModules && Array.isArray(lessonModules)) {
         setLessonModuleLists(prev => {
           const newMap = new Map(prev);
@@ -196,12 +188,17 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [ydoc, yFileMap, validateFileType, docFileID]);
 
-  // ---------------------------------------------------------------------------
-  // removeFile: Removes a file from storage and clears associated cached data.
-  // ---------------------------------------------------------------------------
+  /**
+   * removeFile
+   * @description Removes a file from storage and clears associated cached data.
+   *              Now makes secure API calls by including credentials.
+   */
   const removeFile = useCallback(async (fileId: string) => {
     try {
-      await fetch(`/api/FileAssets?id=${fileId}`, { method: 'DELETE' });
+      await fetch(`/api/FileAssets?id=${fileId}`, {
+        method: 'DELETE',
+        credentials: 'include' // Include credentials for secure deletion
+      });
       ydoc.transact(() => {
         yFileMap.delete(fileId);
       });
@@ -212,9 +209,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [ydoc, yFileMap]);
 
-  // ---------------------------------------------------------------------------
   // Helper functions for file retrieval and caching.
-  // ---------------------------------------------------------------------------
   const getAllFiles = useCallback(() => Array.from(files.values()), [files]);
 
   const getFileById = useCallback((fileId: string) => files.get(fileId), [files]);
@@ -237,6 +232,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
    * getFileContent
    * @description Fetches the full content of a file.
    *              For PDFs, returns the server URL; for TXT/HTML, returns the text content.
+   *              Uses a secure fetch call (credentials included) to retrieve file content.
    * @param fileId - The ID of the file.
    * @returns A promise resolving to the file content.
    */
@@ -254,9 +250,19 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
     console.log(`Cache cleared for file ID: ${fileId}`);
   }, [contentCache]);
 
-  // ---------------------------------------------------------------------------
+  /**
+   * addGeneratedLessonFile
+   * @description Updates the context with a generated TextFileMessage (from the backend)
+   *              that contains metadata for the uploaded file.
+   * @param fileMessage - The TextFileMessage object returned from the backend.
+   */
+  const addGeneratedLessonFile = useCallback((fileMessage: TextFileMessage) => {
+    ydoc.transact(() => {
+      yFileMap.set(fileMessage.id, fileMessage);
+    });
+  }, [ydoc, yFileMap]);
+
   // Expose context values.
-  // ---------------------------------------------------------------------------
   const value = useMemo(() => ({
     files,
     lessonModuleLists,
@@ -266,7 +272,8 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
     getFileById,
     getFileContent,
     clearCache,
-  }), [files, lessonModuleLists, addFile, removeFile, getAllFiles, getFileById, getFileContent, clearCache]);
+    addGeneratedLessonFile,
+  }), [files, lessonModuleLists, addFile, addGeneratedLessonFile, removeFile, getAllFiles, getFileById, getFileContent, clearCache]);
 
   return (
     <FileAssetContext.Provider value={value}>

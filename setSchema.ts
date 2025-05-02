@@ -1,92 +1,93 @@
+/**
+ * @file scripts/weaviateSchemaMigration.ts
+ * @description
+ *   Drops the old LessonModule and TextChunk classes in Weaviate,
+ *   then creates a new TextChunk class with:
+ *     - chunk_id    (string)
+ *     - file_id     (string)
+ *     - document_id (string)
+ *     - text        (text)
+ *     - createdAt   (date)
+ *   and vectorizer="none".
+ */
+
 import weaviate from 'weaviate-ts-client';
 
-async function setSchema() {
+async function migrateSchema() {
   const client = weaviate.client({
     scheme: 'http',
     host: process.env.WEAVIATE_HOST || 'localhost:8080',
   });
 
   try {
-    const currentSchema = await client.schema.getter().do();
-    const classes = currentSchema.classes || [];
+    // 1. Fetch current schema
+    const schemaRes = await client.schema.getter().do();
+    const classes = schemaRes.classes || [];
 
-    // Create or update the LessonModule class with metadata stored inline.
-    const lessonModuleExists = classes.some((cls) => cls.class === "LessonModule");
-    if (!lessonModuleExists) {
-      const lessonModuleClass = {
-        class: "LessonModule",
-        description: "A lesson module with inline metadata stored as a JSON string.",
-        properties: [
-          { name: "moduleID", dataType: ["string"] },
-          { name: "file_id", dataType: ["string"] },
-          { name: "original_text", dataType: ["text"] },
-          // Updated: store metadata inline as a JSON string (primitive type)
-          { name: "metadata", dataType: ["text"] }
-        ]
-      };
-      const resultLessonModule = await client.schema.classCreator()
-        .withClass(lessonModuleClass)
+    // 2. Delete deprecated LessonModule
+    if (classes.some(c => c.class === 'LessonModule')) {
+      console.log('→ Deleting LessonModule...');
+      await client.schema.classDeleter()
+        .withClassName('LessonModule')
         .do();
-      console.log("LessonModule schema created:", resultLessonModule);
+      console.log('✔ LessonModule deleted');
     } else {
-      console.log("Class LessonModule already exists. Skipping creation.");
+      console.log('• LessonModule not found, skipping');
     }
 
-    // The TextChunk schema remains unchanged.
-    const textChunkExists = classes.some((cls) => cls.class === "TextChunk");
-    if (!textChunkExists) {
-      const textChunkClass = {
-        class: "TextChunk",
-        description: "A text chunk with its precomputed embedding and metadata for filtering by user and module.",
-        vectorizer: "none",
-        properties: [
-          { name: "chunk_id", dataType: ["string"] },
-          { name: "file_id", dataType: ["string"] },
-          { name: "lesson_module_title", dataType: ["string"] },
-          { name: "lesson_module_id", dataType: ["string"] },
-          { name: "uploadId", dataType: ["string"] },
-          { name: "text", dataType: ["text"] }
-        ]
-      };
-      const resultTextChunk = await client.schema.classCreator()
-        .withClass(textChunkClass)
+    // 3. Delete old TextChunk
+    if (classes.some(c => c.class === 'TextChunk')) {
+      console.log('→ Deleting old TextChunk...');
+      await client.schema.classDeleter()
+        .withClassName('TextChunk')
         .do();
-      console.log("TextChunk schema created:", resultTextChunk);
+      console.log('✔ Old TextChunk deleted');
     } else {
-      console.log("Class TextChunk already exists. Skipping creation.");
+      console.log('• TextChunk not found, skipping');
     }
-  } catch (error) {
-    console.error("Error creating/updating schema:", error);
+
+    // 4. Create new TextChunk schema
+    console.log('→ Creating new TextChunk class...');
+    await client.schema.classCreator().withClass({
+      class: 'TextChunk',
+      description: 'A chunk of text with client-provided embedding, grouped by file_id + document_id.',
+      vectorizer: 'none',
+      properties: [
+        {
+          name: 'chunk_id',
+          description: 'Unique identifier for this chunk within the file',
+          dataType: ['string'],
+        },
+        {
+          name: 'file_id',
+          description: 'Unique ID per upload session (segregates concurrent uploads)',
+          dataType: ['string'],
+        },
+        {
+          name: 'document_id',
+          description: 'Shared document/session ID across uploads',
+          dataType: ['string'],
+        },
+        {
+          name: 'text',
+          description: 'Raw text of the chunk',
+          dataType: ['text'],
+        },
+        {
+          name: 'createdAt',
+          description: 'ISO-8601 timestamp when this chunk was created',
+          dataType: ['date'],
+        },
+      ],
+    }).do();
+    console.log('✔ New TextChunk class created');
+
+    console.log('\n✅ Weaviate schema migration complete');
+    process.exit(0);
+  } catch (err) {
+    console.error('❌ Schema migration failed:', err);
     process.exit(1);
   }
 }
 
-setSchema();
-
-
-
-/***
- * I will use this script later remove the old lesson module schema
- * 
- import weaviate from 'weaviate-ts-client';
-
-async function deleteClass() {
-  const client = weaviate.client({
-    scheme: 'http',
-    host: process.env.WEAVIATE_HOST || 'localhost:8080',
-  });
-
-  try {
-    await client.schema.classDeleter()
-      .withClassName('LessonModule')
-      .do();
-   
-  } catch (error) {
-    console.error("Error deleting TextEmbedding class:", error);
-  }
-}
-
-deleteClass();
-
- * 
- */
+migrateSchema();

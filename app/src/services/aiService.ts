@@ -12,10 +12,7 @@
  * Dependencies:
  * - OpenAI client for API communication.
  */
-import { log } from '@/app/src/services/TextPreprocessing/utils/logger';
 import OpenAI from "openai";
-import { lessonSchema } from "../schemas/lessonSchema";
-import { MultipleChoiceSchema, TrueFalseSchema, MatchingQuizSchema,FillInBlankSchema } from "../schemas/quizSchema";
 
 interface JSONSchema {
   name: string;
@@ -52,7 +49,7 @@ class AIService {
       console.log("aiService.ts input ", input);
 
       const response = await this.openai.beta.chat.completions.parse({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",

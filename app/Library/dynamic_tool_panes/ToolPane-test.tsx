@@ -3,7 +3,7 @@ import ToolPaneCutCopyWindow from './ToolPaneCutCopyWindow';
 import ToolPaneDeleteWindow from './ToolPaneDeleteWindow';
 import ToolPaneMergeWindow from './ToolPaneMergeWindow';
 import ToolPaneEditWindow from './ToolPaneEditWindow';
-import GenerateAIForm from '../components/AI/GenerateAIForm';
+import GenerateAIForm from '../../../../archive-v1-bloom/GenerateAIForm';
 import './ToolPane-test.css';
 
 

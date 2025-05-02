@@ -1,3 +1,22 @@
+/**
+ * @file AppLayout.tsx
+ * @description
+ * This is the top-level layout for the entire application. It wraps the application with all necessary context providers
+ * (including authentication, document, layout, zoom, etc.) and controls the high-level view switching between "home", "map",
+ * and "user" screens.
+ *
+ * IMPORTANT:
+ * - The autosave mechanism is integrated into the "map" view. The autosave callback now calls the new Firebase Storage
+ *   pipeline by using YDocContext's saveToFirebase method instead of the legacy Google Drive upload.
+ * - When a user is on the "map" view and authenticated, the AutoSaveManager is instantiated with the new autosave callback.
+ *
+ * Responsibilities:
+ * - Manage view state and context provider composition.
+ * - Initialize a new document on mount if none exists.
+ * - Set up autosave using the new Firebase-based persistence pipeline.
+ * - Load documents from Firebase Storage when a file tile is clicked.
+ */
+
 'use client';
 
 import React, { useState, useEffect, useContext, useRef } from 'react';
@@ -11,117 +30,123 @@ import { ViewSwitchProvider } from '@/app/Library/Context/ViewSwitchContext';
 import { LayoutProvider, useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { ColorThemeProvider, useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { ResourceProvider } from '@/app/Library/Context/ResourceContext';
+import { LessonDataProvider } from '@/app/Library/Context/LessonDataContext';
 import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext';
-//import { WebSocketManagerProvider } from '@/app/Library/Context/WebSocketManager';
 import { FileAssetProvider } from '@/app/Library/Context/FileAssetContext';
-import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
+
+//import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
 import HomeScreen from './components/HomeScreen';
-import { Sidebar } from './components/layout/Sidebar/Sidebar';
-import ResourcePanel from './components/layout/ResourcePanel/ResourcePanel';
+import NavigationPanel from '@/app/studygraph/(studygraph)/components/layout/Sidebar/NavigationPanel';
 import { CardDisplay } from './components/layout/CardDisplay/CardDisplay';
 import { CanvasView } from './components/layout/Canvas/CanvasView';
+import { UserInfoPanel } from '@/app/studygraph/(studygraph)/components/layout/UserInfoPanel';
+
 import './appLayout.css';
-import { initializeNewDocument, loadDocumentFromDrive } from '@/app/Library/utils/LoadDocumentUtils';
+
+import { initializeNewDocument } from '@/app/Library/utils/LoadDocumentUtils';
 import { LessonModuleProvider } from '@/app/Library/Context/LessonModuleContext';
 import { AutoSaveManager } from '@/app/Library/utils/AutoSaveManager';
-import { prepareBloomDocx } from '@/app/Library/utils/documentUtils';
 import { useLessonModuleMapper } from '@/app/studygraph/(studygraph)/components/hooks/useLessonModuleMapper';
-import { UserInfoPanel } from '@/app/studygraph/(studygraph)/components/layout/UserInfoPanel';
+
+import { Menu, ChevronsLeft } from 'lucide-react';
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
-const AppLayoutContent = () => {
-  // ----- View and UI state -----
+/**
+ * @function AppLayoutContent
+ * @description
+ * Manages the high-level screens: 'home', 'map', 'user'. Always renders the NavigationPanel so that hovering on the
+ * left edge (or clicking the top-left menu icon) will reveal it. If the user is not authenticated, an AuthPromptModal
+ * is displayed.
+ *
+ * Key Steps:
+ * 1. Maintain and manage the current top-level view.
+ * 2. Initialize a new document on mount if none exists.
+ * 3. Set up autosave when on the 'map' view and when the user is authenticated (using Firebase Storage).
+ * 4. Provide functions to load files and create new documents.
+ */
+const AppLayoutContent: React.FC = () => {
+  // Application-level screen states.
   const [currentView, setCurrentView] = useState<'home' | 'map' | 'user'>('home');
-  const [isDashboardExpanded, setIsDashboardExpanded] = useState(false);
-  const [isDirectoryVisible, setIsDirectoryVisible] = useState(true);
-  const [resourcePanelWidth, setResourcePanelWidth] = useState(225);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState(0);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [cardDisplayWidth, setCardDisplayWidth] = useState(288);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(true);
 
-  // ----- Contexts -----
-  const { isAuthenticated, loadFromDrive, autosaveDocument } = useContext(ApiContext);
+  // Sidebar states (manual toggle and expansion tracking).
+  const [isPanelManuallyOpen, setIsPanelManuallyOpen] = useState(false);
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
+
+  // Other UI states.
+  const [cardDisplayWidth, setCardDisplayWidth] = useState(325);
+  const [isEditMode, setIsEditMode] = useState(false);
   const { dispatch: layoutDispatch } = useLayoutContext();
-  const { dispatch: colorThemeDispatch, colorTheme, primaryColor, backgroundColor } =
-    useColorThemeContext();
+  const { dispatch: colorThemeDispatch } = useColorThemeContext();
   const {
     createNewDocument,
-    persistDoc,
-    getFileName,
-    driveFileId,
-    updateDriveId,
-    loadData,
-    getLessonModuleJSON,
-    ydoc,
+    docFileID,
+    saveToFirebase,
+    loadFromFirebase,
+    ydoc
   } = useYDoc();
 
-  // Ref for ensuring one-time initialization when entering map view.
+  // Refs.
   const hasInitialized = useRef(false);
-  // Ref for the viewport (map container).
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  // ----- Autosave state -----
+  // Autosave: using AutoSaveManager.
   const autoSaveManagerRef = useRef<AutoSaveManager | null>(null);
   const [saveStatus, setSaveStatus] = useState<'saving' | 'saved'>('saved');
 
-  // ----- Window Resize Handler -----
+  // Lesson module mapping hook.
+  useLessonModuleMapper();
+
+  /**
+   * @function handleResize
+   * @description Restricts the CardDisplay panel width to a maximum of 40% of the window width.
+   */
   useEffect(() => {
-    const handleResize = () => {
+    function handleResize() {
       const maxWidth = window.innerWidth * 0.4;
       if (cardDisplayWidth > maxWidth) {
         setCardDisplayWidth(maxWidth);
       }
-    };
+    }
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [cardDisplayWidth]);
 
-  // ----- Document Initialization for Map View -----
+  /**
+   * @function initializeAppOnMount
+   * @description Creates a new document on mount if none exists, then centers the map.
+   */
   useEffect(() => {
-    const initializeApp = async () => {
-      if (currentView === 'map') {
-        try {
-          await initializeNewDocument(createNewDocument, layoutDispatch, colorThemeDispatch);
-          // Center the map after initialization.
-          if (viewportRef.current) {
-            const centerEvent = new CustomEvent('centerMap');
-            viewportRef.current.dispatchEvent(centerEvent);
-          }
-        } catch (error) {
-          console.error('Error initializing map:', error);
+    async function initializeApp() {
+      try {
+        await initializeNewDocument(createNewDocument, layoutDispatch, colorThemeDispatch);
+        if (viewportRef.current) {
+          const centerEvent = new CustomEvent('centerMap');
+          viewportRef.current.dispatchEvent(centerEvent);
         }
+      } catch (error) {
+        console.error('Error initializing document on mount:', error);
       }
-    };
-    if (!hasInitialized.current && currentView === 'map') {
-      hasInitialized.current = true;
-      initializeApp();
     }
-  }, [currentView, createNewDocument, layoutDispatch, colorThemeDispatch]);
 
-  // ----- Autosave Manager Setup -----
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      if (!docFileID) {
+        initializeApp();
+      }
+    }
+  }, [docFileID, createNewDocument, layoutDispatch, colorThemeDispatch]);
+
+  /**
+   * @function setupAutosave
+   * @description Sets up autosave when on the 'map' view and authenticated, using saveToFirebase.
+   */
   useEffect(() => {
-    // Only instantiate autosave if in map view and user is authenticated.
-    if (currentView === 'map' && isAuthenticated) {
-      // Define the autosave callback with detailed steps.
+    if (currentView === 'map') {
       const autosaveCallback = async () => {
         setSaveStatus('saving');
-        const fileName = getFileName();
         try {
-          const bloomDocx = await prepareBloomDocx(
-            persistDoc,
-            colorTheme,
-            primaryColor,
-            backgroundColor,
-            fileName,
-            driveFileId,
-            getLessonModuleJSON
-          );
-          const arrayBuffer = await bloomDocx.arrayBuffer();
-          const newFileId = await autosaveDocument(arrayBuffer, fileName, driveFileId);
-          updateDriveId(newFileId);
+          await saveToFirebase();
           setSaveStatus('saved');
         } catch (error) {
           console.error('Autosave error:', error);
@@ -138,153 +163,160 @@ const AppLayoutContent = () => {
         autoSaveManagerRef.current = null;
       }
     };
-  }, [
-    currentView,
-    isAuthenticated,
-    ydoc,
-    persistDoc,
-    colorTheme,
-    primaryColor,
-    backgroundColor,
-    driveFileId,
-    getLessonModuleJSON,
-    autosaveDocument,
-    updateDriveId,
-    getFileName,
-  ]);
+  }, [currentView, ydoc, saveToFirebase]);
 
-  useLessonModuleMapper();
-
-  // ----- File Loading from HomeScreen -----
-  const handleFileSelect = async (fileId: string) => {
+  /**
+   * @function handleFileSelect
+   * @description
+   * Loads a file from Firebase Storage using the loadFromFirebase method provided by YDocContext.
+   * This method is invoked when a file tile (from the Recent Files section) is clicked.
+   * It updates the document state and navigates the app to the 'map' view.
+   *
+   * @param {string} fileStorageId - The Firebase Storage identifier for the file.
+   */
+  const handleFileSelect = async (fileStorageId: string) => {
     try {
-      const arrayBuffer = await loadFromDrive(fileId);
-      const loadedFileName = `${fileId}.bloomdocx`;
-      const file = new File([arrayBuffer], loadedFileName, {
-        type: 'application/octet-stream',
-      });
-      await loadDocumentFromDrive(file, loadData, fileId, colorThemeDispatch);
+      // Load the document state from Firebase Storage using loadFromFirebase.
+      await loadFromFirebase(fileStorageId);
       setCurrentView('map');
       if (viewportRef.current) {
         const centerEvent = new CustomEvent('centerMap');
         viewportRef.current.dispatchEvent(centerEvent);
       }
     } catch (error) {
-      console.error('Error loading file from drive:', error);
+      console.error('Error loading document from Firebase Storage:', error);
     }
   };
 
-  // ----- Render Section -----
+  /**
+   * @function handleCreateNewDocument
+   * @description Creates a new document using createNewDocument and navigates to the 'map' view.
+   */
+  const handleCreateNewDocument = async () => {
+    try {
+      await createNewDocument();
+      setCurrentView('map');
+      if (viewportRef.current) {
+        const centerEvent = new CustomEvent('centerMap');
+        viewportRef.current.dispatchEvent(centerEvent);
+      }
+    } catch (error) {
+      console.error('Error creating new document:', error);
+    }
+  };
+
+  /**
+   * @function handleTogglePanel
+   * @description Toggles the navigation panel's open/closed state.
+   */
+  const handleTogglePanel = () => {
+    setIsPanelManuallyOpen((prev) => !prev);
+  };
+
+  /**
+   * @function renderMenuIcon
+   * @description Renders the appropriate menu icon based on whether the panel is expanded.
+   * @returns {JSX.Element} The menu icon.
+   */
+  const renderMenuIcon = () => {
+    return isPanelExpanded ? <ChevronsLeft className="w-5 h-5 text-gray-600" /> : <Menu className="w-5 h-5 text-gray-600" />;
+  };
+
   return (
-    <div className={`h-screen w-full flex prevent-select ${isDirectoryVisible ? 'bg-white' : 'bg-gray-100'}`}>
-      {!isAuthenticated && (
-        <AuthPromptModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
-      )}
+    <div className="h-screen w-full flex bg-white">
+      {/* Display AuthPromptModal if the user is not authenticated */}
 
-      {/* Sidebar in normal flow, not fixed */}
-      <Sidebar
-        isDashboardExpanded={isDashboardExpanded}
-        currentView={currentView}
-        onViewChange={(view) => setCurrentView(view)}
-        onMouseEnter={() => setIsDashboardExpanded(true)}
-        onMouseLeave={() => setIsDashboardExpanded(false)}
-      />
-
-      <div className="flex-1 flex">
-        {/* Home Screen view */}
-        {currentView === 'home' && <HomeScreen onFileSelect={handleFileSelect} />}
-
-        {/* Map/Canvas view */}
-        {currentView === 'map' && (
-          <div className="flex-1 flex">
-            {isDirectoryVisible && (
-              <ResourcePanel
-                width={resourcePanelWidth}
-                isDragging={isDragging}
-                dragOffset={dragOffset}
-                onDragStart={() => {
-                  setIsDragging(true);
-                  setDragOffset(0);
-                }}
-                onDrag={(dx) => {
-                  setDragOffset(dx);
-                  if (dx < -50) {
-                    setIsDirectoryVisible(false);
-                    setIsDragging(false);
-                    setDragOffset(0);
-                  }
-                }}
-                onDragEnd={() => {
-                  setIsDragging(false);
-                  setDragOffset(0);
-                }}
-                isExpanded={isDirectoryVisible}
-              />
-            )}
-
-            <CanvasView
-              viewportRef={viewportRef}
-              isResourcePanelVisible={isDirectoryVisible}
-              onToggleResourcePanel={() => setIsDirectoryVisible(!isDirectoryVisible)}
-              autosaveStatus={saveStatus}
-            />
-
-            <CardDisplay
-              width={cardDisplayWidth}
-              isEditMode={isEditMode}
-              currentTopicTitle="My Topic" // You can pass the real topic title if needed
-              onEditToggle={() => setIsEditMode(!isEditMode)}
-              onResize={(dx) => {
-                const newWidth = cardDisplayWidth - dx;
-                const maxWidth = window.innerWidth * 0.4;
-                setCardDisplayWidth(Math.min(Math.max(288, newWidth), maxWidth));
-              }}
-            />
-          </div>
-        )}
-
-        {/* User Info view */}
-        {currentView === 'user' && (
-          <div className="flex-1">
-            <UserInfoPanel onClose={() => setCurrentView('map')} />
-          </div>
-        )}
+      {/* Navigation Panel */}
+      <div className="z-50">
+        <NavigationPanel
+          isManuallyOpen={isPanelManuallyOpen}
+          currentView={currentView}
+          onSetView={setCurrentView}
+          onExpandedChange={setIsPanelExpanded}
+        />
       </div>
+
+      {/* Toggle button for Navigation Panel */}
+      <button
+        onClick={handleTogglePanel}
+        className="absolute top-4 left-4 z-50 p-2 bg-gray-100 rounded shadow hover:bg-gray-200 transition-colors"
+        title="Toggle Navigation Panel"
+        data-testid="nav-toggle-button"
+      >
+        {renderMenuIcon()}
+      </button>
+
+      {/* Screen rendering based on current view */}
+      {currentView === 'home' && (
+        <div className="flex-1">
+          <HomeScreen onFileSelect={handleFileSelect} onCreateNewDocument={handleCreateNewDocument} />
+        </div>
+      )}
+      {currentView === 'map' && (
+        <div className="flex-1 flex">
+          <CanvasView
+            isResourcePanelVisible
+            onToggleResourcePanel={() => {}}
+            autosaveStatus={saveStatus}
+          />
+          <CardDisplay
+            width={cardDisplayWidth}
+            isEditMode={isEditMode}
+            currentTopicTitle="My Topic"
+            onEditToggle={() => setIsEditMode(!isEditMode)}
+            onResize={(dx) => {
+              const newWidth = cardDisplayWidth - dx;
+              const maxWidth = window.innerWidth * 0.4;
+              setCardDisplayWidth(Math.min(Math.max(288, newWidth), maxWidth));
+            }}
+          />
+        </div>
+      )}
+      {currentView === 'user' && (
+        <div className="flex-1">
+          <UserInfoPanel onClose={() => setCurrentView('map')} />
+        </div>
+      )}
     </div>
   );
 };
 
 /**
- * Wraps AppLayoutContent with all the necessary context providers.
+ * @function AppLayout
+ * @description Wraps AppLayoutContent with all required context providers.
+ * Provides production-ready integration of authentication, document management,
+ * and Firebase Storage based file persistence.
+ * 
+ * @returns {JSX.Element} The complete application layout.
  */
-export const AppLayout = () => {
+export const AppLayout: React.FC = () => {
   return (
     <GoogleOAuthProvider clientId={clientId}>
       <ApiProvider>
         <YDocProvider>
-        <ViewSwitchProvider>
-          <LessonModuleProvider>
-            <FileAssetProvider>
-              <NodeSelectionProvider>
-                <ResourceProvider>
-                  {/*<WebSocketManagerProvider>**/}
+          <ViewSwitchProvider>
+            <LessonModuleProvider>
+              <FileAssetProvider>
+                <NodeSelectionProvider>
+                  <ResourceProvider>
                     <NodesProvider>
-                      <ZoomProvider>
-                        <LayoutProvider>
-                          <ColorThemeProvider>
-                            <SubTreeProvider>
-                              <AppLayoutContent />
-                              <div id="modal-root" />
-                            </SubTreeProvider>
-                          </ColorThemeProvider>
-                        </LayoutProvider>
-                      </ZoomProvider>
+                      <LessonDataProvider>
+                        <ZoomProvider>
+                          <LayoutProvider>
+                            <ColorThemeProvider>
+                              <SubTreeProvider>
+                                <AppLayoutContent />
+                                <div id="modal-root" />
+                              </SubTreeProvider>
+                            </ColorThemeProvider>
+                          </LayoutProvider>
+                        </ZoomProvider>
+                      </LessonDataProvider>
                     </NodesProvider>
-                  {/*</WebSocketManagerProvider>* */}
-                </ResourceProvider>
-              </NodeSelectionProvider>
-            </FileAssetProvider>
-          </LessonModuleProvider>
+                  </ResourceProvider>
+                </NodeSelectionProvider>
+              </FileAssetProvider>
+            </LessonModuleProvider>
           </ViewSwitchProvider>
         </YDocProvider>
       </ApiProvider>

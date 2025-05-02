@@ -1,70 +1,64 @@
+
 /**
  * @file CanvasView.tsx
  * @description
- *   This component renders the main canvas view. It displays either a Concept Map or Uploads 
- *   (processed PDFs) based on the active view. It also provides a bottom toolbar for navigation 
- *   and zoom control.
+ *   Renders both Concept Map and PDF viewers simultaneously, hiding the inactive one via CSS.
+ *   Preserves each view’s scroll and state by keeping both mounted.
  *
- *   Responsibilities:
- *     - Render the resource panel along with the main content area.
- *     - Switch between Concept Map and Uploads tabs.
- *     - Automatically reflect the user's selection from the resource panel.
+ * Responsibilities:
+ *   - Always-mount both MapRenderer and PDFRenderer panels.
+ *   - Toggle visibility using CSS classes (view-panel, hidden).
+ *   - Provide isolated scroll contexts: map-panel (overflow hidden) and pdf-panel (overflow-y auto).
+ *   - Maintain floating toolbar and status bar.
+ *   - Remove external viewportRef prop; each viewer manages its own scrolling.
  *
- *   Update:
- *     - The "Notes" tab has been renamed to "Uploads" for clarity.
- *
- * @author  
- * @date    
+ * CSS File (CanvasView.css) Responsibilities:
+ *   - .view-panel: absolute positioning to fill parent container.
+ *   - .hidden: hide inactive panels (display none).
+ *   - .pdf-panel: enable vertical scrolling (overflow-y: auto).
+ *   - .map-panel: hide overflow to preserve pan/zoom state.
  */
 
 import React, { useCallback, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import MapRenderer from './MapRenderer';
-import { PDFRenderer } from './PDFRenderer';
+import PDFRenderer from './PDFRenderer';
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 import StatusBar from './StatusBar';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { CanvasToolbar } from './CanvasToolBar';
-import '@/app/studygraph/(studygraph)/components/layout/mapTheme.css';
-import '@/app/studygraph/(studygraph)/components/layout/scrollbar.css';
+import type { PdfViewerRefType } from './PdfViewer';
+
+import './CanvasView.css';
 
 interface CanvasViewProps {
   isResourcePanelVisible: boolean;
   onToggleResourcePanel: () => void;
-  viewportRef: React.RefObject<HTMLDivElement>;
   autosaveStatus: 'saving' | 'saved';
 }
-
-export type PdfViewerRefType = {
-  handlePrev: () => void;
-  handleNext: () => void;
-};
 
 export const CanvasView: React.FC<CanvasViewProps> = ({
   isResourcePanelVisible,
   onToggleResourcePanel,
-  viewportRef,
   autosaveStatus,
 }) => {
   const { dispatch: zoomDispatch } = useZoomContext();
   const { activeConceptMapId, getLessonModule } = useLessonModule();
-  const { activeView, selectedPdfUrl, setActiveView } = useViewSwitch();
+  const { activeView, selectedPdfUrl } = useViewSwitch();
 
+  // Determine lesson title
   const lessonModule = getLessonModule();
-  const activeLesson = lessonModule.conceptMaps.find(
-    (conceptMap) => conceptMap.id === activeConceptMapId
-  );
-  const lessonTitle = activeLesson ? activeLesson.title : 'Untitled Lesson';
+  const activeLesson = lessonModule.conceptMaps.find((cm) => cm.id === activeConceptMapId);
+  const lessonTitle = activeLesson?.title || 'Untitled Lesson';
 
-  const [pdfScale, setPdfScale] = useState<number>(1.0);
-
+  // PDF scale
+  const [pdfScale, setPdfScale] = useState(1.0);
   const handleZoomIn = useCallback(() => {
     if (activeView === 'conceptMap') {
       zoomDispatch({ type: ZoomActionType.ZOOM_IN });
     } else {
-      setPdfScale((prev) => prev + 0.1);
+      setPdfScale((s) => s + 0.1);
     }
   }, [activeView, zoomDispatch]);
 
@@ -72,99 +66,68 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
     if (activeView === 'conceptMap') {
       zoomDispatch({ type: ZoomActionType.ZOOM_OUT });
     } else {
-      setPdfScale((prev) => Math.max(0.1, prev - 0.1));
+      setPdfScale((s) => Math.max(0.1, s - 0.1));
     }
   }, [activeView, zoomDispatch]);
 
-  const pdfViewerRef = useRef<PdfViewerRefType | null>(null);
+  // PDF viewer ref and navigation
+  const pdfRef = useRef<PdfViewerRefType>(null);
+  const handlePdfPrev = () => pdfRef.current?.handlePrev();
+  const handlePdfNext = () => pdfRef.current?.handleNext();
 
-  const handlePdfPrevPage = useCallback(() => {
-    pdfViewerRef.current?.handlePrev();
-  }, []);
-
-  const handlePdfNextPage = useCallback(() => {
-    pdfViewerRef.current?.handleNext();
-  }, []);
-
-  const [pdfCurrentPage, setPdfCurrentPage] = useState<number>(0);
-  const [pdfTotalPages, setPdfTotalPages] = useState<number>(0);
-
+  // PDF page info state
+  const [pdfCurrentPage, setPdfCurrentPage] = useState(1);
+  const [pdfTotalPages, setPdfTotalPages] = useState(0);
   const handlePageChange = useCallback((current: number, total: number) => {
     setPdfCurrentPage(current);
     setPdfTotalPages(total);
   }, []);
 
+  // Quick-jump
+  const handlePdfGoToPage = (page: number) => {
+    pdfRef.current?.handleGoTo(page);
+  };
+
   return (
     <div className="flex-1 flex flex-col map-canvas map-border rounded-md relative">
-      {/* Arrow button to show/hide resource panel */}
-      <button
-        onClick={onToggleResourcePanel}
-        className="absolute left-2 top-1/2 -translate-y-1/2 z-30 bg-white border border-gray-200 rounded shadow p-2 hover:bg-gray-50 transition-colors"
-      >
-        {isResourcePanelVisible ? (
-          <ChevronLeft className="w-4 h-4 text-gray-500" />
-        ) : (
-          <ChevronRight className="w-4 h-4 text-gray-500" />
-        )}
-      </button>
+      {/* Lesson title when in map view */}
+      {activeView === 'conceptMap' && (
+        <div className="sticky top-0 left-0 z-20 mt-4 ml-12 inline-block px-6 py-1 bg-white text-base font-semibold rounded">
+          {autosaveStatus === 'saving' ? 'Saving...' : lessonTitle}
+        </div>
+      )}
 
-      {/* Main content area */}
-      <div
-        ref={viewportRef}
-        className="flex-1 min-h-0 relative custom-scrollbar overflow-y-scroll"
-        data-testid="canvas-view"
-      >
-        {activeView === 'conceptMap' && (
-          <div className="sticky top-0 left-0 z-20 m-4 inline-block px-3 py-1 bg-white text-lg font-semibold rounded">
-            {autosaveStatus === 'saving' ? 'Saving...' : lessonTitle}
-          </div>
-        )}
+      {/* Status bar (shared) */}
+      <StatusBar />
 
-        <StatusBar />
+      {/* Panels container */}
+      <div className="relative flex-1">
+        {/* Concept Map Panel */}
+        <div className={`view-panel map-panel ${activeView !== 'conceptMap' ? 'hidden' : ''}`}>
+          <MapRenderer />
+        </div>
 
-        {activeView === 'conceptMap' ? (
-          <MapRenderer viewportRef={viewportRef} />
-        ) : (
+        {/* PDF Panel */}
+        <div className={`view-panel pdf-panel ${activeView !== 'pdf' ? 'hidden' : ''}`}>  
           <PDFRenderer
+            ref={pdfRef}
             fileUrl={selectedPdfUrl}
-            pdfViewerRef={pdfViewerRef}
-            onPageChange={handlePageChange}
             scale={pdfScale}
+            onPageChange={handlePageChange}
           />
-        )}
+        </div>
       </div>
 
-      {/* Bottom Bar */}
-      <div className="bottom-bar">
-        <div>
-          <button
-            className={`px-4 py-2 text-sm ${
-              activeView === 'conceptMap'
-                ? 'border-b-2 border-blue-600 font-semibold'
-                : 'text-gray-500'
-            }`}
-            onClick={() => setActiveView('conceptMap')}
-          >
-            Concept Map
-          </button>
-          <button
-            className={`px-4 py-2 text-sm ml-4 ${
-              activeView === 'pdf'
-                ? 'border-b-2 border-blue-600 font-semibold'
-                : 'text-gray-500'
-            }`}
-            onClick={() => setActiveView('pdf')}
-          >
-            Uploads
-          </button>
-        </div>
+      {/* Floating toolbar */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center space-x-4 bg-gray-100 rounded-full shadow-md px-4 py-2">
         <CanvasToolbar
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
           activeView={activeView}
-          onPdfPrevPage={handlePdfPrevPage}
-          onPdfNextPage={handlePdfNextPage}
+          onPdfPrevPage={handlePdfPrev}
+          onPdfNextPage={handlePdfNext}
           pdfPageInfo={{ current: pdfCurrentPage, total: pdfTotalPages }}
+          onPdfGoToPage={handlePdfGoToPage}
         />
       </div>
     </div>

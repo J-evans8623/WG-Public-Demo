@@ -1,14 +1,44 @@
-// bloom-maps\app\Library\Context\YDocContext.tsx
-import React, { createContext, useContext, useCallback, useState, useMemo, ReactNode } from 'react';
+/***********************************************************************************************
+ * @file YDocContext.tsx
+ * @description
+ *   Provides a React context (YDocContext) for managing the Y.Doc state, document metadata,
+ *   and file persistence with Firebase Storage.
+ *
+ *   This update ensures that when a document is created or loaded, the document's persistent
+ *   identifier (docFileID) and the file name are stored in the Y.Doc metadata. This allows
+ *   subsequent saves to update the same file instead of creating new files, and preserves the
+ *   file name across loads.
+ *
+ *   **Important Update:**
+ *   - In the loadData function, if the loaded metadata does not contain a docFileID or fileName,
+ *     the existing internal values are preserved instead of being overwritten.
+ *
+ * Responsibilities:
+ *   - Manage the Y.Doc state.
+ *   - Create and load document state, including persisting metadata.
+ *   - Expose methods to update and retrieve document state.
+ *   - Provide migration functionality for legacy .bloomdocx files.
+ *
+ * @author 
+ * @date 
+ ***********************************************************************************************/
+import React, {
+  createContext,
+  useContext,
+  useCallback,
+  useState,
+  useMemo,
+  ReactNode
+} from 'react';
 import * as Y from 'yjs';
 import { toast } from 'react-toastify';
-import { ConceptNode, ResourceCard } from '@/app/Library/Definitions/Definitions';
+import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
+import JSZip from 'jszip';
 
-interface YDocContextType {
+export interface YDocContextType {
   ydoc: Y.Doc;
   fileName: string;
-  driveFileId?: string;
   docFileID: string | null;
   isInitialized: boolean;
   createNewDocument: () => Promise<void>;
@@ -20,17 +50,16 @@ interface YDocContextType {
   applyUpdate: (update: Uint8Array) => void;
   getState: () => Uint8Array;
   updateFileName: (name: string) => void;
-  updateDriveId: (id?: string) => void;
-  persistDoc: (local: boolean) => Uint8Array;
-  // NEW: Method to get lesson module JSON string
+  persistDoc: () => Uint8Array;
   getLessonModuleJSON: () => string;
-  getFileName : () => string;
-
+  getFileName: () => string;
+  saveToFirebase: () => Promise<void>;
+  loadFromFirebase: (fileStorageId: string) => Promise<void>;
 }
 
 const YDocContext = createContext<YDocContextType | undefined>(undefined);
 
-export const useYDoc = () => {
+export const useYDoc = (): YDocContextType => {
   const context = useContext(YDocContext);
   if (!context) {
     throw new Error('useYDoc must be used within YDocProvider');
@@ -43,12 +72,17 @@ interface YDocProviderProps {
 }
 
 export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
-  const [ydoc, setYDoc] = useState(() => new Y.Doc());
-  const [fileName, setFileName] = useState('Untitled Document');
+  // Initialize state for Y.Doc, fileName, driveFileId (Firebase path), internal docFileID, and initialization flag.
+  const [ydoc, setYDoc] = useState<Y.Doc>(() => new Y.Doc());
+  const [fileName, setFileName] = useState<string>('Untitled Document');
   const [driveFileId, setDriveFileId] = useState<string>();
   const [docFileID, setDocFileID] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
+  /**
+   * Applies a given Yjs update to the current Y.Doc.
+   * @param update - The Yjs update as a Uint8Array.
+   */
   const applyUpdate = useCallback((update: Uint8Array): void => {
     try {
       Y.applyUpdate(ydoc, update);
@@ -58,43 +92,57 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
     }
   }, [ydoc]);
 
+  /**
+   * Encodes the current Y.Doc state as a Uint8Array.
+   * @returns The encoded Y.Doc state.
+   */
   const getState = useCallback((): Uint8Array => {
     return Y.encodeStateAsUpdate(ydoc);
   }, [ydoc]);
 
-  const persistDoc = useCallback((local: boolean): Uint8Array => {
-    if (local) {
-      setDriveFileId(undefined);
-    }
+  /**
+   * Persists the current document state by encoding it to a Uint8Array.
+   * @returns The encoded Y.Doc state.
+   */
+  const persistDoc = useCallback((): Uint8Array => {
     return Y.encodeStateAsUpdate(ydoc);
   }, [ydoc]);
 
-  // Updated createNewDocument that uses a namespaced nodes map for the default concept map
+  /**
+   * Creates a new document with default settings.
+   * Initializes shared maps, arrays, and sets metadata (internal docFileID and fileName).
+   */
   const createNewDocument = useCallback(async (): Promise<void> => {
     try {
       setIsInitialized(false);
       const newYDoc = new Y.Doc();
       const newDocId = uuidv4();
-      const defaultConceptMapId = 'map-1'; // Default concept map ID
-      
+      const defaultConceptMapId = 'map-1';
+
+      // Step 1: Initialize shared maps and arrays.
       newYDoc.transact(() => {
-        // Clear and initialize shared data
-        newYDoc.getMap('metadata').clear();
-        // We no longer use a generic 'nodes' map since nodes are namespaced per concept map.
+        // Set up metadata with internal docFileID and fileName.
+        const metadata = newYDoc.getMap('metadata');
+        metadata.clear();
+        metadata.set('docFileID', newDocId);
+        metadata.set('fileName', 'Untitled Document');
+
         newYDoc.getMap('resources').clear();
         newYDoc.getMap('subtrees').clear();
 
-        // Initialize lessonModule
         const lessonModule = newYDoc.getMap('lessonModule');
         lessonModule.clear();
         lessonModule.set('title', 'Default Lesson Module');
+
         const conceptMaps = new Y.Array<any>();
-        // Create a default concept map entry
-        const defaultConceptMap = { id: defaultConceptMapId, title: 'Default Map', createdAt: new Date().toISOString() };
+        const defaultConceptMap = {
+          id: defaultConceptMapId,
+          title: 'Untitled Lesson',
+          createdAt: new Date().toISOString()
+        };
         conceptMaps.push([defaultConceptMap]);
         lessonModule.set('conceptMaps', conceptMaps);
 
-        // Initialize nodes for the default concept map using a namespaced key.
         const nodesKey = `nodes:${defaultConceptMapId}`;
         const nodesMap = newYDoc.getMap<ConceptNode>(nodesKey);
         nodesMap.clear();
@@ -110,7 +158,6 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
         };
         nodesMap.set(rootNode.id, rootNode);
 
-        // Initialize subtrees sentinel (you may later namespace subtrees similarly if needed)
         newYDoc.getMap('subtrees').set('sentinel-node', {
           minX: 0,
           maxX: 0,
@@ -122,8 +169,8 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
         });
       }, { type: 'system', action: 'reset' });
 
+      // Step 2: Update local state with new metadata.
       setFileName('Untitled Document');
-      setDriveFileId(undefined);
       setDocFileID(newDocId);
       setYDoc(newYDoc);
       setIsInitialized(true);
@@ -134,23 +181,60 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
     }
   }, []);
 
+  /**
+   * Loads a Y.Doc state (provided as a Uint8Array) into a new Y.Doc instance.
+   * Updates local state with persisted metadata from the document.
+   *
+   * @param fileNameParam - Default file name if metadata is missing.
+   * @param driveFileIdParam - The Firebase file storage path (used only for retrieval).
+   * @param docState - The encoded Y.Doc state (or ZIP archive containing it).
+   */
   const loadData = useCallback(async (
-    fileName: string,
-    driveFileId: string | undefined,
+    fileNameParam: string,
+    driveFileIdParam: string | undefined,
     docState: Uint8Array
   ): Promise<void> => {
     try {
       console.log('Starting loadData operation...');
       setIsInitialized(false);
+
       const newYDoc = new Y.Doc();
-      newYDoc.transact(() => {
+
+      try {
+        // Step 1: Attempt to apply the update directly.
         Y.applyUpdate(newYDoc, docState);
-      }, { type: 'system', action: 'loadData' });
-      setFileName(fileName);
-      setDriveFileId(driveFileId);
+      } catch (error) {
+        console.warn('Direct Y.applyUpdate failed, attempting legacy ZIP extraction:', error);
+        // If direct update fails, assume docState is a ZIP archive.
+        const zip = await JSZip.loadAsync(docState);
+        const yjsStateFile = zip.file('document/yjsState.bin');
+        if (!yjsStateFile) {
+          throw new Error('Legacy file format error: Missing "document/yjsState.bin" in ZIP archive.');
+        }
+        const legacyYjsState = await yjsStateFile.async('uint8array');
+        Y.applyUpdate(newYDoc, legacyYjsState);
+      }
+
+      // Step 2: Retrieve persisted metadata from the loaded document.
       const metadataMap = newYDoc.getMap('metadata');
-      const loadedDocFileID = metadataMap.get('docFileID') as string || null;
-      setDocFileID(loadedDocFileID);
+      console.log(`metadata map observed in loaddata`)
+      console.log(metadataMap)
+      const FileName = metadataMap.get('fileName') as string
+      setFileName(FileName);
+      console.log(`Loaded Filename ${FileName}`)
+      if (metadataMap.has('docFileID'))  {
+        const internalDocID = metadataMap.get('docFileID') as string 
+        setDocFileID( internalDocID);
+        console.log(`Loaded DocFiledID ${internalDocID}`)
+      } else {
+        const internalDocID = metadataMap.get('fileId') as string
+        setDocFileID( internalDocID);
+        console.log(`Loaded DocFiledID ${internalDocID}`)
+      }
+      
+
+      
+
       setYDoc(newYDoc);
       setIsInitialized(true);
       console.log('loadData completed successfully');
@@ -161,29 +245,121 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
     }
   }, []);
 
-  const getFileName = useCallback(() :string => {
-    return fileName;
+  /**
+   * Returns the current file name.
+   * @returns The current file name.
+   */
+  const getFileName = useCallback((): string => fileName, [fileName]);
 
-  }, [fileName]);
-
+  /**
+   * Updates the current file name both in local state and in the Y.Doc metadata.
+   * @param name - The new file name.
+   */
   const updateFileName = useCallback((name: string): void => {
-    setFileName(name || 'Untitled Document');
-  }, []);
+    const updatedName = name || 'Untitled Document';
+    setFileName(updatedName);
+    const metadataMap = ydoc.getMap('metadata');
+    metadataMap.set('fileName', updatedName);
+  }, [ydoc]);
 
+  /**
+   * Updates the Firebase storage file path.
+   * @param id - The new drive file ID.
+   */
   const updateDriveId = useCallback((id?: string): void => {
     setDriveFileId(id);
   }, []);
 
-  // NEW: Expose a method that returns the lesson module JSON string.
+  /**
+   * Retrieves the lesson module portion of the Y.Doc as a JSON string.
+   * @returns The lesson module JSON string.
+   */
   const getLessonModuleJSON = useCallback((): string => {
     const lessonModule = ydoc.getMap('lessonModule');
     return JSON.stringify(lessonModule.toJSON());
   }, [ydoc]);
 
-  const value = useMemo((): YDocContextType => ({
+  /**
+   * Saves the current document state to Firebase Storage via /api/document/save.
+   * This reuses the internal docFileID so that subsequent saves update the same file.
+   */
+  const saveToFirebase = useCallback(async (): Promise<void> => {
+
+    console.log(`saveToFirebase called with docID ${docFileID}`);
+    try {
+      // Step 1: Encode the Y.Doc state.
+      const docState = persistDoc();
+      const base64Data = Buffer.from(docState).toString('base64');
+
+      // Ensure we have an internal docFileID.
+      if (!docFileID) {
+        throw new Error('Document has no internal identifier. Cannot save.');
+      }
+
+      // Step 2: Prepare the payload with fileName, internal docFileID, and file data.
+      const payload = {
+        fileName,
+        docFileID, // Use the internal document ID exclusively.
+        fileData: base64Data
+      };
+
+      // Step 3: POST the payload to the save endpoint.
+      const response = await fetch('/api/document/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save document: ${response.statusText}`);
+      }
+
+      toast.success('Document saved to Firebase Storage successfully');
+    } catch (error) {
+      console.error('Error saving document to Firebase:', error);
+      toast.error('Failed to save document to Firebase');
+    }
+  }, [persistDoc, fileName, docFileID, ydoc, updateDriveId]);
+
+  /**
+   * Loads a document file from Firebase Storage via /api/document/load.
+   * @param fileStorageId - The Firebase storage file path.
+   */
+  const loadFromFirebase = useCallback(async (fileStorageId: string): Promise<void> => {
+    console.log(`LoadFromFirebase called with docID ${docFileID}`);
+    console.log(`LoadFromFirebase called with FileStorageID ${fileStorageId}`);
+    try {
+      const response = await fetch(
+        `/api/document/load?fileStorageId=${encodeURIComponent(fileStorageId)}`,
+        { credentials: 'include' }
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to load document: ${response.statusText}`);
+      }
+      const { fileData } = await response.json();
+      console.log(fileData)
+
+      // Decode the base64 data.
+      const buffer = Buffer.from(fileData, 'base64');
+      const docState = new Uint8Array(buffer);
+
+      // Load the document state without overwriting the internal docFileID.
+      await loadData(fileName, fileStorageId, docState);
+      toast.success('Document loaded from Firebase Storage successfully');
+    } catch (error) {
+      console.error('Error loading document from Firebase:', error);
+      toast.error('Failed to load document from Firebase');
+    }
+  }, [fileName, loadData]);
+
+  /**
+   * Memoizes and returns the context value for YDocContext.
+   */
+  const value = useMemo<YDocContextType>(() => ({
     ydoc,
     fileName,
-    driveFileId,
+    docFileID,
     isInitialized,
     createNewDocument,
     applyUpdate,
@@ -192,10 +368,27 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
     updateDriveId,
     loadData,
     persistDoc,
-    docFileID,
     getLessonModuleJSON,
     getFileName,
-  }), [ydoc, fileName, driveFileId, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, updateDriveId, loadData, persistDoc, docFileID, getLessonModuleJSON, getFileName]);
+    saveToFirebase,
+    loadFromFirebase,
+  }), [
+    ydoc,
+    fileName,
+    docFileID,
+    isInitialized,
+    createNewDocument,
+    applyUpdate,
+    getState,
+    updateFileName,
+    updateDriveId,
+    loadData,
+    persistDoc,
+    getLessonModuleJSON,
+    getFileName,
+    saveToFirebase,
+    loadFromFirebase,
+  ]);
 
   return (
     <YDocContext.Provider value={value}>

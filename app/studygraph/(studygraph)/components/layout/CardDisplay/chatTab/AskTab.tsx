@@ -62,13 +62,13 @@ export interface AskSubmitParams {
   askMessages: ChatMessage[];
   setAskMessages: (msgs: ChatMessage[]) => void;
   setInput: (val: string) => void;
-  // The following parameters are passed from the parent component (ChatTab)
+  // Context values passed from the parent component (ChatTab)
   activeConceptMapId: string;
   getModuleSummary: (moduleId: string) => { hasSummary: boolean; summary: string | null };
   docFileID: string;
 }
 
-// Refactored handleAskSubmit that no longer calls hooks internally.
+// Refactored handleAskSubmit that does not call hooks internally.
 export async function handleAskSubmit({
   input,
   askMessages,
@@ -92,7 +92,7 @@ export async function handleAskSubmit({
   };
   const updatedMessages = [...askMessages, userMessage];
 
-  // Use the passed context values.
+  // Retrieve context values.
   const { hasSummary, summary } = getModuleSummary(activeConceptMapId);
   if (!docFileID) {
     const errorMsg: ChatMessage = {
@@ -107,14 +107,14 @@ export async function handleAskSubmit({
   try {
     const response = await askQuestionAPI(
       trimmed,
-      activeConceptMapId,
-      summary,
-      hasSummary,
+      'text-selection-placeholder',
       docFileID
     );
-
+    // Log raw markdown before conversion.
     const rawMarkdown = response.question_response || "No response received.";
+    console.log("[AskTab] Raw Markdown before conversion:", rawMarkdown);
     const htmlFromMarkdown = mdParser.render(rawMarkdown);
+    console.log("[AskTab] HTML after conversion:", htmlFromMarkdown);
 
     const answerMessage: ChatMessage = {
       id: Date.now() + 2,
@@ -134,6 +134,7 @@ export async function handleAskSubmit({
   }
 }
 
+// Export AskTab as an object with UI and handleAskSubmit properties.
 const AskTab = {
   UI: AskTabUI,
   handleAskSubmit,

@@ -8,12 +8,9 @@
  *   In parallel, the original file (if not plain text) is sent to the Text Extraction Microservice.
  *   The extracted text is then passed to LessonModuleServicev1.processDocument to generate lesson modules.
  *
- *   Workflow:
- *     a. User uploads a file (txt, pdf, pptx, docx).
- *     b. The file is converted to a PDF (using gotenberg_service) and saved.
- *     c. The original file is processed via the text extraction service.
- *     d. The output of the text extraction service is fed to processDocument.
- *     e. A combined JSON response with the PDF file details and lesson module summaries is returned.
+ *   SECURITY UPDATE:
+ *     This endpoint now authenticates all incoming requests using the OAuth 2.0 PKCE security layer.
+ *     It uses the authenticateRequest helper to validate the session before processing any request.
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
@@ -21,11 +18,11 @@ import mongoose from 'mongoose';
 import { GridFSBucket } from 'mongodb';
 import multer from 'multer';
 import connectDB from '@/app/src/config/db';
-import { processDocument, getLessonList } from '@/app/src/services/TextPreprocessing/LessonModuleServicev1';
-
-// Import our conversion and text extraction microservice clients (assumed to be available as HTTP endpoints)
-import { convertFileToPdf } from '@/doc-preprocessing-service/gotenberg-service-client'; // Client to call gotenberg_service
-import { extractTextFromFileService } from '@/doc-preprocessing-service/text-extraction-client'; // Client to call text extraction microservice
+import { processDocument, persistRawEmbeddings } from '@/app/src/services/TextPreprocessing/LessonModuleServiceV2';
+import { convertFileToPdf } from '@/doc-preprocessing-service/gotenberg-service-client';
+import { extractTextFromFileService } from '@/doc-preprocessing-service/text-extraction-client';
+// Import the authentication helper to secure incoming requests.
+import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 
 interface ProcessedFile {
     buffer: Buffer;
@@ -41,7 +38,7 @@ interface StoredFile {
     size: number;
 }
 
-// Configure multer for file uploads
+// Configure multer for file uploads.
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
@@ -57,7 +54,6 @@ const upload = multer({
             'application/vnd.ms-powerpoint',
             'application/vnd.openxmlformats-officedocument.presentationml.presentation'
         ];
-        
         if (allowedTypes.includes(file.mimetype)) {
             cb(null, true);
         } else {
@@ -85,11 +81,9 @@ async function processFile(file: Buffer, mimeType: string): Promise<ProcessedFil
         case 'application/vnd.ms-powerpoint':
         case 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
         case 'text/plain':
-            // For non-PDF files, we need to convert them to PDF.
             return {
                 buffer: file,
-                // We'll mark as 'docx' here for conversion purposes; the conversion service will output a PDF.
-                type: 'docx',
+                type: 'docx', // Mark as 'docx' for conversion; output will be PDF.
                 contentType: mimeType
             };
         default:
@@ -97,7 +91,7 @@ async function processFile(file: Buffer, mimeType: string): Promise<ProcessedFil
     }
 }
 
-// Initialize GridFS bucket
+// Initialize GridFS bucket.
 let bucket: GridFSBucket;
 let isInitialized = false;
 
@@ -134,7 +128,7 @@ const initBucket = async () => {
 async function storeFile(processed: ProcessedFile, originalName: string, size: number): Promise<StoredFile> {
     const filename = `${Date.now()}-${originalName}`;
     const uploadStream = bucket.openUploadStream(filename, {
-        contentType: 'application/pdf', // Always storing PDF files
+        contentType: 'application/pdf', // Always storing PDF files.
         metadata: {
             originalName: originalName,
             type: 'pdf',
@@ -153,7 +147,7 @@ async function storeFile(processed: ProcessedFile, originalName: string, size: n
         title: originalName,
         size: size
     };
-}
+};
 
 export const config = {
     api: {
@@ -164,17 +158,17 @@ export const config = {
 /**
  * Main API handler for file upload requests.
  * Handles POST (upload), GET (retrieve), and DELETE (remove) methods.
- * For POST requests:
- *  - Converts the uploaded file to PDF (via gotenberg_service).
- *  - Stores the final PDF in GridFS.
- *  - Invokes the text extraction microservice with the original file to extract text.
- *  - Passes the extracted text to processDocument to generate lesson modules.
- *  - Returns a combined JSON response with the stored file details and lesson module summaries.
- * @param req - The API request (which must include a file).
+ * SECURITY: Validates every incoming request using authenticateRequest.
+ * @param req - The API request.
  * @param res - The API response.
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     try {
+        // --- Security Layer: Authenticate the incoming request ---
+        const sessionData = await authenticateRequest(req, res);
+        if (!sessionData) return; // If authentication fails, the helper sends the error response.
+        // -------------------------------------------------------------
+
         await initBucket();
         switch (req.method) {
             case 'POST':
@@ -202,73 +196,61 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
  * This function:
  *   - Converts the uploaded file to PDF via the Document Conversion Service.
  *   - Stores the PDF in GridFS.
- *   - Invokes the Text Extraction Service with the original file if the file is not plain text.
- *   - Passes the extracted text to processDocument, then retrieves generated lesson modules.
- *   - Returns a combined JSON response.
+ *   - Invokes the Text Extraction Service with the original file if needed.
+ *   - Passes the extracted text to processDocument to generate lesson modules (if enabled).
+ *   - Returns a combined JSON response with file details and lesson module summaries.
  * @param req - The API request (which must include a file).
  * @param res - The API response.
  */
 async function handleUpload(req: NextApiRequest & { file?: Express.Multer.File }, res: NextApiResponse) {
     try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-      }
-      // Step 1: Process the file.
-      const processed = await processFile(req.file.buffer, req.file.mimetype);
-      
-      let finalPDFBuffer: Buffer;
-      if (processed.type === 'pdf') {
-        // If the file is already a PDF, skip conversion.
-        finalPDFBuffer = processed.buffer;
-      } else {
-        // Otherwise, convert the file to PDF using the Document Conversion Service.
-        finalPDFBuffer = await convertFileToPdf(processed.buffer, processed.type);
-      }
-      
-      // Replace processed.buffer with the final PDF.
-      processed.buffer = finalPDFBuffer;
-      processed.type = 'pdf';
-      processed.contentType = 'application/pdf';
-      
-      // Step 3: Store the final PDF file.
-      const stored = await storeFile(processed, req.file.originalname, req.file.size);
-      let extraData: any = {};
-      
-      // Step 4: Extract text.
-      let extractedText = "";
-      if (req.file.mimetype === 'text/plain') {
-        extractedText = req.file.buffer.toString('utf-8');
-      } else {
-        // Extract file extension from the original file name.
-        const ext = req.file.originalname.split('.').pop()?.toLowerCase();
-        // Prepend a dot if extension exists; fallback to the MIME type if not.
-        const fileExtension = ext ? `.${ext}` : req.file.mimetype;
-        
-        // Call the text extraction microservice using the file extension.
-        extractedText = await extractTextFromFileService(req.file.buffer, fileExtension);
-      }
-      
-      if (extractedText.trim().length > 0) {
-        const documentID = req.body.fileID;
-        if (!documentID) {
-          console.warn("No fileID provided; lesson module processing will not be associated with a document.");
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
         }
-        await processDocument(extractedText, documentID);
-        const lessonModules = await getLessonList(documentID);
-        extraData.lessonModules = lessonModules;
-      }
+        const processed = await processFile(req.file.buffer, req.file.mimetype);
       
-      // Step 5: Return the stored file data combined with extra lesson module data.
-      res.status(200).json({ ...stored, ...extraData });
-    } catch (error) {
-      console.error('Upload error:', error);
-      res.status(500).json({
-        error: 'Error uploading file',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  }
+        let finalPDFBuffer: Buffer;
+        if (processed.type === 'pdf') {
+            finalPDFBuffer = processed.buffer;
+        } else {
+            finalPDFBuffer = await convertFileToPdf(processed.buffer, processed.type);
+        }
+      
+        processed.buffer = finalPDFBuffer;
+        processed.type = 'pdf';
+        processed.contentType = 'application/pdf';
+      
+        const stored = await storeFile(processed, req.file.originalname, req.file.size);
+        let extraData: any = {};
+      
+        // Extract text.
+        let extractedText = "";
+        if (req.file.mimetype === 'text/plain') {
+            extractedText = req.file.buffer.toString('utf-8');
+        } else {
+            const ext = req.file.originalname.split('.').pop()?.toLowerCase();
+            const fileExtension = ext ? `.${ext}` : req.file.mimetype;
+            extractedText = await extractTextFromFileService(req.file.buffer, fileExtension);
+        }
+           
+        if (extractedText.trim().length > 0) {
+            const documentID = req.body.DocID;
+            const fileID = req.body.fileID
   
+            // Persist only the raw text embeddings.
+            await persistRawEmbeddings(extractedText, documentID, fileID);
+
+        }
+      
+        res.status(200).json({ ...stored, ...extraData });
+    } catch (error) {
+        console.error('Upload error:', error);
+        res.status(500).json({
+            error: 'Error uploading file',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+}
 
 /**
  * Retrieves a file from GridFS.

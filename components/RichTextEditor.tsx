@@ -1,4 +1,13 @@
-// components/RichTextEditor.tsx
+/**
+ * RichTextEditor.tsx
+ *
+ * This component wraps the TipTap editor to allow users to create and edit rich text content.
+ * 
+ * Update:
+ * - The component documentation now explicitly states that it outputs HTML using editor.getHTML().
+ * - This ensures that downstream components can safely assume that the persisted data is in HTML format.
+ */
+
 import React from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';

@@ -1,319 +1,238 @@
-// NotesTab.tsx
+/***************************************************************************************
+ * @file NotesTab.tsx
+ * @description
+ *   Renders all resource cards linked to the currently-selected concept-map nodes and
+ *   provides CRUD operations.  The bottom action bar now uses the dedicated
+ *   `.bottom-bar` class, giving it a darker divider and subtle inset shadow to match
+ *   the new design language.
+ ***************************************************************************************/
+
 import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { ResourceType as CardResourceType } from './buttons/AddResourceDropdown';
 import ResourceDisplay from './ResourceDisplay';
 import { useResourceSync } from '@/app/studygraph/(studygraph)/components/hooks/useResourceSync';
 import useCardCrudOperations from '@/app/studygraph/(studygraph)/components/hooks/useCardCrudOperations';
 import { ResourceCard } from '@/app/Library/Definitions/Definitions';
+import AddResourceDropdown from './buttons/AddResourceDropdown';
 import '@/app/studygraph/(studygraph)/components/layout/scrollbar.css';
 
-interface PendingResource {
-  nodeId: string;
-  type: CardResourceType;
-  title: string;
-  content: string;
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
+interface PendingResource{
+  nodeId   : string;
+  type     : CardResourceType;
+  title    : string;
+  content  : string;
   description?: string;
-  image?: File;
+  image?     : File;
 }
-
-interface NotesTabProps {
-  currentTopicTitle: string;
-  isEditMode: boolean;
-  onSwitchToChat: () => void;
-  width: number;
+interface NotesTabProps{
+  currentTopicTitle : string;
+  isEditMode        : boolean;
+  onSwitchToChat    : () => void;
+  width             : number;
 }
+export type NotesTabRef = { handleAddResource:(t:CardResourceType)=>void };
 
-const getResourceContent = (resource: ResourceCard) => {
-  switch (resource.type) {
+/* -------------------------------------------------------------------------- */
+/* Helper fns                                                                 */
+/* -------------------------------------------------------------------------- */
+const getResourceContent = (r:ResourceCard) =>{
+  switch(r.type){
     case 'cueCard':
     case 'note':
-    case 'practiceSheet':
-      return resource.content;
-    case 'picture':
-      return resource.description || '';
-    default:
-      return '';
+    case 'practiceSheet':   return r.content;
+    case 'picture':         return r.description || '';
+    default:                return '';
+  }
+};
+const updateResourceContent = (r:ResourceCard,newContent:string) =>{
+  switch(r.type){
+    case 'cueCard':
+    case 'note':
+    case 'practiceSheet':   return { content:newContent };
+    case 'picture':         return { description:newContent };
+    default:                return {};
+  }
+};
+const mapResourceTypeForDisplay = (t:'cueCard'|'note'|'picture'|'practiceSheet'):CardResourceType=>{
+  switch(t){
+    case 'cueCard'       : return 'cuecard';
+    case 'note'          : return 'note';
+    case 'picture'       : return 'image';
+    case 'practiceSheet' : return 'quiz';
+    default              : return 'cuecard';
   }
 };
 
-const updateResourceContent = (resource: ResourceCard, newContent: string) => {
-  switch (resource.type) {
-    case 'cueCard':
-    case 'note':
-    case 'practiceSheet':
-      return { content: newContent };
-    case 'picture':
-      return { description: newContent };
-    default:
-      return {};
-  }
-};
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
+const NotesTab = forwardRef<NotesTabRef,NotesTabProps>(({
+  currentTopicTitle,isEditMode,onSwitchToChat,width
+},ref)=>{
 
-function mapResourceTypeForDisplay(
-  resourceType: 'cueCard' | 'note' | 'picture' | 'practiceSheet'
-): CardResourceType {
-  switch (resourceType) {
-    case 'cueCard':
-      return 'cuecard';
-    case 'note':
-      return 'note';
-    case 'picture':
-      return 'image';
-    case 'practiceSheet':
-      return 'quiz';
-    default:
-      return 'cuecard';
-  }
-}
+  /* ---------------------------------------------------------------------- */
+  /* Data sync & CRUD hooks                                                 */
+  /* ---------------------------------------------------------------------- */
+  const { selectedNodeIds,cueCards,pictures,practiceSheets,notes } = useResourceSync();
+  const resources = [...cueCards,...notes,...pictures,...practiceSheets];
+  const { createResource,updateResource,deleteResource } = useCardCrudOperations();
 
-const NotesTab = forwardRef<{ handleAddResource: (type: CardResourceType) => void }, NotesTabProps>(
-  ({ currentTopicTitle, isEditMode, onSwitchToChat, width }, ref) => {
-    // Retrieve resources for selected nodes
-    const { selectedNodeIds, cueCards, pictures, practiceSheets, notes } = useResourceSync();
-    const combinedResources = [...cueCards, ...notes, ...pictures, ...practiceSheets];
+  /* ---------------------------------------------------------------------- */
+  /* Local state                                                            */
+  /* ---------------------------------------------------------------------- */
+  const [pending,setPending]                 = useState<PendingResource[]>([]);
+  const [editingIds,setEditingIds]           = useState<Set<string>>(new Set());
+  const [editingContent,setEditingContent]   = useState<Record<string,{title:string;content:string}>>({});
 
-    // CRUD operations for resources
-    const { createResource, updateResource, deleteResource } = useCardCrudOperations();
-
-    // State for newly created resources (pending, unsaved)
-    const [pendingResources, setPendingResources] = useState<PendingResource[]>([]);
-    // State for editing existing resources
-    const [editingResourceIds, setEditingResourceIds] = useState<Set<string>>(new Set());
-    const [editingContent, setEditingContent] =
-      useState<Record<string, { title: string; content: string }>>({});
-
-    // Handle adding a new resource
-    const handleAddResource = (type: CardResourceType) => {
-      if (selectedNodeIds.length === 0) {
-        console.warn('No node selected. Cannot add resource.');
-        return;
-      }
-      const newPendingResource: PendingResource = {
-        nodeId: selectedNodeIds[0],
+  /* ---------------------------------------------------------------------- */
+  /* Imperative handle                                                      */
+  /* ---------------------------------------------------------------------- */
+  useImperativeHandle(ref,()=>({
+    handleAddResource:(type:CardResourceType)=>{
+      const nodeDefault = selectedNodeIds[0] ?? '';
+      setPending(prev=>[...prev,{
+        nodeId:nodeDefault,
         type,
-        title: '',
-        content: '',
-        description: type === 'image' ? '' : undefined,
-      };
-      setPendingResources([...pendingResources, newPendingResource]);
-    };
+        title:'',
+        content:'',
+        description:type==='image'?'':undefined
+      }]);
+    }
+  }));
 
-    // Expose handleAddResource to parent via ref
-    useImperativeHandle(ref, () => ({
-      handleAddResource
-    }));
+  /* ---------------------------------------------------------------------- */
+  /* Helpers for pending resources                                          */
+  /* ---------------------------------------------------------------------- */
+  const savePending=async(index:number,data:{
+    title:string;content:string;image?:File;description?:string;selectedTopicId?:string;
+  })=>{
+    const draft=pending[index]; if(!draft) return;
+    const nodeIdFinal = data.selectedTopicId ?? draft.nodeId;
+    await createResource({
+      nodeId:nodeIdFinal,
+      type  :draft.type,
+      title :data.title,
+      content:data.content,
+      image :data.image,
+      description:data.description
+    });
+    setPending(prev=>prev.filter((_,i)=>i!==index));
+  };
+  const cancelPending=(i:number)=>setPending(prev=>prev.filter((_,idx)=>idx!==i));
 
-    // Save a pending resource
-    const handleSavePendingResource = async (
-      index: number,
-      data: {
-        title: string;
-        content: string;
-        image?: File;
-        description?: string;
-      }
-    ) => {
-      const pendingResource = pendingResources[index];
-      if (!pendingResource) return;
-      try {
-        await createResource({
-          nodeId: pendingResource.nodeId,
-          type: pendingResource.type,
-          title: data.title,
-          content: data.content,
-          image: data.image,
-          description: data.description
-        });
-        setPendingResources(pendingResources.filter((_, i) => i !== index));
-      } catch (error) {
-        console.error('Error creating resource:', error);
-      }
-    };
-
-    // Cancel creating a pending resource
-    const handleCancelPendingResource = (index: number) => {
-      setPendingResources(pendingResources.filter((_, i) => i !== index));
-    };
-
-    // Toggle edit mode for an existing resource
-    const handleToggleEdit = (id: string) => {
-      setEditingResourceIds(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(id)) {
-          newSet.delete(id);
-          setEditingContent(prev => {
-            const next = { ...prev };
-            delete next[id];
-            return next;
-          });
-        } else {
-          newSet.add(id);
-          const resource = combinedResources.find(r => r.id === id);
-          if (resource) {
-            const content = getResourceContent(resource);
-            setEditingContent(prev => ({
-              ...prev,
-              [id]: {
-                title: resource.title,
-                content: typeof content === 'string' ? content : JSON.stringify(content)
-              }
-            }));
-          }
+  /* ---------------------------------------------------------------------- */
+  /* Toggle edit for existing cards                                         */
+  /* ---------------------------------------------------------------------- */
+  const toggleEdit=(id:string)=>{
+    setEditingIds(prev=>{
+      const next = new Set(prev);
+      if(next.has(id)){
+        next.delete(id);
+        setEditingContent(c=>{ const x={...c}; delete x[id]; return x; });
+      }else{
+        const res=resources.find(r=>r.id===id);
+        if(res){
+          next.add(id);
+          setEditingContent(c=>({
+            ...c,
+            [id]:{ title:res.title, content:getResourceContent(res) as string }
+          }));
         }
-        return newSet;
-      });
-    };
-
-    // Update an existing resource
-    const handleUpdateResource = async (id: string, updatedData: Partial<any>) => {
-      const resource = combinedResources.find((res: any) => res.id === id);
-      if (!resource) {
-        console.warn('Resource not found');
-        return;
       }
-      try {
-        await updateResource(resource, updatedData);
-        setEditingResourceIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(id);
-          return newSet;
-        });
-        setEditingContent(prev => {
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-      } catch (error) {
-        console.error('Error updating resource:', error);
-      }
-    };
+      return next;
+    });
+  };
 
-    return (
-      <div className="h-full flex flex-col">
-        {/* Main scrollable content area */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 custom-scrollbar">
-          <div className="space-y-4 py-4">
-            {/* Pending Resources */}
-            {pendingResources.map((resource, index) => (
-              <ResourceDisplay
-                key={`pending-${index}`}
-                id={`pending-${index}`}
-                type={resource.type}
-                topicTitle={currentTopicTitle}
-                title={resource.title}
-                content={resource.content}
-                isEditing={true}
-                typeColors={{
-                  cuecard: 'bg-white border-gray-200 hover:bg-gray-50',
-                  note: 'bg-white border-gray-200 hover:bg-gray-50',
-                  image: 'bg-white border-gray-200 hover:bg-gray-50',
-                  quiz: 'bg-white border-gray-200 hover:bg-gray-50',
-                }}
-                onTitleChange={(title) => {
-                  const updated = [...pendingResources];
-                  updated[index] = { ...resource, title };
-                  setPendingResources(updated);
-                }}
-                onContentChange={(content) => {
-                  const updated = [...pendingResources];
-                  updated[index] = { ...resource, content };
-                  setPendingResources(updated);
-                }}
-                onCancel={() => handleCancelPendingResource(index)}
-                onSave={(data) =>
-                  handleSavePendingResource(index, {
-                    title: resource.title,
-                    content: resource.content,
-                    description: resource.description,
-                    image: data?.file,
-                  })
-                }
-                onEdit={() => {}}
-                onDelete={() => handleCancelPendingResource(index)}
-                onAskAI={onSwitchToChat}
-                onImageCaption={() => {}}
-              />
-            ))}
+  /* ---------------------------------------------------------------------- */
+  /* Update existing resource                                               */
+  /* ---------------------------------------------------------------------- */
+  const persistEdits=async(id:string)=>{
+    const res = resources.find(r=>r.id===id); if(!res) return;
+    const changes = editingContent[id];
+    if(!changes) return;
+    await updateResource(res,{
+      title:changes.title,
+      ...updateResourceContent(res,changes.content)
+    });
+    setEditingIds(s=>{ const n=new Set(s); n.delete(id); return n; });
+    setEditingContent(c=>{ const n={...c}; delete n[id]; return n; });
+  };
 
-            {/* Existing Resources */}
-            {selectedNodeIds.length > 0 ? (
-              combinedResources.length > 0 ? (
-                combinedResources.map((resource: any) => (
-                  <ResourceDisplay
-                    key={resource.id}
-                    id={resource.id}
-                    type={mapResourceTypeForDisplay(resource.type)}
-                    topicTitle={resource.conceptNodeTitle || currentTopicTitle}
-                    title={editingContent[resource.id]?.title ?? resource.title}
-                    content={
-                      editingContent[resource.id]?.content ??
-                      (typeof getResourceContent(resource) === 'string'
-                        ? getResourceContent(resource)
-                        : JSON.stringify(getResourceContent(resource)))
-                    }
-                    isEditing={editingResourceIds.has(resource.id)}
-                    typeColors={{
-                      cuecard: 'bg-white border-gray-200 hover:bg-gray-50',
-                      note: 'bg-white border-gray-200 hover:bg-gray-50',
-                      image: 'bg-white border-gray-200 hover:bg-gray-50',
-                      quiz: 'bg-white border-gray-200 hover:bg-gray-50',
-                    }}
-                    imageUrl={resource.type === 'picture' ? resource.imageUrl : undefined}
-                    onTitleChange={(title) => {
-                      setEditingContent(prev => ({
-                        ...prev,
-                        [resource.id]: {
-                          ...prev[resource.id],
-                          title
-                        }
-                      }));
-                    }}
-                    onContentChange={(content) => {
-                      setEditingContent(prev => ({
-                        ...prev,
-                        [resource.id]: {
-                          ...prev[resource.id],
-                          content
-                        }
-                      }));
-                    }}
-                    onCancel={() => handleToggleEdit(resource.id)}
-                    onSave={() => {
-                      const edits = editingContent[resource.id];
-                      if (edits) {
-                        const updates = {
-                          title: edits.title,
-                          ...updateResourceContent(resource, edits.content)
-                        };
-                        handleUpdateResource(resource.id, updates);
-                      }
-                    }}
-                    onEdit={() => handleToggleEdit(resource.id)}
-                    onDelete={() => deleteResource(resource.nodeId, resource.id)}
-                    onAskAI={onSwitchToChat}
-                    onImageCaption={() => {}}
-                  />
-                ))
-              ) : (
-                <p className="text-gray-600">
-                  No resources available for the selected nodes.
-                </p>
-              )
-            ) : (
-              <p className="text-gray-600">
-                Select one or more nodes to view their resources.
-              </p>
-            )}
-          </div>
+  /* ---------------------------------------------------------------------- */
+  /* Render                                                                 */
+  /* ---------------------------------------------------------------------- */
+  return(
+    <div className="relative h-full flex flex-col">
+      {/* scroll container -------------------------------------------------- */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 custom-scrollbar">
+        <div className="space-y-4 py-4">
+          {/* pending drafts */}
+          {pending.map((p,i)=>(
+            <ResourceDisplay
+              key={`pending-${i}`}
+              id={`pending-${i}`}
+              type={p.type}
+              topicTitle={currentTopicTitle}
+              title={p.title}
+              content={p.content}
+              isEditing
+              onTitleChange={t=>setPending(prev=>{
+                const copy=[...prev]; copy[i]={...p,title:t}; return copy;
+              })}
+              onContentChange={c=>setPending(prev=>{
+                const copy=[...prev]; copy[i]={...p,content:c}; return copy;
+              })}
+              onCancel={()=>cancelPending(i)}
+              onSave={d=>savePending(i,{
+                title:p.title,content:p.content,description:p.description,image:d?.file,
+                selectedTopicId:d?.selectedTopicId
+              })}
+              onEdit={()=>{}}
+              onDelete={()=>cancelPending(i)}
+              onAskAI={onSwitchToChat}
+              onImageCaption={()=>{}}
+            />
+          ))}
+
+          {/* existing resources */}
+          {selectedNodeIds.length===0 && (
+            <p className="text-gray-600">Select nodes to view their resources.</p>
+          )}
+          {selectedNodeIds.length>0 && resources.length===0 && (
+            <p className="text-gray-600">No resources available for the selected nodes.</p>
+          )}
+          {resources.map(r=>(
+            <ResourceDisplay
+              key={r.id}
+              id={r.id}
+              type={mapResourceTypeForDisplay(r.type)}
+              topicTitle={r.conceptNodeTitle||currentTopicTitle}
+              title={editingContent[r.id]?.title ?? r.title}
+              content={editingContent[r.id]?.content ?? getResourceContent(r)}
+              isEditing={editingIds.has(r.id)}
+              imageUrl={r.type==='picture'? r.imageUrl : undefined}
+              onTitleChange={t=>setEditingContent(c=>({ ...c,[r.id]:{...(c[r.id]||{}),title:t} }))}
+              onContentChange={c=>setEditingContent(prev=>({ ...prev,[r.id]:{...(prev[r.id]||{}),content:c} }))}
+              onCancel={()=>toggleEdit(r.id)}
+              onSave={()=>persistEdits(r.id)}
+              onEdit={()=>toggleEdit(r.id)}
+              onDelete={()=>deleteResource(r.nodeId,r.id)}
+              onAskAI={onSwitchToChat}
+              onImageCaption={()=>{}}
+            />
+          ))}
         </div>
-
-        {/* Bottom spacer with the same height as the canvas viewer’s bottom bar */}
-        <div style={{ height: "var(--bottom-bar-height)" }} />
       </div>
-    );
-  }
-);
 
-NotesTab.displayName = 'NotesTab';
-
+      {/* bottom action bar ------------------------------------------------- */}
+      <div className="bottom-bar">
+        <AddResourceDropdown onSelectType={type=>ref?.current?.handleAddResource(type)} />
+      </div>
+    </div>
+  );
+});
+NotesTab.displayName='NotesTab';
 export default NotesTab;

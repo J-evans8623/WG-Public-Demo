@@ -1,27 +1,31 @@
-// bloom-maps/app/src/utils/authenticateRequest.ts
-import { NextApiRequest, NextApiResponse } from 'next';
-import { parse } from 'cookie';
-import { sessionManager } from '@/app/src/auth/singletons';
+/**
+ * @file authenticateRequest.ts
+ * @description
+ *   This utility function validates incoming API requests by retrieving the session
+ *   from NextAuth.js using the server-side helper. It ensures that only authenticated
+ *   requests are processed.
+ *
+ * Responsibilities:
+ *   - Retrieve the session from the request using NextAuth.js.
+ *   - Return the session if it exists, or send a 401 response if not.
+ *
+ * @author 
+ * @date 
+ */
+
+import { NextApiRequest, NextApiResponse } from "next";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/pages/api/auth/[...nextauth]";
 
 export async function authenticateRequest(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const cookies = req.headers.cookie ? parse(req.headers.cookie) : {};
-  const sessionId = cookies.sessionId;
-
-  if (!sessionId) {
-    console.warn('Unauthorized access: No session found.');
-    res.status(401).json({ error: 'Unauthorized: No session found' });
+  // Retrieve the session using NextAuth.js helper
+  const session = await getServerSession(req, res, authOptions);
+  if (!session) {
+    res.status(401).json({ error: "Unauthorized: No session found" });
     return null;
   }
-
-  try {
-    const sessionData = await sessionManager.ensureValidSession(sessionId);
-    return sessionData;
-  } catch (error) {
-    console.error('Session validation failed:', error);
-    res.status(401).json({ error: 'Unauthorized: Invalid or expired session' });
-    return null;
-  }
+  return session;
 }

@@ -1,3 +1,4 @@
+// bloom-maps\app\src\services\TextPreprocessing\LessonModuleServicev1.ts
 import axios from 'axios';
 import { generateEmbedding, generateLessonMetadata } from './aiTextPreProcessing';
 import weaviate from 'weaviate-ts-client';
@@ -423,6 +424,37 @@ async function persistTextChunks(chunks: Array<{
     }
   } catch (error) {
     console.error("Error persisting text chunks to Weaviate:", error);
+    throw error;
+  }
+}
+
+/**
+ * persistRawEmbeddings
+ * @description
+ *   When lesson generation is disabled via the flag, this function splits the full text,
+ *   generates embeddings for each chunk, and persists them as raw text chunks in Weaviate.
+ */
+export async function persistRawEmbeddings(fullText: string, documentID: string): Promise<void> {
+  try {
+    const chunks = splitTextIntoChunks(fullText, 3000, 500);
+    const numberedChunks = chunks.map((chunk, idx) => ({ chunk_id: `raw-page-${idx + 1}`, chunk_text: chunk }));
+    const embeddingPromises = numberedChunks.map(chunk => generateEmbedding(chunk.chunk_text));
+    const embeddings = await Promise.all(embeddingPromises);
+    const uploadId = `${documentID}-raw-embedding`;
+    const lesson_module_id = "raw-embeddings";
+    const lesson_module_title = "Raw Embeddings";
+    const textChunkRecords = numberedChunks.map((c, idx) => ({
+      chunk_id: c.chunk_id,
+      chunk_text: c.chunk_text,
+      embedding: embeddings[idx],
+      file_id: documentID,
+      lesson_module_title: lesson_module_title,
+      lesson_module_id: lesson_module_id,
+      uploadId
+    }));
+    await persistTextChunks(textChunkRecords);
+  } catch (error) {
+    console.error("Error persisting raw embeddings:", error);
     throw error;
   }
 }

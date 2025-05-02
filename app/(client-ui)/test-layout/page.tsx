@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import ClientLayout from '../app'; // Import the ClientLayout component
+import ClientLayout from '../../../../archive-v1-bloom/app'; // Import the ClientLayout component
 
 /**WDYR setup (Only in development mode)
 if (process.env.NODE_ENV === 'development') {

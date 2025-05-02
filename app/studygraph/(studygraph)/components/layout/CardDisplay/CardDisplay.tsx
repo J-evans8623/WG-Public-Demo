@@ -1,10 +1,16 @@
+/***************************************************************************************
+ * @file CardDisplay.tsx   – shadow-divider variant
+ * @description
+ *   Removes the hard border altogether and instead casts a subtle left-side shadow
+ *   so the notes/chat pane feels elevated next to the map canvas.
+ ***************************************************************************************/
+
 import React, { useState, useRef } from 'react';
 import { ResizeHandle } from '../shared/ResizeHandle';
 import NotesTab from './NotesTab';
 import ChatTab from './chatTab/ChatTab';
 import UnifiedHeader from './UnifiedHeader';
 import { ResourceType } from './buttons/AddResourceDropdown';
-import '@/app/studygraph/(studygraph)/components/layout/mapTheme.css';
 
 export interface CardDisplayProps {
   width: number;
@@ -22,37 +28,26 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
   width,
   isEditMode,
   currentTopicTitle,
-  onEditToggle,
   onResize,
 }) => {
   const [activeTab, setActiveTab] = useState<'notes' | 'chat'>('notes');
   const [selectedTopic, setSelectedTopic] = useState('');
   const notesTabRef = useRef<NotesTabRef>(null);
 
-  const handleAddResource = (type: ResourceType) => {
-    if (notesTabRef.current) {
-      notesTabRef.current.handleAddResource(type);
-    }
-  };
-
   return (
     <div className="relative h-full" style={{ width: `${width / 16}rem` }}>
       <div
         className="
-          flex
-          flex-col
-          h-full
-          map-right-pane
-          map-border
-          /* If you want a left divider from the Canvas: */
-          border-l map-divider
+          flex flex-col h-full
+          bg-[var(--right-pane-bg)] text-[var(--right-pane-text)]
+          /* ↓ subtle inset shadow instead of border */
+          shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.06)]
         "
       >
         <UnifiedHeader
           activeTab={activeTab}
           onTabChange={setActiveTab}
           width={width}
-          onAddResource={handleAddResource}
           selectedTopic={selectedTopic}
           onTopicChange={setSelectedTopic}
         />
@@ -73,6 +68,8 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
           </div>
         </div>
       </div>
+
+      {/* resize handle still present; now floats over the shadow */}
       <ResizeHandle placement="left" onDrag={onResize} />
     </div>
   );

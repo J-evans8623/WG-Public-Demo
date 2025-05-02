@@ -1,0 +1,25 @@
+/* Hide scrollbar by default */
+.resource-body {
+    scrollbar-width: none;          /* Firefox */
+  }
+  .resource-body::-webkit-scrollbar {
+    width: 0;                       /* Chrome/Safari */
+    background: transparent;
+  }
+  
+  /* On hover, restore your thin scrollbar */
+  .resource-body:hover {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  }
+  .resource-body:hover::-webkit-scrollbar {
+    width: 4px;
+  }
+  .resource-body:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 2px;
+  }
+  .resource-body:hover::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  

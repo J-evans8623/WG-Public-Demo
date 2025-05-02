@@ -7,9 +7,9 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { GoogleOAuthManager } from '../../../app/src/auth/oauth';
-import { RedisSessionManager } from '../../../app/src/auth/session';
-import { AuthConfig } from '../../../app/src/auth/types';
+import { GoogleOAuthManager } from '../src/auth/oauth';
+import { RedisSessionManager } from '../src/auth/session';
+import { AuthConfig } from '../src/auth/types';
 import dotenv from 'dotenv';
 import { parse } from 'cookie';
 import crypto from 'crypto';

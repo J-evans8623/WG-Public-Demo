@@ -1,10 +1,27 @@
-// asset.ts
+/**
+ * @file asset.ts
+ * @description
+ *   API endpoint for processing image assets.
+ *   This endpoint supports image uploads, retrieval, and deletion.
+ *   It processes image files using Sharp and stores the optimized images in GridFS.
+ *   SECURITY UPDATE:
+ *     All incoming requests are authenticated using the authenticateRequest helper
+ *     to ensure only authorized sessions can perform operations.
+ *
+ *   Steps:
+ *     1. Authenticate the incoming request.
+ *     2. Initialize the GridFS bucket.
+ *     3. For POST requests, process and store the uploaded image.
+ *     4. For GET requests, retrieve the image from GridFS.
+ *     5. For DELETE requests, remove the image from GridFS.
+ */
 import { NextApiRequest, NextApiResponse } from 'next';
 import mongoose from 'mongoose';
 import { GridFSBucket } from 'mongodb';
 import multer from 'multer';
 import sharp from 'sharp';
 import connectDB from '@/app/src/config/db';
+import { authenticateRequest } from '@/app/src/auth/authenticateRequest'; 
 
 interface ProcessedImage {
     id: string;
@@ -78,13 +95,24 @@ export const config = {
     }
 };
 
+/**
+ * handler
+ * @description Main API handler for image asset operations.
+ *              It authenticates the request and then routes to the appropriate handler.
+ */
 export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
     try {
+        // Step 1: Authenticate the incoming request.
+        const sessionData = await authenticateRequest(req, res);
+        if (!sessionData) return; // If authentication fails, the helper handles the response.
+
+        // Step 2: Initialize the GridFS bucket.
         await initBucket();
 
+        // Route based on HTTP method.
         switch (req.method) {
             case 'POST':
                 await runMiddleware(req, res, upload.single('image'));
@@ -99,9 +127,9 @@ export default async function handler(
         }
     } catch (error) {
         console.error('Handler error:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Internal server error',
-            message: error instanceof Error ? error.message : 'Unknown error'
+            message: error instanceof Error ? error.message : 'Unknown error',
         });
     }
 }

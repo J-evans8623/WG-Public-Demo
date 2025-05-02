@@ -10,10 +10,9 @@ import '@/app/studygraph/(studygraph)/components/layout/hiddenScrollbar.css';
 import '@/app/studygraph/(studygraph)/components/layout/mapTheme.css'
 
 interface MapRendererProps {
-  viewportRef: React.RefObject<HTMLDivElement>;
 }
 
-const MapRenderer: React.FC<MapRendererProps> = ({ viewportRef }) => {
+const MapRenderer: React.FC<MapRendererProps> = () => {
   const scrollableRef = useRef<HTMLDivElement>(null);
   const { zoomLevel } = useZoomContext();
   const { nodes } = useNodesContext();

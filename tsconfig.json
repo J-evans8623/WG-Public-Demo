@@ -40,7 +40,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "app/**/*.d.ts",
-    "app/src/services/*.js", 
+    "app/src/services/*.js", "../archive-v1-bloom/app.tsx", "../archive-v1-bloom/TopBar.tsx", "../archive-v1-bloom/GenerateAIForm.tsx", 
   ],
   "exclude": [
     "node_modules",

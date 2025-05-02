@@ -1,5 +1,5 @@
 /**
- * aiController.ts
+ * bloom-maps\app\src\controllers\aiController.ts
  *
  * This controller handles AI operations including lesson generation, quiz generation,
  * question handling, and topic generation.
@@ -24,16 +24,11 @@ import { lessonPrompt, predefinedPrompts } from "../config/predefined-prompts";
 import OpenAIClient from "../config/openai";
 import { lessonSchema, topicSchema } from "../schemas/lessonSchema";
 import { MatchingQuizSchema, MultipleChoiceSchema, FillInBlankSchema, TrueFalseSchema } from "../schemas/quizSchema";
-import { getLessonModule } from "../services/TextPreprocessing/LessonModuleServicev1";
+import { LessonModule } from "../services/TextPreprocessing/LessonModuleServiceV2";
 import { getTextContext } from '@/app/src/services/TextPreprocessing/QuestionContextService';
 import { QAschema } from '@/app/src/schemas/QASchema';
+import { formatLessonMetadata } from "../services/TextPreprocessing/MetaDataFormatter";
 
-enum StandardQuizType {
-  MULTIPLE_CHOICE = 'multipleChoice',
-  MATCHING = 'matching',
-  FILL_IN_BLANK = 'FIB',
-  TRUE_FALSE = 'true-false'
-}
 
 class AIController {
   private static aiService: AIService | null = null;
@@ -48,43 +43,52 @@ class AIController {
     return this.aiService;
   }
 
-  public static async generateLesson(req: NextApiRequest, res: NextApiResponse): Promise<void> {
-    try {
-      console.log('[AIController] generateLesson called with body:', req.body);
-      const { documentID, moduleID } = req.body;
-      if (!documentID || !moduleID) {
-        res.status(400).json({ error: "Missing documentID or moduleID" });
-        return;
-      }
-      const lessonModuleRecord = await getLessonModule(documentID, moduleID);
-      console.log('[AIController] Retrieved lesson module record:', lessonModuleRecord);
-      if (!lessonModuleRecord) {
-        res.status(404).json({ error: "Lesson module not found" });
-        return;
-      }
-      const aggregatedText = lessonModuleRecord.original_text;
-      const curriculumMetadata = lessonModuleRecord.metadata; 
-      const dynamiclessonPrompt = lessonPrompt(curriculumMetadata, 'humanities');
-      const aiService = AIController.getAIService();
-      console.log('[AIController] Calling generateStructuredOutput for lesson with dynamic prompt:', dynamiclessonPrompt);
-      const structuredResponse = await aiService.generateStructuredOutput(
-        lessonSchema,
-        `[start of user input]${aggregatedText}[end of user input]`,
-        dynamiclessonPrompt,
-      );
-      console.log('[AIController] Lesson generation structured response:', structuredResponse);
-      res.status(200).json(structuredResponse);
-    } catch (error) {
-      console.error("[AIController] Error in generateLesson:", error);
-      res.status(500).json({ error: "Failed to generate structured lesson." });
-    }
+/**
+   * generateLesson
+   * @description
+   *   Generates the full lesson content for a given LessonModule.
+   *   It constructs a dynamic prompt based on the lesson module metadata,
+   *   calls the AI service to generate structured lesson content, and returns
+   *   the updated LessonModule with the AI-generated content attached.
+   *
+   * @param lessonModule - The LessonModule object containing basic metadata.
+   * @returns A Promise that resolves to the updated LessonModule with full lesson content.
+   */
+public static async generateLesson(lessonModule: LessonModule): Promise<LessonModule> {
+  try {
+    // Step 1: Format the lesson metadata into a human-readable string.
+    const formattedMetadata = formatLessonMetadata(lessonModule.metadata);
+    // Step 2: Construct a dynamic prompt using the formatted metadata.
+    const dynamicLessonPrompt = lessonPrompt(formattedMetadata);
+    // Step 3: Retrieve the aggregated text from the lesson module.
+    const aggregatedText = lessonModule.original_text;
+    
+    // Step 4: Obtain the AI service instance.
+    const aiService = this.getAIService();
+    
+    // Step 5: Call the AI service to generate structured lesson content.
+    // The generateStructuredOutput method is expected to return the full lesson content.
+    const structuredResponse = await aiService.generateStructuredOutput(
+      lessonSchema,
+      `[start of user input]${aggregatedText}[end of user input]`,
+      dynamicLessonPrompt
+    );
+  
+    
+    // Return the updated lesson module.
+    return structuredResponse;
+  } catch (error) {
+    console.error("Error in AIController.generateLesson:", error);
+    throw error;
   }
+}
+
 
   public static async handleQuestion(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
       console.log("[AIController] handleQuestion called with body:", req.body);
-      const { question, moduleID, summary, summaryPresent, textSelection, fileID } = req.body;
-      if (!question || !moduleID || !fileID) {
+      const { question, textSelection, fileID } = req.body;
+      if (!question || !fileID) {
         res.status(400).json({ error: "Missing question, moduleID, or fileID" });
         return;
       }
@@ -94,14 +98,11 @@ class AIController {
       }
       console.log("[AIController] Combined input for QA:", combinedInput);
       let retrievedContext = "";
-      if (summaryPresent === true) {
-        retrievedContext = await getTextContext(combinedInput, fileID);
-        console.log("[AIController] Retrieved additional context:", retrievedContext);
-      }
+      // Always get text context for a given question.
+      retrievedContext = await getTextContext(combinedInput, fileID);
+      console.log("[AIController] Retrieved additional context:", retrievedContext);
+ 
       let finalPrompt = question;
-      if (summary && typeof summary === 'string' && summary.trim().length > 0) {
-        finalPrompt += "\nSummary: " + summary.trim();
-      }
       if (retrievedContext && retrievedContext.trim().length > 0) {
         finalPrompt += "\nContext: " + retrievedContext.trim();
       }
