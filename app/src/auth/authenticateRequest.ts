@@ -23,6 +23,7 @@ export async function authenticateRequest(
 ) {
   // Retrieve the session using NextAuth.js helper
   const session = await getServerSession(req, res, authOptions);
+  console.log("Session.user:", session?.user);
   if (!session) {
     res.status(401).json({ error: "Unauthorized: No session found" });
     return null;

@@ -57,6 +57,7 @@ export interface LessonModuleContextType {
   isGeneratingLesson: boolean;
   addLoadingLesson: (moduleId: string) => void;
   removeLoadingLesson: (moduleId: string) => void;
+  setDefaultMap: () => void;
 }
 
 const LessonModuleContext = createContext<LessonModuleContextType | undefined>(undefined);
@@ -282,6 +283,21 @@ export const LessonModuleProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return { hasSummary: false, summary: null };
   }, [lessonModuleYMap]);
 
+  /**
+   * Pick the first lesson from the *React* state array and activate it.
+   * This now exactly matches what your navigation panel sees.
+   */
+  const setDefaultMap = useCallback(() => {
+    const ids = lessonModuleState.conceptMaps.map((m) => m.id);
+    console.log('[LessonModule] setDefaultMap – maps seen in state →', ids);
+    if (ids.length) {
+      console.log('[LessonModule] setDefaultMap – activating →', ids[0]);
+      setActiveConceptMapId(ids[0]);
+    } else {
+      console.log('[LessonModule] setDefaultMap – no maps to activate');
+    }
+  }, [lessonModuleState]);
+
   return (
     <LessonModuleContext.Provider
       value={{
@@ -298,6 +314,7 @@ export const LessonModuleProvider: React.FC<{ children: React.ReactNode }> = ({ 
         isGeneratingLesson,
         addLoadingLesson,
         removeLoadingLesson,
+        setDefaultMap,
       }}
     >
       {children}

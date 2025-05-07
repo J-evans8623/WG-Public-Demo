@@ -1,15 +1,19 @@
-// ===================== CanvasToolBar.tsx =====================
 /**
  * @file CanvasToolBar.tsx
  * @description
  *   Renders controls for zooming, multi-select, PDF navigation, quick-jump,
- *   and quiz generator.
+ *   search, and quiz generator.
+ *
+ * Responsibilities:
+ *   - Expose Search button that opens the global SearchModal.
+ *   - Maintain existing zoom, multi-select, PDF nav, and quiz-generator logic.
  */
 
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import { MousePointer } from 'lucide-react';
+import { useSearchContext } from '@/app/Library/Context/SearchContext';
+import { MousePointer, Search } from 'lucide-react';
 import QuizGeneratorModal from './QuizGeneratorModal';
 
 interface PdfPageInfo {
@@ -27,7 +31,7 @@ interface CanvasToolbarProps {
   onPdfGoToPage?: (page: number) => void;
 }
 
-export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
+const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   onZoomIn,
   onZoomOut,
   activeView,
@@ -37,10 +41,12 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   onPdfGoToPage,
 }) => {
   const { multiSelectEnabled, toggleMultiSelectEnabled } = useNodeSelection();
+  const { open } = useSearchContext();                   // <-- integrate search
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [inputPage, setInputPage] = useState('');
 
-  const commonButtonClasses = `p-2 rounded-md text-gray-600 group relative inline-flex items-center justify-center hover:bg-white hover:shadow`;
+  const commonButtonClasses =
+    'p-2 rounded-md text-gray-600 group relative inline-flex items-center justify-center hover:bg-white hover:shadow';
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputPage(e.target.value);
@@ -56,6 +62,15 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 
   return (
     <div className="flex items-center space-x-4">
+      {/* Search Button */}
+      <button
+        onClick={open}
+        className={commonButtonClasses}
+        aria-label="Search"
+      >
+        <Search className="h-5 w-5" />
+      </button>
+
       {/* Zoom In Button */}
       <button
         onClick={onZoomIn}
@@ -94,19 +109,28 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
         </span>
       </button>
 
-      {/* Multi-select */}
+      {/* Multi-select Toggle */}
       {activeView === 'conceptMap' && (
-        <button onClick={toggleMultiSelectEnabled} className={`${commonButtonClasses} ${multiSelectEnabled ? 'bg-white shadow' : ''}`} aria-label="Toggle Multi-Select">
+        <button
+          onClick={toggleMultiSelectEnabled}
+          className={`${commonButtonClasses} ${multiSelectEnabled ? 'bg-white shadow' : ''}`}
+          aria-label="Toggle Multi-Select"
+        >
           <MousePointer className="h-5 w-5" />
-          {multiSelectEnabled && <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-xs flex items-center justify-center rounded-full">+</span>}
+          {multiSelectEnabled && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-xs flex items-center justify-center rounded-full">
+              +
+            </span>
+          )}
         </button>
       )}
 
-      {/* PDF navigation + page info + quick-jump */}
+      {/* PDF Navigation + Quick-Jump */}
       {activeView === 'pdf' && pdfPageInfo && (
         <>
-          <span className="text-sm text-gray-700">Page {pdfPageInfo.current} of {pdfPageInfo.total}</span>
-
+          <span className="text-sm text-gray-700">
+            Page {pdfPageInfo.current} of {pdfPageInfo.total}
+          </span>
           <div className="flex items-center space-x-1">
             <input
               type="number"
@@ -122,16 +146,32 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
               onClick={triggerJump}
               className={commonButtonClasses}
               disabled={!inputPage || Number(inputPage) < 1 || Number(inputPage) > pdfPageInfo.total}
-            >Go</button>
+            >
+              Go
+            </button>
           </div>
         </>
       )}
 
-      {/* Quiz generator */}
+      {/* Quiz Generator */}
       {activeView === 'conceptMap' && (
         <>
-          <button onClick={() => setIsQuizModalOpen(true)} className={commonButtonClasses} aria-label="Open Quiz Generator">Quiz</button>
-          {isQuizModalOpen && ReactDOM.createPortal(<QuizGeneratorModal isOpen onClose={() => setIsQuizModalOpen(false)} preselectedTopicIds={[]} />, document.body)}
+          <button
+            onClick={() => setIsQuizModalOpen(true)}
+            className={commonButtonClasses}
+            aria-label="Open Quiz Generator"
+          >
+            Quiz
+          </button>
+          {isQuizModalOpen &&
+            ReactDOM.createPortal(
+              <QuizGeneratorModal
+                isOpen
+                onClose={() => setIsQuizModalOpen(false)}
+                preselectedTopicIds={[]}
+              />,
+              document.body
+            )}
         </>
       )}
     </div>

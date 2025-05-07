@@ -1,0 +1,89 @@
+/* semi-transparent backdrop */
+.ask-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 1002;
+  }
+  
+  /* sliding panel */
+  .ask-panel {
+    width: 100%;
+    max-width: 40rem;
+    background: #fff;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.2);
+    transform: translateY(100%);
+    animation: slideUp 200ms forwards;
+  }
+  
+  @keyframes slideUp {
+    to { transform: translateY(0); }
+  }
+  
+  /* drag handle */
+  .ask-handle {
+    width: 40px;
+    height: 4px;
+    background: #ccc;
+    border-radius: 2px;
+    margin: 0 auto 0.75rem;
+  }
+  
+  /* title */
+  .ask-title {
+    display: block;
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* text area */
+  .ask-input {
+    width: 100%;
+    min-height: 4rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    resize: vertical;
+  }
+  
+  /* actions */
+  .ask-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+  
+  .ask-cancel,
+  .ask-send {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    cursor: pointer;
+  }
+  
+  .ask-cancel {
+    background: #f0f0f0;
+    color: #333;
+  }
+  
+  .ask-send {
+    background: #1976d2;
+    color: #fff;
+  }
+  
+  .ask-send:disabled,
+  .ask-cancel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  

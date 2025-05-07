@@ -27,20 +27,18 @@ import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 import StatusBar from './StatusBar';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
-import { CanvasToolbar } from './CanvasToolBar';
+import  CanvasToolbar  from './CanvasToolBar';
 import type { PdfViewerRefType } from './PdfViewer';
 
 import './CanvasView.css';
 
 interface CanvasViewProps {
   isResourcePanelVisible: boolean;
-  onToggleResourcePanel: () => void;
   autosaveStatus: 'saving' | 'saved';
 }
 
 export const CanvasView: React.FC<CanvasViewProps> = ({
   isResourcePanelVisible,
-  onToggleResourcePanel,
   autosaveStatus,
 }) => {
   const { dispatch: zoomDispatch } = useZoomContext();
@@ -89,7 +87,8 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col map-canvas map-border rounded-md relative">
+    <div className="flex-1 flex flex-col map-canvas map-border rounded-md relative"
+    data-testid="canvas-viewer">
       {/* Lesson title when in map view */}
       {activeView === 'conceptMap' && (
         <div className="sticky top-0 left-0 z-20 mt-4 ml-12 inline-block px-6 py-1 bg-white text-base font-semibold rounded">
@@ -110,6 +109,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
         {/* PDF Panel */}
         <div className={`view-panel pdf-panel ${activeView !== 'pdf' ? 'hidden' : ''}`}>  
           <PDFRenderer
+          
             ref={pdfRef}
             fileUrl={selectedPdfUrl}
             scale={pdfScale}

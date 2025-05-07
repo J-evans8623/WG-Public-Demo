@@ -21,7 +21,7 @@ import NextAuth, {
 } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
 import GoogleProvider from 'next-auth/providers/google';
-import jwt from 'jsonwebtoken';
+
 
 /**
  * Module augmentation for NextAuth session to include `accountType`.

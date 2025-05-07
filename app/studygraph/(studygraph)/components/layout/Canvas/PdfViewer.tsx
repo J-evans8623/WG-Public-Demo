@@ -1,24 +1,21 @@
-// PdfViewer.tsx
+// components/PdfViewer.tsx
 
 /**
  * @file PdfViewer.tsx
  * @description
  *   React component to display a multi-page PDF with:
- *     - Lazy rendering & page-visibility tracking.
- *     - Invisible, selectable text layer.
- *     - Fixed-position context menu with study actions.
- *     - Fallback to full-page text when no selection.
- *     - Instant visual feedback by highlighting the entire page.
- *     - Persistent selection capture so right-click retains highlighted text.
+ *     - Lazy rendering, invisible selectable text layer.
+ *     - Custom context menu for Copy / Ask / Explore / Quiz.
+ *     - Full-page text fallback if nothing selected.
+ *     - Visual flash feedback on action.
+ *     - Centralized “attachment” routing into Chat/Topic/Quiz flows.
  *
  * Responsibilities:
- *   - Load & cache PDF documents with retry logic.
- *   - Render pages on-demand as they scroll into view.
- *   - Expose next/prev/goTo methods via a forwarded ref.
- *   - Provide “Copy”, “Ask Assistant”, “Explore Topic”, and “Create Quiz” actions
- *     in a custom context menu.
- *   - Capture and preserve user text selection across right-click events.
- *   - Highlight the page briefly when an action is triggered.
+ *   - Load & cache PDF via PDF.js with retry logic.
+ *   - Render pages on scroll via IntersectionObserver.
+ *   - Capture text selection & preserve it across right-click.
+ *   - Delegate menu actions: copy vs. trigger our attachment context.
+ *   - Highlight page briefly when an action runs.
  */
 
 import React, {
@@ -32,10 +29,10 @@ import React, {
 import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist/types/src/display/api';
 import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
-
 import PdfContextMenu, { PdfAction } from './PdfContextMenu';
 import { getPageText, getSelectedText } from '../../utils/pdfTextUtils';
-import { copyText, askAssistant, exploreTopic, createQuiz } from './pdfActions';
+import { copyText } from './pdfActions'; 
+import { useSelectionAttachment } from '@/app/Library/Context/SelectionAttachmentContext';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -53,12 +50,9 @@ interface PdfViewerProps {
   onPageChange?: (current: number, total: number) => void;
 }
 
-// Maximum retries for loading
 const MAX_RETRIES = 3;
-// Duration of visual highlight feedback (ms)
 const HIGHLIGHT_DURATION_MS = 800;
 
-// Slot for each page's refs and render task
 type PageSlot = {
   wrapperRef: HTMLDivElement | null;
   canvasRef: HTMLCanvasElement | null;
@@ -69,8 +63,9 @@ type PageSlot = {
 const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
   ({ fileUrl, scale = 1.0, onPageChange }, ref) => {
     const { cachePdf, getCachedPdf } = useViewSwitch();
+    const { triggerAsk, triggerExplore, triggerQuiz } = useSelectionAttachment();
 
-    // PDF document and navigation state
+    // PDF document & state
     const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
     const [numPages, setNumPages] = useState<number>(0);
     const [loading, setLoading] = useState<boolean>(true);
@@ -78,21 +73,19 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
     const [retryCount, setRetryCount] = useState<number>(0);
     const [currentPage, setCurrentPage] = useState<number>(1);
 
-    // Context menu state
-    const [menuState, setMenuState] = useState<{
-      visible: boolean;
-      x: number;
-      y: number;
-      pageNum: number;
-    }>({ visible: false, x: 0, y: 0, pageNum: 1 });
+    // Context menu
+    const [menuState, setMenuState] = useState<{ visible: boolean; x: number; y: number; pageNum: number }>({
+      visible: false,
+      x: 0,
+      y: 0,
+      pageNum: 1,
+    });
 
-    // Last captured text selection
+    // Selection & highlights
     const [lastSelection, setLastSelection] = useState<string>('');
-
-    // Pages that should show highlight overlay
     const [highlightedPages, setHighlightedPages] = useState<number[]>([]);
 
-    // Refs per page for rendering
+    // Page refs
     const pageRefs = useRef<PageSlot[]>([]);
     if (pageRefs.current.length !== numPages) {
       pageRefs.current = Array.from({ length: numPages }, () => ({
@@ -104,7 +97,7 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
     }
 
     /**
-     * Load the PDF document with retry on transient errors.
+     * Load PDF with retry logic.
      */
     const loadPdf = useCallback(async () => {
       setLoading(true);
@@ -138,7 +131,7 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
     }, [fileUrl, retryCount, getCachedPdf, cachePdf, onPageChange]);
 
     /**
-     * Render a single page onto the canvas and text layer.
+     * Render a page into its canvas & text layer.
      */
     const renderPage = useCallback(
       async (pageNum: number) => {
@@ -154,7 +147,7 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
           const textLayer = slot.textLayerRef;
           if (!canvas || !textLayer) return;
 
-          // Resize canvas
+          // Resize
           canvas.width = viewport.width;
           canvas.height = viewport.height;
 
@@ -169,13 +162,13 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
           });
           textLayer.innerHTML = '';
 
-          // Draw page
+          // Draw PDF
           const ctx = canvas.getContext('2d')!;
           const task = page.render({ canvasContext: ctx, viewport });
           slot.renderTask = task;
           await task.promise;
 
-          // Overlay invisible text spans
+          // Invisible text spans
           const textContent = await page.getTextContent();
           textContent.items.forEach((item: any) => {
             const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
@@ -202,34 +195,32 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
       [pdfDoc, scale]
     );
 
-    // Load PDF on everything-important change
+    // Kick off load
     useEffect(() => {
       setRetryCount(0);
       loadPdf();
     }, [fileUrl, loadPdf]);
 
-    // Lazy-render and track current page
+    // Observe pages for lazy render & current-page tracking
     useEffect(() => {
       if (!pdfDoc || numPages === 0) return;
-
       const renderObserver = new IntersectionObserver(
-        entries => {
-          entries.forEach(entry => {
-            if (entry.isIntersecting) {
-              const idx = Number(entry.target.getAttribute('data-page-index'));
+        ents => {
+          ents.forEach(e => {
+            if (e.isIntersecting) {
+              const idx = Number(e.target.getAttribute('data-page-index'));
               renderPage(idx + 1);
-              renderObserver.unobserve(entry.target);
+              renderObserver.unobserve(e.target);
             }
           });
         },
         { rootMargin: '200px 0px', threshold: 0.1 }
       );
-
       const pageObserver = new IntersectionObserver(
-        entries => {
-          entries.forEach(entry => {
-            if (entry.isIntersecting) {
-              const idx = Number(entry.target.getAttribute('data-page-index'));
+        ents => {
+          ents.forEach(e => {
+            if (e.isIntersecting) {
+              const idx = Number(e.target.getAttribute('data-page-index'));
               setCurrentPage(idx + 1);
               onPageChange?.(idx + 1, numPages);
             }
@@ -237,14 +228,12 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
         },
         { threshold: 0.5 }
       );
-
       pageRefs.current.forEach(slot => {
         if (slot.wrapperRef) {
           renderObserver.observe(slot.wrapperRef);
           pageObserver.observe(slot.wrapperRef);
         }
       });
-
       return () => {
         renderObserver.disconnect();
         pageObserver.disconnect();
@@ -258,17 +247,17 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
       });
     }, []);
 
-    // Re-render pages on zoom change
+    // Re-render on zoom change
     useEffect(() => {
       if (!pdfDoc) return;
-      pageRefs.current.forEach((slot, idx) => {
-        if (slot.canvasRef && slot.textLayerRef) {
+      pageRefs.current.forEach((_, idx) => {
+        if (pageRefs.current[idx].canvasRef && pageRefs.current[idx].textLayerRef) {
           renderPage(idx + 1);
         }
       });
     }, [scale, pdfDoc, renderPage]);
 
-    // Imperative navigation API
+    // Imperative handles: prev/next/goTo
     const scrollToPage = useCallback(
       (page: number) => {
         const idx = Math.min(Math.max(page, 1), numPages) - 1;
@@ -280,7 +269,6 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
       },
       [numPages, onPageChange]
     );
-
     useImperativeHandle(
       ref,
       () => ({
@@ -291,44 +279,42 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
       [currentPage, scrollToPage]
     );
 
-    /** Capture and store current selection */
-    const captureSelection = () => {
-      setLastSelection(getSelectedText());
-    };
+    // Capture selection on mouse/key up
+    const captureSelection = () => setLastSelection(getSelectedText());
 
-    /** Open context menu at (x,y) and capture selection */
+    // Right-click opens menu & captures
     const openMenu = (e: React.MouseEvent, pageNum: number) => {
       e.preventDefault();
       captureSelection();
       setMenuState({ visible: true, x: e.clientX, y: e.clientY, pageNum });
     };
 
-    /** Handle a context-menu action */
+    // Handle user action from the context menu
     const handleAction = async (action: PdfAction) => {
       if (!pdfDoc) return;
       const { pageNum } = menuState;
       const sel = lastSelection.trim();
       const textToUse = sel !== '' ? sel : await getPageText(pdfDoc, pageNum);
 
-      // Visual feedback
+      // Flash highlight
       setHighlightedPages(prev => [...prev, pageNum]);
       setTimeout(() => {
         setHighlightedPages(prev => prev.filter(n => n !== pageNum));
       }, HIGHLIGHT_DURATION_MS);
 
-      // Execute action
+      // Delegate
       switch (action) {
         case 'copy':
           await copyText(textToUse);
           break;
         case 'ask':
-          await askAssistant(textToUse);
+          triggerAsk(textToUse);
           break;
         case 'explore':
-          await exploreTopic(textToUse);
+          triggerExplore(textToUse);
           break;
         case 'quiz':
-          await createQuiz(textToUse);
+          triggerQuiz(textToUse);
           break;
       }
 
@@ -336,11 +322,10 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
       setMenuState(ms => ({ ...ms, visible: false }));
     };
 
-    // Loading & error states
+    // Loading / error
     if (loading) return <div className="text-gray-500">Loading PDF...</div>;
-    if (error)   return <div className="text-red-500">Error: {error}</div>;
+    if (error) return <div className="text-red-500">Error: {error}</div>;
 
-    // Render pages, highlight overlays, and context menu
     return (
       <div
         className="flex flex-col items-center"
@@ -351,7 +336,6 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
         {Array.from({ length: numPages }, (_, idx) => {
           const pageNum = idx + 1;
           const isHighlighted = highlightedPages.includes(pageNum);
-
           return (
             <div
               key={idx}
@@ -372,10 +356,8 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
                 <div
                   style={{
                     position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
+                    top: 0, left: 0,
+                    width: '100%', height: '100%',
                     backgroundColor: 'rgba(255,255,0,0.3)',
                     pointerEvents: 'none',
                     zIndex: 2,

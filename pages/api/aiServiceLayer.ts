@@ -15,7 +15,6 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getLessonList } from '../../app/src/services/TextPreprocessing/LessonModuleServicev1';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import AIController from '@/app/src/controllers/aiController';
 
@@ -29,15 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const { action } = req.query;
 
-    // 1) Retrieve lesson list
-    if (action === 'getLessonList') {
-      const documentID = req.query.documentID as string;
-      console.log('[aiServiceLayer] getLessonList called with documentID:', documentID);
-      const list = await getLessonList(documentID);
-      console.log('[aiServiceLayer] getLessonList result:', list);
-      res.status(200).json(list);
-      return;
-    }
+
 
     // 2) Q&A Chat pipeline
     if (action === 'question') {
@@ -46,19 +37,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return;
     }
 
-    // 3) Generate a new lesson
-    if (action === 'newLesson') {
-      const { documentID, moduleID } = req.body;
-      console.log('[aiServiceLayer] newLesson called with documentID:', documentID, 'moduleID:', moduleID);
-      if (!documentID || !moduleID) {
-        res.status(400).json({ error: 'Missing documentID or moduleID for lesson generation.' });
-        return;
-      }
-      await AIController.generateLesson(req, res);
-      return;
-    }
 
-    // 4) Generate a new topic
+    // 3) Generate a new topic
     if (action === 'generateTopic') {
       console.log('[aiServiceLayer] Routing to handleTopicGeneration');
       await AIController.handleTopicGeneration(req, res);

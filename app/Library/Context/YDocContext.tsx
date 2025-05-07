@@ -36,6 +36,13 @@ import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 import JSZip from 'jszip';
 
+
+interface ChatMessage {
+  id: number;
+  type: 'assistant' | 'user' | 'system' | 'attachment';
+  content: string;
+}
+
 export interface YDocContextType {
   ydoc: Y.Doc;
   fileName: string;
@@ -53,8 +60,8 @@ export interface YDocContextType {
   persistDoc: () => Uint8Array;
   getLessonModuleJSON: () => string;
   getFileName: () => string;
-  saveToFirebase: () => Promise<void>;
-  loadFromFirebase: (fileStorageId: string) => Promise<void>;
+  saveToFirebase: (chatData?:ChatMessage[]) => Promise<void>;
+  loadFromFirebase: (fileStorageId: string) => Promise<ChatMessage[]>;
 }
 
 const YDocContext = createContext<YDocContextType | undefined>(undefined);
@@ -279,54 +286,48 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
     return JSON.stringify(lessonModule.toJSON());
   }, [ydoc]);
 
-  /**
-   * Saves the current document state to Firebase Storage via /api/document/save.
-   * This reuses the internal docFileID so that subsequent saves update the same file.
-   */
-  const saveToFirebase = useCallback(async (): Promise<void> => {
-
-    console.log(`saveToFirebase called with docID ${docFileID}`);
-    try {
-      // Step 1: Encode the Y.Doc state.
-      const docState = persistDoc();
-      const base64Data = Buffer.from(docState).toString('base64');
-
-      // Ensure we have an internal docFileID.
-      if (!docFileID) {
-        throw new Error('Document has no internal identifier. Cannot save.');
-      }
-
-      // Step 2: Prepare the payload with fileName, internal docFileID, and file data.
-      const payload = {
-        fileName,
-        docFileID, // Use the internal document ID exclusively.
-        fileData: base64Data
-      };
-
-      // Step 3: POST the payload to the save endpoint.
-      const response = await fetch('/api/document/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to save document: ${response.statusText}`);
-      }
-
-      toast.success('Document saved to Firebase Storage successfully');
-    } catch (error) {
-      console.error('Error saving document to Firebase:', error);
-      toast.error('Failed to save document to Firebase');
+/**
+ * Saves the current document state (and optional chat) to our single save endpoint.
+ */
+const saveToFirebase = useCallback(
+  async (chatData?: ChatMessage[]): Promise<void> => {
+    if (!docFileID) {
+      throw new Error('Document has no ID; cannot save.');
     }
-  }, [persistDoc, fileName, docFileID, ydoc, updateDriveId]);
+
+    // 1) encode Yjs state
+    const docState = persistDoc();
+    const base64Data = Buffer.from(docState).toString('base64');
+
+    // 2) build payload including chatData (if provided)
+    const payload: {
+      fileName: string;
+      docFileID: string;
+      fileData: string;
+      chatData?: ChatMessage[];
+    } = { fileName, docFileID, fileData: base64Data };
+    if (chatData) payload.chatData = chatData;
+
+    // 3) POST
+    const res = await fetch('/api/document/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      throw new Error(`Save failed: ${res.statusText}`);
+    }
+    toast.success('Saved document & chat');
+  },
+  [persistDoc, fileName, docFileID]
+);
 
   /**
    * Loads a document file from Firebase Storage via /api/document/load.
    * @param fileStorageId - The Firebase storage file path.
    */
-  const loadFromFirebase = useCallback(async (fileStorageId: string): Promise<void> => {
+  const loadFromFirebase = useCallback(async (fileStorageId: string): Promise<ChatMessage[]> => {
     console.log(`LoadFromFirebase called with docID ${docFileID}`);
     console.log(`LoadFromFirebase called with FileStorageID ${fileStorageId}`);
     try {
@@ -337,7 +338,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       if (!response.ok) {
         throw new Error(`Failed to load document: ${response.statusText}`);
       }
-      const { fileData } = await response.json();
+      const { fileData, chatData } = await response.json();
       console.log(fileData)
 
       // Decode the base64 data.
@@ -347,9 +348,12 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       // Load the document state without overwriting the internal docFileID.
       await loadData(fileName, fileStorageId, docState);
       toast.success('Document loaded from Firebase Storage successfully');
+      return Array.isArray(chatData)? chatData:[];
     } catch (error) {
       console.error('Error loading document from Firebase:', error);
       toast.error('Failed to load document from Firebase');
+
+      return [];
     }
   }, [fileName, loadData]);
 

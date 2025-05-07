@@ -5,6 +5,7 @@ type NodeSelectionContextType = {
   toggleNodeSelection: (nodeId: string) => void;
   singleSelect: (nodeId: string) => void; 
   multiSelect: (nodeId: string, isMulti?: boolean) => void;
+  groupSelect: (nodeIds: string[]) => void;
   isSelected: (nodeId: string) => boolean;
   clearSelection: () => void;
   getSelectedNodeIds: () => string[];
@@ -20,9 +21,9 @@ type NodeSelectionContextType = {
   completeMerge: (targetNodeId: string, transfer: (sourceId: string, targetId: string) => void) => void;
   StatusMessage: string;
   setStatusMessage: (msg: string) => void;
-  // New properties for multi-select mode:
   multiSelectEnabled: boolean;
   toggleMultiSelectEnabled: () => void;
+  
 };
 
 const NodeSelectionContext = createContext<NodeSelectionContextType | undefined>(undefined);
@@ -112,12 +113,21 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
     setMultiSelectEnabled((prev) => !prev);
   };
 
+  /**
+   * Select a whole group of nodes at once.
+   * @param nodeIds 
+   */
+  const groupSelect = (nodeIds: string[]) => {
+    setSelectedIDs([...nodeIds]);
+  };
+
   const contextValue = useMemo(
     () => ({
       toggleNodeSelection,
       isSelected,
       singleSelect,
       multiSelect,
+      groupSelect,
       clearSelection,
       getSelectedNodeIds,
       deselectNode,

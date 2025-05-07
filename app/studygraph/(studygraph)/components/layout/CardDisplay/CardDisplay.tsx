@@ -1,55 +1,77 @@
-/***************************************************************************************
- * @file CardDisplay.tsx   – shadow-divider variant
- * @description
- *   Removes the hard border altogether and instead casts a subtle left-side shadow
- *   so the notes/chat pane feels elevated next to the map canvas.
- ***************************************************************************************/
+// src/app/studygraph/(studygraph)/components/layout/CardDisplay.tsx
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ResizeHandle } from '../shared/ResizeHandle';
-import NotesTab from './NotesTab';
+import NotesTab, { NotesTabRef } from './NotesTab';
 import ChatTab from './chatTab/ChatTab';
 import UnifiedHeader from './UnifiedHeader';
-import { ResourceType } from './buttons/AddResourceDropdown';
+import { useSelectionAttachment } from '@/app/Library/Context/SelectionAttachmentContext';
+import { useSearchContext } from '@/app/Library/Context/SearchContext';
+
+/**
+ * @file CardDisplay.tsx
+ * @description
+ *   Right‐hand panel showing either Notes or Chat, with:
+ *     • auto‐switch to Chat on PDF “asks”,
+ *     • auto‐switch to Notes on search‐result clicks,
+ *     • a unified header, and resizable layout.
+ */
 
 export interface CardDisplayProps {
   width: number;
   isEditMode: boolean;
   currentTopicTitle: string;
   onEditToggle: () => void;
-  onResize: (width: number) => void;
+  onResize: (dx: number) => void;
 }
 
-interface NotesTabRef {
-  handleAddResource: (type: ResourceType) => void;
-}
-
-export const CardDisplay: React.FC<CardDisplayProps> = ({
+const CardDisplay: React.FC<CardDisplayProps> = ({
   width,
   isEditMode,
   currentTopicTitle,
+  onEditToggle,
   onResize,
 }) => {
   const [activeTab, setActiveTab] = useState<'notes' | 'chat'>('notes');
-  const [selectedTopic, setSelectedTopic] = useState('');
   const notesTabRef = useRef<NotesTabRef>(null);
+
+  // PDF “ask” / explore / quiz triggers
+  const { isAskOpen, isExploreOpen, isQuizOpen } = useSelectionAttachment();
+  // Search‐result selection
+  const { selectedResultIds } = useSearchContext();
+
+  // 1) Auto‐switch to Chat on “ask”
+  useEffect(() => {
+    if (isAskOpen) setActiveTab('chat');
+    else if (isExploreOpen || isQuizOpen) setActiveTab('notes');
+  }, [isAskOpen, isExploreOpen, isQuizOpen]);
+
+  // 2) Auto‐switch to Notes when a search result is clicked
+  useEffect(() => {
+    if (selectedResultIds) {
+      setActiveTab('notes');
+    }
+  }, [selectedResultIds]);
 
   return (
     <div className="relative h-full" style={{ width: `${width / 16}rem` }}>
       <div
         className="
-          flex flex-col h-full
-          bg-[var(--right-pane-bg)] text-[var(--right-pane-text)]
-          /* ↓ subtle inset shadow instead of border */
-          shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.06)]
+          flex
+          flex-col
+          h-full
+          map-right-pane
+          map-border
+          border-l
+          map-divider
         "
       >
         <UnifiedHeader
           activeTab={activeTab}
           onTabChange={setActiveTab}
           width={width}
-          selectedTopic={selectedTopic}
-          onTopicChange={setSelectedTopic}
+          selectedTopic={currentTopicTitle}
+          onTopicChange={onEditToggle}
         />
 
         <div className="flex-1 min-h-0 relative">
@@ -69,7 +91,6 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
         </div>
       </div>
 
-      {/* resize handle still present; now floats over the shadow */}
       <ResizeHandle placement="left" onDrag={onResize} />
     </div>
   );

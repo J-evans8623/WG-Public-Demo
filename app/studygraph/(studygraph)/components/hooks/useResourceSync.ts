@@ -18,7 +18,7 @@ import {
  */
 export const useResourceSync = () => {
   // Get the selected node IDs from the context.
-  const { getSelectedNodeIds } = useNodeSelection();
+  const { getSelectedNodeIds, multiSelect } = useNodeSelection();
   const selectedNodeIds = getSelectedNodeIds(); // e.g., ['node1', 'node2', ...]
 
   // Get resource selection functions.
@@ -65,10 +65,10 @@ export const useResourceSync = () => {
     });
 
     return {
-      cueCards: aggregatedCueCards,
-      pictures: aggregatedPictures,
-      practiceSheets: aggregatedPracticeSheets,
       notes: aggregatedNotes,
+      pictures: aggregatedPictures,
+      cueCards: aggregatedCueCards,
+      practiceSheets: aggregatedPracticeSheets,
     };
   }, [selectedNodeIds, selectCueCards, selectPictures, selectPracticeSheets, selectResources, nodes]);
 

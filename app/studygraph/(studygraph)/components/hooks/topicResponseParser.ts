@@ -41,13 +41,13 @@ export async function parseTopicResponse(
   },
   mapID: string,
   merge: boolean = true
-): Promise<void> {
+): Promise<{ createdNodeIds: string[] }> {
   // ---------------------------------------------------------------------------
   // STEP 1: Initialize local state copies.
   // ---------------------------------------------------------------------------
   const localNodes = new Map(dependencies.nodes);
   const localSubtrees = new Map(dependencies.subtrees);
-
+  const createdNodeIds: string[] = [];
   // The target node is provided as dependencies.getRootNode.
   const targetNodeId = dependencies.getRootNode;
   console.log("[topicResponseParser] Target node ID:", targetNodeId);
@@ -58,7 +58,7 @@ export async function parseTopicResponse(
   const primary = responseData.primary_subtopic;
   if (!primary) {
     console.error("[topicResponseParser] No primary_subtopic found in responseData");
-    return;
+    return { createdNodeIds } ;
   }
   const primaryTitle = primary.title;
   if (merge) {
@@ -99,6 +99,8 @@ export async function parseTopicResponse(
           content: lectureHTML,
           mapId: mapID,
         });
+        createdNodeIds.push(targetNodeId);
+
       }
       if (Array.isArray(primary.lesson.flash_cards)) {
         for (const card of primary.lesson.flash_cards) {
@@ -118,6 +120,7 @@ export async function parseTopicResponse(
   } else {
     // Not merging: create a new primary node as a child of the target node.
     primarySubtopicID = uuidv4();
+    createdNodeIds.push(primarySubtopicID)
     console.log("[topicResponseParser] Creating primary subtopic node with ID:", primarySubtopicID);
     const primaryNode = {
       id: primarySubtopicID,
@@ -179,13 +182,14 @@ export async function parseTopicResponse(
   const secondaryParentId: string | null = merge ? targetNodeId : primarySubtopicID;
   if (!secondaryParentId) {
     console.error("[topicResponseParser] No parent node for secondary subtopics.");
-    return;
+    return { createdNodeIds };
   }
   const secondaryKeys = ['secondary_subtopic_1', 'secondary_subtopic_2', 'secondary_subtopic_3'];
   for (const key of secondaryKeys) {
     const secondary = primary[key];
     if (secondary) {
       const secondaryNodeId = uuidv4();
+      createdNodeIds.push(secondaryNodeId)
       console.log(`[topicResponseParser] Processing ${key} with generated ID:`, secondaryNodeId);
       const secondaryNode = {
         id: secondaryNodeId,
@@ -254,6 +258,7 @@ export async function parseTopicResponse(
       })),
     };
     const reviewNodeId = uuidv4();
+    createdNodeIds.push(reviewNodeId);
     console.log("[topicResponseParser] Creating review node with ID:", reviewNodeId);
     const reviewNode = {
       id: reviewNodeId,
@@ -294,4 +299,6 @@ export async function parseTopicResponse(
   console.log("[topicResponseParser] Final commit: updating nodes and subtrees for mapID:", mapID);
   dependencies.setNodes(localNodes, mapID);
   dependencies.setSubtrees(localSubtrees, mapID);
+
+  return { createdNodeIds };
 }

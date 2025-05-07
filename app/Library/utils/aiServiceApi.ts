@@ -9,21 +9,6 @@
  *   - generateAILesson now points to the new /api/GenerateLesson endpoint and accepts a File.
  */
 
-export async function getLessonListAPI(documentID: string): Promise<any> {
-  console.log('[aiServiceAPI] getLessonListAPI called with documentID:', documentID);
-  const response = await fetch(
-    `/api/aiServiceLayer?action=getLessonList&documentID=${encodeURIComponent(documentID)}`,
-    { credentials: 'include' }
-  );
-  if (!response.ok) {
-    console.error('[aiServiceAPI] getLessonListAPI failed');
-    throw new Error('Failed to fetch lesson list');
-  }
-  const data = await response.json();
-  console.log('[aiServiceAPI] getLessonListAPI response:', data);
-  return data;
-}
-
 export async function askQuestionAPI(
   question: string,
   textSelection: string,
@@ -57,8 +42,6 @@ export async function generateAILesson(file: File, docId:string): Promise<any> {
   console.log('[aiServiceAPI] generateAILesson called with file:', file.name);
   const formData = new FormData();
   formData.append('file', file);
-  // Append additional fields expected by the backend.
-  formData.append('generateLesson', JSON.stringify(true));
   formData.append('fileID', docId); // <--- This is an AI generated bug 
 
   const response = await fetch('/api/GenerateLesson', {
@@ -82,12 +65,9 @@ export async function generateAILesson(file: File, docId:string): Promise<any> {
 export async function generateQuiz(payload: {
   topicIds: string[];
   quizTypes: string[];
-  includeDocs: boolean;
   fileID: string;
-  summary: string | null;
-  summaryPresent: boolean;
-  mapID: string;
   exportData: string;
+  textSelection?: string;
 }): Promise<any> {
   console.log('[aiServiceAPI] generateQuiz payload:', payload);
   const response = await fetch('/api/aiServiceLayer?action=quizGenerator', {
@@ -112,9 +92,17 @@ export async function generateQuiz(payload: {
 export async function generateTopic(
   userTopicRequest: string,
   exportData: any,
-  fileID: string
+  fileID: string,
+  textSelection?: string,
 ): Promise<any> {
-  const payload = { userTopicRequest, exportData, fileID };
+  const payload: any = {
+    userTopicRequest,
+    exportData,
+    fileID,
+  };
+  if (textSelection) {
+    payload.textSelection = textSelection;
+  }
   console.log('[aiServiceAPI] generateTopic payload:', payload);
   const response = await fetch('/api/aiServiceLayer?action=generateTopic', {
     method: 'POST',

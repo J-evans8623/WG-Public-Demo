@@ -1,52 +1,48 @@
-/**
- * @file load.ts
- * @description
- * API Endpoint to load a document file from Firebase Storage.
- *
- * Responsibilities:
- * - Accept a GET request with a query parameter "fileStorageId" that specifies the file's storage path.
- * - Authenticate the incoming request using the session cookie.
- * - Retrieve the file from Firebase Storage and return its contents as a base64 encoded string.
- */
-
+// /pages/api/document/load.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { loadDocumentFile } from '@/app/src/services/firebase';
+import {
+  loadDocumentFile,
+  getUserChat,
+  ChatMessage,
+} from '@/app/src/services/firebase';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
-  // Allow only GET requests.
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // Authenticate the incoming request.
-  const sessionData = await authenticateRequest(req, res);
-  if (!sessionData) {
-    // The helper function already sends a 401 response if authentication fails.
-    return;
-  }
+  // 1) Auth
+  const session = await authenticateRequest(req, res);
+  if (!session) return;
 
   try {
-    // Step 1: Extract the fileStorageId from query parameters.
-    const { fileStorageId } = req.query;
+    // 2) fileStorageId param
+    const fileStorageId = req.query.fileStorageId;
     if (!fileStorageId || typeof fileStorageId !== 'string') {
-      return res.status(400).json({ error: 'Missing or invalid fileStorageId parameter' });
+      return res.status(400).json({ error: 'Missing fileStorageId' });
     }
 
-    // Step 2: Retrieve the document file as a Buffer.
+    // 3) Download binary
     const fileBuffer = await loadDocumentFile(fileStorageId);
-
-    // Step 3: Encode the Buffer as a base64 string to return in JSON.
     const fileData = fileBuffer.toString('base64');
 
-    // Step 4: Respond with the encoded file data.
-    res.status(200).json({ fileData });
+    // 4) Derive docId + load chat
+    const match = fileStorageId.match(/^documents\/(.+)\.bloomdocx$/);
+    const docId = match ? match[1] : fileStorageId;
+    const userEmail = session.user.email;
+    const chatData: ChatMessage[] = await getUserChat(docId, userEmail);
+
+    console.log('[106] returning chatData length:', chatData.length);
+
+    // 5) Respond
+    res.status(200).json({ fileData, chatData });
   } catch (error) {
-    console.error('Error in load document endpoint:', error);
+    console.error('Load endpoint error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }

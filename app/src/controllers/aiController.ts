@@ -102,7 +102,7 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
       retrievedContext = await getTextContext(combinedInput, fileID);
       console.log("[AIController] Retrieved additional context:", retrievedContext);
  
-      let finalPrompt = question;
+      let finalPrompt = "\n User Question :" + question;
       if (retrievedContext && retrievedContext.trim().length > 0) {
         finalPrompt += "\nContext: " + retrievedContext.trim();
       }
@@ -126,17 +126,22 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
   public static async handleTopicGeneration(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
       console.log("[AIController] handleTopicGeneration called with body:", req.body);
-      const { userTopicRequest, exportData, moduleID, summary, summaryPresent, fileID } = req.body;
-      if (!userTopicRequest || !moduleID || !fileID) {
+      const { userTopicRequest, exportData, fileID, textSelection } = req.body;
+      if (!userTopicRequest || !fileID) {
         res.status(400).json({ error: "Missing required fields: userTopicRequest, moduleID, or fileID" });
         return;
       }
+
+      let getContext = userTopicRequest
+      if (textSelection){
+        getContext += `\n ${textSelection}`
+      }
       // Retrieve additional context based on the user's topic request.
-      const retrievedContext = await getTextContext(userTopicRequest, fileID);
+      const retrievedContext = await getTextContext(getContext, fileID);
       console.log("[AIController] Retrieved context for topic generation:", retrievedContext);
       // Construct final prompt.
       let finalPrompt = "User Topic Request: " + userTopicRequest;
-      finalPrompt += "\nUpload: " + exportData;
+      finalPrompt += "\nUpload: " + (textSelection ? textSelection : exportData);
       finalPrompt += "\nContext: " + retrievedContext;
       console.log("[AIController] Final prompt for topic generation:", finalPrompt);
       const systemPrompt = predefinedPrompts['ExploreTopic'];
@@ -181,32 +186,20 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
       const {
         topicIds,
         quizTypes,
-        includeDocs,
         fileID,
-        summary,
-        summaryPresent,
-        mapID,
-        exportData
+        exportData,
+        textSelection,
       } = req.body;
-
-      if (!topicIds || !quizTypes || !fileID || !mapID || !exportData) {
+      
+      if (!topicIds || !quizTypes || !fileID || !exportData) {
         res.status(400).json({ error: "Missing required fields for quiz generation." });
         return;
       }
 
-      // Determine additional context if includeDocs is true.
-      let additionalContext = "";
-      if (includeDocs === true) {
-        additionalContext = await getTextContext(exportData, fileID);
-        console.log("[AIController] Additional context retrieved:", additionalContext);
-      }
-
       // Construct the final prompt.
       // It always includes the export data and the quiz types.
-      let finalPrompt = "Export: " + exportData;
-      if (includeDocs === true && additionalContext.trim().length > 0) {
-        finalPrompt += "\nContext: " + additionalContext;
-      }
+      let finalPrompt = "Context : " + (textSelection ? textSelection : exportData);
+
       finalPrompt += "\nQuiz Types: " + quizTypes.join(", ");
       console.log("[AIController] Final prompt for quiz generation:", finalPrompt);
 

@@ -1,80 +1,73 @@
-/**
- * @file save.ts
- * @description
- * API Endpoint to save a document file into Firebase Storage.
- *
- * Responsibilities:
- * - Accept a POST request with a JSON payload containing:
- *    - fileName: string
- *    - docFileID: string
- *    - fileData: base64 encoded string representing the document binary data.
- * - Decode the fileData and store it in Firebase Storage.
- * - Store file metadata into Firestore so that the "recent files" feature can locate it.
- * - Return a JSON response with the file storage identifier.
- */
-
+// /pages/api/document/save.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { storeDocumentFile, storeFileMetadata } from '@/app/src/services/firebase';
-import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import admin from 'firebase-admin';
+import {
+  storeDocumentFile,
+  storeFileMetadata,
+  setUserChat,
+  ChatMessage,
+} from '@/app/src/services/firebase';
+import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 
 interface SaveDocumentRequest {
   fileName: string;
   docFileID: string;
-  fileData: string; // base64 encoded file data
+  fileData: string;
+  chatData?: ChatMessage[];
 }
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
-  // Allow only POST requests
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // Authenticate the request using the session cookie.
-  const sessionData = await authenticateRequest(req, res);
-  if (!sessionData) {
-    // authenticateRequest already responded with 401 if session is invalid.
-    return;
-  }
+  // 1) Auth
+  const session = await authenticateRequest(req, res);
+  if (!session) return;
 
   try {
-    // Step 1: Parse the request body as JSON.
-    const { fileName, docFileID, fileData } = req.body as SaveDocumentRequest;
+    // 2) Parse & validate
+    const { fileName, docFileID, fileData, chatData } =
+      req.body as SaveDocumentRequest;
     if (!fileName || !docFileID || !fileData) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Step 2: Decode the base64 file data into a Buffer.
+    // 3) Upload binary
     const buffer = Buffer.from(fileData, 'base64');
+    const storedPath = await storeDocumentFile(
+      docFileID,
+      buffer,
+      { fileName, docFileID }
+    );
 
-    // Step 3: Use docFileID as fileId (or generate one if needed).
-    const fileId = docFileID;
-
-    // Step 4: Store the document file into Firebase Storage.
-    const storedFileId = await storeDocumentFile(fileId, buffer, { fileName, docFileID });
-
-    // Step 5: Store the file metadata into Firestore.
-    // Use the user's email if available; otherwise, use the derived userId.
-    const ownerId = sessionData.user.email;
+    // 4) File metadata
+    const ownerEmail = session.user.email;
     await storeFileMetadata({
-      fileId,
-      ownerId,
+      fileId: docFileID,
+      ownerId: ownerEmail,
       fileName,
-      fileStoragePath: storedFileId,
+      fileStoragePath: storedPath,
       timestamp: admin.firestore.Timestamp.now(),
       fileSize: buffer.length,
       contentType: 'application/octet-stream',
-      sharedWith: []
+      sharedWith: [],
     });
 
-    // Step 6: Respond with success and return the file storage identifier.
-    res.status(200).json({ fileStorageId: storedFileId });
+    // 5) Persist chat if provided
+    if (Array.isArray(chatData)) {
+      console.log('[105] chatData length:', chatData.length);
+      await setUserChat(docFileID, ownerEmail, chatData);
+    }
+
+    // 6) Success
+    res.status(200).json({ fileStorageId: storedPath });
   } catch (error) {
-    console.error('Error in save document endpoint:', error);
+    console.error('Save endpoint error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }

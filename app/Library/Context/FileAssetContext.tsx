@@ -159,7 +159,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
 
       const responseData = await response.json();
-      const { size, url, lessonModules } = responseData;
+      const { size, url} = responseData;
       console.log(`File uploaded. ID: ${resourceID}, Server URL: ${url}`);
 
       const fileMessage: TextFileMessage = {
@@ -175,13 +175,6 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
         yFileMap.set(fileMessage.id, fileMessage);
       });
 
-      if (lessonModules && Array.isArray(lessonModules)) {
-        setLessonModuleLists(prev => {
-          const newMap = new Map(prev);
-          newMap.set(fileMessage.id, lessonModules);
-          return newMap;
-        });
-      }
     } catch (error) {
       console.error('Error uploading file:', error);
       throw error;

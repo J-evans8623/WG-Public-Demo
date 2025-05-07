@@ -26,29 +26,33 @@ import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContex
 import { SubTreeProvider } from '@/app/Library/Context/SubTreeProvider';
 import { NodesProvider } from '@/app/Library/Context/NodesProvider';
 import { ZoomProvider } from '@/app/Library/Context/ZoomProvider';
-import { ViewSwitchProvider } from '@/app/Library/Context/ViewSwitchContext';
+import { ViewSwitchProvider, useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { LayoutProvider, useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { ColorThemeProvider, useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { ResourceProvider } from '@/app/Library/Context/ResourceContext';
 import { LessonDataProvider } from '@/app/Library/Context/LessonDataContext';
 import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext';
 import { FileAssetProvider } from '@/app/Library/Context/FileAssetContext';
-
+import {SelectionAttachmentProvider} from '@/app/Library/Context/SelectionAttachmentContext'
+import SelectionAttachmentHandler from './components/layout/Canvas/SelectionAttachmentHandler';
 //import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
 import HomeScreen from './components/HomeScreen';
 import NavigationPanel from '@/app/studygraph/(studygraph)/components/layout/Sidebar/NavigationPanel';
-import { CardDisplay } from './components/layout/CardDisplay/CardDisplay';
+import  CardDisplay  from './components/layout/CardDisplay/CardDisplay';
 import { CanvasView } from './components/layout/Canvas/CanvasView';
 import { UserInfoPanel } from '@/app/studygraph/(studygraph)/components/layout/UserInfoPanel';
-
+import { ChatHistoryProvider, useChatHistory } from '@/app/Library/Context/ChatHistoryContext';
 import './appLayout.css';
 
 import { initializeNewDocument } from '@/app/Library/utils/LoadDocumentUtils';
-import { LessonModuleProvider } from '@/app/Library/Context/LessonModuleContext';
+import { LessonModuleProvider , useLessonModule} from '@/app/Library/Context/LessonModuleContext';
 import { AutoSaveManager } from '@/app/Library/utils/AutoSaveManager';
 import { useLessonModuleMapper } from '@/app/studygraph/(studygraph)/components/hooks/useLessonModuleMapper';
-
+import { SlideShowProvider } from '@/app/Library/Context/SlideShowContext';
+import { SearchProvider } from '@/app/Library/Context/SearchContext';
 import { Menu, ChevronsLeft } from 'lucide-react';
+import SearchModal from './components/layout/SearchModal';
+
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
@@ -85,7 +89,12 @@ const AppLayoutContent: React.FC = () => {
     loadFromFirebase,
     ydoc
   } = useYDoc();
+  const { messages, setMessages, clearMessages, addMessage, chatDirty, resetDirty } = useChatHistory();
+  
 
+   // Reset function from ViewSwitchContext:
+   const { resetPdfState, setActiveView } = useViewSwitch();
+   const { setDefaultMap, activeConceptMapId } = useLessonModule();  
   // Refs.
   const hasInitialized = useRef(false);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -146,7 +155,9 @@ const AppLayoutContent: React.FC = () => {
       const autosaveCallback = async () => {
         setSaveStatus('saving');
         try {
-          await saveToFirebase();
+          const chatPayload = chatDirty ? messages : undefined;
+          await saveToFirebase(chatPayload) ;
+          if (chatDirty) resetDirty();
           setSaveStatus('saved');
         } catch (error) {
           console.error('Autosave error:', error);
@@ -163,7 +174,7 @@ const AppLayoutContent: React.FC = () => {
         autoSaveManagerRef.current = null;
       }
     };
-  }, [currentView, ydoc, saveToFirebase]);
+  }, [currentView, ydoc, saveToFirebase, messages, chatDirty, resetDirty]);
 
   /**
    * @function handleFileSelect
@@ -176,8 +187,17 @@ const AppLayoutContent: React.FC = () => {
    */
   const handleFileSelect = async (fileStorageId: string) => {
     try {
+      resetPdfState();
       // Load the document state from Firebase Storage using loadFromFirebase.
-      await loadFromFirebase(fileStorageId);
+      const chatData = await loadFromFirebase(fileStorageId);
+      clearMessages();
+      if (chatData.length) {
+        chatData.forEach(m => addMessage(m));
+      } 
+      console.log('Selecting file')
+      setMessages(chatData);
+      setDefaultMap();
+      setActiveView('conceptMap');
       setCurrentView('map');
       if (viewportRef.current) {
         const centerEvent = new CustomEvent('centerMap');
@@ -194,7 +214,11 @@ const AppLayoutContent: React.FC = () => {
    */
   const handleCreateNewDocument = async () => {
     try {
+      resetPdfState();
       await createNewDocument();
+      clearMessages();
+      setDefaultMap();
+      setActiveView('conceptMap');
       setCurrentView('map');
       if (viewportRef.current) {
         const centerEvent = new CustomEvent('centerMap');
@@ -253,16 +277,16 @@ const AppLayoutContent: React.FC = () => {
         </div>
       )}
       {currentView === 'map' && (
+        <SlideShowProvider>
         <div className="flex-1 flex">
           <CanvasView
             isResourcePanelVisible
-            onToggleResourcePanel={() => {}}
             autosaveStatus={saveStatus}
           />
           <CardDisplay
             width={cardDisplayWidth}
             isEditMode={isEditMode}
-            currentTopicTitle="My Topic"
+            currentTopicTitle="Map Title???" 
             onEditToggle={() => setIsEditMode(!isEditMode)}
             onResize={(dx) => {
               const newWidth = cardDisplayWidth - dx;
@@ -271,6 +295,7 @@ const AppLayoutContent: React.FC = () => {
             }}
           />
         </div>
+        </SlideShowProvider>
       )}
       {currentView === 'user' && (
         <div className="flex-1">
@@ -305,8 +330,17 @@ export const AppLayout: React.FC = () => {
                           <LayoutProvider>
                             <ColorThemeProvider>
                               <SubTreeProvider>
+                                <SelectionAttachmentProvider>
+                                <ChatHistoryProvider>
+                                  <SearchProvider>
+                                    
                                 <AppLayoutContent />
+                                <SelectionAttachmentHandler />
                                 <div id="modal-root" />
+                                <SearchModal></SearchModal>
+                                </SearchProvider>
+                                </ChatHistoryProvider>
+                                </SelectionAttachmentProvider>
                               </SubTreeProvider>
                             </ColorThemeProvider>
                           </LayoutProvider>

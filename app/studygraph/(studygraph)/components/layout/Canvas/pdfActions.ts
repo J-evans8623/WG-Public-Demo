@@ -1,5 +1,3 @@
-import { PdfAction } from './PdfContextMenu';
-
 /**
  * Copy given text to the clipboard.
  */

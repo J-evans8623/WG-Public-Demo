@@ -1,20 +1,4 @@
-/**
- * QuizGeneratorModal.tsx
- *
- * Responsibilities:
- *  1) Provide a modal UI for generating a quiz.
- *  2) Let users pick topics (either preselected or via a checklist).
- *  3) Let users choose the quiz type from the supported options (radio buttons):
- *       - multipleChoice
- *       - matching
- *       - FIB
- *       - true-false
- *  4) Optionally include uploaded documents in the request.
- *  5) Export study data from selected nodes using useExportStudyData.
- *  6) Send the assembled request to the AI service endpoint and parse the response.
- *  7) Check for a dedicated review node via getReviewNode. If it does not exist, create it.
- *  8) Save the parsed quiz into the Resource Context using useCardCrudOperations.createResource.
- */
+// app/Library/components/layout/Canvas/QuizGeneratorModal.tsx
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
@@ -28,62 +12,90 @@ import useExportStudyData from '@/app/studygraph/(studygraph)/components/utils/e
 import useCardCrudOperations from '@/app/studygraph/(studygraph)/components/hooks/useCardCrudOperations';
 import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { setGetLayout } from '@/app/Library/Context/LayoutActions';
+import { useSelectionAttachment } from '@/app/Library/Context/SelectionAttachmentContext';
+import AttachedTextBubble from './AttachedTextBubble';
+import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 
 interface QuizGeneratorModalProps {
+  /** Whether this modal is shown */
   isOpen: boolean;
+  /** Close callback */
   onClose: () => void;
   /**
-   * Preselected topic IDs from the concept map.
+   * Preselected topic IDs for the map pipeline.
+   * PDF pipeline ignores this and uses attachedText instead.
    */
   preselectedTopicIds: string[];
 }
 
+/**
+ * QuizGeneratorModal
+ *
+ * Dual-mode modal:
+ * - **Map pipeline**: shows a checklist of topics (QuizTopicSelector).
+ * - **PDF pipeline** (attachedText present): replaces topic selector with an AttachedTextBubble.
+ *
+ * Responsibilities:
+ * 1. Let user choose topics (map) or review attached text (PDF).
+ * 2. Let user pick one quiz type.
+ * 3. Assemble request payload, call generateQuiz, parse and insert quiz cards.
+ * 4. Ensure a “Review” node exists, then attach new quiz to it.
+ * 5. Clear attachment on close if PDF mode.
+ */
 const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
   isOpen,
   onClose,
   preselectedTopicIds,
 }) => {
-  // Local state for selected topics, selected quiz type, and include documents option.
-  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
-  const [selectedQuizType, setSelectedQuizType] = useState<string>(''); // Only one allowed
-  const [includeDocuments, setIncludeDocuments] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Access context values.
+  // Contexts
+  const { attachedText, clearAttachment } = useSelectionAttachment();
   const { nodes, getReviewNode, createNewNode, getRootNode } = useNodesContext();
-  const { activeConceptMapId, getModuleSummary } = useLessonModule();
   const { docFileID } = useYDoc();
   const exportStudyData = useExportStudyData();
   const { createResource } = useCardCrudOperations();
   const { dispatch: layoutDispatch } = useLayoutContext();
+  const { groupSelect } = useNodeSelection();
+  // Local state
+  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
+  const [selectedQuizType, setSelectedQuizType] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Reset fields when modal opens.
+  // Detect PDF vs map pipeline
+  const usingPdf = attachedText.trim().length > 0;
+
+  // Reset fields on open
   useEffect(() => {
     if (isOpen) {
       setSelectedTopicIds(preselectedTopicIds);
       setSelectedQuizType('');
-      setIncludeDocuments(false);
       setError(null);
       setIsLoading(false);
     }
   }, [isOpen, preselectedTopicIds]);
 
-  // Close the modal (if not loading).
+  // Close handler (also clear PDF attachment)
   const handleClose = useCallback(() => {
     if (!isLoading) {
       onClose();
+      if (usingPdf) clearAttachment();
     }
-  }, [isLoading, onClose]);
+  }, [isLoading, onClose, usingPdf, clearAttachment]);
 
-  // Handler for changing the selected quiz type (radio selection).
+  // Quiz type change
   const handleQuizTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedQuizType(e.target.value);
   };
 
-  // Handle the Generate button.
+  // Generate quiz
   const handleGenerateQuiz = async () => {
-    if (!selectedTopicIds || selectedTopicIds.length === 0) {
+    // PDF mode: require attachment (topics irrelevant)
+    if (usingPdf && !attachedText) {
+      setError('No PDF selection found.');
+      return;
+    }
+    // Map mode: require at least one topic
+    if (!usingPdf && selectedTopicIds.length === 0) {
       setError('Please select at least one topic.');
       return;
     }
@@ -91,51 +103,45 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
       setError('Please select a quiz type.');
       return;
     }
+
+    setIsLoading(true);
+    setError(null);
+
     try {
-      setIsLoading(true);
-      setError(null);
+      // Export data: for PDF flow we pass an empty array to export all if desired
+      const exportData = exportStudyData(usingPdf ? [] : selectedTopicIds);
 
-      // Export study data from the selected nodes.
-      const exportData = exportStudyData(selectedTopicIds);
 
-      // Retrieve module summary.
-      const { hasSummary, summary } = getModuleSummary(activeConceptMapId);
-
-      // Build request payload.
-      // Even though only one quiz type is selected, we send it as an array.
-      const requestPayload = {
-        topicIds: selectedTopicIds,
+      // Build request
+      const requestPayload: {
+        topicIds: string[];
+        quizTypes: string[];
+        fileID: string;
+        exportData: string;
+        textSelection?: string;
+      } = {
+        topicIds: usingPdf ? [] : selectedTopicIds,
         quizTypes: [selectedQuizType],
-        includeDocs: includeDocuments,
         fileID: docFileID || '',
-        summary: summary || '',
-        summaryPresent: hasSummary,
-        mapID: activeConceptMapId,
-        exportData, // Exported study data as JSON string.
+        exportData,
+        // ← new field
+        textSelection: usingPdf ? attachedText : undefined,
       };
 
-      // Call the AI service.
+      // Call API
       const response = await generateQuiz(requestPayload);
-
-      // Parse the quiz response.
       const parsedQuiz = parseQuizResponse(response);
-      if (!parsedQuiz) {
-        throw new Error("Parsed quiz is null");
-      }
+      if (!parsedQuiz) throw new Error('Received empty quiz response');
 
-      // Check for a dedicated review node.
-      const reviewNodeInfo = getReviewNode();
-      if (!reviewNodeInfo.exist) {
-        // If review node doesn't exist, create it as a child of the root node.
-        // We use a fixed id "reviewNode".
+      // Ensure Review node
+      const reviewInfo = getReviewNode();
+      if (!reviewInfo.exist) {
         createNewNode('Review', getRootNode(), 'reviewNode');
         layoutDispatch(setGetLayout(true));
       }
-      // Set the nodeId of the parsed quiz to the review node id.
       parsedQuiz.nodeId = 'reviewNode';
 
-      // Save the parsed quiz into the resource context.
-      // Map the quiz to card type 'quiz', which is translated internally to 'practiceSheet'.
+      // Save quiz card
       await createResource({
         nodeId: parsedQuiz.nodeId,
         type: 'quiz',
@@ -143,8 +149,9 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
         content: parsedQuiz.content,
       });
 
-      setIsLoading(false);
-      onClose();
+      groupSelect([parsedQuiz.nodeId]);
+
+      handleClose();
     } catch (err) {
       console.error('[QuizGeneratorModal] Error generating quiz:', err);
       setError('Failed to generate quiz. Please try again later.');
@@ -156,108 +163,97 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Dimmed background */}
-      <div className="absolute inset-0 bg-black opacity-50" onClick={handleClose}></div>
-      {/* Modal container */}
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black opacity-50"
+        onClick={handleClose}
+      />
+
+      {/* Modal */}
       <div className="relative bg-white w-[500px] max-w-full rounded shadow-lg p-6 z-10 max-h-[85vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-800">Generate Quiz</h2>
           <button
             onClick={handleClose}
-            className="text-gray-500 hover:text-gray-700"
             disabled={isLoading}
             aria-label="Close Modal"
+            className="text-gray-500 hover:text-gray-700"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        {/* Instructions */}
+
+        {/* Instruction */}
         <p className="text-sm text-gray-600 mb-4">
-          Ready for a review session? Select your topics and quiz type, and create a quiz.
+          {usingPdf
+            ? 'You pasted text from the PDF—review below, then choose your quiz type:'
+            : 'Ready for a review session? Select topics, choose a quiz type, and create a quiz.'}
         </p>
-        {/* Topic selection */}
+
+        {/* Topic selector or PDF bubble */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Select quiz topics:</label>
-          <QuizTopicSelector
-            selectedTopicIds={selectedTopicIds}
-            onChangeSelectedTopics={setSelectedTopicIds}
-          />
+          {usingPdf ? (
+            <AttachedTextBubble
+              text={attachedText}
+              onCancel={clearAttachment}
+            />
+          ) : (
+            <>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select quiz topics:
+              </label>
+              <QuizTopicSelector
+                selectedTopicIds={selectedTopicIds}
+                onChangeSelectedTopics={setSelectedTopicIds}
+              />
+            </>
+          )}
         </div>
-        {/* Quiz type selection (radio buttons) */}
+
+        {/* Quiz type radios */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Quiz type:</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Quiz type:
+          </label>
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <label className="flex items-center space-x-2">
-              <input
-                type="radio"
-                name="quizType"
-                value="multipleChoice"
-                checked={selectedQuizType === 'multipleChoice'}
-                onChange={handleQuizTypeChange}
-              />
-              <span>Multiple Choice</span>
-            </label>
-            <label className="flex items-center space-x-2">
-              <input
-                type="radio"
-                name="quizType"
-                value="matching"
-                checked={selectedQuizType === 'matching'}
-                onChange={handleQuizTypeChange}
-              />
-              <span>Matching</span>
-            </label>
-            <label className="flex items-center space-x-2">
-              <input
-                type="radio"
-                name="quizType"
-                value="FIB"
-                checked={selectedQuizType === 'FIB'}
-                onChange={handleQuizTypeChange}
-              />
-              <span>Fill in the Blank</span>
-            </label>
-            <label className="flex items-center space-x-2">
-              <input
-                type="radio"
-                name="quizType"
-                value="true-false"
-                checked={selectedQuizType === 'true-false'}
-                onChange={handleQuizTypeChange}
-              />
-              <span>True/False</span>
-            </label>
+            {['multipleChoice','matching','FIB','true-false'].map(type => (
+              <label key={type} className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  name="quizType"
+                  value={type}
+                  checked={selectedQuizType === type}
+                  onChange={handleQuizTypeChange}
+                  disabled={isLoading}
+                />
+                <span>
+                  {type === 'multipleChoice' ? 'Multiple Choice' :
+                   type === 'matching'        ? 'Matching' :
+                   type === 'FIB'             ? 'Fill in the Blank' :
+                                               'True/False'}
+                </span>
+              </label>
+            ))}
           </div>
         </div>
-        {/* Include uploaded documents */}
-        <div className="mb-4 flex items-center space-x-2 text-sm">
-          <input
-            type="checkbox"
-            checked={includeDocuments}
-            onChange={(e) => setIncludeDocuments(e.target.checked)}
-            id="includeDocs"
-          />
-          <label htmlFor="includeDocs" className="relative">
-            Include uploaded documents
-            <span className="ml-1 text-gray-400 cursor-pointer" title="Include related concepts from uploaded content.">?</span>
-          </label>
-        </div>
-        {/* Error message */}
+
+        {/* Error */}
         {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
-        {/* Buttons */}
+
+        {/* Actions */}
         <div className="flex justify-end gap-2">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
             disabled={isLoading}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm"
           >
             Cancel
           </button>
           <button
             onClick={handleGenerateQuiz}
-            className="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700"
             disabled={isLoading}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
           >
             {isLoading ? 'Generating...' : 'Generate'}
           </button>

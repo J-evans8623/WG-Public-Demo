@@ -1,0 +1,47 @@
+/* ChatTab.css
+ *
+ * Styles for the ChatTab attachment bubble and its cancel button.
+ */
+
+ .attachmentWrapper {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    background-color: #f9fafb;       /* bg-gray-50 */
+    border: 1px solid #e5e7eb;       /* border-gray-200 */
+    border-radius: 0.375rem;         /* rounded */
+    padding: 0.75rem;                /* p-3 */
+    gap: 0.5rem;                     /* space between text & cancel */
+  }
+  
+  .attachmentPreview {
+    margin: 0;
+    white-space: pre-wrap;           /* preserve line breaks */
+    word-break: break-word;          /* wrap long words */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;           /* limit to 3 lines */
+    overflow: hidden;
+    font-size: 0.875rem;             /* text-sm */
+    color: #374151;                  /* text-gray-700 */
+  }
+  
+  .attachmentCancel {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.5rem;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #6b7280;                  /* text-gray-500 */
+  }
+  
+  
+  /* Icon sizing remains the same */
+  .attachmentIcon {
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    color: #6b7280;                  /* text-gray-500 */
+  }
+  

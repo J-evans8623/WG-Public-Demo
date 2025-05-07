@@ -108,6 +108,54 @@ export class FirestoreFirebaseService implements FirebaseService {
   }
 }
 
+
+/**
+ * Store the per-user chat into Firestore under:
+ *   documents/{docId}/privateChats/{userId}.messages = [ … ]
+ */
+export async function setUserChat(
+  docId: string,
+  userId: string,
+  messages: ChatMessage[]
+): Promise<void> {
+  const docRef = firestore
+    .collection('documents')
+    .doc(docId)
+    .collection('privateChats')
+    .doc(userId);
+
+  await docRef.set({ messages }, { merge: true });
+}
+
+/**
+ * A single chat message.
+ */
+export interface ChatMessage {
+  id: number;
+  type: 'assistant' | 'user' | 'system' | 'attachment';
+  content: string;
+}
+
+/**
+ * Load the per-user chat from Firestore. Returns [] if none found.
+ */
+export async function getUserChat(
+  docId: string,
+  userId: string
+): Promise<ChatMessage[]> {
+  const docRef = firestore
+    .collection('documents')
+    .doc(docId)
+    .collection('privateChats')
+    .doc(userId);
+
+  const snap = await docRef.get();
+  if (!snap.exists) return [];
+  const data = snap.data();
+  if (!data?.messages || !Array.isArray(data.messages)) return [];
+  return data.messages as ChatMessage[];
+}
+
 /**
  * Stores a document file into Firebase Storage.
  * @param fileId - Unique identifier for the file.

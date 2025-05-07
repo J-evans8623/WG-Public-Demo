@@ -1,20 +1,4 @@
-/**
- * TopicGeneratorModal.tsx
- *
- * This file implements a wizard-style modal for generating a new topic
- * using the AI service. It replaces the old "ExploreTab" from ChatTab.
- *
- * Responsibilities:
- *   1) Presents a modal with:
- *       - The selected node name (fetched via targetNodeId).
- *       - An input field for describing the topic to explore.
- *       - A "Merge content into selected topic" checkbox.
- *       - A Generate/Cancel button set.
- *   2) On Generate, it calls the "generateTopic" API with the exported
- *      study data for the target node, then parses the response using
- *      "parseTopicResponse."
- *   3) Closes the modal upon completion or on cancel.
- */
+// app/Library/components/layout/Canvas/TopicGeneratorModal.tsx
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
@@ -26,87 +10,111 @@ import useCardCrudOperations from '@/app/studygraph/(studygraph)/components/hook
 import useExportStudyData from '@/app/studygraph/(studygraph)/components/utils/exportStudyData';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
+import { useSelectionAttachment } from '@/app/Library/Context/SelectionAttachmentContext';
+import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
+import AttachedTextBubble from './AttachedTextBubble';
 
 interface TopicGeneratorModalProps {
+  /** Whether modal is open */
   isOpen: boolean;
+  /** Called when modal should close (clears attachment) */
   onClose: () => void;
+  /** For non-PDF mode: the node to expand under */
   targetNodeId: string;
 }
 
+/**
+ * TopicGeneratorModal
+ *
+ * Opens when the user selects “Explore Topic” (PDF) or explicitly
+ * invokes it from the map.  After generating new nodes it:
+ *   1. Highlights them via groupSelect(...)
+ *   2. Leaves the Explore flag set so CardDisplay can switch to Notes
+ *   3. Finally calls onClose() to clear attachment & dismiss
+ */
 const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
   isOpen,
   onClose,
   targetNodeId,
 }) => {
-  // State for user input and merge option
-  const [topicRequest, setTopicRequest] = useState('');
-  const [mergeOption, setMergeOption] = useState(true);
-
-  // Access to node data, map info, and resource creation
+  // —— Contexts —————————————————————————————————————————————————————
+  const { attachedText, clearAttachment } = useSelectionAttachment();
   const { nodes, updateNodeTitle, setNodes } = useNodesContext();
   const { subtrees, setSubtrees } = useSubTreeContext();
   const { createResource } = useCardCrudOperations();
   const exportStudyData = useExportStudyData();
-  const { activeConceptMapId, getModuleSummary } = useLessonModule();
+  const { activeConceptMapId } = useLessonModule();
   const { docFileID } = useYDoc();
+  const { groupSelect } = useNodeSelection();     // NEW: select many at once
 
-  // Retrieve the node title
-  const nodeTitle = nodes.get(targetNodeId)?.title || '';
-
-  // Keep track of loading state
+  // —— Local state ——————————————————————————————————————————————————
+  const [topicRequest, setTopicRequest] = useState('');
+  const [mergeOption, setMergeOption] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string>('');
 
-  // Clear fields when modal is opened
+  // Reset form whenever opened
   useEffect(() => {
     if (isOpen) {
       setTopicRequest('');
       setMergeOption(true);
       setError(null);
       setIsLoading(false);
+      setSelectedNodeId('');
     }
   }, [isOpen]);
-  
-        // Wrap setNodes/setSubtrees to match your existing usage
-        const wrappedSetNodes = useCallback(
-          (nodesMap: Map<string, any>, mapID?: string) => {
-            setNodes(nodesMap, undefined, mapID);
-          },
-          [setNodes]
-        );
-  
-        const wrappedSetSubtrees = useCallback(
-          (subtreesMap: Map<string, any>, mapID?: string) => {
-            setSubtrees(subtreesMap, undefined, mapID);
-          },
-          [setSubtrees]
-        );
-  // Close modal
+
+  // Wrap setNodes / setSubtrees into the parser API shape
+  const wrappedSetNodes = useCallback(
+    (m: Map<string, any>, mapID?: string) => setNodes(m, undefined, mapID),
+    [setNodes]
+  );
+  const wrappedSetSubtrees = useCallback(
+    (m: Map<string, any>, mapID?: string) => setSubtrees(m, undefined, mapID),
+    [setSubtrees]
+  );
+
+  // Are we in the PDF “Explore” pipeline?
+  const usingPdf = attachedText.trim().length > 0;
+  // Which node to attach new topics under?
+  const rootNodeId = usingPdf ? selectedNodeId : targetNodeId;
+  // All nodes for dropdown in PDF mode
+  const nodeArray = Array.from(nodes.values());
+
+  // Close handler: prevent mid-generate, then clear the attachment
   const handleClose = useCallback(() => {
     if (!isLoading) {
       onClose();
+      if (usingPdf) clearAttachment();
     }
-  }, [isLoading, onClose]);
+  }, [isLoading, onClose, usingPdf, clearAttachment]);
 
-  // Generate the new topic
+  // When user clicks “Generate”
   const handleGenerate = async () => {
+    // basic validation
     if (!topicRequest.trim()) return;
-    try {
-      setIsLoading(true);
-      setError(null);
+    if (usingPdf && !rootNodeId) {
+      setError('Please select a topic from the dropdown above.');
+      return;
+    }
 
-      // Export data from the selected node
-      const exportData = exportStudyData([targetNodeId]);
-      // Call the AI service
-      const response = await generateTopic(
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // 1) export existing map state
+      const exportData = exportStudyData([rootNodeId]);
+      // 2) call the AI API
+      const aiResponse = await generateTopic(
         topicRequest.trim(),
         exportData,
-        docFileID as string
+        docFileID || '',
+        attachedText
       );
-
-      // Parse and update concept map
-      await parseTopicResponse(
-        response,
+      // 3) parse & insert nodes
+      const { createdNodeIds } = await parseTopicResponse(
+        aiResponse,
         {
           updateNodeTitle,
           setNodes: wrappedSetNodes,
@@ -114,17 +122,20 @@ const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
           createResource,
           setSubtrees: wrappedSetSubtrees,
           subtrees,
-          getRootNode: targetNodeId,
+          getRootNode: rootNodeId,
         },
         activeConceptMapId,
         mergeOption
       );
 
-      // Done
-      setIsLoading(false);
-      onClose();
-    } catch (err: any) {
-      console.error("[TopicGeneratorModal] Error generating topic:", err);
+      console.log(`[TopicGenerator Modal returned creatednodes : ${createdNodeIds}]`);
+      // 4) highlight all new nodes at once
+      groupSelect(createdNodeIds);
+
+      // 5) dismiss
+      handleClose();
+    } catch (err) {
+      console.error('[TopicGeneratorModal] Error generating topic:', err);
       setError('Failed to generate topic. Please try again later.');
       setIsLoading(false);
     }
@@ -134,102 +145,106 @@ const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Dimmed background */}
-      <div
-        className="absolute inset-0 bg-black opacity-50"
-        onClick={handleClose}
-      ></div>
+      {/* backdrop */}
+      <div className="absolute inset-0 bg-black opacity-50" onClick={handleClose} />
 
-      {/* Modal container with fixed max-height + scroll */}
-      <div
-        className="
-          relative
-          bg-white
-          w-[450px]
-          max-w-full
-          rounded
-          shadow-lg
-          p-6
-          z-10
-          max-h-[80vh]
-          overflow-y-auto
-        "
-      >
-        {/* Header */}
+      {/* modal */}
+      <div className="relative bg-white w-[450px] max-w-full rounded shadow-lg p-6 z-10 max-h-[80vh] overflow-y-auto">
+        {/* header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-800">
-            Generate New Topic
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-800">Generate New Topic</h2>
           <button
             onClick={handleClose}
-            className="text-gray-500 hover:text-gray-700"
             disabled={isLoading}
-            aria-label="Close Modal"
+            aria-label="Close"
+            className="text-gray-500 hover:text-gray-700"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Instructions */}
+        {/* instruction */}
         <p className="text-sm text-gray-600 mb-4">
-          Select a topic on the map, tell me what you want like to explore, and I will expand your map with new insights.
+          {usingPdf
+            ? 'Select where on the map to place the new topic.'
+            : 'Select a topic on the map, then describe what you’d like to explore:'}
         </p>
 
-        {/* Display selected node info */}
+        {/* dropdown or title */}
         <div className="bg-gray-100 border border-gray-200 rounded p-3 mb-4">
-          <p className="text-sm text-gray-500">Selected Topic:</p>
-          <p className="text-sm font-semibold text-orange-600">{nodeTitle}</p>
+          {usingPdf ? (
+            <select
+              className="w-full border border-gray-300 rounded p-2 text-sm"
+              value={selectedNodeId}
+              onChange={e => setSelectedNodeId(e.target.value)}
+              disabled={isLoading}
+            >
+              <option value="">— Select a topic —</option>
+              {nodeArray.map(n => (
+                <option key={n.id} value={n.id}>
+                  {n.title}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="text-sm font-semibold text-orange-600">
+              {nodes.get(targetNodeId)?.title || '—'}
+            </p>
+          )}
         </div>
 
-        {/* Topic request input */}
+        {/* PDF attachment preview */}
+        {usingPdf && (
+          <div className="mb-4">
+            <AttachedTextBubble text={attachedText} onCancel={clearAttachment} />
+          </div>
+        )}
+
+        {/* user prompt */}
         <label className="block text-sm text-gray-700 mb-1">
-          Describe the topic to explore:
+          {usingPdf
+            ? 'Describe the topic you want to explore from the selected text:'
+            : 'Describe the topic to explore:'}
         </label>
         <textarea
-          className="w-full border border-gray-300 rounded p-2 mb-3 text-sm resize-vertical min-h-[80px]"
           rows={3}
+          className="w-full border border-gray-300 rounded p-2 mb-3 text-sm resize-vertical"
           value={topicRequest}
-          onChange={(e) => setTopicRequest(e.target.value)}
+          onChange={e => setTopicRequest(e.target.value)}
           disabled={isLoading}
         />
 
-        {/* Merge option checkbox */}
+        {/* merge checkbox */}
         <div className="flex items-center mb-4">
           <input
             id="mergeCheckbox"
             type="checkbox"
             className="h-4 w-4 text-blue-600 border-gray-300 rounded"
             checked={mergeOption}
-            onChange={(e) => setMergeOption(e.target.checked)}
+            onChange={e => setMergeOption(e.target.checked)}
             disabled={isLoading}
           />
-          <label
-            htmlFor="mergeCheckbox"
-            className="ml-2 text-sm text-gray-700"
-            title="This option will add content to the selected topic"
-          >
+          <label htmlFor="mergeCheckbox" className="ml-2 text-sm text-gray-700">
             Merge content into selected topic
           </label>
         </div>
 
-        {/* Error message */}
-        {error && (
-          <div className="text-sm text-red-500 mb-3">{error}</div>
-        )}
+        {/* error */}
+        {error && <div className="text-sm text-red-500 mb-3">{error}</div>}
 
-        {/* Buttons */}
+        {/* actions */}
         <div className="flex justify-end gap-2">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
             disabled={isLoading}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm"
           >
             Cancel
           </button>
           <button
             onClick={handleGenerate}
-            className="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700"
             disabled={isLoading || !topicRequest.trim()}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
           >
             {isLoading ? 'Generating...' : 'Generate'}
           </button>

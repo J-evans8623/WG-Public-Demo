@@ -2,6 +2,7 @@
 import React from 'react';
 import '@/app/globals.css';
 import Head from 'next/head';
+import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/Cards/slideshow.css'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

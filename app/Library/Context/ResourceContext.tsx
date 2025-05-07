@@ -47,6 +47,7 @@ interface ResourceContextType {
   removeResourcev1: (nodeId: string, resourceId: string) => void;
   editResourcev1: (resource: ResourceCard) => Promise<void>;
   editPictureResourcev1: (resource: PictureResource, newImage: boolean, image?: File) => Promise<void>;
+  getResourceCard(id: string): ResourceCard | undefined;
 }
 
 
@@ -780,6 +781,18 @@ const selectPictures = useCallback(
   );
 
 
+  const getResourceCard = useCallback(
+    (id: string): ResourceCard | undefined => {
+      for (const arr of resources.values()) {
+        const found = arr.find(r => r.id === id);
+        if (found) return found;
+      }
+      return undefined;
+    },
+    [resources]
+  );
+
+
 
   const contextValue: ResourceContextType = useMemo(() => ({
     resources,
@@ -801,6 +814,7 @@ const selectPictures = useCallback(
     removeResourcev1,
     editResourcev1,
     editPictureResourcev1,
+    getResourceCard,
   }), [resources, removeResource, selectResources, selectCueCards, selectPictures, selectPracticeSheets, setResources, transferResource, resetResources, getResourcesByType, undo, redo, undoAvailable, redoAvailable, addResourcev1, addPictureResourcev1, removeResourcev1, editResourcev1, editPictureResourcev1]);
 
   return (

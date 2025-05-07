@@ -112,8 +112,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     updateConceptMapTitle,
     isGeneratingLesson,
   } = useLessonModule();
-  const lessonModule = getLessonModule();
-  const lessons = lessonModule.conceptMaps || [];
+  
+  const lessons = getLessonModule().conceptMaps || [];
 
   const { getAllFiles, addFile, addGeneratedLessonFile } = useFileAsset();
   const { clearSelection } = useNodeSelection();
@@ -145,6 +145,14 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   useEffect(() => {
     setFileNameDraft(ydocFileName);
   }, [ydocFileName]);
+
+  useEffect(() => {
+    if (!docFileID) return;            // only run after a real load
+    if (lessons.length === 0) return;  // no lessons, nothing to select
+    
+    // Pick the first lesson in this document
+    setActiveConceptMapId(lessons[0].id);
+  }, [docFileID, lessons, setActiveConceptMapId]);
 
   /**
    * Simulate upload progress while uploading.
