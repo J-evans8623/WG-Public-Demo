@@ -1,70 +1,139 @@
+// components/RichTextEditor.tsx
+
 /**
- * RichTextEditor.tsx
+ * @file RichTextEditor.tsx
+ * @description
+ *   Wraps the Tiptap editor to allow users to create and edit rich text content,
+ *   including inline and block LaTeX math via KaTeX. Provides a toolbar with
+ *   distinct icons for inline vs. block math for better clarity.
  *
- * This component wraps the TipTap editor to allow users to create and edit rich text content.
- * 
- * Update:
- * - The component documentation now explicitly states that it outputs HTML using editor.getHTML().
- * - This ensures that downstream components can safely assume that the persisted data is in HTML format.
+ *   - Loads KaTeX CSS to style rendered math.
+ *   - Uses StarterKit for core prose features.
+ *   - Integrates MathExtension for math nodes.
+ *   - Emits serialized HTML on each update via onChange callback.
+ *   - Toolbar icons: Bold, Italic, Lists, Inline‐Math (Sigma), Block‐Math (Function icon).
  */
 
 import React from 'react';
+import 'katex/dist/katex.min.css';                        // KaTeX styles
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Toggle } from "@/components/ui/toggle";
-import { Bold, Italic, List, ListOrdered } from 'lucide-react';
+import { MathExtension } from '@/app/studygraph/(studygraph)/Library/tiptap/MathExtension';
+import { Toggle } from '@/components/ui/toggle';
+import {
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  Sigma,
+  Code,
+} from 'lucide-react';
 
-const MenuBar = ({ editor }: { editor: any }) => {
-  if (!editor) {
-    return null;
-  }
+interface RichTextEditorProps {
+  /** Initial HTML content to load into the editor */
+  content: string;
+  /** Callback invoked on every content change with the new HTML */
+  onChange: (content: string) => void;
+  /** Optional wrapper class names */
+  className?: string;
+}
+
+/**
+ * MenuBar
+ *
+ * Renders toolbar controls:
+ * - Bold, Italic, Bullet / Ordered lists
+ * - Inline math ($…$) — Sigma icon
+ * - Block math ($$…$$) — Function icon (distinct)
+ */
+const MenuBar: React.FC<{ editor: any }> = ({ editor }) => {
+  if (!editor) return null;
 
   return (
     <div className="border-b p-1 flex gap-1">
+      {/* Bold */}
       <Toggle
         size="sm"
         pressed={editor.isActive('bold')}
         onPressedChange={() => editor.chain().focus().toggleBold().run()}
+        title="Bold (Ctrl+B)"
       >
         <Bold className="h-4 w-4" />
       </Toggle>
-      
+
+      {/* Italic */}
       <Toggle
         size="sm"
         pressed={editor.isActive('italic')}
         onPressedChange={() => editor.chain().focus().toggleItalic().run()}
+        title="Italic (Ctrl+I)"
       >
         <Italic className="h-4 w-4" />
       </Toggle>
 
+      {/* Bullet list */}
       <Toggle
         size="sm"
         pressed={editor.isActive('bulletList')}
         onPressedChange={() => editor.chain().focus().toggleBulletList().run()}
+        title="Bullet List"
       >
         <List className="h-4 w-4" />
       </Toggle>
 
+      {/* Ordered list */}
       <Toggle
         size="sm"
         pressed={editor.isActive('orderedList')}
         onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
+        title="Ordered List"
       >
         <ListOrdered className="h-4 w-4" />
+      </Toggle>
+
+      {/* Inline math ($…$) */}
+      <Toggle
+        size="sm"
+        pressed={editor.isActive('inlineMath')}
+        onPressedChange={() =>
+          editor.chain().focus().insertContent({ type: 'inlineMath' }).run()
+        }
+        title="Inline Math ($…$) (Ctrl+M)"
+      >
+        <Sigma className="h-4 w-4" />
+      </Toggle>
+
+      {/* Block math ($$…$$) */}
+      <Toggle
+        size="sm"
+        pressed={editor.isActive('blockMath')}
+        onPressedChange={() =>
+          editor.chain().focus().insertContent({ type: 'blockMath', attrs: { display: true } }).run()
+        }
+        title="Block Math ($$…$$) (Ctrl+Alt+M)"
+      >
+        < Code className="h-4 w-4" />
       </Toggle>
     </div>
   );
 };
 
-interface RichTextEditorProps {
-  content: string;
-  onChange: (content: string) => void;
-  className?: string;
-}
-
-const RichTextEditor = ({ content, onChange, className }: RichTextEditorProps) => {
+/**
+ * RichTextEditor
+ *
+ * - Configures the Tiptap editor with StarterKit + MathExtension.
+ * - Calls `onChange` with `editor.getHTML()` on every update.
+ */
+const RichTextEditor: React.FC<RichTextEditorProps> = ({
+  content,
+  onChange,
+  className,
+}) => {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit,
+      MathExtension,    // Provides inlineMath & blockMath node types
+    ],
     content,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
@@ -74,8 +143,8 @@ const RichTextEditor = ({ content, onChange, className }: RichTextEditorProps) =
   return (
     <div className={`border rounded-md ${className}`}>
       <MenuBar editor={editor} />
-      <EditorContent 
-        editor={editor} 
+      <EditorContent
+        editor={editor}
         className="prose max-w-none p-3 min-h-[120px] focus:outline-none"
       />
     </div>

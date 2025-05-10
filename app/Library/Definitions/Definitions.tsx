@@ -40,7 +40,7 @@ export interface CueStackProps {
     title: string; // Title of the concept node
     description?: string; // Optional: Description of the concept node
     parentNodeId?: string; // Optional: ID of the parent node
-    childrenNodeIds?: string[]; // Optional: Array of child node IDs
+    childrenNodeIds: string[]; // Optional: Array of child node IDs
     x?: number; // Optional: X-coordinate for positioning (initially undefined)
     y?: number; // Optional: Y-coordinate for positioning (initially undefined)
     isRoot?: boolean; // Flag to indicate if the node is a root node

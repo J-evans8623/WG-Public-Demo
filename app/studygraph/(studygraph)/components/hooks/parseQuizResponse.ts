@@ -35,11 +35,12 @@ export function parseQuizResponse(aiResponse: any): PracticeSheetResource | null
     //   - "true-false" if question.type equals "true-false".
     let determinedQuizType: QuizType = "multipleChoice"; // default fallback
     const questions = aiResponse.questions;
+    console.log(`56 QuizParsers test ${JSON.stringify(aiResponse)}`);
     if (questions.length > 0) {
       const sample = questions[0];
       if ("options" in sample) {
         determinedQuizType = "multipleChoice";
-      } else if ("matchingTerm" in sample) {
+      } else if ("matchingQuestion" in sample) {
         determinedQuizType = "matching";
       } else if ("questionText" in sample) {
         determinedQuizType = "FIB";

@@ -6,6 +6,8 @@
       "dom.iterable",
       "esnext"
     ],
+    "typeRoots": ["./app/studygraph/(studygraph)/types",
+      "./node_modules/@types"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -40,7 +42,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "app/**/*.d.ts",
-    "app/src/services/*.js", "../archive-v1-bloom/app.tsx", "../archive-v1-bloom/TopBar.tsx", "../archive-v1-bloom/GenerateAIForm.tsx", 
+    "app/src/services/*.js", 
   ],
   "exclude": [
     "node_modules",

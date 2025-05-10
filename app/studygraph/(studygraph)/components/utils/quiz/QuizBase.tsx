@@ -7,9 +7,16 @@ interface QuizBaseProps {
   title: string;
   onClose: () => void;
   showScore: boolean;
+  footerContent?: React.ReactNode;
 }
 
-const QuizBase: React.FC<QuizBaseProps> = ({ children, title, onClose, showScore }) => {
+const QuizBase: React.FC<QuizBaseProps> = ({ 
+  children, 
+  title, 
+  onClose, 
+  showScore,
+  footerContent 
+}) => {
   return (
     <div className="fixed inset-0 z-50">
       <div 
@@ -17,6 +24,7 @@ const QuizBase: React.FC<QuizBaseProps> = ({ children, title, onClose, showScore
         onClick={showScore ? undefined : onClose}
       />
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl h-[90vh] bg-white rounded-lg shadow-xl flex flex-col">
+        {/* Header - Fixed at top */}
         <div className="flex items-center justify-between p-4 border-b shrink-0">
           <h2 className="text-xl font-semibold">{title}</h2>
           {!showScore && (
@@ -29,11 +37,17 @@ const QuizBase: React.FC<QuizBaseProps> = ({ children, title, onClose, showScore
           )}
         </div>
         
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="h-full flex flex-col">
-            {children}
-          </div>
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto">
+          {children}
         </div>
+        
+        {/* Footer - Fixed at bottom */}
+        {footerContent && (
+          <div className="shrink-0 p-4 border-t border-gray-200 bg-white">
+            {footerContent}
+          </div>
+        )}
       </div>
     </div>
   );

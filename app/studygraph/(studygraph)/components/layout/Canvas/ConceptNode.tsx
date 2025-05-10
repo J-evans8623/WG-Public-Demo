@@ -1,4 +1,12 @@
-import React, { memo, useCallback, useState, useEffect, forwardRef } from 'react';
+// ConceptNode.tsx
+
+import React, {
+  memo,
+  useCallback,
+  useState,
+  useEffect,
+  forwardRef,
+} from 'react';
 import { ConceptNode as NodeType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
@@ -41,17 +49,17 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   const [isEditing, setIsEditing] = useState(false);
   const [localTitle, setLocalTitle] = useState(title);
 
-  // Hover menu (the "plus" button) state
+  // Hover‐menu state
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const menuRef = React.useRef<HTMLDivElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const menuTimeoutRef = React.useRef<NodeJS.Timeout>();
 
-  // For the "Topic Generator" modal
+  // Topic generator modal
   const [isTopicGeneratorOpen, setIsTopicGeneratorOpen] = useState(false);
 
-  // Node selection
+  // Selection handlers
   const handleSelect = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -61,41 +69,47 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
         layoutDispatch(setGetLayout(true));
         setStatusMessage('');
       } else {
-        if (isMulti) {
-          multiSelect(node.id, true);
-        } else {
-          singleSelect(node.id);
-        }
+        if (isMulti) multiSelect(node.id, true);
+        else singleSelect(node.id);
       }
     },
-    [node.id, mergeSource, multiSelectEnabled, multiSelect, singleSelect, completeMerge, transferNode, layoutDispatch, setStatusMessage]
+    [
+      node.id,
+      mergeSource,
+      multiSelectEnabled,
+      multiSelect,
+      singleSelect,
+      completeMerge,
+      transferNode,
+      layoutDispatch,
+      setStatusMessage,
+    ]
   );
 
-  // Double-click to edit node title
   const handleTitleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setIsEditing(true);
   }, []);
 
-  // Title change
-  const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setLocalTitle(e.target.value);
-  }, []);
+  const handleTitleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setLocalTitle(e.target.value);
+    },
+    []
+  );
 
-  // Finish editing
   const finishEditing = useCallback(() => {
-    const trimmedTitle = localTitle.trim();
-    if (trimmedTitle && trimmedTitle !== title) {
-      updateNodeTitle(node.id, trimmedTitle);
+    const trimmed = localTitle.trim();
+    if (trimmed && trimmed !== title) {
+      updateNodeTitle(node.id, trimmed);
     }
     setIsEditing(false);
   }, [localTitle, title, node.id, updateNodeTitle]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') {
-        finishEditing();
-      } else if (e.key === 'Escape') {
+      if (e.key === 'Enter') finishEditing();
+      else if (e.key === 'Escape') {
         setLocalTitle(title);
         setIsEditing(false);
       }
@@ -103,7 +117,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
     [finishEditing, title]
   );
 
-  // Node manipulation
+  // Node operations
   const handleMergeInitiate = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -120,8 +134,8 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   const handleAddChildNode = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      const newNodeId = uuidv4();
-      createNewNode('New Concept', node.id, newNodeId);
+      const newId = uuidv4();
+      createNewNode('New Concept', node.id, newId);
       layoutDispatch(setGetLayout(true));
     },
     [node.id, createNewNode, layoutDispatch]
@@ -134,7 +148,8 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
         alert('The root node cannot be deleted.');
         return;
       }
-      if (childrenNodeIds && childrenNodeIds.length > 0) {
+      // Allow delete only if truly a leaf
+      if (childrenNodeIds.length > 0) {
         alert('Only leaf nodes can be deleted. Remove its children first.');
         return;
       }
@@ -144,48 +159,40 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
     [isRoot, childrenNodeIds, node.id, deleteNode, layoutDispatch]
   );
 
-  // "Explore Topic"
   const handleExploreTopic = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setIsTopicGeneratorOpen(true);
   }, []);
 
-  // Hover menu open/close logic
+  // Hover‐menu open/close
   const handleMenuEnter = useCallback(() => {
-    if (menuTimeoutRef.current) {
-      clearTimeout(menuTimeoutRef.current);
-    }
+    if (menuTimeoutRef.current) clearTimeout(menuTimeoutRef.current);
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setMenuPosition({
-        x: rect.left,
-        y: rect.bottom + window.scrollY,
-      });
+      setMenuPosition({ x: rect.left, y: rect.bottom + window.scrollY });
       setShowMenu(true);
     }
   }, []);
 
   const handleMenuLeave = useCallback(() => {
-    menuTimeoutRef.current = setTimeout(() => {
-      setShowMenu(false);
-    }, 150);
+    menuTimeoutRef.current = setTimeout(() => setShowMenu(false), 150);
   }, []);
 
-  const handleMenuOpen = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setMenuPosition({
-        x: rect.left,
-        y: rect.bottom + window.scrollY,
-      });
-      setShowMenu(true);
-    }
-  }, []);
+  const handleMenuOpen = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        setMenuPosition({ x: rect.left, y: rect.bottom + window.scrollY });
+        setShowMenu(true);
+      }
+    },
+    []
+  );
 
-  // Close hover menu if user clicks outside
+  // Click‐outside to close hover menu
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const onClickOutside = (event: MouseEvent) => {
       if (
         menuRef.current &&
         !menuRef.current.contains(event.target as Node) &&
@@ -195,44 +202,32 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
         setShowMenu(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
-  // Visual styling for selection states
+  // Styling for selection rings
   const focusNodeId = getFocusNode();
   const isCaretNode = node.id === focusNodeId;
   const isTargetNode = node.id === targetNodeId && node.id !== focusNodeId;
-
   let ringColor: string | null = null;
-  if (isCaretNode) {
-    ringColor = CARET_COLOR;
-  } else if (isTargetNode) {
-    ringColor = TARGET_COLOR;
-  } else if (isSelected(node.id) || node.id === targetNodeId) {
-    ringColor = GENERAL_SELECTED_COLOR;
-  }
-
+  if (isCaretNode) ringColor = CARET_COLOR;
+  else if (isTargetNode) ringColor = TARGET_COLOR;
+  else if (isSelected(node.id) || node.id === targetNodeId) ringColor = GENERAL_SELECTED_COLOR;
   const nodeColor = depth === 1 ? primaryColor : backgroundColor;
 
   return (
     <>
-      {/* Main node element */}
       <div
         ref={isRoot ? ref : null}
         onClick={handleSelect}
         onMouseEnter={() => {
-          if (mergeSource && mergeSource !== node.id) {
-            setStatusMessage("Move here");
-          } else if (!mergeSource) {
-            setStatusMessage(title);
-          }
+          if (mergeSource && mergeSource !== node.id) setStatusMessage('Move here');
+          else if (!mergeSource) setStatusMessage(title);
         }}
-        onMouseLeave={() => {
-          setStatusMessage("");
-        }}
+        onMouseLeave={() => setStatusMessage('')}
         className={`relative flex flex-col items-center cursor-pointer group rounded-md shadow-md transition-all duration-200 ${
-          (isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id)
+          isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id
             ? 'bg-blue-50 shadow-lg'
             : 'bg-white shadow-md'
         }`}
@@ -243,18 +238,21 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
           left: `${x}px`,
           top: `${y}px`,
           backgroundColor: nodeColor,
-          zIndex: (isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id) ? 10 : 1,
-          border: (isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id)
-            ? 'none'
-            : `3px solid ${OUTLINE_COLOR}`,
+          zIndex:
+            isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id
+              ? 10
+              : 1,
+          border:
+            isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id
+              ? 'none'
+              : `3px solid ${OUTLINE_COLOR}`,
           boxSizing: 'border-box',
           transition: 'none',
         }}
         role="button"
         tabIndex={0}
       >
-        {/* Outline ring for selected/target node */}
-        {((isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id) && ringColor) && (
+        {ringColor && (
           <svg
             className="absolute inset-0 w-full h-full pointer-events-none"
             viewBox="0 0 325 125"
@@ -275,7 +273,6 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
           </svg>
         )}
 
-        {/* Title */}
         <div className="flex-1 flex items-center justify-center p-4">
           {isEditing ? (
             <input
@@ -298,7 +295,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
           )}
         </div>
 
-        {/* Small "plus" button at bottom right */}
+        {/* Hover “+” menu trigger */}
         <div
           className="group/menu absolute bottom-2 right-2"
           onMouseEnter={handleMenuEnter}
@@ -307,16 +304,13 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
           <button
             ref={buttonRef}
             onClick={handleMenuOpen}
-            className="p-1.5 rounded-full focus:outline-none bg-gray-200 shadow-md
-                       hover:bg-gray-900 transition-all duration-200
-                       group-hover/menu:bg-gray-900
-                       flex items-center justify-center"
+            className="p-1.5 rounded-full bg-gray-200 shadow-md hover:bg-gray-900 transition-colors flex items-center justify-center"
           >
-            <Plus className="w-5 h-5 text-gray-900 group-hover/menu:text-white transition-all duration-200" />
+            <Plus className="w-5 h-5 text-gray-900 group-hover/menu:text-white" />
           </button>
         </div>
 
-        {/* Hover menu: Add/Edit/Delete/Move/Explore */}
+        {/* Hover menu contents */}
         {showMenu &&
           createPortal(
             <div
@@ -324,94 +318,76 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
               onMouseEnter={handleMenuEnter}
               onMouseLeave={handleMenuLeave}
               className="fixed bg-white shadow-lg rounded-md border border-gray-200 py-1 w-36"
-              style={{
-                left: menuPosition.x,
-                top: menuPosition.y,
-              }}
+              style={{ left: menuPosition.x, top: menuPosition.y }}
             >
-              {/* Add Node */}
               <button
                 onClick={(e) => {
-                  e.stopPropagation();
                   handleAddChildNode(e);
                   setShowMenu(false);
                 }}
-                className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
-                         hover:bg-gray-50 transition-colors"
+                className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2 hover:bg-gray-50"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add node</span>
               </button>
 
-              {/* Edit Title */}
               <button
                 onClick={(e) => {
-                  e.stopPropagation();
                   handleTitleDoubleClick(e);
                   setShowMenu(false);
                 }}
-                className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
-                         hover:bg-gray-50 transition-colors"
+                className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2 hover:bg-gray-50"
               >
                 <Pencil className="w-4 h-4" />
                 <span>Edit title</span>
               </button>
 
-              {/* Delete Node */}
-              {!isRoot && (!childrenNodeIds || childrenNodeIds.length === 0) && (
+              {!isRoot && childrenNodeIds!.length === 0 && (
                 <button
                   onClick={(e) => {
-                    e.stopPropagation();
                     handleDeleteNode(e);
                     setShowMenu(false);
                   }}
-                  className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
-                           hover:bg-gray-50 transition-colors"
+                  className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2 hover:bg-gray-50"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span>Delete node</span>
                 </button>
               )}
 
-              {/* Move Node */}
               {mergeSource === null && !isRoot && (
                 <button
                   onClick={(e) => {
-                    e.stopPropagation();
                     handleMergeInitiate(e);
                     setShowMenu(false);
                   }}
-                  className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
-                           hover:bg-gray-50 transition-colors"
+                  className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2 hover:bg-gray-50"
                 >
                   <GitBranch className="w-4 h-4" />
                   <span>Move node</span>
                 </button>
               )}
 
-              {/* Explore Topic */}
               <button
                 onClick={(e) => {
-                  e.stopPropagation();
                   handleExploreTopic(e);
                   setShowMenu(false);
                 }}
-                className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2.5 
-                         hover:bg-gray-50 transition-colors"
+                className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2 hover:bg-gray-50"
               >
                 <Sparkles className="w-4 h-4" />
                 <span>Explore Topic</span>
               </button>
             </div>,
-            document.body // or document.getElementById('modal-root') for the *menu*
+            document.body
           )}
       </div>
 
-      {/* Render the modal in a top-level portal */}
+      {/* Topic generator modal */}
       {isTopicGeneratorOpen &&
         createPortal(
           <TopicGeneratorModal
-            isOpen={true}
+            isOpen
             onClose={() => setIsTopicGeneratorOpen(false)}
             targetNodeId={node.id}
           />,
@@ -421,14 +397,33 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   );
 });
 
+// Display name for dev tools
 ConceptNode.displayName = 'ConceptNode';
 
+/**
+ * Custom props‐equality for React.memo:
+ *   Now includes childrenNodeIds (length and content) so that when a node’s
+ *   children are removed (i.e. it becomes a leaf), the component re-renders
+ *   and its “delete” logic updates accordingly.
+ */
 export default memo(
   ConceptNode,
-  (prevProps, nextProps) =>
-    prevProps.node.id === nextProps.node.id &&
-    prevProps.node.title === nextProps.node.title &&
-    prevProps.node.x === nextProps.node.x &&
-    prevProps.node.y === nextProps.node.y &&
-    prevProps.node.isRoot === nextProps.node.isRoot
+  (prevProps, nextProps) => {
+    const p = prevProps.node;
+    const n = nextProps.node;
+    // shallow compare all key layout/identity fields
+    const sameCore =
+      p.id === n.id &&
+      p.title === n.title &&
+      p.x === n.x &&
+      p.y === n.y &&
+      p.isRoot === n.isRoot;
+    if (!sameCore) return false;
+    // deep-compare children arrays
+    if (p.childrenNodeIds.length !== n.childrenNodeIds.length) return false;
+    for (let i = 0; i < p.childrenNodeIds.length; i++) {
+      if (p.childrenNodeIds[i] !== n.childrenNodeIds[i]) return false;
+    }
+    return true;
+  }
 );

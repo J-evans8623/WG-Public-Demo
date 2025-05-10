@@ -11,6 +11,9 @@ type NodeSelectionContextType = {
   getSelectedNodeIds: () => string[];
   deselectNode: (nodeId: string) => void;
   selectNode: (nodeId: string) => void;
+  dismissResource: (nodeId: string, resourceId: string) => void;
+  clearDismissedForNode: (nodeId: string) => void;
+  isResourceDismissed: (nodeId: string, resourceId: string) => boolean;
   targetNodeId: string | null;
   setTargetNodeId: (nodeId: string) => void;
   getTargetNodeId: () => string | null;
@@ -30,44 +33,76 @@ const NodeSelectionContext = createContext<NodeSelectionContextType | undefined>
 
 export const NodeSelectionProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedIDs, setSelectedIDs] = useState<string[]>([]);
+  const [dismissed, setDismissed] = useState<Record<string, Set<string>>>({});
   const [targetNodeId, setTargetNodeIdState] = useState<string | null>(null);
   const [mergeSource, setMergeSource] = useState<string | null>(null);
   const [StatusMessage, setStatusMessage] = useState('');
   const [multiSelectEnabled, setMultiSelectEnabled] = useState<boolean>(false);
 
+
+  const dismissResource = (nodeId: string, resourceId: string) => {
+    setDismissed(prev => {
+      const next = { ...prev };
+      const setForNode = new Set(next[nodeId] ?? []);
+      setForNode.add(resourceId);
+      next[nodeId] = setForNode;
+      return next;
+    });
+  };
+
+  const clearDismissedForNode = (nodeId: string) => {
+    setDismissed(prev => {
+      if (!prev[nodeId]) return prev;
+      const next = { ...prev };
+      delete next[nodeId];
+      return next;
+    });
+  };
+
+  const isResourceDismissed = (nodeId: string, resourceId: string) =>
+    Boolean(dismissed[nodeId]?.has(resourceId));
+
+
+
   const toggleNodeSelection = (nodeId: string) => {
-    setSelectedIDs((prevSelected) =>
-      prevSelected.includes(nodeId) ? prevSelected.filter((id) => id !== nodeId) : [...prevSelected, nodeId]
+    setSelectedIDs(prev =>
+      prev.includes(nodeId)
+        ? (() => { clearDismissedForNode(nodeId); return prev.filter(id => id !== nodeId); })()
+        : [...prev, nodeId]
     );
   };
 
   const isSelected = (nodeId: string) => selectedIDs.includes(nodeId);
-  const clearSelection = () => setSelectedIDs([]);
+  const clearSelection = () => {
+    // reset all dismissed entries in one step
+    setDismissed({});
+    setSelectedIDs([]);
+  };
+  
   const getSelectedNodeIds = () => selectedIDs;
   const deselectNode = (nodeId: string) => {
-    setSelectedIDs((prevSelected) => prevSelected.filter((id) => id !== nodeId));
+    clearDismissedForNode(nodeId);
+    setSelectedIDs(prev => prev.filter(id => id !== nodeId));
   };
   const selectNode = (nodeId: string) => {
     setSelectedIDs((prevSelected) => (prevSelected.includes(nodeId) ? prevSelected : [...prevSelected, nodeId]));
   };
 
   const singleSelect = (nodeId: string) => {
-    // Replace selection with the single node.
+    // clear dismissed for any nodes being deselected
+    selectedIDs.forEach(id => { if (id !== nodeId) clearDismissedForNode(id); });
     setSelectedIDs([nodeId]);
   };
 
   const multiSelect = (nodeId: string, isMulti: boolean = false) => {
     if (isMulti || multiSelectEnabled) {
-      // Toggle node in the current selection.
-      setSelectedIDs((prevSelected) => {
-        if (prevSelected.includes(nodeId)) {
-          return prevSelected.filter((id) => id !== nodeId);
-        } else {
-          return [...prevSelected, nodeId];
-        }
-      });
+      setSelectedIDs(prev =>
+        prev.includes(nodeId)
+          ? (() => { clearDismissedForNode(nodeId); return prev.filter(id => id !== nodeId); })()
+          : [...prev, nodeId]
+      );
     } else {
-      // Not in multi-select mode: behave like singleSelect.
+      selectedIDs.forEach(id => { if (id !== nodeId) clearDismissedForNode(id); });
       setSelectedIDs([nodeId]);
     }
   };
@@ -118,8 +153,13 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
    * @param nodeIds 
    */
   const groupSelect = (nodeIds: string[]) => {
+    // clear dismissed for any nodes removed
+    selectedIDs.forEach(id => {
+      if (!nodeIds.includes(id)) clearDismissedForNode(id);
+    });
     setSelectedIDs([...nodeIds]);
   };
+
 
   const contextValue = useMemo(
     () => ({
@@ -144,6 +184,9 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
       setStatusMessage,
       multiSelectEnabled,
       toggleMultiSelectEnabled,
+      dismissResource,
+    clearDismissedForNode,
+    isResourceDismissed,
     }),
     [isSelected, getSelectedNodeIds, StatusMessage, multiSelectEnabled]
   );

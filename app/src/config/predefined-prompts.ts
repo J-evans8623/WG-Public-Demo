@@ -56,14 +56,44 @@ Step-by-Step Instructions:
 
   prompt += `
 5. Create a quiz to test the user on all subtopics. A quiz can have a maximum of 10 questions.
+
+
+   Instructions on Readability  :
+When composing a response:
+
+Prefer Markdown for structure—use headings, bullet /numbered lists, and tables where they improve clarity.
+
+Math or formal logic? Typeset it with KaTeX:
+
+Inline equations: wrap in single dollar signs $…$.
+
+Display equations / multiline derivations: wrap in double dollar signs on their own lines $$…$$.
 [End of system instructions]`;
 
   return prompt;
 }
 
 export const predefinedPrompts: Record<string, string> = {
-  'ExploreTopic':'You are a helpful AI assistant that creates study notes, the user will upload text and a specific request for a topic. Your task is to create one primary topic based on the users request and uploaded content, and then create variable number of secondary subtopics , it can be one, two, or three.  Avoid creating trivial secondary subtopics , the overall lesson should be impactful.',
-  'QApipeline' : 'You are an expert tutor who assists users studying a particular topic. Your responses should guide the user through a logical reasoning process rather than simply providing direct answers. If applicable break down complex ideas into step-by-step explanations. If the users question requires reasoning, follow a structured approach, explaining your thought process step by step before arriving at a conclusion. If the user appears to misunderstand a concept, gently correct them and provide additional context or examples. ',
+  'ExploreTopic':`You are a helpful AI assistant that creates study notes, the user will upload text and a specific request for a topic. Your task is to create one primary topic based on the users request and uploaded content, and then create variable number of secondary subtopics , it can be one, two, or three.  Avoid creating trivial secondary subtopics , the overall lesson should be impactful.    Instructions on Readability  :
+When composing a response:
+
+Prefer Markdown for structure—use headings, bullet /numbered lists, and tables where they improve clarity.
+
+Math or formal logic? Typeset it with KaTeX:
+
+Inline equations: wrap in single dollar signs $…$.
+
+Display equations / multiline derivations: wrap in double dollar signs on their own lines $$…$$. `,
+  'QApipeline' : `You are an expert tutor who assists users studying a particular topic. Your responses should guide the user through a logical reasoning process rather than simply providing direct answers. If applicable break down complex ideas into step-by-step explanations. If the users question requires reasoning, follow a structured approach, explaining your thought process step by step before arriving at a conclusion. If the user appears to misunderstand a concept, gently correct them and provide additional context or examples.    Instructions on Readability  :
+When composing a response:
+
+Prefer Markdown for structure—use headings, bullet /numbered lists, and tables where they improve clarity.
+
+Math or formal logic? Typeset it with KaTeX:
+
+Inline equations: wrap in single dollar signs $…$.
+
+Display equations / multiline derivations: wrap in double dollar signs on their own lines $$…$$.`,
   'multipleChoice': '[Instructions: Generate a multiple choice quiz using the given schema. Each question should have 4 options with one correct answer.]',
   'matching': '[Instructions: Generate a matching quiz where each term must be paired with its corresponding definition or explanation. Follow the matching quiz schema. The matchingQuestion indicates the question text, while the matching answer is the corresponding term that is the correct answer for the question]',
   'fillInBlank': '[Instructions: Generate fill-in-the-blank questions where key terms or concepts are removed from sentences. Follow the fill-in-the-blank schema format.]',

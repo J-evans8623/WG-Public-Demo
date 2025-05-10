@@ -46,77 +46,88 @@ const MatchingQuiz: React.FC<MatchingQuizProps> = ({ quizData, onSubmit, onClose
   // Check if a letter option is selected
   const isLetterSelected = (letter: string) => matchingAnswers.includes(letter);
 
-  return (
-    <QuizBase title="Matching Quiz" onClose={onClose} showScore={showScore}>
-      <div className="grid grid-cols-[3fr,2fr] gap-8 h-full p-6">
-        {/* Questions Section */}
-        <div className="space-y-6 overflow-y-auto pr-4">
-          {quizData.map((q, index) => (
-            <div key={index} className="bg-gray-50 p-4 rounded-lg shadow-sm">
-              <div className="text-sm text-gray-600 mb-2">Question {index + 1}</div>
-              <div className="text-gray-900 mb-4">{q.question}</div>
-              <select
-                className="w-full p-2 border rounded-md bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
-                value={matchingAnswers[index] || ''}
-                onChange={(e) => handleAnswerChange(index, e.target.value)}
-              >
-                <option value="">Select an answer</option>
-                {letters.map((letter) => (
-                  <option key={letter} value={letter}>
-                    Option {letter}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))}
-        </div>
+  // Footer with action buttons
+  const footerContent = (
+    <div className="flex justify-end gap-4">
+      <button 
+        onClick={onClose} 
+        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors"
+      >
+        Cancel
+      </button>
+      <button
+        onClick={handleSubmit}
+        disabled={!isComplete}
+        className={`px-4 py-2 rounded-md transition-colors ${
+          isComplete 
+            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+        }`}
+      >
+        Submit
+      </button>
+    </div>
+  );
 
-        {/* Answer Bank Section */}
-        <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
-          <h3 className="font-semibold text-lg mb-4 text-gray-900">Answer Bank</h3>
-          <div className="space-y-3">
-            {scrambledAnswers.map((answer, index) => (
-              <div 
-                key={index} 
-                className={`p-3 bg-white rounded-lg border border-gray-200 shadow-sm transition-all ${
-                  isLetterSelected(letters[index]) 
-                    ? 'line-through text-gray-400' 
-                    : 'text-gray-800'
-                }`}
-              >
-                <span className={`font-medium mr-2 ${
-                  isLetterSelected(letters[index]) 
-                    ? 'text-gray-400' 
-                    : 'text-blue-600'
-                }`}>
-                  {letters[index]}.
-                </span>
-                {answer}
+  return (
+    <QuizBase 
+      title="Matching Quiz" 
+      onClose={onClose} 
+      showScore={showScore}
+      footerContent={footerContent}
+    >
+      <div className="grid grid-cols-[3fr,2fr] gap-8 p-6 h-full">
+        {/* Questions Section with independent scroll */}
+        <div className="overflow-y-auto pr-4 max-h-full">
+          <div className="space-y-6">
+            {quizData.map((q, index) => (
+              <div key={index} className="bg-gray-50 p-4 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-600 mb-2">Question {index + 1}</div>
+                <div className="text-gray-900 mb-4">{q.question}</div>
+                <select
+                  className="w-full p-2 border rounded-md bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
+                  value={matchingAnswers[index] || ''}
+                  onChange={(e) => handleAnswerChange(index, e.target.value)}
+                >
+                  <option value="">Select an answer</option>
+                  {letters.map((letter) => (
+                    <option key={letter} value={letter}>
+                      Option {letter}
+                    </option>
+                  ))}
+                </select>
               </div>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Footer with Buttons */}
-      <div className="mt-auto p-4 border-t border-gray-200 flex justify-end gap-4">
-        <button 
-          onClick={onClose} 
-          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={!isComplete}
-          className={`px-4 py-2 rounded-md transition-colors ${
-            isComplete 
-              ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          Submit
-        </button>
+        {/* Answer Bank Section with independent scroll */}
+        <div className="overflow-y-auto max-h-full">
+          <div className="bg-gray-50 p-4 rounded-lg shadow-sm h-full">
+            <h3 className="font-semibold text-lg mb-4 text-gray-900 sticky top-0 bg-gray-50 pt-1 pb-2">Answer Bank</h3>
+            <div className="space-y-3">
+              {scrambledAnswers.map((answer, index) => (
+                <div 
+                  key={index} 
+                  className={`p-3 bg-white rounded-lg border border-gray-200 shadow-sm transition-all ${
+                    isLetterSelected(letters[index]) 
+                      ? 'line-through text-gray-400' 
+                      : 'text-gray-800'
+                  }`}
+                >
+                  <span className={`font-medium mr-2 ${
+                    isLetterSelected(letters[index]) 
+                      ? 'text-gray-400' 
+                      : 'text-blue-600'
+                  }`}>
+                    {letters[index]}.
+                  </span>
+                  {answer}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </QuizBase>
   );

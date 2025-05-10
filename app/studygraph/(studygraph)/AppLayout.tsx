@@ -22,13 +22,14 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { ApiProvider, ApiContext } from '@/app/src/context/ApiContext';
-import { NodeSelectionProvider } from '@/app/Library/Context/NodeSelectionContext';
+import { NodeSelectionProvider, useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { SubTreeProvider } from '@/app/Library/Context/SubTreeProvider';
 import { NodesProvider } from '@/app/Library/Context/NodesProvider';
 import { ZoomProvider } from '@/app/Library/Context/ZoomProvider';
 import { ViewSwitchProvider, useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { LayoutProvider, useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { ColorThemeProvider, useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
+import { UndoRedoProvider, useUndoRedo } from './components/Context/UndoRedoContext';
 import { ResourceProvider } from '@/app/Library/Context/ResourceContext';
 import { LessonDataProvider } from '@/app/Library/Context/LessonDataContext';
 import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext';
@@ -52,6 +53,7 @@ import { SlideShowProvider } from '@/app/Library/Context/SlideShowContext';
 import { SearchProvider } from '@/app/Library/Context/SearchContext';
 import { Menu, ChevronsLeft } from 'lucide-react';
 import SearchModal from './components/layout/SearchModal';
+import 'katex/dist/katex.min.css'
 
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
@@ -90,6 +92,8 @@ const AppLayoutContent: React.FC = () => {
     ydoc
   } = useYDoc();
   const { messages, setMessages, clearMessages, addMessage, chatDirty, resetDirty } = useChatHistory();
+  const { clearHistory } = useUndoRedo();  
+  const {clearSelection} = useNodeSelection();
   
 
    // Reset function from ViewSwitchContext:
@@ -187,6 +191,8 @@ const AppLayoutContent: React.FC = () => {
    */
   const handleFileSelect = async (fileStorageId: string) => {
     try {
+      clearHistory(); 
+      clearSelection();
       resetPdfState();
       // Load the document state from Firebase Storage using loadFromFirebase.
       const chatData = await loadFromFirebase(fileStorageId);
@@ -214,6 +220,8 @@ const AppLayoutContent: React.FC = () => {
    */
   const handleCreateNewDocument = async () => {
     try {
+      clearHistory();
+      clearSelection();
       resetPdfState();
       await createNewDocument();
       clearMessages();
@@ -323,6 +331,7 @@ export const AppLayout: React.FC = () => {
             <LessonModuleProvider>
               <FileAssetProvider>
                 <NodeSelectionProvider>
+                  <UndoRedoProvider>
                   <ResourceProvider>
                     <NodesProvider>
                       <LessonDataProvider>
@@ -348,6 +357,7 @@ export const AppLayout: React.FC = () => {
                       </LessonDataProvider>
                     </NodesProvider>
                   </ResourceProvider>
+                  </UndoRedoProvider>
                 </NodeSelectionProvider>
               </FileAssetProvider>
             </LessonModuleProvider>

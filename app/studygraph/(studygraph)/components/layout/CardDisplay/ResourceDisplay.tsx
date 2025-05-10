@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import BaseResourceCard from './Cards/BaseResourceCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Maximize2, ChevronsUpDown, Check } from 'lucide-react';
+import { Maximize2, ChevronsUpDown, Check, X as CloseIcon } from 'lucide-react';
 import RichTextEditor from '@/components/RichTextEditor';
 import ResourceMenu from './ResourceMenu';
 import CueCard from './Cards/CueCard';
@@ -12,19 +12,23 @@ import NoteCard from './Cards/NoteCard';
 import ImageCard from './Cards/ImageCard';
 import QuizCard from './Cards/QuizCard';
 import ImageUploadCard from './Cards/ImageUploadCard';
+import QuizOverlay from '../../utils/quiz/QuizOverlay';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
+import { QuizType, IQuizQuestion } from '@/app/Library/Definitions/Definitions';
 import './resourceDisplay.css';
 
 export type ResourceType = 'cuecard' | 'note' | 'image' | 'quiz';
 
 export interface ResourceDisplayProps {
   id: string;
+  nodeId?: string;
   type: ResourceType;
   ConceptNodeTitle: string;
   title: string;
   content: string | object;
+  imageUrl?: string;
   isEditing: boolean;
   onTitleChange: (title: string) => void;
   onContentChange: (content: string) => void;
@@ -34,7 +38,7 @@ export interface ResourceDisplayProps {
   onDelete: () => void;
   onAskAI: () => void;
   onImageCaption: () => void;
-  imageUrl?: string;
+  onDismiss?: () => void;
 }
 
 /**
@@ -43,21 +47,17 @@ export interface ResourceDisplayProps {
  *   Renders a single resource card with both view and edit modes.
  *
  *   View mode:
- *   - Displays the appropriate card type (CueCard, NoteCard, ImageCard, QuizCard).
- *   - Provides fullscreen and overflow menu controls.
- *   - Shows the ConceptNodeTitle in a full-width, fully opaque footer strip.
+ *   - Displays CueCard, NoteCard, ImageCard, QuizCard.
+ *   - Fullscreen control:
+ *       • For non-quiz, opens SlideShowOverlay.
+ *       • For quiz, opens QuizOverlay immediately (no blank page).
+ *   - Overflow menu, dismiss button.
+ *   - Footer with ConceptNodeTitle.
  *
  *   Edit mode:
- *   - Lets the user select a topic, edit the title, and edit/upload content.
- *   - Exposes Save and Cancel actions.
- *
- *   Responsibilities:
- *   - Ensure the footer always provides a fully opaque background
- *     across the bottom of the card for maximum title readability,
- *     regardless of title length.
- *   - Handle topic selection dropdown with outside-click closing.
- *   - Integrate global SlideShowContext for fullscreen display.
- *   - Parse quiz JSON only when needed.
+ *   - Topic selector.
+ *   - Title & content inputs.
+ *   - Save/Cancel controls.
  */
 const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   id,
@@ -65,6 +65,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   ConceptNodeTitle,
   title,
   content,
+  imageUrl,
   isEditing,
   onTitleChange,
   onContentChange,
@@ -74,9 +75,14 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   onDelete,
   onAskAI,
   onImageCaption,
-  imageUrl,
+  onDismiss,
 }) => {
   const { open } = useSlideShow();
+
+  // State for direct quiz full-screen overlay
+  const [quizOverlayOpen, setQuizOverlayOpen] = useState(false);
+
+  // Edit-mode state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [topicId, setTopicId] = useState('');
   const [isTopicDropdownOpen, setIsTopicDropdownOpen] = useState(false);
@@ -87,7 +93,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   const topicSelectorRef = useRef<HTMLDivElement>(null);
   const [cueFlipped, setCueFlipped] = useState(false);
 
-  // Close topic dropdown when clicking outside
+  // Close topic dropdown on outside clicks
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (
@@ -101,7 +107,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Auto-select current focus node when entering edit mode
+  // Auto-select focus node when entering edit mode
   useEffect(() => {
     if (!topicId && isEditing) {
       const auto = getFocusNode();
@@ -115,6 +121,24 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   };
 
   const commonViewProps = { ConceptNodeTitle, title };
+
+  // Parse quizType & quizData for QuizOverlay
+  let parsedQuizType: QuizType = 'multipleChoice';
+  let parsedQuizData: IQuizQuestion[] = [];
+  if (type === 'quiz') {
+    const raw = typeof content === 'string'
+      ? (() => { try { return JSON.parse(content); } catch { return content; } })()
+      : content;
+    if (
+      raw &&
+      typeof raw === 'object' &&
+      'quizType' in raw &&
+      Array.isArray((raw as any).quizContent)
+    ) {
+      parsedQuizType = (raw as any).quizType;
+      parsedQuizData = (raw as any).quizContent;
+    }
+  }
 
   const renderBody = () => {
     if (isEditing) {
@@ -222,10 +246,11 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
       );
     }
 
-    // View mode: pick the right card
+    // View mode
     switch (type) {
       case 'note':
         return <NoteCard {...commonViewProps} content={String(content)} />;
+
       case 'image':
         return (
           <ImageCard
@@ -234,23 +259,15 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
             imageUrl={imageUrl || ''}
           />
         );
-      case 'quiz': {
-        let quizData: any;
-        if (typeof content === 'string') {
-          try {
-            quizData = JSON.parse(content);
-          } catch {
-            console.warn(
-              'ResourceDisplay: quiz content is not valid JSON, passing raw:',
-              content
-            );
-            quizData = content;
-          }
-        } else {
-          quizData = content;
-        }
-        return <QuizCard {...commonViewProps} content={quizData} />;
-      }
+
+      case 'quiz':
+        return (
+          <QuizCard
+            {...commonViewProps}
+            content={{ quizType: parsedQuizType, quizContent: parsedQuizData }}
+          />
+        );
+
       default:
         return (
           <div
@@ -268,39 +285,70 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   };
 
   return (
-    <BaseResourceCard className="!p-0 flex flex-col max-h-[24rem] relative">
-      {/* Top‐right controls in view mode */}
-      {!isEditing && (
-        <div className="absolute top-2 right-2 flex items-center space-x-1">
-          <button
-            onClick={() => open(id)}
-            className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-gray-100"
-            title="Full screen"
-          >
-            <Maximize2 className="h-3 w-3 text-gray-500" />
-          </button>
-          <ResourceMenu
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onAskAI={onAskAI}
-            onImageCaption={onImageCaption}
-            resourceType={type}
-          />
+    <>
+      <BaseResourceCard className="!p-0 flex flex-col max-h-[24rem] relative">
+        {/* Top‐right controls in view mode */}
+        {!isEditing && (
+          <div className="absolute top-2 right-2 flex items-center space-x-1">
+            <ResourceMenu
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onAskAI={onAskAI}
+              onImageCaption={onImageCaption}
+              resourceType={type}
+            />
+
+            {/* Full screen: quiz → QuizOverlay, others → SlideShowOverlay */}
+            <button
+              onClick={() => {
+                if (type === 'quiz') {
+                  setQuizOverlayOpen(true);
+                } else {
+                  open(id);
+                }
+              }}
+              className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-gray-100"
+              title="Full screen"
+            >
+              <Maximize2 className="h-3 w-3 text-gray-500" />
+            </button>
+
+            {onDismiss && (
+              <button
+                onClick={onDismiss}
+                className="h-6 w-6 flex items-center justify-center rounded-full hover:bg-gray-100"
+                title="Dismiss"
+              >
+                <CloseIcon className="h-4 w-4 text-gray-500" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Main content area */}
+        <div className="flex-1 overflow-y-auto resource-body pb-24">
+          <div className="px-6 pt-10">{renderBody()}</div>
         </div>
-      )}
 
-      {/* Main content area */}
-      <div className="flex-1 overflow-y-auto resource-body pb-24">
-        <div className="px-6 pt-10">{renderBody()}</div>
-      </div>
+        {/* Full-width opaque footer for the concept node title */}
+        {!isEditing && (
+          <footer className="absolute bottom-0 left-0 w-full bg-[#F8FBFE] px-4 py-2 text-text-meta text-xs font-medium z-10">
+            {ConceptNodeTitle}
+          </footer>
+        )}
+      </BaseResourceCard>
 
-      {/* Full-width opaque footer for the concept node title */}
-      {!isEditing && (
-        <footer className="absolute bottom-0 left-0 w-full bg-[#F8FBFE] px-4 py-2 text-text-meta text-xs font-medium z-10">
-          {ConceptNodeTitle}
-        </footer>
+      {/* Direct QuizOverlay for fullscreen quiz */}
+      {type === 'quiz' && (
+        <QuizOverlay
+          isOpen={quizOverlayOpen}
+          onClose={() => setQuizOverlayOpen(false)}
+          quizType={parsedQuizType}
+          title={title}
+          quizData={parsedQuizData}
+        />
       )}
-    </BaseResourceCard>
+    </>
   );
 };
 

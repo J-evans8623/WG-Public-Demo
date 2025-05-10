@@ -1,27 +1,36 @@
-/**
- * @file SafeContent.tsx
- * @description Safely renders HTML content by sanitizing it using DOMPurify.
- *              This helps prevent XSS attacks by cleaning any potentially dangerous HTML.
- *
- * @author 
- * @date 
- */
-import React from 'react';
-import DOMPurify from 'dompurify';
+import React, { useEffect, useRef } from 'react'
+import DOMPurify from 'dompurify'
+import 'katex/dist/katex.min.css'
+import renderMathInElement from 'katex/contrib/auto-render'
+
+DOMPurify.setConfig({ ADD_ATTR: ['class'] })
 
 interface SafeContentProps {
-  html: string;
-  className?: string;
+  html: string
+  className?: string
 }
 
 const SafeContent: React.FC<SafeContentProps> = ({ html, className }) => {
-  const sanitizedHTML = DOMPurify.sanitize(html);
-  return (
-    <div
-      className={className}
-      dangerouslySetInnerHTML={{ __html: sanitizedHTML }}
-    />
-  );
-};
+  const containerRef = useRef<HTMLDivElement>(null)
+  const sanitized = DOMPurify.sanitize(html)
 
-export default SafeContent;
+  useEffect(() => {
+    if (!containerRef.current) return
+
+    // 1) Inject the clean HTML exactly once per change
+    containerRef.current.innerHTML = sanitized
+
+    // 2) Run KaTeX’s auto-renderer on that exact same DOM
+    renderMathInElement(containerRef.current, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$',  right: '$',  display: false },
+      ],
+      throwOnError: false,
+    })
+  }, [sanitized])
+
+  return <div ref={containerRef} className={className} />
+}
+
+export default SafeContent

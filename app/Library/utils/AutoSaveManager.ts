@@ -88,31 +88,34 @@ export class AutoSaveManager {
   private setupObservers(): void {
     console.log(`[AutoSaveManager ${this.id}] Setting up observers`);
 
-    // Attach the named handler
-    this.ydoc.on('update', this.handleYdocUpdate);
-
+    // 1) Re-attach your original map observers:
     const nodesMap = this.ydoc.getMap('nodes');
     const resourcesMap = this.ydoc.getMap('resources');
 
-    // Keep observers just for logging purposes but don't trigger saves
     this.nodesObserver = (event: Y.YMapEvent<any>) => {
-      const hasChanges = event.changes.keys.size > 0 || 
-                        event.changes.delta.length > 0;
-      if (hasChanges) {
-        console.log('[AutoSaveManager] Nodes map changed');
-      }
+      const hasChanges = event.changes.keys.size > 0 || event.changes.delta.length > 0;
+      if (hasChanges) console.log('[AutoSaveManager] Nodes map changed');
     };
-
     this.resourcesObserver = (event: Y.YMapEvent<any>) => {
-      const hasChanges = event.changes.keys.size > 0 || 
-                        event.changes.delta.length > 0;
-      if (hasChanges) {
-        console.log('[AutoSaveManager] Resources map changed');
-      }
+      const hasChanges = event.changes.keys.size > 0 || event.changes.delta.length > 0;
+      if (hasChanges) console.log('[AutoSaveManager] Resources map changed');
     };
-
     nodesMap.observe(this.nodesObserver);
     resourcesMap.observe(this.resourcesObserver);
+
+    // 2) Add afterTransaction listener to schedule a save once the
+    //    entire Y.Doc transaction (including metadata updates) is done.
+    this.ydoc.on('afterTransaction', (tx: Y.Transaction) => {
+      const origin = (tx as any).origin;
+      if (
+        origin instanceof WebsocketProvider ||
+        origin === 'autosave' ||
+        (origin && typeof origin === 'object' && origin.type === 'system')
+      ) {
+        return;
+      }
+      this.handleLocalChange();
+    });
   }
 
   /**

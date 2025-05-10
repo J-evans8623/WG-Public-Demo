@@ -9,10 +9,7 @@ import { WebsocketProvider } from 'y-websocket';
 import { Awareness } from 'y-protocols/awareness';
 import { useYDoc, } from '@/app/Library/Context/YDocContext';
 import { ApiContext } from '@/app/src/context/ApiContext';
-//import { //toast } from 'react-//toastify';
-import * as Y from 'yjs';
 import { Descendant } from 'slate';
-import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 
 interface WebSocketManagerContextType {
   connectionState: 'disconnected' | 'connecting' | 'connected' | 'error';

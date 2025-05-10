@@ -10,74 +10,69 @@ import type { ResourceCard } from '@/app/Library/Definitions/Definitions';
 
 /**
  * Returns a merged, ordered list of resources:
- *  1. Any search‐history cards whose node is *not* currently selected.
- *  2. All resources for selected nodes in preorder (Note → Image → Cue → Quiz).
+ *  1. Search‐history cards (whose node is not selected).
+ *  2. All resources for selected nodes in preorder, excluding dismissed cards.
  */
 export function useOrderedResources(): ResourceCard[] {
-  // 1️⃣ Sync raw resources & selected nodes from our resource layer
   const { selectedNodeIds, notes, pictures, cueCards, practiceSheets } = useResourceSync();
   const preorder = usePreorderTraversal();
 
-  // 2️⃣ Search‐history & helper contexts
   const { selectedResultIds } = useSearchContext();
   const { getResourceCard } = useResourceContext();
-  const { getSelectedNodeIds } = useNodeSelection();
+  const { getSelectedNodeIds, isResourceDismissed } = useNodeSelection();
 
   return useMemo(() => {
-    const currentSelectedNodes = getSelectedNodeIds();
+    const currentNodes = getSelectedNodeIds();
 
-    // --- Build the search‐history cards, filtering out those whose nodes are now selected ---
-    const historyCards: ResourceCard[] = selectedResultIds
+    // 1️⃣ History cards, skipping ones from any *currently* selected node
+    const historyCards = selectedResultIds
       .map(id => getResourceCard(id))
       .filter(
-        (card): card is ResourceCard =>
-          Boolean(card) && !currentSelectedNodes.includes(card!.nodeId)
+        (c): c is ResourceCard =>
+          Boolean(c) && !currentNodes.includes(c!.nodeId)
       );
 
-    // --- Build base ordered resources per node in preorder ---
-    // Helper: group resources by nodeId
-    const groupByNode = <T extends ResourceCard>(arr: T[]): Record<string, T[]> =>
-      arr.reduce((acc, r) => {
-        acc[r.nodeId] = acc[r.nodeId] || [];
-        acc[r.nodeId].push(r);
+    // 2️⃣ Group existing resources by node
+    const group = <T extends ResourceCard>(arr: T[]) =>
+      arr.reduce((acc: Record<string, T[]>, r) => {
+        (acc[r.nodeId] ||= []).push(r);
         return acc;
-      }, {} as Record<string, T[]>);
+      }, {});
 
-    const byNote = groupByNode(notes);
-    const byImage = groupByNode(pictures);
-    const byCue = groupByNode(cueCards);
-    const byQuiz = groupByNode(practiceSheets);
+    const byNote = group(notes);
+    const byImage = group(pictures);
+    const byCue = group(cueCards);
+    const byQuiz = group(practiceSheets);
 
-    // Only traverse nodes that are both in preorder and still selected
-    const nodesInOrder = preorder.filter(id => selectedNodeIds.includes(id));
+    // 3️⃣ Build base list in node-preorder, filtering out dismissed
+    const base: ResourceCard[] = [];
+    preorder
+      .filter(id => selectedNodeIds.includes(id))
+      .forEach(nodeId => {
+        [...(byNote[nodeId] || []),
+         ...(byImage[nodeId] || []),
+         ...(byCue[nodeId] || []),
+         ...(byQuiz[nodeId] || [])]
+        .forEach(r => {
+          if (!isResourceDismissed(r.nodeId, r.id)) {
+            base.push(r);
+          }
+        });
+      });
 
-    // Accumulate in type priority
-    const baseOrdered: ResourceCard[] = [];
-    for (const nodeId of nodesInOrder) {
-      (byNote[nodeId] || []).forEach(r => baseOrdered.push(r));
-      (byImage[nodeId] || []).forEach(r => baseOrdered.push(r));
-      (byCue[nodeId] || []).forEach(r => baseOrdered.push(r));
-      (byQuiz[nodeId] || []).forEach(r => baseOrdered.push(r));
-    }
-
-    // --- Merge: history first (deduped), then baseOrdered ---
-    const historyIds = new Set(historyCards.map(r => r.id));
-    const merged: ResourceCard[] = [
+    // 4️⃣ Merge: history first (dedupe), then base
+    const seen = new Set(historyCards.map(r => r.id));
+    return [
       ...historyCards,
-      ...baseOrdered.filter(r => !historyIds.has(r.id)),
+      ...base.filter(r => !seen.has(r.id)),
     ];
-
-    return merged;
-  },
-  [
+  }, [
+    selectedResultIds,
+    notes, pictures, cueCards, practiceSheets,
     preorder,
     selectedNodeIds,
-    notes,
-    pictures,
-    cueCards,
-    practiceSheets,
-    selectedResultIds,
     getResourceCard,
     getSelectedNodeIds,
+    isResourceDismissed,
   ]);
 }

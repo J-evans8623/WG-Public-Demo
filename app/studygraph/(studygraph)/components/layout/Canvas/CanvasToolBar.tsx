@@ -2,10 +2,11 @@
  * @file CanvasToolBar.tsx
  * @description
  *   Renders controls for zooming, multi-select, PDF navigation, quick-jump,
- *   search, and quiz generator.
+ *   search, quiz generator—and now global undo/redo.
  *
  * Responsibilities:
  *   - Expose Search button that opens the global SearchModal.
+ *   - Expose Undo/Redo buttons (disabled when unavailable).
  *   - Maintain existing zoom, multi-select, PDF nav, and quiz-generator logic.
  */
 
@@ -13,7 +14,8 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
-import { MousePointer, Search } from 'lucide-react';
+import { useUndoRedo } from '@/app/studygraph/(studygraph)/components/Context/UndoRedoContext';
+import { MousePointer, Search, Undo2, Redo2 } from 'lucide-react';
 import QuizGeneratorModal from './QuizGeneratorModal';
 
 interface PdfPageInfo {
@@ -40,9 +42,19 @@ const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   pdfPageInfo,
   onPdfGoToPage,
 }) => {
+  // Search
+  const { open } = useSearchContext();
+
+  // Undo/Redo
+  const { undo, redo, canUndo, canRedo } = useUndoRedo();
+
+  // Multi-select
   const { multiSelectEnabled, toggleMultiSelectEnabled } = useNodeSelection();
-  const { open } = useSearchContext();                   // <-- integrate search
+
+  // Quiz modal
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+
+  // Quick-jump input
   const [inputPage, setInputPage] = useState('');
 
   const commonButtonClasses =
@@ -69,6 +81,26 @@ const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
         aria-label="Search"
       >
         <Search className="h-5 w-5" />
+      </button>
+
+      {/* Undo Button */}
+      <button
+        onClick={undo}
+        disabled={!canUndo}
+        className={`${commonButtonClasses} ${!canUndo ? 'opacity-50 cursor-not-allowed' : ''}`}
+        aria-label="Undo"
+      >
+        <Undo2 className="h-5 w-5" />
+      </button>
+
+      {/* Redo Button */}
+      <button
+        onClick={redo}
+        disabled={!canRedo}
+        className={`${commonButtonClasses} ${!canRedo ? 'opacity-50 cursor-not-allowed' : ''}`}
+        aria-label="Redo"
+      >
+        <Redo2 className="h-5 w-5" />
       </button>
 
       {/* Zoom In Button */}

@@ -299,16 +299,26 @@ const saveToFirebase = useCallback(
     const docState = persistDoc();
     const base64Data = Buffer.from(docState).toString('base64');
 
-    // 2) build payload including chatData (if provided)
+    // 2) Read the up-to-date fileName from metadata
+    const metadataMap = ydoc.getMap('metadata');
+    const currentFileName = (metadataMap.get('fileName') as string) || 'Untitled Document';
+
+    // 3) build payload including chatData (if provided)
     const payload: {
       fileName: string;
       docFileID: string;
       fileData: string;
       chatData?: ChatMessage[];
-    } = { fileName, docFileID, fileData: base64Data };
-    if (chatData) payload.chatData = chatData;
+    } = {
+      fileName: currentFileName,
+      docFileID,
+      fileData: base64Data
+    };
+    if (chatData) {
+      payload.chatData = chatData;
+    }
 
-    // 3) POST
+    // 4) POST
     const res = await fetch('/api/document/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -320,7 +330,7 @@ const saveToFirebase = useCallback(
     }
     toast.success('Saved document & chat');
   },
-  [persistDoc, fileName, docFileID]
+  [persistDoc, docFileID, ydoc]
 );
 
   /**

@@ -44,7 +44,7 @@ const NotesTab = forwardRef<NotesTabRef, NotesTabProps>(
     const ordered = useOrderedResources();
     const { createResource, updateResource, deleteResource } = useCardCrudOperations();
     const { getNodeTitle } = useNodesContext();
-    const { getFocusNode } = useNodeSelection();
+    const { getFocusNode, dismissResource } = useNodeSelection();
 
     // ---- Local state ----
     const [pending, setPending] = useState<PendingResource[]>([]);
@@ -256,6 +256,7 @@ const NotesTab = forwardRef<NotesTabRef, NotesTabProps>(
                   onDelete={() => deleteResource(r.nodeId, r.id)}
                   onAskAI={onSwitchToChat}
                   onImageCaption={() => {}}
+                  onDismiss={() => dismissResource(r.nodeId, r.id)}
                 />
               </div>
             ))}
