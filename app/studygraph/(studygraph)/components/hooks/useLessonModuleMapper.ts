@@ -95,8 +95,8 @@ export function useLessonModuleMapper(): void {
             );
             // Update the lesson module with additional metadata.
             updateLessonModule(uniqueId, {
-              topic: singleLessonModule.metadata.main_topic.title,
-              summary: singleLessonModule.metadata.summary,
+              topic: singleLessonModule.main_topic.title,
+              summary: undefined,
             });
           } catch (error) {
             console.error(`Error processing lesson module for id ${uniqueId}:`, error);

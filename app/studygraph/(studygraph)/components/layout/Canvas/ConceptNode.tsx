@@ -1,5 +1,3 @@
-// ConceptNode.tsx
-
 import React, {
   memo,
   useCallback,
@@ -18,11 +16,13 @@ import { setGetLayout } from '@/app/Library/Context/LayoutActions';
 import { layoutConfig } from '@/app/Library/Definitions/Definitions';
 import { createPortal } from 'react-dom';
 import TopicGeneratorModal from './TopicGeneratorModal';
+import '@/app/studygraph/customTooltip.css'
+import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 
 const GENERAL_SELECTED_COLOR = '#3B82F6';
 const CARET_COLOR = '#FF6500';
 const TARGET_COLOR = '#28A745';
-const OUTLINE_COLOR = '#6e6e6e';
+const OUTLINE_COLOR = '#9e9e9e';
 
 interface ConceptNodeProps {
   node: NodeType;
@@ -40,10 +40,12 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
     mergeSource,
     initiateMerge,
     completeMerge,
+    StatusMessage,
     setStatusMessage,
   } = useNodeSelection();
   const { updateNodeTitle, createNewNode, deleteNode, transferNode } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
+  const { open } = useSlideShow();
 
   const { title, depth, x, y, childrenNodeIds, isRoot } = node;
   const [isEditing, setIsEditing] = useState(false);
@@ -59,31 +61,33 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   // Topic generator modal
   const [isTopicGeneratorOpen, setIsTopicGeneratorOpen] = useState(false);
 
+  // Tooltip state
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const nodeRef = React.useRef<HTMLDivElement>(null);
+
   // Selection handlers
   const handleSelect = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
       const isMulti = multiSelectEnabled || e.ctrlKey || e.metaKey;
+      const openSlide = e.altKey
       if (mergeSource !== null && mergeSource !== node.id) {
         completeMerge(node.id, transferNode);
         layoutDispatch(setGetLayout(true));
         setStatusMessage('');
       } else {
-        if (isMulti) multiSelect(node.id, true);
-        else singleSelect(node.id);
+        if (isMulti) {
+          multiSelect(node.id, true); 
+          if (openSlide) open(node.id, true)
+        }
+        else {
+          singleSelect(node.id)
+          if (openSlide) open(node.id, true)
+        };
       }
     },
-    [
-      node.id,
-      mergeSource,
-      multiSelectEnabled,
-      multiSelect,
-      singleSelect,
-      completeMerge,
-      transferNode,
-      layoutDispatch,
-      setStatusMessage,
-    ]
+    [multiSelectEnabled, mergeSource, node.id, completeMerge, transferNode, layoutDispatch, setStatusMessage, multiSelect, open, singleSelect]
   );
 
   const handleTitleDoubleClick = useCallback((e: React.MouseEvent) => {
@@ -116,6 +120,28 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
     },
     [finishEditing, title]
   );
+
+  // Tooltip handlers
+  const handleMouseEnter = useCallback(() => {
+    // Set the status message first
+    if (mergeSource && mergeSource !== node.id) setStatusMessage('Move here');
+    else if (!mergeSource) setStatusMessage(title);
+    
+    // Then show tooltip if we have a node reference
+    if (nodeRef.current) {
+      const rect = nodeRef.current.getBoundingClientRect();
+      setTooltipPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top - 75 // Position above the node
+      });
+      setShowTooltip(true);
+    }
+  }, [mergeSource, node.id, title, setStatusMessage]);
+
+  const handleMouseLeave = useCallback(() => {
+    setShowTooltip(false);
+    setStatusMessage('');
+  }, [setStatusMessage]);
 
   // Node operations
   const handleMergeInitiate = useCallback(
@@ -219,13 +245,10 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   return (
     <>
       <div
-        ref={isRoot ? ref : null}
+        ref={nodeRef}
         onClick={handleSelect}
-        onMouseEnter={() => {
-          if (mergeSource && mergeSource !== node.id) setStatusMessage('Move here');
-          else if (!mergeSource) setStatusMessage(title);
-        }}
-        onMouseLeave={() => setStatusMessage('')}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className={`relative flex flex-col items-center cursor-pointer group rounded-md shadow-md transition-all duration-200 ${
           isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id
             ? 'bg-blue-50 shadow-lg'
@@ -286,16 +309,15 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
             />
           ) : (
             <p
-              className="text-center font-semibold text-gray-800 line-clamp-3"
+              className="text-center font-bold line-clamp-2 text-gray-600"
               onDoubleClick={handleTitleDoubleClick}
-              title="Double-click to edit title"
             >
               {title}
             </p>
           )}
         </div>
 
-        {/* Hover “+” menu trigger */}
+        {/* Hover "+" menu trigger */}
         <div
           className="group/menu absolute bottom-2 right-2"
           onMouseEnter={handleMenuEnter}
@@ -383,6 +405,31 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
           )}
       </div>
 
+      {/* Tooltip rendered via portal */}
+      {showTooltip &&
+        createPortal(
+          <div
+            className="fixed bg-gray-800 text-white px-3 py-2 rounded-md text-sm shadow-lg z-50 pointer-events-none line-clamp"
+            style={{
+              left: `${tooltipPosition.x}px`,
+              top: `${tooltipPosition.y}px`,
+              transform: 'translateX(-50%)',
+              maxWidth: '900px',
+              maxHeight: '75px',
+              lineHeight: '1.4'
+            }}
+          >
+            <div className="font-semibold mb-1">
+              {mergeSource && mergeSource !== node.id ? 'Move here' : title}
+            </div>
+            <div className="text-xs text-gray-300">
+                <div>click to preview</div>
+                <div>alt + click to view slide</div>
+              </div>
+          </div>,
+          document.body
+        )}
+
       {/* Topic generator modal */}
       {isTopicGeneratorOpen &&
         createPortal(
@@ -402,9 +449,9 @@ ConceptNode.displayName = 'ConceptNode';
 
 /**
  * Custom props‐equality for React.memo:
- *   Now includes childrenNodeIds (length and content) so that when a node’s
+ *   Now includes childrenNodeIds (length and content) so that when a node's
  *   children are removed (i.e. it becomes a leaf), the component re-renders
- *   and its “delete” logic updates accordingly.
+ *   and its "delete" logic updates accordingly.
  */
 export default memo(
   ConceptNode,

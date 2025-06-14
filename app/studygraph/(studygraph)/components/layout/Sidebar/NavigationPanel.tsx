@@ -1,3 +1,5 @@
+// NavigationPanel.tsx
+
 /***************************************************************************************
  * @file NavigationPanel.tsx
  * @description
@@ -64,7 +66,6 @@ interface NavigationPanelProps {
   onSetView: (view: TopLevelView) => void;
   onExpandedChange?: (expanded: boolean) => void;
 }
-
 /**
  * @function NavigationPanel
  * @description

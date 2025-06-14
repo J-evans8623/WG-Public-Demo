@@ -1,0 +1,135 @@
+/* Top Tooltip (Fixed Height, Dynamic Width) */
+.top-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2c3e50;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.85em;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 100;
+    margin-bottom: 10px;
+
+    /* ↓↓↓ NEW ↓↓↓ */
+    /* fixed height to accomodate one title line + two shortcut lines */
+    height: 25px;              
+
+    /* let width grow to fit content, but never beyond the viewport */
+    width: fit-content;          
+    max-width: 90vw;             
+
+    /* prevent vertical overflow and allow horizontal scroll if needed */
+    overflow-x: auto;            
+    overflow-y: hidden;          
+
+    /* keep the title on one line so height never grows */
+    white-space: nowrap;         
+    line-height: 1.4;
+    text-align: left;
+}
+
+/* ensure the title itself never wraps */
+.top-tooltip .title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: block;
+    white-space: nowrap;
+}
+
+/* arrow stays centered */
+.top-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #2c3e50;
+}
+
+/* (optional) apply same treatment to bottom tooltip */
+.bottom-tooltip {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #2c3e50;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.85em;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 100;
+    margin-left: 15px;
+
+    /* fixed height + dynamic width */
+    height: 25px;
+    width: fit-content;
+    max-width: 90vw;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.bottom-tooltip .title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: block;
+    white-space: nowrap;
+}
+
+.bottom-tooltip::after {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 6px solid transparent;
+    border-right-color: #2c3e50;
+}
+
+/* Hover states to show tooltips */
+.node:hover .top-tooltip,
+.node:hover .bottom-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Responsive adjustments unchanged… */
+@media (max-width: 768px) {
+    .bottom-tooltip {
+        left: 50%;
+        top: 100%;
+        transform: translateX(-50%);
+        margin-left: 0;
+        margin-top: 15px;
+    }
+    .bottom-tooltip::after {
+        right: auto;
+        top: auto;
+        left: 50%;
+        bottom: 100%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-bottom-color: #2c3e50;
+        border-right-color: transparent;
+    }
+}
+
+/* one-line clamp */
+.line-clamp {
+  /* prevent wrapping */
+  white-space: nowrap;
+  /* hide anything past the width */
+  overflow: hidden;
+  /* show “…” when it’s too long */
+  text-overflow: ellipsis;
+}

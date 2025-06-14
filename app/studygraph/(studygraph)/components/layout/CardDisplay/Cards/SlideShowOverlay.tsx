@@ -17,6 +17,7 @@ import './slideshow.css';
  * - Floats Prev/Next arrows entirely outside the card, with tooltips
  * - Provides an "Ask Assistant" capsule button at bottom-right
  * - Displays a spinner overlay when awaiting AI
+ * - Now also shows a small “Slide X of Y” pill with an editable box for X
  */
 const SlideShowOverlay: React.FC = () => {
   const {
@@ -27,6 +28,7 @@ const SlideShowOverlay: React.FC = () => {
     close,
     gotoNext,
     gotoPrev,
+    open,          // <-- we’ll reuse `open(resourceId)` to jump to an arbitrary slide
   } = useSlideShow();
 
   const [cueFlipped, setCueFlipped] = useState(false);
@@ -34,13 +36,18 @@ const SlideShowOverlay: React.FC = () => {
   const [askLoading, setAskLoading] = useState(false);
   const prevAskLoading = useRef(false);
 
-  // Reset state on slide change
+  // Local state to hold the editable current-slide number as string
+  const [jumpTo, setJumpTo] = useState((currentIndex + 1).toString());
+
+  // Whenever currentIndex changes externally, sync jumpTo
   useEffect(() => {
-    setCueFlipped(false);
+    setJumpTo((currentIndex + 1).toString());
+    // and collapse any “Ask Assistant” panel if open
     setAskOpen(false);
+    setCueFlipped(false);
   }, [currentIndex]);
 
-  // After AI response, advance to the new slide
+  // Advance to the new slide if AI just finished
   useEffect(() => {
     if (prevAskLoading.current && !askLoading && !askOpen) {
       gotoNext();
@@ -48,7 +55,7 @@ const SlideShowOverlay: React.FC = () => {
     prevAskLoading.current = askLoading;
   }, [askLoading, askOpen, gotoNext]);
 
-  // Keyboard navigation (disabled while assistant open/spinning)
+  // Keyboard navigation (disabled while askOpen/askLoading)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (askOpen || askLoading) return;
@@ -63,11 +70,11 @@ const SlideShowOverlay: React.FC = () => {
 
   if (!isOpen || !currentSlide) return null;
 
-  // Titles for tooltips
+  // For tooltips on prev/next arrows:
   const prevTitle = slides[currentIndex - 1]?.title || 'Start of deck';
   const nextTitle = slides[currentIndex + 1]?.title || 'End of deck';
 
-  // Main slide renderer
+  // Main slide‐type renderer
   const renderSlide = () => {
     switch (currentSlide.type) {
       case 'note':
@@ -83,16 +90,22 @@ const SlideShowOverlay: React.FC = () => {
         );
       case 'cueCard':
         return (
+          <div className="cuecard-container">
           <CueCard
             title={currentSlide.title}
             content={String(currentSlide.content)}
             flipped={cueFlipped}
           />
+          </div>
         );
       case 'practiceSheet': {
         let quizData: any = currentSlide.content;
         if (typeof quizData === 'string') {
-          try { quizData = JSON.parse(quizData); } catch {}
+          try {
+            quizData = JSON.parse(quizData);
+          } catch {
+            /* ignore JSON errors */
+          }
         }
         return <QuizCard title={currentSlide.title} content={quizData} />;
       }
@@ -101,35 +114,36 @@ const SlideShowOverlay: React.FC = () => {
     }
   };
 
-  // Clicking the body flips a cue card
+  // Clicking the slide body flips a cue card
   const handleMainClick = currentSlide.type === 'cueCard'
     ? () => setCueFlipped(f => !f)
     : undefined;
 
+  // Called when user presses Enter or blurs the input
+  const maybeJump = () => {
+    const num = parseInt(jumpTo.trim(), 10);
+    if (!isNaN(num) && num >= 1 && num <= slides.length) {
+      // Fetch the resource ID at index (num−1), then call open(...)
+      const targetResource = slides[num - 1];
+      open(targetResource.id, false);
+    } else {
+      // If invalid, just revert to the actual current index
+      setJumpTo((currentIndex + 1).toString());
+    }
+  };
+
   return (
     <>
-      {/* Full-screen dimmed backdrop */}
+      {/* Full‐screen dimmed backdrop */}
       <div className="slideshow-backdrop" onClick={close} />
 
       {/* Centered slide dialog */}
       <div className="slideshow-dialog" role="dialog" aria-modal="true">
         <header className="slideshow-header">
-          <span className="slideshow-badge">
-            {{
-              note: 'Note Card',
-              picture: 'Image Card',
-              cueCard: 'Cue Card',
-              practiceSheet: 'Quiz',
-            }[currentSlide.type]}
-          </span>
           <h2 className="slideshow-title">
             {(currentSlide as any).conceptNodeTitle || currentSlide.title}
           </h2>
-          <button
-            className="slideshow-close"
-            onClick={close}
-            aria-label="Close"
-          >
+          <button className="slideshow-close" onClick={close} aria-label="Close">
             <X size={20} />
           </button>
         </header>
@@ -140,12 +154,14 @@ const SlideShowOverlay: React.FC = () => {
           title={currentSlide.type === 'cueCard' ? 'Click to flip card' : undefined}
         >
           {askLoading
-            ? <div className="slideshow-loading-container"><div className="slideshow-spinner" /></div>
+            ? <div className="slideshow-loading-container">
+                <div className="slideshow-spinner" />
+              </div>
             : renderSlide()
           }
         </main>
 
-        {/* Floating Prev arrow (outside width) */}
+        {/* Floating Prev arrow */}
         {!askLoading && !askOpen && currentIndex > 0 && (
           <button
             className="slideshow-nav-arrow prev"
@@ -166,7 +182,7 @@ const SlideShowOverlay: React.FC = () => {
           </button>
         )}
 
-        {/* Ask-Assistant capsule button */}
+        {/* Ask-Assistant button */}
         <button
           className="slideshow-ask-capsule"
           onClick={() => setAskOpen(true)}
@@ -174,9 +190,27 @@ const SlideShowOverlay: React.FC = () => {
         >
           Ask Assistant
         </button>
+
+        {/* ─── SLIDE COUNT (Bottom-Center Pill) ─── */}
+        <div className="slideshow-counter">
+          {/* Editable “current slide” box */}
+          <input
+            className="slideshow-counter-input"
+            type="text"
+            value={jumpTo}
+            onChange={(e) => setJumpTo(e.target.value)}
+            onBlur={maybeJump}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                maybeJump();
+              }
+            }}
+          />
+          <span>of {slides.length}</span>
+        </div>
       </div>
 
-      {/* Slide-in “Ask Assistant” panel */}
+      {/* “Ask Assistant” slide-in panel */}
       {askOpen && (
         <AskAssistantPanel
           onClose={() => setAskOpen(false)}

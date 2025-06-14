@@ -1,0 +1,158 @@
+/**
+ * @file CanvasToolbar.css
+ * @description
+ *   Styles for TopToolbar and BottomToolbar components.
+ *
+ * Responsibilities:
+ *   - Position .top-toolbar at the top-right of the parent container.
+ *   - Style the “More options” dropdown (.menu-dropdown) as a vertical list of .menu-item.
+ *   - Ensure .menu-item lays out icon + label, has hover/focus styling, and a disabled state.
+ *   - Position .bottom-controls at the bottom-center of the parent container.
+ *   - Style the pill-shaped container (.bottom-controls) with blurred background,
+ *     rounded corners, padding, and subtle shadow.
+ *   - Define .section-divider, .control-display, .control-section, .zoom-controls.
+ *   - Provide focus-outline styles for interactive elements.
+ */
+
+/* -------------------------------------------------------------------------- */
+/*                                 Top Toolbar                                 */
+/* -------------------------------------------------------------------------- */
+.top-toolbar {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 8px;
+  z-index: 100;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               Dropdown Container                            */
+/* -------------------------------------------------------------------------- */
+/* Hidden by default (visibility: hidden + opacity: 0) */
+.menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  min-width: 160px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  z-index: 110;
+}
+
+/* When “show” class is applied, immediately make the dropdown visible */
+.menu-dropdown.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               Menu Item                                    */
+/* -------------------------------------------------------------------------- */
+/* Each dropdown button: icon + label in a row */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: #444;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+/* Hover/focus state for each item */
+.menu-item:hover,
+.menu-item:focus {
+  background: #f5f5f5;
+  outline: none;
+}
+
+/* Disabled state */
+.menu-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Icon inside menu item */
+.menu-item svg {
+  flex-shrink: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              Bottom Toolbar                                */
+/* -------------------------------------------------------------------------- */
+/* Container for bottom-center toolbar */
+.bottom-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 24px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+}
+
+/* Vertical divider between sections */
+.section-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Shared display style for “x / y” or “{zoom}%” text */
+.control-display {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+  min-width: 40px;
+  text-align: center;
+  user-select: none;
+}
+
+/* Container for each group of controls (nav, jump, zoom) */
+.control-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Zoom controls reuse .control-section layout; no extra divider needed */
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                         Focus Outline for Accessibility                     */
+/* -------------------------------------------------------------------------- */
+/* Ensure that buttons receive a visible outline when focused via keyboard */
+.toolbar-btn:focus,
+.btn-jump:focus,
+.menu-item:focus {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
+}

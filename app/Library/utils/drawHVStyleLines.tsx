@@ -8,7 +8,7 @@ export function drawHVStyleLines(
   nodes: Map<string, ConceptNode>,
   subtrees: Map<string, SubtreeData>,
   lineWidth: number,
-  strokeColor: string = '#6e6e6e' // Default gray color
+  strokeColor: string = '#9e9e9e' // Default gray color
 ): JSX.Element[] {
   const lineElements: JSX.Element[] = [];
 

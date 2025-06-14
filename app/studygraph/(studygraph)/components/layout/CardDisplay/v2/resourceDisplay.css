@@ -1,0 +1,215 @@
+/* ==========================================================================
+   resourceDisplay.css
+
+   1) Force the custom scrollbar style for `.slide-content` to remain stable,
+      even when hovering over the card.
+   2) (Optional) You can hide the scrollbar entirely here if you prefer, but
+      in this example we'll keep the thin custom scroll thumb visible.
+   ========================================================================== */
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* 1) RESET MARGINS/PADDING & BOX-SIZING FOR THIS MODULE ONLY                  */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+
+.edit-form-tall {
+  height: 100%;
+}
+
+.resource-display * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* 2) SLIDE (CARD) CONTAINER                                                    */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+.slide {
+  position: relative;                              /* for the top‐right buttons */
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(102, 126, 234, 0.2);      /* slightly stronger periwinkle */
+  box-shadow: 0 2px 12px rgba(102, 126, 234, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;                                /* clip children to the fixed size */
+  margin-bottom: 16px;
+  padding: 0;                                      /* inner padding handled by .slide-content */
+}
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* 3) FIXED HEIGHT FOR VIEW‐ONLY SLIDES (24rem = 384px)                         */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+.fixed-height {
+  height: 24rem; /* 384px */
+}
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* 4) SLIDE‐CONTENT (BODY AREA)                                                  */
+/*    - Always use the custom scrollbar rules below (never revert to default).   */
+/*    - For non‐cuecard slides: 24px padding.                                     */
+/*    - For cuecard slides: 0 padding (so centering is exact).                    */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+.slide-content {
+  flex: 1;                     /* fill the vertical area */
+  overflow-y: auto;            /* scroll when content overflows */
+  position: relative;
+  color: #333;
+  font-size: 14px;
+  line-height: 1.6;
+  scrollbar-width: thin;                                      /* Firefox: always thin */
+  scrollbar-color: rgba(102, 126, 234, 0.2) transparent;      /* Firefox: custom thumb & transparent track */
+}
+
+/* 4a) Default padding for all non‐cuecard slides */
+.slide-content:not(.cuecard-content) {
+  padding: 24px;
+}
+
+/* 4b) No padding for cuecard, to allow true centering */
+.slide-content.cuecard-content {
+  padding: 0;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* 5) CUSTOM SCROLLBAR FOR .slide-content (WebKit / Blink)                       */
+/*    The use of `!important` ensures that even on hover or focus the browser   */
+/*    never “reverts” to a native scrollbar.                                     */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+.slide-content::-webkit-scrollbar {
+  width: 4px !important;                   /* always 4px, never bigger */
+  background: transparent !important;      /* no visible track */
+}
+
+.slide-content::-webkit-scrollbar-track {
+  background: transparent !important;      /* keep track invisible */
+}
+
+.slide-content::-webkit-scrollbar-thumb {
+  background-color: rgba(102, 126, 234, 0.2) !important; /* custom periwinkle at 20% */
+  border-radius: 2px !important;
+}
+
+.slide-content::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(102, 126, 234, 0.3) !important; /* slightly darker on hover */
+}
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* 6) TOP‐RIGHT ACTIONS (ResourceMenu, Full‐Screen, Dismiss)                    */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+.actions-wrapper {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* 7) ICON BUTTONS (⋯, ⤢, ✕)                                                      */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+.action-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: none;
+  background: #f5f5f5;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #666;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: #e9ecef;
+  color: #333;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* 8) SLIDE‐CONTENT ELEMENTS (HEADINGS, PARAGRAPHS, LISTS, ETC.)                 */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+.slide-content p {
+  margin-bottom: 12px;
+}
+
+.slide-content h3 {
+  color: #667eea;
+  font-size: 16px;
+  margin: 16px 0 8px 0;
+}
+
+.slide-content ul {
+  margin: 12px 0;
+  padding-left: 16px;
+}
+
+.slide-content li {
+  margin-bottom: 6px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* 9) SLIDE FOOTER (BOTTOM LINE + META TEXT)                                     */
+/*    - Larger font & darker color for legibility                                 */
+/*    - No overlay/fade should cover it                                          */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+.slide-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  padding-left: 12px;            /* a bit of left padding so text never hugs the edge */
+  border-top: 1px solid #f0f0f0;
+  font-size: 14px;
+  color: #333;
+  text-align: left;
+  background: transparent;
+  z-index: 15;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* 10) VERTICAL & HORIZONTAL CENTERING FOR CUECARD SLIDE                          */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+.cuecard-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* 11) OPTIONAL: “Add Card” BUTTON (If used)                                     */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+.add-btn {
+  background: rgba(51, 51, 51, 0.8);
+  color: white;
+  border: none;
+  padding: 12px 18px;
+  border-radius: 16px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(10px);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.add-btn:hover {
+  background: rgba(51, 51, 51, 0.9);
+  transform: translateY(-1px);
+}

@@ -55,7 +55,8 @@ if (!admin.apps.length) {
   }
 }
 
-const firestore = admin.firestore();
+export const firestore = admin.firestore();
+export const auth = admin.auth();
 const bucket = admin.storage().bucket(); // Firebase Storage bucket
 
 /**

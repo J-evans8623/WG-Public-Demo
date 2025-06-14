@@ -1,0 +1,63 @@
+/* EditTab.css
+ *
+ * Ensures that:
+ *   1) The BaseResourceCard (“slide” wrapper) always fills 100% of the parent’s height.
+ *   2) Only the inner form area scrolls when the user types/pastes a lot of text.
+ *   3) A thin, custom scrollbar is always used in the form area (never reverts to the default).
+ */
+
+/* ───────────────────────────────────────────────────────────────────────────── */
+/* 1) FORCE THE SLIDE (BaseResourceCard) TO FILL ITS PARENT’S HEIGHT              */
+/* ───────────────────────────────────────────────────────────────────────────── */
+
+.edit-form-tall {
+  /* Must be exactly 100% of the container handed down by CardDisplay.content */
+  height: 100%;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────── */
+/* 2) INNER FORM CONTAINER (“resource-body”): flex fill & vertical scrolling     */
+/* ───────────────────────────────────────────────────────────────────────────── */
+
+.resource-body {
+  /* Fill the remaining vertical space of the parent .slide wrapper */
+  flex: 1;
+
+  /* When content overflows, allow vertical scroll inside this box only */
+  overflow-y: auto;
+
+  /* Always use a thin, custom scrollbar (never revert to native on hover) */
+  scrollbar-width: thin;                       /* Firefox: always thin */
+  scrollbar-color: rgba(102, 126, 234, 0.2) transparent; /* Firefox: colored thumb */
+}
+
+.resource-body::-webkit-scrollbar {
+  width: 4px !important;         /* Always 4px on WebKit/Blink */
+  background: transparent !important;
+}
+
+.resource-body::-webkit-scrollbar-track {
+  background: transparent !important; /* Keep track invisible */
+}
+
+.resource-body::-webkit-scrollbar-thumb {
+  background-color: rgba(102, 126, 234, 0.2) !important; /* Periwinkle @20% */
+  border-radius: 2px !important;
+}
+
+.resource-body::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(102, 126, 234, 0.3) !important; /* Darker on hover */
+}
+
+/* ───────────────────────────────────────────────────────────────────────────── */
+/* 3) OPTIONAL: RESET ANY INHERITED MARGINS/PADDING (SAFE FOR THIS MODULE)      */
+/* ───────────────────────────────────────────────────────────────────────────── */
+
+/* We do not expect EditTab to introduce any extra margin/padding,
+   but in case BaseResourceCard has some global, we reset it here */
+
+.edit-form-tall * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}

@@ -2,7 +2,7 @@
 import { 
   ColorThemeActionType, 
   ColorThemeAction, 
-  ColorTheme 
+  ColorTheme ,
 } from '@/app/Library/Definitions/Definitions';
 
 export const setColorTheme = (colorTheme: ColorTheme): ColorThemeAction => ({

@@ -18,13 +18,14 @@ import multer from 'multer';
 import connectDB from '@/app/src/config/db';
 import { convertFileToPdf } from '@/doc-preprocessing-service/gotenberg-service-client';
 import { extractTextFromFileService } from '@/doc-preprocessing-service/text-extraction-client';
-import { generateLessonFromSegment } from '@/app/src/services/TextPreprocessing/LessonModuleServiceV2';
+import { generateLessonFromSegment } from '@/app/src/services/TextPreprocessing/LessonModuleServiceV6';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import { v4 as uuidv4 } from 'uuid';
+import pdfParse from 'pdf-parse';
 
 /**
  * NextApiRequestWithFile
- * Extends NextApiRequest to include a `file` property (added by Multer).
+ * Extends NextApiRequest to include a file property (added by Multer).
  */
 interface NextApiRequestWithFile extends NextApiRequest {
   file?: Express.Multer.File;
@@ -42,6 +43,11 @@ interface StoredFile {
   type: 'pdf';
   title: string;
   size: number;
+}
+
+interface moduleData {
+  modules: string[];
+  moduleSize : number;
 }
 
 // Configure Multer for file uploads.
@@ -115,7 +121,11 @@ async function processFile(file: Buffer, mimeType: string): Promise<ProcessedFil
  * storeFile
  * Stores the processed PDF file in GridFS and returns a StoredFile object.
  */
-async function storeFile(processed: ProcessedFile, originalName: string, size: number): Promise<StoredFile> {
+async function storeFile(
+  processed: ProcessedFile,
+  originalName: string,
+  size: number
+): Promise<StoredFile> {
   const filename = `${Date.now()}-${originalName}`;
   const uploadStream = bucket.openUploadStream(filename, {
     contentType: 'application/pdf',
@@ -133,44 +143,48 @@ async function storeFile(processed: ProcessedFile, originalName: string, size: n
     url: `/api/FileAssets?id=${uploadStream.id}`,
     type: 'pdf',
     title: originalName,
-    size
+    size,
   };
 }
 
 /**
- * splitTextIntoSegments
+ * splitTextIntoModules
  * Splits the extracted text into up to five segments using a heuristic.
  */
-function splitTextIntoSegments(fullText: string): string[] {
-  const pageCount = fullText.length / 2500;
-  const chapterEstimate = pageCount / 18;
-  const numModules = Math.min(Math.round(chapterEstimate) || 1, 5);
+function splitTextIntoModules(fullText: string, pgCount: number): moduleData {
+    const chapterEstimate = Math.round(pgCount /20);
+  const numModules = Math.min( chapterEstimate || 1, 5);
+  const modSize = (pgCount/ numModules);
 
   const totalLength = fullText.length;
   const segmentLength = Math.floor(totalLength / numModules);
-  const segments: string[] = [];
-  console.log("SplitTextIntoSegments Debug:");
-  console.log("fullText.length:", totalLength);
-  console.log("pageCount (fullText.length / 2500):", pageCount);
-  console.log("chapterEstimate (pageCount / 30):", chapterEstimate);
-  console.log("numModules (min(round(chapterEstimate) || 1, 5)):", numModules);
-  console.log("segmentLength (floor(totalLength / numModules)):", segmentLength);
-  console.log(`GenerateLesson.ts issue 12#  The segment length was ${segmentLength}`);
-  let start = 0;
 
+  console.log('4560-splitTextIntoModules Debug:');
+  console.log('4560-fullText.length:', totalLength);
+  console.log('4560-pageCount (fullText.length / 2500):', pgCount);
+  console.log('4560-chapterEstimate (pageCount / 20):', chapterEstimate);
+  console.log('4560-numModules (min(round(chapterEstimate) || 1, 5)):', numModules);
+  console.log(` The module size is ${modSize}`)
+
+  const segments: string[] = [];
+  let start = 0;
   for (let i = 0; i < numModules; i++) {
     const end = start + segmentLength;
     segments.push(fullText.substring(start, end));
     start += segmentLength;
   }
-  return segments;
+  return {modules: segments, moduleSize: modSize};
 }
 
 /**
  * runMiddleware
  * Wraps middleware execution in a Promise for async/await usage.
  */
-function runMiddleware(req: NextApiRequestWithFile, res: NextApiResponse, fn: any): Promise<void> {
+function runMiddleware(
+  req: NextApiRequestWithFile,
+  res: NextApiResponse,
+  fn: any
+): Promise<void> {
   return new Promise((resolve, reject) => {
     fn(req, res, (result: unknown) => {
       if (result instanceof Error) {
@@ -186,7 +200,10 @@ function runMiddleware(req: NextApiRequestWithFile, res: NextApiResponse, fn: an
  * Main API handler for lesson generation.
  * SECURITY: Validates session via authenticateRequest before processing.
  */
-export default async function handler(req: NextApiRequestWithFile, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequestWithFile,
+  res: NextApiResponse
+) {
   try {
     // Only allow POST requests.
     if (req.method !== 'POST') {
@@ -196,7 +213,7 @@ export default async function handler(req: NextApiRequestWithFile, res: NextApiR
 
     // --- Security Layer: Authenticate the incoming request ---
     const sessionData = await authenticateRequest(req, res);
-    if (!sessionData) return; // If authentication fails, the helper handles the response.
+    if (!sessionData) return;
     // -------------------------------------------------------------
 
     // Initialize GridFS bucket if not already initialized.
@@ -218,7 +235,9 @@ export default async function handler(req: NextApiRequestWithFile, res: NextApiR
     if (processed.type === 'pdf') {
       finalPDFBuffer = processed.buffer;
     } else {
+      console.time(`8640 timer-converting to pdf`)
       finalPDFBuffer = await convertFileToPdf(processed.buffer, processed.type);
+      console.timeEnd(`8640 timer-converting to pdf`)
     }
     processed.buffer = finalPDFBuffer;
     processed.type = 'pdf';
@@ -234,23 +253,35 @@ export default async function handler(req: NextApiRequestWithFile, res: NextApiR
     } else {
       const ext = req.file.originalname.split('.').pop()?.toLowerCase();
       const fileExtension = ext ? `.${ext}` : req.file.mimetype;
+      console.time(`8640-extracting text`)  
       extractedText = await extractTextFromFileService(req.file.buffer, fileExtension);
+      console.log(`3333 Page marker test ${JSON.stringify(extractedText)}`);
+      console.timeEnd(`8640-extracting text`)
     }
 
     if (!extractedText.trim()) {
       return res.status(400).json({ error: 'No text could be extracted from the file.' });
     }
 
-    // Step 5: Split the text into segments.
-    const textSegments = splitTextIntoSegments(extractedText);
+
+
+    // Step 4.5: Count pages & inject page markers
+    const pdfData = await pdfParse(finalPDFBuffer);
+    const pageCount = pdfData.numpages;
+  
+    // Step 5: Split the text into segments, each segment will be turned into a lesson module.
+    const textSegments = splitTextIntoModules(extractedText, pageCount);
+    const moduleSize = textSegments.moduleSize;
     console.log(`GenerateLesson.ts issue 12# Here are the text segments :  ${textSegments}`);
 
-    // Step 6: Retrieve documentID from the request body.
+    // Step 6: Retrieve documentID and generate a new fileId.
     const documentID = req.body.fileID;
-    const fileId =  uuidv4(); 
+    const fileId = uuidv4();
 
     // Step 7: Generate lesson modules concurrently.
-    const lessonPromises = textSegments.map(segment => generateLessonFromSegment(segment, documentID, fileId));
+    const lessonPromises = textSegments.modules.map((segment) =>
+      generateLessonFromSegment(segment, documentID, fileId, moduleSize)
+    );
     const generatedLessons = await Promise.all(lessonPromises);
 
     // Step 8: Assemble the final response.
@@ -275,6 +306,6 @@ export default async function handler(req: NextApiRequestWithFile, res: NextApiR
  */
 export const config = {
   api: {
-    bodyParser: false
-  }
+    bodyParser: false,
+  },
 };

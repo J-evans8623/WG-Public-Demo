@@ -1,0 +1,150 @@
+/* ChatTab.css
+ *
+ * 1) chat-panel: vertical flex to hold history + input.
+ * 2) chat-content: scrollable area for bubbles.
+ * 3) .message.user  &  .message.assistant: bubble styles.
+ * 4) chat-input-container: bottom area with optional attachment + textarea + button.
+ * 5) attachmentWrapper: styled preview bubble.
+ */
+
+/* Let the chat-panel fill its parent, but position relative so input can stick to bottom */
+.chat-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  position: relative; /* so we can absolutely position the input area */
+}
+
+/* The scrolling region for chat bubbles */
+.chat-content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 20px;
+  /* Reserve space at bottom so content doesn’t scroll under the input */
+  padding-bottom: 76px; /* 12px (input top padding) + ~32px (textarea height) + 32px (button height / buffer) = ~76px */
+}
+
+/* USER message bubble */
+.message.user {
+  padding: 14px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 85%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 6px;
+}
+
+/* ASSISTANT message bubble */
+.message.assistant {
+  padding: 14px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 85%;
+  background: rgba(102, 126, 234, 0.08);
+  color: #333;
+  align-self: flex-start;
+  border-bottom-left-radius: 6px;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+/* Input area is now forced to the bottom */
+.chat-input-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  padding: 12px 20px;
+  box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.05); /* subtle top‐shadow */
+}
+
+/* Row containing textarea + “Ask” button */
+.input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+/* Adds small margin if attachment preview is present */
+.input-row.with-attachment {
+  margin-top: 8px;
+}
+
+/* The textarea style */
+.chat-input {
+  flex: 1;
+  background: rgba(102, 126, 234, 0.05);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 20px;
+  padding: 12px 18px;
+  font-size: 14px;
+  color: #333;
+  outline: none;
+  resize: none;
+  min-height: 44px;
+  max-height: 120px;
+}
+
+/* Placeholder color */
+.chat-input::placeholder {
+  color: #999;
+}
+
+/* Send button style */
+.send-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  min-width: 60px;
+  transition: all 0.2s ease;
+}
+.send-btn:hover {
+  opacity: 0.9;
+}
+
+/* Attachment preview bubble */
+.attachmentWrapper {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  background-color: #f9fafb;       /* bg-gray-50 */
+  border: 1px solid #e5e7eb;       /* border-gray-200 */
+  border-radius: 0.375rem;         /* rounded */
+  padding: 0.75rem;                /* p-3 */
+  gap: 0.5rem;                     /* space between text & cancel */
+}
+
+.attachmentPreview {
+  margin: 0;
+  white-space: pre-wrap;           /* preserve line breaks */
+  word-break: break-word;          /* wrap long words */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;           /* limit to 3 lines */
+  overflow: hidden;
+  font-size: 0.875rem;             /* text-sm */
+  color: #374151;                  /* text-gray-700 */
+}
+
+.attachmentCancel {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.5rem;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;                  /* text-gray-500 */
+}

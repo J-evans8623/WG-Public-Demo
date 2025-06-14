@@ -48,6 +48,7 @@ interface NodesContextValue {
   getNodeTitle(nodeId: string): string | null;
   getRootNode(): string;
   getReviewNode(): { id: string; exist: boolean };
+  saveEditwithNewNode(nodeTitle: string): string;
 }
 
 const NodesContext = createContext<NodesContextValue | undefined>(undefined);
@@ -88,6 +89,8 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     (nodeId: string) => yNodesMap.get(nodeId)?.title ?? null,
     [yNodesMap]
   );
+
+  
 
   // 1) setNodes (bulk replace)
   const setNodes = useCallback(
@@ -132,50 +135,51 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     );
   }, [ydoc, yNodesMap]);
 
-  // 3) createNewNode
-  const createNewNode = useCallback(
-    (title: string, parentId: string, newId: string) => {
-      const parent = yNodesMap.get(parentId);
-      if (!parent) return;
-      const depth = (parent.depth || 0) + 1;
-      const newNode: ConceptNode = {
-        id: newId,
-        title: title || `Untitled Concept ${yNodesMap.size + 1}`,
-        parentNodeId: parentId,
-        childrenNodeIds: [],
-        x: undefined,
-        y: undefined,
-        isRoot: false,
-        depth,
-      };
 
-      const delta: Delta = { type: 'NODE_ADD', nodeId: newId, nodeData: newNode };
+// 3) createNewNode (no undo/redo tracking)
+const createNewNode = useCallback(
+  (title: string, parentId: string, newId: string) => {
+    const parent = yNodesMap.get(parentId);
+    if (!parent) return;
 
-      ydoc.transact(() => {
-        record(
-          delta,
-          () => {
-            // apply
-            yNodesMap.set(newId, newNode);
-            yNodesMap.set(parentId, {
-              ...parent,
-              childrenNodeIds: [...(parent.childrenNodeIds || []), newId],
-            });
-          },
-          () => {
-            // inverse
-            const restored = yNodesMap.get(newId)!;
-            yNodesMap.delete(newId);
-            yNodesMap.set(parentId, {
-              ...parent,
-              childrenNodeIds: parent.childrenNodeIds!.filter((cid) => cid !== newId),
-            });
-          }
-        );
-      });
-    },
-    [ydoc, yNodesMap]
-  );
+    const depth = (parent.depth || 0) + 1;
+    const newNode: ConceptNode = {
+      id: newId,
+      title: title || `Untitled Concept ${yNodesMap.size + 1}`,
+      parentNodeId: parentId,
+      childrenNodeIds: [],
+      x: undefined,
+      y: undefined,
+      isRoot: false,
+      depth,
+    };
+
+    // Apply as a system-origin transaction so we don’t record it
+    ydoc.transact(
+      () => {
+        // 1) add the new node
+        yNodesMap.set(newId, newNode);
+
+        // 2) update parent’s children list
+        yNodesMap.set(parentId, {
+          ...parent,
+          childrenNodeIds: [...(parent.childrenNodeIds || []), newId],
+        });
+      },
+      {
+        origin: { 
+          type: 'system', 
+          action: 'createNewNode' as SystemActionType 
+        }
+      }
+    );
+  },
+  [ydoc, yNodesMap]
+);
+
+
+
+  
 
   // 4) updateNodeTitle
   const updateNodeTitle = useCallback(
@@ -218,8 +222,8 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             updateFileName(trimmed);
           }
           // Lesson rename
-          const module = getLessonModule();
-          const first = module.conceptMaps[0];
+          const Lmodule = getLessonModule();
+          const first = Lmodule.conceptMaps[0];
           if (first && first.title === DEFAULT_LESSON) {
             updateConceptMapTitle(first.id, `Unit 1 : ${trimmed}`);
           }
@@ -311,6 +315,21 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
   }, [ydoc, yNodesMap]);
 
+
+  // NodesProvider.tsx - Add the implementation of saveEditwithNewNode
+const saveEditwithNewNode = useCallback(
+  (nodeTitle: string) => {
+    const rootNodeId = getRootNode();
+    const newNodeId = `node-${Date.now()}`;
+    
+    // Create the new node with root as parent
+    createNewNode(nodeTitle, rootNodeId, newNodeId);
+    
+    return newNodeId; // Return the ID for saving the card
+  },
+  [createNewNode, getRootNode]
+);
+
   const contextValue = useMemo(
     () => ({
       nodes,
@@ -324,6 +343,7 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       getNodeTitle,
       getRootNode,
       getReviewNode,
+      saveEditwithNewNode
     }),
     [
       nodes,
@@ -337,6 +357,7 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       getNodeTitle,
       getRootNode,
       getReviewNode,
+      saveEditwithNewNode
     ]
   );
 

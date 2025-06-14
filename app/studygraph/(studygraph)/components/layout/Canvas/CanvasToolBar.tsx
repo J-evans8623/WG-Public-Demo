@@ -17,6 +17,8 @@ import { useSearchContext } from '@/app/Library/Context/SearchContext';
 import { useUndoRedo } from '@/app/studygraph/(studygraph)/components/Context/UndoRedoContext';
 import { MousePointer, Search, Undo2, Redo2 } from 'lucide-react';
 import QuizGeneratorModal from './QuizGeneratorModal';
+import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
+import { setGetLayout } from '@/app/Library/Context/LayoutActions';
 
 interface PdfPageInfo {
   current: number;
@@ -44,6 +46,8 @@ const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 }) => {
   // Search
   const { open } = useSearchContext();
+  const { dispatch: layoutDispatch } = useLayoutContext();
+
 
   // Undo/Redo
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
@@ -63,6 +67,16 @@ const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputPage(e.target.value);
   };
+
+  const handleundo = () => {
+    layoutDispatch(setGetLayout(true));
+    undo();
+  }
+
+  const handleredo = () => {
+    layoutDispatch(setGetLayout(true));
+    redo();
+  }
 
   const triggerJump = () => {
     const n = Number(inputPage);
@@ -85,7 +99,7 @@ const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 
       {/* Undo Button */}
       <button
-        onClick={undo}
+        onClick={handleundo}
         disabled={!canUndo}
         className={`${commonButtonClasses} ${!canUndo ? 'opacity-50 cursor-not-allowed' : ''}`}
         aria-label="Undo"
@@ -95,7 +109,7 @@ const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 
       {/* Redo Button */}
       <button
-        onClick={redo}
+        onClick={handleredo}
         disabled={!canRedo}
         className={`${commonButtonClasses} ${!canRedo ? 'opacity-50 cursor-not-allowed' : ''}`}
         aria-label="Redo"

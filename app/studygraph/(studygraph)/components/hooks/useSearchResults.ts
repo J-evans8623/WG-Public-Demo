@@ -42,7 +42,8 @@ export const useSearchResults = (query: string): ResourceCard[] => {
       } else if (typeof (card as any).content === 'string') {
         contentText = (card as any).content;
       } else {
-        contentText = JSON.stringify((card as any).content);
+        // Ensure we never assign undefined—coerce to empty string if JSON.stringify returns undefined
+        contentText = JSON.stringify((card as any).content) ?? '';
       }
 
       return contentText.toLowerCase().includes(q);

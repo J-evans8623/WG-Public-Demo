@@ -30,7 +30,6 @@ interface UnifiedHeaderProps {
   activeTab: 'notes' | 'chat';
   onTabChange: (t: 'notes' | 'chat') => void;
   width: number;
-  selectedTopic: string;
   onTopicChange: (topic: string) => void;
 }
 
@@ -39,9 +38,8 @@ interface UnifiedHeaderProps {
 /* -------------------------------------------------------------------------- */
 
 const TopicsDropdown: React.FC<{
-  selectedTopic: string;
   onTopicChange: (t: string) => void;
-}> = ({ selectedTopic, onTopicChange }) => {
+}> = ({ onTopicChange }) => {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -127,7 +125,6 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   activeTab,
   onTabChange,
   width, // reserved – not used presently
-  selectedTopic,
   onTopicChange,
 }) => {
   const { activeView } = useViewSwitch();
@@ -174,7 +171,7 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
       {/* Contextual controls (FontSizeButton removed) --------------------- */}
       <div className="flex items-center gap-2">
         {activeTab === 'notes' && activeView === 'pdf' && (
-          <TopicsDropdown selectedTopic={selectedTopic} onTopicChange={onTopicChange} />
+          <TopicsDropdown onTopicChange={onTopicChange} />
         )}
       </div>
 

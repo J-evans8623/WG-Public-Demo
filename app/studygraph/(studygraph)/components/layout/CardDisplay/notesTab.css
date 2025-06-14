@@ -1,0 +1,47 @@
+/* notesTab.css - specific scrollbar behavior for the NotesTab component */
+
+.notes-tab-container {
+    position: relative;
+    height: 100%;
+    flex-direction: column;
+    padding: 1rem;
+    overflow-y: auto;
+  }
+  
+  /* Base scrollbar behavior - always hidden by default */
+  .notes-tab-container {
+    scrollbar-width: none; /* Firefox */
+  }
+  
+  .notes-tab-container::-webkit-scrollbar {
+    width: 0;
+    background: transparent; /* Chrome/Safari */
+  }
+  
+  /* Show scrollbar only when the tab is hovered AND no cards are being hovered */
+  .notes-tab-container.scrollbar-visible {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+  
+  .notes-tab-container.scrollbar-visible::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .notes-tab-container.scrollbar-visible::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+  }
+  
+  .notes-tab-container.scrollbar-visible::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  /* Hidden scrollbar state */
+  .notes-tab-container.scrollbar-hidden {
+    scrollbar-width: none;
+  }
+  
+  .notes-tab-container.scrollbar-hidden::-webkit-scrollbar {
+    width: 0;
+  }

@@ -1,3 +1,6 @@
+
+// aiController.ts
+
 /**
  * bloom-maps\app\src\controllers\aiController.ts
  *
@@ -20,14 +23,15 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import AIService from "../services/aiService";
-import { lessonPrompt, predefinedPrompts } from "../config/predefined-prompts";
+import { lessonPrompt, predefinedPrompts, buildSubtreePrompt } from "../config/predefined-prompts";
 import OpenAIClient from "../config/openai";
-import { lessonSchema, topicSchema } from "../schemas/lessonSchema";
+import { lessonSchema, subtreeSchema, topicSchema } from "../schemas/lessonSchema";
 import { MatchingQuizSchema, MultipleChoiceSchema, FillInBlankSchema, TrueFalseSchema } from "../schemas/quizSchema";
 import { LessonModule } from "../services/TextPreprocessing/LessonModuleServiceV2";
 import { getTextContext } from '@/app/src/services/TextPreprocessing/QuestionContextService';
 import { QAschema } from '@/app/src/schemas/QASchema';
 import { formatLessonMetadata } from "../services/TextPreprocessing/MetaDataFormatter";
+import { PrimaryNode } from '../services/TextPreprocessing/LessonModuleTypes';
 
 
 class AIController {
@@ -241,6 +245,73 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
       res.status(500).json({ error: "Failed to generate quiz." });
     }
   }
+
+
+  /**
+   * generateSubtreeLesson
+   *
+   * Generates detailed lesson content, flash cards, optional secondary subtree,
+   * and a quiz for a single depth-1 PrimaryNode and its children.
+   *
+   * @param root - A PrimaryNode with .title, .aggregated_text, and optional depth2_subtopics.
+   * @returns Promise resolving to the enriched PrimaryNode with:
+   *   - lesson: { lecture_note, flash_cards }
+   *   - secondary_subtopic: ...[]
+   *   - quiz: matching_quiz object
+   */
+  public static async generateSubtreeLesson(root: any, mainTopic:string): Promise<any> {
+    const aiService = this.getAIService();
+
+    const secondaryTitles =
+      Array.isArray(root.depth2_subtopics) && root.depth2_subtopics.length > 0
+        ? root.depth2_subtopics.map((s: { title: any; }) => s.title || '')
+        : null;
+    // System prompt to guide structured subtree output
+    const systemPrompt = buildSubtreePrompt(
+      mainTopic,
+      root.title !, 
+      secondaryTitles
+    );
+
+    // User content: pass the root object with its title, text, and nested children
+    const userInput = JSON.stringify({
+      primary_subtopics: {
+        title: root.title,
+        aggregated_text: root.unit_text,
+        depth2_subtopics: root.depth2_subtopics || []
+      }
+    });
+
+    console.log(`1111 userInput Check ${userInput}`);
+
+    // Perform the structured call
+    const response = await aiService.generateStructuredOutput(
+      { name: subtreeSchema.name, schema: subtreeSchema.schema, strict: subtreeSchema.strict },
+      userInput,
+      systemPrompt
+    );
+
+     const subtree = (response as any).primary_subtopics;
+
+  // ─── Hydrate PRIMARY node ────────────────────────────────────────
+  root.lesson          = subtree.lesson;
+  root.lesson_citation = subtree.lesson_citation ?? null;
+
+  // ─── Hydrate SECONDARY nodes (keep citations!) ───────────────────
+  root.secondary_subtopic = Array.isArray(subtree.secondary_subtopic)
+    ? subtree.secondary_subtopic.map((ss: any) => ({
+        title           : ss.title,
+        lecture_note    : ss.lecture_note,
+        flash_cards     : ss.flash_cards,
+      }))
+    : null;
+
+  // ─── Quiz  ────────────────────────────────────────────────────────
+  root.quiz = subtree.quiz;
+
+  return root;
+  }
+
 }
 
 export default AIController;

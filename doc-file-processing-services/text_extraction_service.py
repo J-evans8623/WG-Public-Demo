@@ -4,6 +4,11 @@ Description:
     Extended text extraction service with parallel OCR processing
     for multi-page PDF documents. If no selectable text is found,
     OCR is offloaded to Celery tasks for parallel processing.
+    
+    Page markers have been added around each page’s text in the
+    regular (selectable‐text) path. In the OCR fallback path, a
+    reminder has been left to re-insert markers once you swap to
+    a future OCR API call.
 """
 
 import fitz
@@ -25,17 +30,22 @@ def extract_text_from_pdf(file_path: str) -> str:
     logger.info(f"Extracting text from PDF file: {file_path}")
     document = fitz.open(file_path)
     
-    # First pass: attempt to extract text from each page.
+    # First pass: attempt to extract text from each page, injecting markers.
     extracted_pages = []
     for page_num in range(len(document)):
         page = document.load_page(page_num)
-        text = page.get_text().strip()
-        extracted_pages.append(text)
+        raw_text = page.get_text().strip()
+        # Insert conspicuous page markers:
+        start_marker = f"[#### START OF PAGE {page_num + 1} ####]"
+        end_marker   = f"[#### END OF PAGE {page_num + 1} ####]"
+        # Wrap the raw text for this page in markers:
+        marked = f"{start_marker}\n{raw_text}\n{end_marker}"
+        extracted_pages.append(marked)
     
-    # If any page has selectable text, return concatenated text.
+    # If any page has selectable text, return concatenated marked text.
     if any(text for text in extracted_pages):
-        logger.info("Using regular text extraction")
-        return "\n".join(extracted_pages)
+        logger.info("Using regular text extraction with page markers")
+        return "\n\n".join(extracted_pages)
     else:
         logger.info("No extracted text found; falling back to OCR processing")
         try:
@@ -58,6 +68,9 @@ def extract_text_from_pdf(file_path: str) -> str:
             
             elapsed = time.time() - start_time
             logger.info(f"OCR completed in {elapsed:.2f}s")
+            
+            # Future update: when you integrate OCR API call service,
+            # do not forget to add page markers for consistency.
             return "\n".join(ocr_results)
         except Exception as e:
             logger.error(f"OCR processing failed: {e}")

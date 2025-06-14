@@ -20,7 +20,6 @@
 import axios from 'axios';
 import { generateEmbedding, generateLessonMetadata } from './aiTextPreProcessing';
 import weaviate from 'weaviate-ts-client';
-import { kmeans } from 'ml-kmeans';
 import AIController from '@/app/src/controllers/aiController';  // Corrected import: use AIController
 
 // ------------------ Type Definitions ------------------
@@ -145,33 +144,11 @@ export async function processDocument(
     }));
     await persistTextChunks(chunkRecords);
 
-
-    // Step 3: Cluster embeddings using K-means.
-    // Heuristic: pageCount = fullText.length / 2500, chapterEstimate = pageCount / 40.
-    const pageCount = fullText.length / 2500;
-    const chapterEstimate = pageCount / 30;
-    // For a given segment, we expect one module.
-    const numModules = Math.round(chapterEstimate) || 1;
-
-    // Cluster embeddings.
-    const moduleAssignments = clusterEmbeddings(embeddings, numModules);
-
-    // Aggregate all chunks into a single module.
-    const moduleData = { chunks: [] as { chunk_id: string; chunk_text: string }[], embeddings: [] as number[][] };
-    moduleAssignments.forEach((moduleIdx, idx) => {
-      // For in-memory processing we combine all chunks.
-      moduleData.chunks.push(numberedChunks[idx]);
-      moduleData.embeddings.push(embeddings[idx]);
-    });
-
-    // Step 4: Concatenate chunks to form the full module text.
-    const fullModuleText = moduleData.chunks.map(c => c.chunk_text).join(" ");
-
-    // Step 5: Call the Python microservice for hierarchical subtopic generation.
+    // Step 3: Call the Python microservice for hierarchical subtopic generation.
     const hierarchicalResult = await callHierarchicalConceptMapService(
       documentID,
-      moduleData.chunks,
-      moduleData.embeddings,
+     numberedChunks,
+      embeddings,
       {
         metric: 'cosine',
         num_depth1: 6,
@@ -189,7 +166,7 @@ export async function processDocument(
     // Assemble and return the LessonModule.
     const lessonModule: LessonModule = {
       file_id: documentID,
-      original_text: fullModuleText,
+      original_text: fullText,
       metadata: {
         main_topic: {
           title: metadata.main_topic.title,
@@ -263,17 +240,7 @@ function splitTextIntoChunks(text: string, chunkSize: number = 2500, overlap: nu
   return chunks;
 }
 
-/**
- * Clusters embeddings into k clusters using ml-kmeans.
- *
- * @param embeddings - Array of embedding vectors.
- * @param k - Number of clusters.
- * @returns An array of cluster indices.
- */
-function clusterEmbeddings(embeddings: number[][], k: number): number[] {
-  const result = kmeans(embeddings, k, {});
-  return result.clusters;
-}
+
 
 /**
  * Calls the Python microservice to generate hierarchical subtopics using HDBSCAN.

@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf_viewer.min.css"
         />
       </Head>
-      <body className="h-screen w-screen overflow-hidden bg-[#F9FBFD]">
+      <body className="h-screen w-screen overflow-x-hidden bg-[#F9FBFD]">
         {children}
       </body>
     </html>

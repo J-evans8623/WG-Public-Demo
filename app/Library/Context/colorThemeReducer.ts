@@ -12,9 +12,9 @@ export interface ColorThemeState {
 }
 
 export const initialColorThemeState: ColorThemeState = {
-  colorTheme: 'cool-spring',
-  primaryColor: '#D5E6ED',
-  backgroundColor: '#F5F5F5',
+  colorTheme: 'classic',
+  primaryColor: '#f0f8ff',
+  backgroundColor: '#fafafa',
 };
 
 export const colorThemeReducer = (

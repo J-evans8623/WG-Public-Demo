@@ -30,22 +30,29 @@ import {
   PracticeSheetResource,
   CueCardResource,
   NoteResource,
+  Citation,
 } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
+import NoteCard from '@/app/studygraph/(studygraph)/components/layout/CardDisplay/Cards/NoteCard';
 
 export interface ResourceContextType {
   resources: Map<string, ResourceCard[]>;
-  addResourcev1(params: {
-    nodeId: string;
-    type: 'cueCard' | 'note' | 'practiceSheet';
-    title: string;
-    content: any;
-  }): Promise<void>;
+  addResourcev1(
+    params: {
+      nodeId: string;
+      type: 'cueCard' | 'note' | 'practiceSheet';
+      title: string;
+      content: any;
+      citations?: Array<{ index: number; textsource: string; page_number: number }> | null;
+    },
+    mapID?: string
+  ): Promise<void>;
   removeResourcev1(nodeId: string, resourceId: string): void;
   editResourcev1(resource: ResourceCard): Promise<void>;
   addPictureResourcev1(
     params: { nodeId: string; title: string; description?: any },
-    image: File
+    image: File,
+    mapID?: string
   ): Promise<void>;
   editPictureResourcev1(
     resource: PictureResource,
@@ -59,15 +66,12 @@ export interface ResourceContextType {
     command?: 'copy' | 'cut'
   ): void;
   selectResources(nodeId: string): ResourceCard[];
+  selectNoteCards(nodeId: string): NoteResource[]
   selectCueCards(nodeId: string): CueCardResource[];
   selectPictures(nodeId: string): PictureResource[];
   selectPracticeSheets(nodeId: string): PracticeSheetResource[];
   setResources(newResources: Map<string, ResourceCard[]>): void;
   resetResources(): void;
-  getResourcesByType(type: 'cueCard' | 'picture' | 'practiceSheet'): Map<
-    string,
-    ResourceCard[]
-  >;
   getResourceCard(id: string): ResourceCard | undefined;
   // global undo/redo
   undo(): void;
@@ -110,66 +114,100 @@ export const ResourceProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // --- CRUD + undo/redo instrumentation ---
 
-  const addResourcev1 = useCallback(
-    async ({
+const addResourcev1 = useCallback(
+  async (
+    {
       nodeId,
       type,
       title,
       content,
+      /** Optional array of citations metadata to attach to this resource */
+      citations,
     }: {
       nodeId: string;
       type: 'cueCard' | 'note' | 'practiceSheet';
       title: string;
       content: any;
-    }) => {
-      const id = uuidv4();
-      let card: ResourceCard;
-      if (type === 'cueCard') {
-        card = { id, nodeId, type, title, content } as CueCardResource;
-      } else if (type === 'note') {
-        card = { id, nodeId, type, title, content } as NoteResource;
-      } else {
-        card = { id, nodeId, type, title, content } as PracticeSheetResource;
-      }
-
-      const delta: Delta = { type: 'RESOURCE_ADD', nodeId, card };
-
-      // Wrap both Y.Doc mutation and record in a single transaction
-      ydoc.transact(() => {
-        record(
-          delta,
-          () => {
-            // apply
-            setResources((prev) => {
-              const m = new Map(prev);
-              const arr = m.get(nodeId) || [];
-              m.set(nodeId, [...arr, card]);
-              return m;
-            });
-            let yMap = yResourcesMap.get(nodeId);
-            if (!yMap) {
-              yMap = new Y.Map<ResourceCard>();
-              yResourcesMap.set(nodeId, yMap);
-            }
-            yMap.set(card.id, card);
-          },
-          () => {
-            // inverse
-            setResources((prev) => {
-              const m = new Map(prev);
-              m.set(
-                nodeId,
-                (m.get(nodeId) || []).filter((c) => c.id !== card.id)
-              );
-              return m;
-            });
-            yResourcesMap.get(nodeId)?.delete(card.id);
-          }
-        );
-      });
+      citations?: Citation[] | null;
     },
-    [ydoc, yResourcesMap]
-  );
+    mapID?: string
+  ) => {
+    const usedMapId = mapID || activeConceptMapId;
+    const mapKey = `resources:${usedMapId}`;
+    const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>(mapKey);
+
+    const id = uuidv4();
+    let card: ResourceCard;
+    if (type === 'cueCard') {
+      card = {
+        id,
+        nodeId,
+        type,
+        title,
+        content,
+        citations: citations ?? null,
+      } as CueCardResource;
+    } else if (type === 'note') {
+      card = {
+        id,
+        nodeId,
+        type,
+        title,
+        content,
+        citations: citations ?? null,
+      } as NoteResource;
+    } else {
+      card = {
+        id,
+        nodeId,
+        type,
+        title,
+        content,
+        citations: citations ?? null,
+      } as PracticeSheetResource;
+    }
+
+    const delta: Delta = { type: 'RESOURCE_ADD', nodeId, card };
+
+    ydoc.transact(() => {
+      record(
+        delta,
+        () => {
+          // apply: update React state
+          setResources((prev) => {
+            const m = new Map(prev);
+            const arr = m.get(nodeId) || [];
+            m.set(nodeId, [...arr, card]);
+            return m;
+          });
+          // Y.Doc update on the chosen map
+          let yMap = yResourcesMap.get(nodeId);
+          if (!yMap) {
+            yMap = new Y.Map<ResourceCard>();
+            yResourcesMap.set(nodeId, yMap);
+          }
+          yMap.set(card.id, card);
+        },
+        () => {
+          // inverse: revert React state
+          setResources((prev) => {
+            const m = new Map(prev);
+            m.set(
+              nodeId,
+              (m.get(nodeId) || []).filter((c) => c.id !== card.id)
+            );
+            return m;
+          });
+          // revert Y.Doc
+          yResourcesMap.get(nodeId)?.delete(card.id);
+        }
+      );
+    });
+  },
+  [ydoc, activeConceptMapId]
+);
+
+
 
   const removeResourcev1 = useCallback(
     (nodeId: string, resourceId: string) => {
@@ -267,24 +305,176 @@ export const ResourceProvider: React.FC<{ children: ReactNode }> = ({ children }
     [resources, ydoc, yResourcesMap]
   );
 
-  const addPictureResourcev1 = useCallback(
-    async (
-      params: { nodeId: string; title: string; description?: any },
-      image: File
-    ) => {
-      // For brevity, unchanged from previous, but each Y.Doc write is inside ydoc.transact
-      /* ...same two-phase upload logic as before, wrapping each record() in ydoc.transact()... */
-    },
-    [ydoc, yResourcesMap]
-  );
+const addPictureResourcev1 = useCallback(
+  async (
+    params: { nodeId: string; title: string; description?: any },
+    image: File,
+    mapID?: string
+  ) => {
+    // Determine which Y.Doc map to use
+    const usedMapId = mapID || activeConceptMapId;
+    const mapKey = `resources:${usedMapId}`;
+    const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>(mapKey);
 
-  const editPictureResourcev1 = useCallback(
-    async (resource: PictureResource, newImage: boolean, image?: File) => {
-      // Similarly unchanged, but ensure each record() + Y.Doc write sits inside ydoc.transact
-      /* ... */
-    },
-    [ydoc, yResourcesMap]
-  );
+    try {
+      // 1) Upload the image to our backend and await the server URL
+      const formData = new FormData();
+      formData.append('image', image);
+      const response = await fetch('/api/asset', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+      const { url: serverUrl } = await response.json();
+
+      // 2) Construct a new PictureResource using only the server URL
+      const newId = uuidv4();
+      const card: PictureResource = {
+        id: newId,
+        nodeId: params.nodeId,
+        type: 'picture',
+        title: params.title,
+        imageUrl: serverUrl,
+        description: params.description,
+      };
+
+      // 3) Create a single Y.Doc transaction to persist the new card
+      const delta: Delta = {
+        type: 'RESOURCE_ADD',
+        nodeId: params.nodeId,
+        card,
+      };
+
+      ydoc.transact(() => {
+        record(
+          delta,
+          () => {
+            // Apply: update React local state
+            setResources((prev) => {
+              const m = new Map(prev);
+              const arr = m.get(params.nodeId) || [];
+              m.set(params.nodeId, [...arr, card]);
+              return m;
+            });
+            // Apply: update Y.Doc map
+            let yMap = yResourcesMap.get(params.nodeId);
+            if (!yMap) {
+              yMap = new Y.Map<ResourceCard>();
+              yResourcesMap.set(params.nodeId, yMap);
+            }
+            yMap.set(card.id, card);
+          },
+          () => {
+            // Inverse: rollback React local state
+            setResources((prev) => {
+              const m = new Map(prev);
+              m.set(
+                params.nodeId,
+                (m.get(params.nodeId) || []).filter((c) => c.id !== newId)
+              );
+              return m;
+            });
+            // Inverse: rollback Y.Doc map
+            yResourcesMap.get(params.nodeId)?.delete(newId);
+          }
+        );
+      });
+    } catch (error) {
+      console.error('addPictureResourcev1 error:', error);
+      throw error;
+    }
+  },
+  [ydoc, activeConceptMapId]
+);
+
+const editPictureResourcev1 = useCallback(
+  async (resource: PictureResource, newImage: boolean, image?: File) => {
+    // Clone the existing resource for “previous” state
+    const before = { ...resource };
+    let updated: PictureResource = { ...resource };
+
+    // Determine which Y.Doc map to use
+    const usedMapId = activeConceptMapId;
+    const mapKey = `resources:${usedMapId}`;
+    const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>(mapKey);
+
+    if (newImage) {
+      if (!image) {
+        throw new Error('File required when newImage=true');
+      }
+
+      try {
+        // 1) Upload the new image to backend and await the server URL
+        const form = new FormData();
+        form.append('image', image);
+        const res = await fetch('/api/asset', {
+          method: 'POST',
+          body: form,
+          credentials: 'include',
+        });
+        if (!res.ok) {
+          throw new Error('Upload failed');
+        }
+        const { url: serverUrl } = await res.json();
+
+        // 2) Update only the imageUrl field to the server URL
+        updated = { ...updated, imageUrl: serverUrl };
+      } catch (err) {
+        console.error('editPictureResourcev1 upload error:', err);
+        throw err;
+      }
+    }
+
+    // 3) Perform a single Y.Doc transaction to persist the edit
+    const delta: Delta = {
+      type: 'RESOURCE_EDIT',
+      nodeId: updated.nodeId,
+      cardId: updated.id,
+      previous: before,
+      next: updated,
+    };
+
+    ydoc.transact(() => {
+      record(
+        delta,
+        () => {
+          // Apply: update React local state
+          setResources((prev) => {
+            const m = new Map(prev);
+            m.set(
+              updated.nodeId,
+              (m.get(updated.nodeId) || []).map((c) =>
+                c.id === updated.id ? updated : c
+              )
+            );
+            return m;
+          });
+          // Apply: update Y.Doc map
+          yResourcesMap.get(updated.nodeId)?.set(updated.id, updated);
+        },
+        () => {
+          // Inverse: rollback React local state to the “before” version
+          setResources((prev) => {
+            const m = new Map(prev);
+            m.set(
+              before.nodeId,
+              (m.get(before.nodeId) || []).map((c) =>
+                c.id === before.id ? before : c
+              )
+            );
+            return m;
+          });
+          // Inverse: rollback Y.Doc map to the “before” version
+          yResourcesMap.get(before.nodeId)?.set(before.id, before);
+        }
+      );
+    });
+  },
+  [ydoc, activeConceptMapId]
+);
 
   const transferResource = useCallback(
     (
@@ -293,31 +483,135 @@ export const ResourceProvider: React.FC<{ children: ReactNode }> = ({ children }
       resourceIds: string[],
       command: 'copy' | 'cut' = 'cut'
     ) => {
-      // For each item, wrap delete+add in ydoc.transact(record(...), record(...))
-      /* ... */
+      const sourceArr = resources.get(sourceNodeId) || [];
+      const toMove = sourceArr.filter((r) => resourceIds.includes(r.id));
+      if (toMove.length === 0) return;
+
+      const targetArr = resources.get(targetNodeId) || [];
+
+      ydoc.transact(() => {
+        toMove.forEach((orig) => {
+          const newCard = {
+            ...orig,
+            id: uuidv4(),
+            nodeId: targetNodeId,
+          } as ResourceCard;
+
+          // record add
+          const deltaAdd: Delta = {
+            type: 'RESOURCE_ADD',
+            nodeId: targetNodeId,
+            card: newCard,
+          };
+          record(
+            deltaAdd,
+            () => {
+              setResources((prev) => {
+                const m = new Map(prev);
+                const arr = m.get(targetNodeId) || [];
+                m.set(targetNodeId, [...arr, newCard]);
+                return m;
+              });
+              let yMapT = yResourcesMap.get(targetNodeId);
+              if (!yMapT) {
+                yMapT = new Y.Map<ResourceCard>();
+                yResourcesMap.set(targetNodeId, yMapT);
+              }
+              yMapT.set(newCard.id, newCard);
+            },
+            () => {
+              setResources((prev) => {
+                const m = new Map(prev);
+                m.set(
+                  targetNodeId,
+                  (m.get(targetNodeId) || []).filter((c) => c.id !== newCard.id)
+                );
+                return m;
+              });
+              yResourcesMap.get(targetNodeId)?.delete(newCard.id);
+            }
+          );
+
+          if (command === 'cut') {
+            // record delete
+            const deltaDel: Delta = { type: 'RESOURCE_DELETE', nodeId: sourceNodeId, card: orig };
+            record(
+              deltaDel,
+              () => {
+                setResources((prev) => {
+                  const m = new Map(prev);
+                  m.set(
+                    sourceNodeId,
+                    (m.get(sourceNodeId) || []).filter((c) => c.id !== orig.id)
+                  );
+                  return m;
+                });
+                yResourcesMap.get(sourceNodeId)?.delete(orig.id);
+              },
+              () => {
+                setResources((prev) => {
+                  const m = new Map(prev);
+                  const arr = m.get(sourceNodeId) || [];
+                  m.set(sourceNodeId, [...arr, orig]);
+                  return m;
+                });
+                let yMapS = yResourcesMap.get(sourceNodeId);
+                if (!yMapS) {
+                  yMapS = new Y.Map<ResourceCard>();
+                  yResourcesMap.set(sourceNodeId, yMapS);
+                }
+                yMapS.set(orig.id, orig);
+              }
+            );
+          }
+        });
+      });
     },
     [resources, ydoc, yResourcesMap]
   );
 
   // --- Selectors & bulk ops ---
 
-  const selectResourcesFn = useCallback(
-    (nodeId: string) => resources.get(nodeId) || [],
-    [resources]
-  );
-  const selectCueCardsFn = useCallback(
+
+  const selectNoteCards = useCallback((nodeId:string) => {
+    const data = resources.get(nodeId) || [];
+    const cards = data.filter((r): r is NoteResource => r.type === 'note');
+    return cards
+  },[resources])  
+
+const selectResourcesFn = useCallback(
+  (nodeId: string) => {
+    const arr = resources.get(nodeId) || [];
+
+    // Sort order: 0-Note, 1-Picture, 2-CueCard, 3-PracticeSheet
+    const order: Record<ResourceCard['type'], number> = {
+      note: 0,
+      picture: 1,
+      cueCard: 2,
+      practiceSheet: 3,
+    };
+
+    // Return a new array ordered by the mapping above
+    return [...arr].sort(
+      (a, b) => (order[a.type] ?? Number.MAX_SAFE_INTEGER) - (order[b.type] ?? Number.MAX_SAFE_INTEGER),
+    );
+  },
+  [resources],
+);
+
+  const selectCueCards = useCallback(
     (nodeId: string) =>
       (resources.get(nodeId) || []).filter((r): r is CueCardResource => r.type === 'cueCard'),
     [resources]
   );
-  const selectPicturesFn = useCallback(
+  const selectPictures = useCallback(
     (nodeId: string) =>
       (resources.get(nodeId) || []).filter(
         (r): r is PictureResource => r.type === 'picture' && Boolean(r.imageUrl)
       ),
     [resources]
   );
-  const selectPracticeSheetsFn = useCallback(
+  const selectPracticeSheets = useCallback(
     (nodeId: string) =>
       (resources.get(nodeId) || []).filter(
         (r): r is PracticeSheetResource => r.type === 'practiceSheet'
@@ -343,24 +637,12 @@ export const ResourceProvider: React.FC<{ children: ReactNode }> = ({ children }
     [ydoc, yResourcesMap]
   );
 
-  const resetResourcesFn = useCallback(() => {
+  const resetResources = useCallback(() => {
     ydoc.transact(() => {
       setResources(new Map());
       yResourcesMap.forEach((ym) => ym.clear());
     });
   }, [ydoc, yResourcesMap]);
-
-  const getResourcesByTypeFn = useCallback(
-    (type: 'cueCard' | 'picture' | 'practiceSheet') => {
-      const m = new Map<string, ResourceCard[]>();
-      resources.forEach((arr, nodeId) => {
-        const filtered = arr.filter((r) => r.type === type);
-        if (filtered.length) m.set(nodeId, filtered);
-      });
-      return m;
-    },
-    [resources]
-  );
 
   const getResourceCard = useCallback(
     (id: string) => {
@@ -386,12 +668,12 @@ export const ResourceProvider: React.FC<{ children: ReactNode }> = ({ children }
       editPictureResourcev1,
       transferResource,
       selectResources: selectResourcesFn,
-      selectCueCards: selectCueCardsFn,
-      selectPictures: selectPicturesFn,
-      selectPracticeSheets: selectPracticeSheetsFn,
+      selectNoteCards,
+      selectCueCards,
+      selectPictures,
+      selectPracticeSheets,
       setResources: setResourcesFn,
-      resetResources: resetResourcesFn,
-      getResourcesByType: getResourcesByTypeFn,
+      resetResources,
       getResourceCard,
       undo,
       redo,
@@ -405,12 +687,12 @@ export const ResourceProvider: React.FC<{ children: ReactNode }> = ({ children }
       editPictureResourcev1,
       transferResource,
       selectResourcesFn,
-      selectCueCardsFn,
-      selectPicturesFn,
-      selectPracticeSheetsFn,
+      selectNoteCards,
+      selectCueCards,
+      selectPictures,
+      selectPracticeSheets,
       setResourcesFn,
-      resetResourcesFn,
-      getResourcesByTypeFn,
+      resetResources,
       getResourceCard,
       undo,
       redo,

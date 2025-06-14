@@ -14,6 +14,13 @@ const FOCUSABLE_SELECTORS = [
 ].join(',');
 
 /**
+ * Helper to remove any HTML tags from a string.
+ */
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, '');
+}
+
+/**
  * @file SearchModal.tsx
  * @description
  *   Renders the search modal via portal into #modal-root.
@@ -51,7 +58,7 @@ const SearchModal: React.FC = () => {
     inputRef.current?.focus();
 
     const modal = modalRef.current!;
-    // Gather focusable elements
+    // Gather focusable elements inside modal
     focusableElementsRef.current = Array.from(
       modal.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTORS)
     );
@@ -61,7 +68,7 @@ const SearchModal: React.FC = () => {
         e.preventDefault();
         close();
       } else if (e.key === 'Tab') {
-        // Focus trap
+        // Focus trap logic
         const focusables = focusableElementsRef.current;
         if (focusables.length === 0) return;
         const first = focusables[0];
@@ -132,7 +139,7 @@ const SearchModal: React.FC = () => {
             ref={inputRef}
             type="text"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Search cards..."
             aria-label="Search cards"
             className="w-full px-3 py-2 border rounded focus:outline-none focus:ring"
@@ -150,22 +157,30 @@ const SearchModal: React.FC = () => {
               No results
             </li>
           ) : (
-            results.map(card => (
-              <li
-                key={card.id}
-                onClick={() => handleResultClick(card.id)}
-                className="px-4 py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer"
-              >
-                <div className="font-medium">{card.title}</div>
-                <div className="text-sm text-gray-600 truncate">
-                  {'description' in card
-                    ? (card as any).description
-                    : typeof (card as any).content === 'string'
-                    ? (card as any).content
-                    : JSON.stringify((card as any).content)}
-                </div>
-              </li>
-            ))
+            results.map((card) => {
+              let rawText = '';
+              if ('description' in card && typeof (card as any).description === 'string') {
+                rawText = (card as any).description;
+              } else if (typeof (card as any).content === 'string') {
+                rawText = (card as any).content;
+              } else {
+                rawText = JSON.stringify((card as any).content) ?? '';
+              }
+              const displayText = stripHtml(rawText);
+
+              return (
+                <li
+                  key={card.id}
+                  onClick={() => handleResultClick(card.id)}
+                  className="px-4 py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer"
+                >
+                  <div className="font-medium">{card.title}</div>
+                  <div className="text-sm text-gray-600 truncate">
+                    {displayText}
+                  </div>
+                </li>
+              );
+            })
           )}
         </ul>
 

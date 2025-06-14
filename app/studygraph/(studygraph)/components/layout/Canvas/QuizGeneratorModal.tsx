@@ -5,7 +5,6 @@ import { X } from 'lucide-react';
 import { generateQuiz } from '@/app/Library/utils/aiServiceApi';
 import { parseQuizResponse } from '@/app/studygraph/(studygraph)/components/hooks/parseQuizResponse';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
-import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import QuizTopicSelector from './QuizTopicSelector';
 import useExportStudyData from '@/app/studygraph/(studygraph)/components/utils/exportStudyData';

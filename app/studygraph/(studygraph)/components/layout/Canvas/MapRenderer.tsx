@@ -130,7 +130,7 @@ const MapRenderer: React.FC = () => {
     <div
       ref={containerRef}
       data-testid="map-renderer-container"
-      className="absolute inset-0 overflow-auto map-canvas hidden-scrollbar"
+      className="absolute inset-0 overflow-auto bg-white hidden-scrollbar"
     >
       <div
         style={{

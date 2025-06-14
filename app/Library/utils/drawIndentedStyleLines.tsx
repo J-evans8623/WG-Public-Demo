@@ -7,7 +7,7 @@ import { ConceptNode, layoutConfig } from '@/app/Library/Definitions/Definitions
 export function drawIndentedStyleLines(
   nodes: Map<string, ConceptNode>,
   lineWidth: number,
-  strokeColor: string = '#6e6e6e' // Default gray color
+  strokeColor: string = '#9e9e9e' // Default gray color
 ): JSX.Element[] {
   const lineElements: JSX.Element[] = [];
 

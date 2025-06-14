@@ -1,6 +1,4 @@
 //bloom-maps\app\Library\Definitions\Definitions.tsx
-import { constants } from 'crypto';
-import { Descendant } from 'slate';
 
 export interface CueCard {
   id: string;
@@ -50,32 +48,36 @@ export interface CueStackProps {
   
 
 
+// Color definitions
+// -----------------------------------------------------------------------------
 
-  // Color definitions
-export type ColorTheme = 'cool-spring' | 'warm-summer' | 'gray';
+// Redefine ColorTheme to exactly the four theme names introduced:
+//   'soft-peach', 'salmon-peach', 'ocean-blue', 'classic'
+export type ColorTheme = 'soft-peach' | 'salmon-peach' | 'ocean-blue' | 'classic';
 
-// Define the colors for each theme
+// (Optional) Legacy colorThemes record has been retained for reference but is not used
+// by the new theming logic. It can be removed if obsolete.
 export const colorThemes: Record<ColorTheme, string[]> = {
-  'cool-spring': [
-    'rgb(223, 252, 173)', // Light green
-    'rgb(181, 245, 216)', // Light teal
-    'rgb(168, 204, 252)', // Light blue
-    'rgb(137, 112, 252)', // Light purple
-    'rgb(93, 76, 204)',   // Dark purple
-    'rgb(25, 116, 210)'   // Deep blue
+  'soft-peach': [
+    'rgb(251, 124, 124)', // Soft peach accent
+    'rgb(254, 252, 232)', // Light yellow background
   ],
-  'warm-summer': [
-    'rgb(247, 244, 212)', // Light beige
-    'rgb(254, 228, 119)', // Light yellow
-    'rgb(254, 228, 11)',  // Yellow
-    'rgb(255, 99, 71)', // Tomato
-    'rgb(255, 166, 0)',  // Orange yellow
-    'rgb(255, 68, 0)'    // Red orang
+  'salmon-peach': [
+    'rgb(252, 165, 165)', // Salmon peach accent
+    'rgb(254, 252, 232)', // Light yellow background
   ],
-  'gray': [
-    'rgb(211, 211, 211)', // Light gray for unspecified levels
+  'ocean-blue': [
+    'rgb(14, 165, 233)', // Sky blue accent
+    'rgb(224, 242, 254)', // Light blue background
+    'rgb(248, 250, 252)', // Root node background
+  ],
+  'classic': [
+    '#fafafa', // Classic primary background
+    '#f0f8ff', // Classic secondary background
+    '#2c3e50', // Classic text color
   ],
 };
+
 
   
   export default interface TreeSizeContextType {
@@ -199,6 +201,16 @@ export interface SubtreeData {
 
 export type ResourceType = 'cueCard' | 'picture' | 'practiceSheet';
 
+
+export interface Citation {
+  /** The inline index used in the rendered sup tag */
+  index: number;
+  /** A short quote or snippet from the source material */
+  textsource: string;
+  /** The page number in the original document */
+  page_number: number;
+}
+
 /**
  * Base interface for all resources.
  */
@@ -207,6 +219,8 @@ export interface BaseResource {
   title: string;
   nodeId: string; // The node to which the resource is associated
   source?: string;
+  conceptNodeTitle?:string;
+  citations?: Citation[] | null;
 }
 
 /***
@@ -249,7 +263,7 @@ export interface NoteResource extends BaseResource {
 export interface PictureResource extends BaseResource {
   type: 'picture';
   imageUrl: string;
-  description?: Record<string, any>; // TipTap JSON for rich text description
+  description?: string; // TipTap JSON for rich text description
 }
 
 
@@ -330,6 +344,25 @@ export const layoutConfig: LayoutConfig = {
   HVvertspacing : 145,
   padding : 32,
 }
+
+export interface layoutColor {
+  connector : '#9e9e9e';
+  nodeAccent : string;
+  nodeMuted : string;
+  textColorAccentnode: string
+  textColorMutednode: string
+}
+
+export const classicTheme : layoutColor = {
+  connector: '#9e9e9e',
+  nodeAccent: '#f0f8ff',
+  nodeMuted: '#fafafa',
+  textColorAccentnode: "#ffffff",
+  textColorMutednode: "",
+}
+//const warmSummer : layoutColor =
+
+//export const mapColortheme: layoutColor[] = []
 
 export const mapviewthemes = {
   modern: {

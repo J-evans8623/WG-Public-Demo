@@ -28,13 +28,15 @@ import React, {
   useCallback,
   useState,
   useMemo,
-  ReactNode
+  ReactNode,
+  useEffect
 } from 'react';
 import * as Y from 'yjs';
 import { toast } from 'react-toastify';
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 import JSZip from 'jszip';
+import { useCollabProvider } from '@/app/studygraph/collab/useCollabProvider';
 
 
 interface ChatMessage {
@@ -82,10 +84,19 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   // Initialize state for Y.Doc, fileName, driveFileId (Firebase path), internal docFileID, and initialization flag.
   const [ydoc, setYDoc] = useState<Y.Doc>(() => new Y.Doc());
   const [fileName, setFileName] = useState<string>('Untitled Document');
-  const [driveFileId, setDriveFileId] = useState<string>();
   const [docFileID, setDocFileID] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const { status } = useCollabProvider(ydoc, docFileID);
 
+
+
+    // Notify on connection
+  useEffect(() => {
+    if (status === 'connected') {
+      console.log('Connected to live collaboration');
+    }
+  }, [status]);
+  
   /**
    * Applies a given Yjs update to the current Y.Doc.
    * @param update - The Yjs update as a Uint8Array.
@@ -269,13 +280,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
     metadataMap.set('fileName', updatedName);
   }, [ydoc]);
 
-  /**
-   * Updates the Firebase storage file path.
-   * @param id - The new drive file ID.
-   */
-  const updateDriveId = useCallback((id?: string): void => {
-    setDriveFileId(id);
-  }, []);
+
 
   /**
    * Retrieves the lesson module portion of the Y.Doc as a JSON string.
@@ -379,7 +384,6 @@ const saveToFirebase = useCallback(
     applyUpdate,
     getState,
     updateFileName,
-    updateDriveId,
     loadData,
     persistDoc,
     getLessonModuleJSON,
@@ -395,7 +399,6 @@ const saveToFirebase = useCallback(
     applyUpdate,
     getState,
     updateFileName,
-    updateDriveId,
     loadData,
     persistDoc,
     getLessonModuleJSON,

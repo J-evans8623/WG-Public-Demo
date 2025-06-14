@@ -1,0 +1,48 @@
+/* notesTab.css
+ *
+ * Controls custom scrollbar behavior:
+ *   • By default, scrollbar is hidden.
+ *   • When .scrollbar-visible is applied, show a thin dark thumb.
+ */
+
+.notes-tab-container {
+  position: relative;
+  height: 100%;
+  flex-direction: column;
+  padding: 1rem;      /* 16px top/right/left, 16px bottom */
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbar by default (all browsers) */
+.notes-tab-container {
+  scrollbar-width: none; /* Firefox */
+}
+.notes-tab-container::-webkit-scrollbar {
+  width: 0;
+  background: transparent; /* Chrome/Safari */
+}
+
+/* Show scrollbar only when hovered (and no card hovered) */
+.notes-tab-container.scrollbar-visible {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+}
+.notes-tab-container.scrollbar-visible::-webkit-scrollbar {
+  width: 8px;
+}
+.notes-tab-container.scrollbar-visible::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+.notes-tab-container.scrollbar-visible::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Also allow cards to reveal their own internal hover states */
+.notes-tab-container.scrollbar-hidden {
+  scrollbar-width: none;
+}
+.notes-tab-container.scrollbar-hidden::-webkit-scrollbar {
+  width: 0;
+}

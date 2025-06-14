@@ -97,9 +97,16 @@
 import { v4 as uuidv4 } from 'uuid';
 import { compositeLayout } from '@/app/Library/components/AI/layoutUtils';
 import markdownIt from 'markdown-it';
+import { transformPlaceholders } from '../utils/transformPlaceholders';
+import { Citation } from '@/app/Library/Definitions/Definitions';
 
 // Initialize markdown-it parser instance.
-const mdParser = new markdownIt();
+export const mdParser = new markdownIt({
+  html: true,         
+  linkify: true,
+  breaks: true,
+})
+.disable(['escape']) 
 
 
 export async function parseConceptMap(
@@ -134,6 +141,7 @@ export async function parseConceptMap(
       type: 'note',
       title: 'Introduction',
       content: mdParser.render(responseData.main_topic.introduction),
+      citations: responseData.main_topic.lesson_citation ?? null,
       mapId: mapID,
     });
   }
@@ -144,6 +152,7 @@ export async function parseConceptMap(
         type: 'cuecard',
         title: 'Learning Objective',
         content:mdParser.render(objective),
+        citations: null,
         mapId: mapID,
       });
     }
@@ -155,7 +164,8 @@ export async function parseConceptMap(
   const processSubtopicsInOrder = async (
     subtopics: any[],
     parentNodeId: string,
-    depth: number
+    depth: number,
+    citation? : Citation[],
   ) => {
     console.log(`\n=== PROCESSING DEPTH ${depth} NODES ===`);
     console.log(`Number of subtopics at depth ${depth}: ${subtopics.length}`);
@@ -215,11 +225,18 @@ export async function parseConceptMap(
       if (subtopic.lesson) {
         // Primary subtopic (depth 1) uses the "lesson" object.
         if (subtopic.lesson.lecture_note) {
+
+            let transformedContent = transformPlaceholders(subtopic.lesson.lecture_note, subtopic.lesson_citation);//
+          let renderedContent = mdParser.render(transformedContent);
+        
+          console.log(`Subtopic title:  ${subtopic.title}, Transformed content : ${transformedContent}`)
+
           await dependencies.createResource({
             nodeId: subtopicNodeId,
             type: 'note',
-            title: `${subtopic.title} Lecture Note`,
-            content: mdParser.render(subtopic.lesson.lecture_note),
+            title: `Overview`,
+            content: renderedContent,
+            citations: subtopic.lesson_citation ?? null,
             mapId: mapID,
           });
         }
@@ -230,6 +247,7 @@ export async function parseConceptMap(
               type: 'cuecard',
               title: card.term,
               content: mdParser.render(card.definition),
+              citations: subtopic.lesson_citation  ?? null,
               mapId: mapID,
             });
           }
@@ -245,11 +263,17 @@ export async function parseConceptMap(
         }
       } else if (subtopic.lecture_note) {
         // Secondary subtopic (depth 2) has its properties at the root level.
+
+          let transformedContent = transformPlaceholders(subtopic.lecture_note, citation)
+          let renderedContent = mdParser.render(transformedContent);
+          console.log(`Subtopic title:  ${subtopic.title}, Transformed content : ${transformedContent}`)
+
         await dependencies.createResource({
           nodeId: subtopicNodeId,
           type: 'note',
-          title: `${subtopic.title} Lecture Note`,
-          content: mdParser.render(subtopic.lecture_note),
+          title: `Overview`,
+          content: renderedContent,
+          citations: citation ?? null,
           mapId: mapID,
         });
         if (subtopic.flash_cards && Array.isArray(subtopic.flash_cards)) {
@@ -259,6 +283,7 @@ export async function parseConceptMap(
               type: 'cuecard',
               title: card.term,
               content:  mdParser.render(card.definition),
+              citations: null,
               mapId: mapID,
             });
           }
@@ -276,7 +301,8 @@ export async function parseConceptMap(
         await processSubtopicsInOrder(
           subtopic.secondary_subtopic,
           subtopicNodeId,
-          depth + 1
+          depth + 1,
+           subtopic.lesson_citation, // use citations from primary subtopic
         );
       }
 
@@ -309,12 +335,13 @@ if (responseData?.main_topic?.quiz) {
     quizContent: aiQuiz.questions.map((q: any) => ({
       id: q.id,
       type: 'matching',
-      question: q.matchingQuestion,      // Renaming from matchingTerm to question
+      question: q.matchingTerm,      // Renaming from matchingTerm to question
       correctAnswer: q.matchingAnswer // Renaming from matchingAnswer to correctAnswer
     }))
   };
 
-  const reviewNodeId = 'review';
+  const reviewNodeId = 'reviewNode';
+  if (!localNodes.has(reviewNodeId)) {
   const reviewNode = {
     id: reviewNodeId,
     title: 'Review',
@@ -341,6 +368,8 @@ if (responseData?.main_topic?.quiz) {
       });
     },
   });
+
+}
 
   // Persist the transformed quiz resource.
   await dependencies.createResource({

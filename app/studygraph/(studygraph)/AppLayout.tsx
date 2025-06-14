@@ -1,3 +1,4 @@
+
 /**
  * @file AppLayout.tsx
  * @description
@@ -37,9 +38,9 @@ import { FileAssetProvider } from '@/app/Library/Context/FileAssetContext';
 import {SelectionAttachmentProvider} from '@/app/Library/Context/SelectionAttachmentContext'
 import SelectionAttachmentHandler from './components/layout/Canvas/SelectionAttachmentHandler';
 //import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
-import HomeScreen from './components/HomeScreen';
+import HomeScreen from './components/HomeScreenV2';
 import NavigationPanel from '@/app/studygraph/(studygraph)/components/layout/Sidebar/NavigationPanel';
-import  CardDisplay  from './components/layout/CardDisplay/CardDisplay';
+import  CardDisplay  from './components/layout/CardDisplay/v2/CardDisplay';
 import { CanvasView } from './components/layout/Canvas/CanvasView';
 import { UserInfoPanel } from '@/app/studygraph/(studygraph)/components/layout/UserInfoPanel';
 import { ChatHistoryProvider, useChatHistory } from '@/app/Library/Context/ChatHistoryContext';
@@ -78,9 +79,6 @@ const AppLayoutContent: React.FC = () => {
   // Sidebar states (manual toggle and expansion tracking).
   const [isPanelManuallyOpen, setIsPanelManuallyOpen] = useState(false);
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
-
-  // Other UI states.
-  const [cardDisplayWidth, setCardDisplayWidth] = useState(325);
   const [isEditMode, setIsEditMode] = useState(false);
   const { dispatch: layoutDispatch } = useLayoutContext();
   const { dispatch: colorThemeDispatch } = useColorThemeContext();
@@ -110,20 +108,7 @@ const AppLayoutContent: React.FC = () => {
   // Lesson module mapping hook.
   useLessonModuleMapper();
 
-  /**
-   * @function handleResize
-   * @description Restricts the CardDisplay panel width to a maximum of 40% of the window width.
-   */
-  useEffect(() => {
-    function handleResize() {
-      const maxWidth = window.innerWidth * 0.4;
-      if (cardDisplayWidth > maxWidth) {
-        setCardDisplayWidth(maxWidth);
-      }
-    }
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [cardDisplayWidth]);
+
 
   /**
    * @function initializeAppOnMount
@@ -292,15 +277,7 @@ const AppLayoutContent: React.FC = () => {
             autosaveStatus={saveStatus}
           />
           <CardDisplay
-            width={cardDisplayWidth}
-            isEditMode={isEditMode}
             currentTopicTitle="Map Title???" 
-            onEditToggle={() => setIsEditMode(!isEditMode)}
-            onResize={(dx) => {
-              const newWidth = cardDisplayWidth - dx;
-              const maxWidth = window.innerWidth * 0.4;
-              setCardDisplayWidth(Math.min(Math.max(288, newWidth), maxWidth));
-            }}
           />
         </div>
         </SlideShowProvider>

@@ -4,21 +4,29 @@
  * @file RichTextEditor.tsx
  * @description
  *   Wraps the Tiptap editor to allow users to create and edit rich text content,
- *   including inline and block LaTeX math via KaTeX. Provides a toolbar with
- *   distinct icons for inline vs. block math for better clarity.
+ *   including inline and block LaTeX math via KaTeX, and inline citations.
+ *   Provides a toolbar with distinct icons for:
+ *     • Bold, Italic, Lists
+ *     • Inline math ($…$) — Sigma icon
+ *     • Block math ($$…$$) — Code icon
+ *     • Citation placeholders (via Citation mark)
  *
  *   - Loads KaTeX CSS to style rendered math.
  *   - Uses StarterKit for core prose features.
  *   - Integrates MathExtension for math nodes.
+ *   - Integrates Citation for recognizing <sup data-cite> citation marks.
  *   - Emits serialized HTML on each update via onChange callback.
- *   - Toolbar icons: Bold, Italic, Lists, Inline‐Math (Sigma), Block‐Math (Function icon).
+ *   - Toolbar icons: Bold, Italic, Lists, Inline‐Math, Block‐Math.
  */
 
 import React from 'react';
-import 'katex/dist/katex.min.css';                        // KaTeX styles
+import 'katex/dist/katex.min.css'; // KaTeX styles
+
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { MathExtension } from '@/app/studygraph/(studygraph)/Library/tiptap/MathExtension';
+import { Citation } from './CitationExtension'; // <-- Correct export
+
 import { Toggle } from '@/components/ui/toggle';
 import {
   Bold,
@@ -44,7 +52,7 @@ interface RichTextEditorProps {
  * Renders toolbar controls:
  * - Bold, Italic, Bullet / Ordered lists
  * - Inline math ($…$) — Sigma icon
- * - Block math ($$…$$) — Function icon (distinct)
+ * - Block math ($$…$$) — Code icon
  */
 const MenuBar: React.FC<{ editor: any }> = ({ editor }) => {
   if (!editor) return null;
@@ -95,9 +103,7 @@ const MenuBar: React.FC<{ editor: any }> = ({ editor }) => {
       <Toggle
         size="sm"
         pressed={editor.isActive('inlineMath')}
-        onPressedChange={() =>
-          editor.chain().focus().insertContent({ type: 'inlineMath' }).run()
-        }
+        onPressedChange={() => editor.chain().focus().insertContent({ type: 'inlineMath' }).run()}
         title="Inline Math ($…$) (Ctrl+M)"
       >
         <Sigma className="h-4 w-4" />
@@ -108,11 +114,13 @@ const MenuBar: React.FC<{ editor: any }> = ({ editor }) => {
         size="sm"
         pressed={editor.isActive('blockMath')}
         onPressedChange={() =>
-          editor.chain().focus().insertContent({ type: 'blockMath', attrs: { display: true } }).run()
+          editor.chain().focus()
+            .insertContent({ type: 'blockMath', attrs: { display: true } })
+            .run()
         }
         title="Block Math ($$…$$) (Ctrl+Alt+M)"
       >
-        < Code className="h-4 w-4" />
+        <Code className="h-4 w-4" />
       </Toggle>
     </div>
   );
@@ -121,7 +129,10 @@ const MenuBar: React.FC<{ editor: any }> = ({ editor }) => {
 /**
  * RichTextEditor
  *
- * - Configures the Tiptap editor with StarterKit + MathExtension.
+ * - Configures the Tiptap editor with:
+ *     • StarterKit for core text tooling
+ *     • MathExtension for inline/block math
+ *     • Citation for <sup data-cite> marks
  * - Calls `onChange` with `editor.getHTML()` on every update.
  */
 const RichTextEditor: React.FC<RichTextEditorProps> = ({
@@ -132,7 +143,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const editor = useEditor({
     extensions: [
       StarterKit,
-      MathExtension,    // Provides inlineMath & blockMath node types
+      MathExtension,
+      Citation, // <-- Use the correct Citation mark
     ],
     content,
     onUpdate: ({ editor }) => {

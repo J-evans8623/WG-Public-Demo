@@ -67,10 +67,170 @@ Math or formal logic? Typeset it with KaTeX:
 
 Inline equations: wrap in single dollar signs $…$.
 
-Display equations / multiline derivations: wrap in double dollar signs on their own lines $$…$$.
+Display equations / multiline derivations: wrap in double dollar signs on their own lines $$…$$.}
+
+
+########## Instructions on citation formatting ######
+
+1. When a major concept or idea is bought up we should insert an inline citation
+to give the user the source of this information from their uploaded study material. Citations should only be added to the lecture_note content, only cite the Major concepts and ideas. 
+
+2. The "textsource" , needs to be a direct qoute from the uploaded study material, do not paraphrase. You must take a direct quote from the uploaded study material that supports the information being cited. 
+
+Follow these steps to make an inline citation :
+
+a. At the end of paragraph inside a lecture note where a major idea or concept was mentioned, insert the index of the citation, and enclose them with double angled bracket , example :
+<<1>>. 
+
+b. Use the lesson_citation to complete the citation that corresponds to the index. 
+Example :
+
+index : The index associated with the citation
+textsource : " A short quote from the uploaded material that is the source of the idea "
+page_number : The page the text source is found on.
+
+
+The page number will be clearly marked in the uploaded material, here is how they look :
+
+[#### START OF PAGE N ####]
+[#### END OF PAGE N ####]
+
+
+
+c. Never exceed more than four citations. Only provide citations for the lecture note of given sub topic. The textsource quote should not exceed 40 words.
+
+
+Here is full example :
+
+
+
+Uploaded material :
+[#### START OF PAGE 7 #### ]
+
+..... Photosynthesis is a chemical process where plants make food .....
+
+[#### END OF PAGE 7 #### ]
+
+
+
+
+Inline text example in lecture_note content :
+
+
+.....Plants make food via photosynthesis <<3>>.....
+
+
+Citation object :
+index : 3
+page number : 7
+citedText : " Photosynthesis is a chemical process where plants make food  "
+
+
+
 [End of system instructions]`;
 
   return prompt;
+}
+
+/**
+ * @file app/src/config/subtreePrompt.ts
+ * @description
+ *   Builds the prompt for generating a subtree lesson. Injects:
+ *     - mainTopic: the syllabus’s overall title
+ *     - primarySubtopic: this node’s title
+ *     - secondarySubtopics: string[] or null
+ */
+export function buildSubtreePrompt(
+  mainTopic: string,
+  primarySubtopic: string,
+  secondarySubtopics: string[] | null
+): string {
+  return `
+You are tasked with creating a lesson on the given primary subtopic and ALL of its nested secondary subtopics (if present, otherwise you can leave the secondary subtopic null). Each lesson entails a lecture note, flash cards, and two matching quiz question-answer pairs. The lesson you are creating is a part of a larger syllabus whose main topic is "${mainTopic}". You are given a specific primary topic from this syllabus.:
+
+Primary subtopic: ${primarySubtopic}
+
+Secondary subtopic(s): ${secondarySubtopics === null ? 'null' : JSON.stringify(secondarySubtopics)}
+
+Instructions
+
+1. Create a lesson that is grounded in the provided text. Explain the main points in the given text.
+2. If applicable draw concrete examples / problems from the uploaded material and explain them, if they are present in the uploaded text. These examples or problems must be grounded in the text, if the text doesn't have examples or problems you can skip this step.
+
+3. Create flash cards to document key concepts, ideas, events, or formula that are found in the lesson. The nature of the flash cards largely depend on the domain of the lesson, the aim is to create a glossary so try to document the key ideas that are most relevant and helpful to the user. For instance, the glossary for a Science subject would typically be different from a History subject (which might highlight key events or figures etc), the same is true for other domains of knowledge such as sociology, religion, formal math. Try to create appropriate flash cards based on the subject domain involved to create cards that will be helpful to the user.
+
+4. Finally create two matching quiz question-answer pairs.
+
+## Instructions on Readability and Math Formatting
+
+1. **Structure**:
+   - Use Markdown syntax where appropriate:
+     - Use '######' for headings.
+     - Don't use redundant headings which repeats the subtopic's title. Never use the term "Lecture note".
+     - Use bullet points or numbered lists for organization.
+     - Use tables to compare or summarize data.
+
+2. **Math Formatting Rules (Critical!)**:
+   You have a MathJax render environment.
+- Any LaTeX text between single dollar sign ($) will be rendered as a TeX formula;
+- Use $(tex_formula)$ in-line delimiters to display equations instead of backslash;
+- The render environment only uses $ (single dollarsign) as a container delimiter, never output $$.
+Example: $x^2 + 3x$ is output for "x² + 3x" to appear as TeX.
+
+
+
+3. ########## Instructions on citation formatting ######
+
+1. When a major concept or idea is bought up we should insert an inline citation
+to give the user the source of this information from their uploaded material. Citations should only be added to the lecture_note content, and this should be used conservatively , only cite the Major concepts and ideas. Follow these steps to make an inline citation
+
+a. At the end of paragraph inside a lecture note where a major idea or concept was mentioned, insert the index of the citation, and enclose them with double angled bracket , example :
+<<1>>. 
+
+b. Use the lesson_citation to complete the citation that corresponds to the index. 
+Example :
+
+index : The index associated with the citation
+textsource : " A short quote from the uploaded material that is the source of the idea "
+page_number : The page the text source is found on.
+
+
+The page number will be clearly marked in the uploaded material, here is how they look :
+
+[#### START OF PAGE N ####]
+[#### END OF PAGE N ####]
+
+
+
+c. Never exceed more than four citations. Only provide citations for the lecture note of given sub topic. The textsource quote should not exceed 40 words.
+
+
+Here is full example :
+
+
+
+Uploaded material :
+[#### START OF PAGE 7 #### ]
+
+..... Photosynthesis is a chemical process where plants make food .....
+
+[#### END OF PAGE 7 #### ]
+
+
+
+
+Inline text example in lecture_note content :
+
+
+.....Plants make food via photosynthesis <<3>>.....
+
+
+Citation object :
+index : 3
+page number : 7
+citedText : " Photosynthesis is a chemical process where plants make food  "
+
+  `.trim();
 }
 
 export const predefinedPrompts: Record<string, string> = {

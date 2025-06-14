@@ -1,0 +1,4 @@
+
+
+# Ignore the Yjs server implementation (pure JS)
+app/src/yjs-server/**

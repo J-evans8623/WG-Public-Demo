@@ -1,21 +1,28 @@
-/***************************************************************************************
- * @file BaseResourceCard.tsx       (soft-border variant)
+// src/app/studygraph/(studygraph)/components/layout/Cards/BaseResourceCard.tsx
+
+/**
+ * @file BaseResourceCard.tsx
  * @description
- *   Card shell with a very light stroke (≈60 % opacity).  Keeps the existing 1 px border
- *   so cards are still clearly outlined, but the visual weight is reduced to let the
- *   main map–notes divider remain the dominant element.
+ *   Soft-border card wrapper that accepts both our custom props and
+ *   any native HTML attributes (e.g. onKeyDown, tabIndex).
  *
- * Props:
- *   • onClick?   – optional click handler (e.g. CueCard flip)
- *   • className? – additional layout / utility classes
- *   • children   – inner card content
- ***************************************************************************************/
+ *   Responsibilities:
+ *   - Provide a light visual container for any inner resource.
+ *   - Forward click, class, keyboard, focus, and ARIA attributes to the <article>.
+ */
 
 import React from 'react';
 
-export interface BaseResourceCardProps {
+/**
+ * We extend React.HTMLAttributes<HTMLElement> so that
+ * this component can accept onKeyDown, tabIndex, aria-*, etc.
+ */
+export interface BaseResourceCardProps extends React.HTMLAttributes<HTMLElement> {
+  /** Optional click handler (e.g. for flipping cue cards) */
   onClick?: () => void;
+  /** Additional Tailwind (or custom) classes */
   className?: string;
+  /** Inner content of the card */
   children: React.ReactNode;
 }
 
@@ -23,6 +30,7 @@ const BaseResourceCard: React.FC<BaseResourceCardProps> = ({
   onClick,
   className = '',
   children,
+  ...restProps  // includes onKeyDown, tabIndex, aria-*, etc.
 }) => (
   <article
     onClick={onClick}
@@ -30,7 +38,7 @@ const BaseResourceCard: React.FC<BaseResourceCardProps> = ({
       relative
       bg-[#F8FBFE]
       border
-      border-[rgba(197,211,227,0.6)]   /* 60 % opacity */
+      border-[rgba(197,211,227,0.6)]   /* 60% opacity */
       rounded-md
       p-6
       shadow-sm hover:shadow
@@ -38,6 +46,7 @@ const BaseResourceCard: React.FC<BaseResourceCardProps> = ({
       ${onClick ? 'cursor-pointer' : ''}
       ${className}
     `}
+    {...restProps}
   >
     {children}
   </article>

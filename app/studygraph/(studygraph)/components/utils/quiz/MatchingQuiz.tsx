@@ -1,7 +1,27 @@
-// MatchingQuiz.tsx
-import React, { useState, useEffect } from 'react';
+/**
+ * @file MatchingQuiz.tsx
+ * @description
+ *   Matching quiz component that presents questions on the left and an independently 
+ *   shuffled answer bank on the right, preventing trivial matching by adjacency.
+ *   Responsibilities:
+ *   - Render a list of questions in the given order.
+ *   - Independently shuffle the answer bank every session.
+ *   - Track user selections and compute the score.
+ */
+
+import React, { useState, useEffect, useMemo } from 'react';
 import { IQuizQuestion } from '@/app/Library/Definitions/Definitions';
 import QuizBase from './QuizBase';
+
+/** Fisher–Yates shuffle helper */
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 interface MatchingQuizProps {
   quizData: IQuizQuestion[];
@@ -9,48 +29,57 @@ interface MatchingQuizProps {
   onClose: () => void;
 }
 
-const MatchingQuiz: React.FC<MatchingQuizProps> = ({ quizData, onSubmit, onClose }) => {
+const MatchingQuiz: React.FC<MatchingQuizProps> = ({
+  quizData,
+  onSubmit,
+  onClose,
+}) => {
+  // User selections per question index (stores letter)
   const [matchingAnswers, setMatchingAnswers] = useState<string[]>([]);
   const [showScore, setShowScore] = useState(false);
 
+  // Initialize empty answers when questions change
   useEffect(() => {
     setMatchingAnswers(Array(quizData.length).fill(''));
   }, [quizData]);
 
-  const letters = quizData.map((_, i) => String.fromCharCode(65 + i));
-  const scrambledAnswers = quizData.map(q => q.correctAnswer as string);
+  // Build a separately shuffled answer bank from correct answers
+  const answerBank = useMemo(() => {
+    const allCorrect = quizData.map(q => q.correctAnswer as string);
+    return shuffleArray(allCorrect);
+  }, [quizData]);
 
-  const handleAnswerChange = (index: number, answer: string) => {
-    const updatedAnswers = [...matchingAnswers];
-    updatedAnswers[index] = answer;
-    setMatchingAnswers(updatedAnswers);
+  // Generate letter labels for the bank
+  const letters = answerBank.map((_, i) => String.fromCharCode(65 + i));
+
+  const handleAnswerChange = (questionIndex: number, letter: string) => {
+    const next = [...matchingAnswers];
+    next[questionIndex] = letter;
+    setMatchingAnswers(next);
   };
 
   const handleSubmit = () => {
     let correct = 0;
-    matchingAnswers.forEach((answer, index) => {
-      if (answer) {
-        const selectedIndex = answer.charCodeAt(0) - 65;
-        const selectedAnswer = scrambledAnswers[selectedIndex];
-        if (selectedAnswer === quizData[index].correctAnswer) {
+    matchingAnswers.forEach((letter, qi) => {
+      if (letter) {
+        const idx = letter.charCodeAt(0) - 65;
+        if (answerBank[idx] === quizData[qi].correctAnswer) {
           correct++;
         }
       }
     });
     onSubmit(correct, quizData.length);
+    setShowScore(true);
   };
 
-  // Check if all questions have been answered
-  const isComplete = matchingAnswers.every(answer => answer !== '');
-  
-  // Check if a letter option is selected
-  const isLetterSelected = (letter: string) => matchingAnswers.includes(letter);
+  const isComplete = matchingAnswers.every(a => a !== '');
 
-  // Footer with action buttons
+  const isLetterUsed = (letter: string) => matchingAnswers.includes(letter);
+
   const footerContent = (
     <div className="flex justify-end gap-4">
-      <button 
-        onClick={onClose} 
+      <button
+        onClick={onClose}
         className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors"
       >
         Cancel
@@ -59,8 +88,8 @@ const MatchingQuiz: React.FC<MatchingQuizProps> = ({ quizData, onSubmit, onClose
         onClick={handleSubmit}
         disabled={!isComplete}
         className={`px-4 py-2 rounded-md transition-colors ${
-          isComplete 
-            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+          isComplete
+            ? 'bg-blue-600 hover:bg-blue-700 text-white'
             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
         }`}
       >
@@ -70,28 +99,30 @@ const MatchingQuiz: React.FC<MatchingQuizProps> = ({ quizData, onSubmit, onClose
   );
 
   return (
-    <QuizBase 
-      title="Matching Quiz" 
-      onClose={onClose} 
+    <QuizBase
+      title="Matching Quiz"
+      onClose={onClose}
       showScore={showScore}
       footerContent={footerContent}
     >
       <div className="grid grid-cols-[3fr,2fr] gap-8 p-6 h-full">
-        {/* Questions Section with independent scroll */}
+        {/* Questions */}
         <div className="overflow-y-auto pr-4 max-h-full">
           <div className="space-y-6">
-            {quizData.map((q, index) => (
-              <div key={index} className="bg-gray-50 p-4 rounded-lg shadow-sm">
-                <div className="text-sm text-gray-600 mb-2">Question {index + 1}</div>
+            {quizData.map((q, qi) => (
+              <div key={q.id} className="bg-gray-50 p-4 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-600 mb-2">
+                  Question {qi + 1}
+                </div>
                 <div className="text-gray-900 mb-4">{q.question}</div>
                 <select
                   className="w-full p-2 border rounded-md bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
-                  value={matchingAnswers[index] || ''}
-                  onChange={(e) => handleAnswerChange(index, e.target.value)}
+                  value={matchingAnswers[qi] || ''}
+                  onChange={e => handleAnswerChange(qi, e.target.value)}
                 >
                   <option value="">Select an answer</option>
-                  {letters.map((letter) => (
-                    <option key={letter} value={letter}>
+                  {letters.map(letter => (
+                    <option key={letter} value={letter} disabled={isLetterUsed(letter)}>
                       Option {letter}
                     </option>
                   ))}
@@ -101,28 +132,30 @@ const MatchingQuiz: React.FC<MatchingQuizProps> = ({ quizData, onSubmit, onClose
           </div>
         </div>
 
-        {/* Answer Bank Section with independent scroll */}
+        {/* Answer Bank */}
         <div className="overflow-y-auto max-h-full">
           <div className="bg-gray-50 p-4 rounded-lg shadow-sm h-full">
-            <h3 className="font-semibold text-lg mb-4 text-gray-900 sticky top-0 bg-gray-50 pt-1 pb-2">Answer Bank</h3>
+            <h3 className="font-semibold text-lg mb-4 text-gray-900 sticky top-0 bg-gray-50 pt-1 pb-2">
+              Answer Bank
+            </h3>
             <div className="space-y-3">
-              {scrambledAnswers.map((answer, index) => (
-                <div 
-                  key={index} 
+              {answerBank.map((ans, i) => (
+                <div
+                  key={i}
                   className={`p-3 bg-white rounded-lg border border-gray-200 shadow-sm transition-all ${
-                    isLetterSelected(letters[index]) 
-                      ? 'line-through text-gray-400' 
+                    isLetterUsed(letters[i])
+                      ? 'line-through text-gray-400'
                       : 'text-gray-800'
                   }`}
                 >
                   <span className={`font-medium mr-2 ${
-                    isLetterSelected(letters[index]) 
-                      ? 'text-gray-400' 
-                      : 'text-blue-600'
-                  }`}>
-                    {letters[index]}.
+                      isLetterUsed(letters[i])
+                        ? 'text-gray-400'
+                        : 'text-blue-600'
+                    }`}>
+                    {letters[i]}.
                   </span>
-                  {answer}
+                  {ans}
                 </div>
               ))}
             </div>

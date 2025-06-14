@@ -1,22 +1,4 @@
-// components/PdfViewer.tsx
-
-/**
- * @file PdfViewer.tsx
- * @description
- *   React component to display a multi-page PDF with:
- *     - Lazy rendering, invisible selectable text layer.
- *     - Custom context menu for Copy / Ask / Explore / Quiz.
- *     - Full-page text fallback if nothing selected.
- *     - Visual flash feedback on action.
- *     - Centralized “attachment” routing into Chat/Topic/Quiz flows.
- *
- * Responsibilities:
- *   - Load & cache PDF via PDF.js with retry logic.
- *   - Render pages on scroll via IntersectionObserver.
- *   - Capture text selection & preserve it across right-click.
- *   - Delegate menu actions: copy vs. trigger our attachment context.
- *   - Highlight page briefly when an action runs.
- */
+// PdfViewer.tsx - Fixed Version
 
 import React, {
   useState,
@@ -85,16 +67,36 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
     const [lastSelection, setLastSelection] = useState<string>('');
     const [highlightedPages, setHighlightedPages] = useState<number[]>([]);
 
-    // Page refs
+    // FIXED: Defensive page refs management
     const pageRefs = useRef<PageSlot[]>([]);
-    if (pageRefs.current.length !== numPages) {
-      pageRefs.current = Array.from({ length: numPages }, () => ({
+    const currentFileUrl = useRef<string>('');
+
+    // FIXED: Safe page reference initialization
+    const initializePageRefs = useCallback((pageCount: number) => {
+      // Cancel all existing render tasks before clearing
+      pageRefs.current.forEach(slot => {
+        try { 
+          slot.renderTask?.cancel(); 
+        } catch (e) {
+          // Ignore cancellation errors
+        }
+      });
+
+      // Create new array with proper initialization
+      pageRefs.current = Array.from({ length: pageCount }, () => ({
         wrapperRef: null,
         canvasRef: null,
         textLayerRef: null,
         renderTask: undefined,
       }));
-    }
+    }, []);
+
+    // FIXED: Safe ref setter with bounds checking
+    const setPageRef = useCallback((idx: number, refType: keyof PageSlot, element: any) => {
+      if (idx >= 0 && idx < pageRefs.current.length && pageRefs.current[idx]) {
+        pageRefs.current[idx][refType] = element;
+      }
+    }, []);
 
     /**
      * Load PDF with retry logic.
@@ -102,6 +104,15 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
     const loadPdf = useCallback(async () => {
       setLoading(true);
       setError(null);
+      
+      // FIXED: Clear existing state when switching PDFs
+      if (currentFileUrl.current !== fileUrl) {
+        setNumPages(0);
+        setPdfDoc(null);
+        initializePageRefs(0);
+        currentFileUrl.current = fileUrl;
+      }
+
       try {
         let pdf: PDFDocumentProxy;
         const cached = getCachedPdf(fileUrl);
@@ -115,6 +126,9 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
           pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
           cachePdf(fileUrl, pdf);
         }
+        
+        // FIXED: Initialize page refs before setting PDF doc
+        initializePageRefs(pdf.numPages);
         setPdfDoc(pdf);
         setNumPages(pdf.numPages);
         onPageChange?.(1, pdf.numPages);
@@ -128,18 +142,24 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
       } finally {
         setLoading(false);
       }
-    }, [fileUrl, retryCount, getCachedPdf, cachePdf, onPageChange]);
+    }, [fileUrl, retryCount, getCachedPdf, cachePdf, onPageChange, initializePageRefs]);
 
     /**
      * Render a page into its canvas & text layer.
      */
     const renderPage = useCallback(
       async (pageNum: number) => {
-        if (!pdfDoc) return;
-        const slot = pageRefs.current[pageNum - 1];
+        if (!pdfDoc || pageNum < 1 || pageNum > numPages) return;
+        
+        const idx = pageNum - 1;
+        // FIXED: Bounds checking before accessing pageRefs
+        if (idx >= pageRefs.current.length || !pageRefs.current[idx]) return;
+        
+        const slot = pageRefs.current[idx];
         if (slot.renderTask) {
           try { slot.renderTask.cancel(); } catch {}
         }
+        
         try {
           const page = await pdfDoc.getPage(pageNum);
           const viewport = page.getViewport({ scale });
@@ -192,7 +212,7 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
           console.error(`Error rendering page ${pageNum}:`, err);
         }
       },
-      [pdfDoc, scale]
+      [pdfDoc, scale, numPages]
     );
 
     // Kick off load
@@ -204,6 +224,7 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
     // Observe pages for lazy render & current-page tracking
     useEffect(() => {
       if (!pdfDoc || numPages === 0) return;
+      
       const renderObserver = new IntersectionObserver(
         ents => {
           ents.forEach(e => {
@@ -216,6 +237,7 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
         },
         { rootMargin: '200px 0px', threshold: 0.1 }
       );
+      
       const pageObserver = new IntersectionObserver(
         ents => {
           ents.forEach(e => {
@@ -228,12 +250,15 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
         },
         { threshold: 0.5 }
       );
-      pageRefs.current.forEach(slot => {
-        if (slot.wrapperRef) {
+
+      // FIXED: Only observe refs that actually exist
+      pageRefs.current.forEach((slot, idx) => {
+        if (slot?.wrapperRef) {
           renderObserver.observe(slot.wrapperRef);
           pageObserver.observe(slot.wrapperRef);
         }
       });
+      
       return () => {
         renderObserver.disconnect();
         pageObserver.disconnect();
@@ -250,8 +275,8 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
     // Re-render on zoom change
     useEffect(() => {
       if (!pdfDoc) return;
-      pageRefs.current.forEach((_, idx) => {
-        if (pageRefs.current[idx].canvasRef && pageRefs.current[idx].textLayerRef) {
+      pageRefs.current.forEach((slot, idx) => {
+        if (slot?.canvasRef && slot?.textLayerRef) {
           renderPage(idx + 1);
         }
       });
@@ -261,14 +286,19 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
     const scrollToPage = useCallback(
       (page: number) => {
         const idx = Math.min(Math.max(page, 1), numPages) - 1;
-        const wrapper = pageRefs.current[idx].wrapperRef;
-        if (!wrapper) return;
-        wrapper.scrollIntoView({ behavior: 'smooth' });
-        setCurrentPage(idx + 1);
-        onPageChange?.(idx + 1, numPages);
+        // FIXED: Safe access to wrapper ref
+        if (idx >= 0 && idx < pageRefs.current.length) {
+          const wrapper = pageRefs.current[idx]?.wrapperRef;
+          if (wrapper) {
+            wrapper.scrollIntoView({ behavior: 'smooth' });
+            setCurrentPage(idx + 1);
+            onPageChange?.(idx + 1, numPages);
+          }
+        }
       },
       [numPages, onPageChange]
     );
+    
     useImperativeHandle(
       ref,
       () => ({
@@ -329,7 +359,7 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
     return (
       <div
         className="flex flex-col items-center"
-        style={{ backgroundColor: 'var(--right-pane-bg)' }}
+        style={{ backgroundColor: '#FDFDF8' }}
         onMouseUp={captureSelection}
         onKeyUp={captureSelection}
       >
@@ -338,18 +368,18 @@ const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
           const isHighlighted = highlightedPages.includes(pageNum);
           return (
             <div
-              key={idx}
-              ref={el => { pageRefs.current[idx].wrapperRef = el; }}
+              key={`${fileUrl}-${idx}`} // FIXED: Include fileUrl in key for proper re-mounting
+              ref={el => setPageRef(idx, 'wrapperRef', el)} // FIXED: Use safe ref setter
               data-page-index={idx}
               className="relative mb-4 first:mb-0"
               onContextMenu={e => openMenu(e, pageNum)}
             >
               <canvas
-                ref={el => { pageRefs.current[idx].canvasRef = el; }}
+                ref={el => setPageRef(idx, 'canvasRef', el)} // FIXED: Use safe ref setter
                 style={{ border: '1px solid #ccc' }}
               />
               <div
-                ref={el => { pageRefs.current[idx].textLayerRef = el; }}
+                ref={el => setPageRef(idx, 'textLayerRef', el)} // FIXED: Use safe ref setter
                 className="textLayer"
               />
               {isHighlighted && (
