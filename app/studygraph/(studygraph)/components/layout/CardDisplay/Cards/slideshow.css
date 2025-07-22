@@ -129,8 +129,12 @@
 /* Clean minimal content styling */
 .slideshow-body h1,
 .slideshow-body h2,
-.slideshow-body h3 {
+.slideshow-body h3,
+.slideshow-body h4,
+.slideshow-body h5,
+.slideshow-body h6 {
   color: var(--slideshow-blue-primary);
+  font-weight: bold;
 }
 
 .slideshow-body h2 {

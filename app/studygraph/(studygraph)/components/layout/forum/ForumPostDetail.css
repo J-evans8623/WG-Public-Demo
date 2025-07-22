@@ -1,0 +1,15 @@
+.reply-item {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+.reply-meta {
+  font-size: 0.85rem;
+  color: #64748b;
+  display: flex;
+  gap: 0.5rem;
+}
+.reply-body {
+  margin-top: 0.25rem;
+  color: #1e293b;
+}

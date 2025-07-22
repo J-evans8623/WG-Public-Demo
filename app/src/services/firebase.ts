@@ -206,10 +206,6 @@ export async function loadDocumentFile(fileId: string): Promise<Buffer> {
   }
 }
 
-/**
- * Stores file metadata into Firestore.
- * @param metadata - Object containing file metadata.
- */
 export async function storeFileMetadata(metadata: {
   fileId: string;
   ownerId: string;
@@ -229,37 +225,125 @@ export async function storeFileMetadata(metadata: {
   }
 }
 
+
+export async function updateFileMetadata(params: {
+  fileId: string;
+  fileName?: string;
+  fileStoragePath?: string;
+  timestamp?: admin.firestore.FieldValue;
+  fileSize?: number;
+  contentType?: string;
+}): Promise<void> {
+  console.log('firebase.ts 0009 › updateFileMetadata', params);
+  const updates: Record<string, any> = {};
+  if (params.fileName)         updates.fileName       = params.fileName;
+  if (params.fileStoragePath)  updates.fileStoragePath = params.fileStoragePath;
+  if (params.timestamp)        updates.timestamp      = params.timestamp;
+  if (params.fileSize  != null) updates.fileSize      = params.fileSize;
+  if (params.contentType)      updates.contentType    = params.contentType;
+
+  await firestore
+    .collection('userFiles')
+    .doc(params.fileId)
+    .update(updates);
+}
+
+/**
+ * Add a user to documents/{docId}/editors and mirror to userFiles.sharedWith[]
+ */
+export async function addEditor(docId: string, userEmail: string): Promise<void> {
+  console.log('firebase.ts 0006 › addEditor', docId, userEmail);
+  // 1) ACL subcollection
+  await firestore
+    .collection('documents')
+    .doc(docId)
+    .collection('editors')
+    .doc(userEmail)
+    .set({ addedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+
+  // 2) Mirror into sharedWith[]
+  await firestore
+    .collection('userFiles')
+    .doc(docId)
+    .update({
+      sharedWith: admin.firestore.FieldValue.arrayUnion(userEmail)
+    });
+}
+
+
+/**
+ * Remove a user’s access to a document:
+ * 1) Deletes ACL entry under documents/{docId}/editors/{userEmail}
+ * 2) Removes their email from userFiles/{docId}.sharedWith
+ */
+export async function removeEditor(docId: string, userEmail: string): Promise<void> {
+  console.log('firebase.ts 2001 › removeEditor start', docId, userEmail);
+  await firestore
+    .collection('documents')
+    .doc(docId)
+    .collection('editors')
+    .doc(userEmail)
+    .delete();
+  await firestore
+    .collection('userFiles')
+    .doc(docId)
+    .update({
+      sharedWith: admin.firestore.FieldValue.arrayRemove(userEmail)
+    });
+  console.log('firebase.ts 2002 › removeEditor complete for', userEmail);
+}
+
+/**
+ * Return { owner: string, editors: string[] }
+ */
+export async function listEditors(docId: string): Promise<{ owner: string; editors: string[] }> {
+  // ① owner = userFiles/<docId>.ownerId         (flat doc → single read)
+  const metaSnap = await firestore.collection('userFiles').doc(docId).get();
+  const owner = (metaSnap.data()?.ownerId as string) ?? '';
+
+  // ② editors = documents/<docId>/editors/*     (sub-collection → list of docs)
+  const colSnap = await firestore
+    .collection('documents')
+    .doc(docId)
+    .collection('editors')
+    .get();
+
+  const editors = colSnap.docs.map(d => d.id);         // document-id === user email
+  return { owner, editors };
+}
+
+export interface UserFilesList {
+  ownedFiles: any[];
+  sharedFiles: any[];
+}
+
 /**
  * Lists file metadata for a given user.
- * @param userEmail - The authenticated user's email.
- * @returns An array of file metadata objects.
+ * Returns separate arrays for owned and shared files, each ordered by timestamp desc.
  */
-export async function listUserFiles(userEmail: string): Promise<any[]> {
-  try {
-    const ownedQuerySnapshot = await firestore
-      .collection('userFiles')
-      .where('ownerId', '==', userEmail)
-      .orderBy('timestamp', 'desc')
-      .get();
+export async function listUserFiles(userEmail: string): Promise<UserFilesList> {
+  console.log('firebase.ts 7001 › listUserFiles called for', userEmail);
 
-    const sharedQuerySnapshot = await firestore
-      .collection('userFiles')
-      .where('sharedWith', 'array-contains', userEmail)
-      .orderBy('timestamp', 'desc')
-      .get();
+  const ownedSnap = await firestore
+    .collection('userFiles')
+    .where('ownerId', '==', userEmail)
+    .orderBy('timestamp', 'desc')
+    .get();
+  const sharedSnap = await firestore
+    .collection('userFiles')
+    .where('sharedWith', 'array-contains', userEmail)
+    .where('ownerId', '!=', userEmail)
+    .orderBy('ownerId')
+    .orderBy('timestamp', 'desc')
+    .get();
 
-    const filesMap: Record<string, any> = {};
-    ownedQuerySnapshot.forEach(doc => {
-      filesMap[doc.id] = doc.data();
-    });
-    sharedQuerySnapshot.forEach(doc => {
-      filesMap[doc.id] = doc.data();
-    });
-    return Object.values(filesMap);
-  } catch (error) {
-    console.error('Error listing user files:', error);
-    throw error;
-  }
+  const ownedFiles = ownedSnap.docs.map(d => d.data());
+  console.log('firebase.ts 7002 › ownedFiles count', ownedFiles.length);
+
+  const sharedFiles = sharedSnap.docs.map(d => d.data());
+  console.log('firebase.ts 7003 › sharedFiles count', sharedFiles.length);
+
+  return { ownedFiles, sharedFiles };
 }
 
 /**
@@ -289,4 +373,70 @@ export async function deleteFileMetadata(fileId: string): Promise<void> {
     console.error('Error deleting file metadata:', error);
     throw error;
   }
+}
+
+
+
+/**
+ * generateUploadUrl
+ * @param docId    Document identifier
+ * @param type     'doc' or 'chat'
+ * @param userId   REQUIRED for 'chat' (per-user scope)
+ * @returns        { uploadUrl, path }
+ */
+export async function generateUploadUrl(
+  docId: string,
+  type: 'doc' | 'chat',
+  userId?: string
+): Promise<{ uploadUrl: string; path: string }> {
+  // Determine destination path
+  let destination: string;
+  if (type === 'doc') {
+    destination = `documents/${docId}.bloomdocx`;
+  } else {
+    if (!userId) throw new Error('firebase.ts 1003 › userId required for chat upload');
+    destination = `documents/${docId}/privateChats/${userId}.chat.json`;
+  }
+  console.log(`firebase.ts 1004 › generateUploadUrl for ${type}`, { docId, userId, destination });
+
+  const file = bucket.file(destination);
+  const [uploadUrl] = await file.getSignedUrl({
+    version: 'v4',
+    action: 'write',
+    expires: Date.now() + 5 * 60 * 1000,
+    contentType: type === 'chat' ? 'application/json' : 'application/octet-stream',
+  });
+  console.log('firebase.ts 1005 › uploadUrl generated', { destination });
+  return { uploadUrl, path: destination };
+}
+
+/**
+ * generateDownloadUrl
+ * @param docId    Document identifier
+ * @param type     'doc' or 'chat'
+ * @param userId   REQUIRED for 'chat'
+ * @returns        { downloadUrl, path }
+ */
+export async function generateDownloadUrl(
+  docId: string,
+  type: 'doc' | 'chat',
+  userId?: string
+): Promise<{ downloadUrl: string; path: string }> {
+  let destination: string;
+  if (type === 'doc') {
+    destination = `documents/${docId}.bloomdocx`;
+  } else {
+    if (!userId) throw new Error('firebase.ts 2003 › userId required for chat download');
+    destination = `documents/${docId}/privateChats/${userId}.chat.json`;
+  }
+  console.log(`firebase.ts 2004 › generateDownloadUrl for ${type}`, { docId, userId, destination });
+
+  const file = bucket.file(destination);
+  const [downloadUrl] = await file.getSignedUrl({
+    version: 'v4',
+    action: 'read',
+    expires: Date.now() + 5 * 60 * 1000,
+  });
+  console.log('firebase.ts 2005 › downloadUrl generated', { destination });
+  return { downloadUrl, path: destination };
 }

@@ -20,7 +20,8 @@
 
 'use client';
 
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { ApiProvider, ApiContext } from '@/app/src/context/ApiContext';
 import { NodeSelectionProvider, useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
@@ -36,16 +37,19 @@ import { LessonDataProvider } from '@/app/Library/Context/LessonDataContext';
 import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext';
 import { FileAssetProvider } from '@/app/Library/Context/FileAssetContext';
 import {SelectionAttachmentProvider} from '@/app/Library/Context/SelectionAttachmentContext'
+import { VersionHistoryProvider, useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
+import VersionHistoryPanel from './components/versionHistory/ui/VersionHistoryPanel';
 import SelectionAttachmentHandler from './components/layout/Canvas/SelectionAttachmentHandler';
-//import AuthPromptModal from '@/app/Library/components/Modals/auth/AuthPromptModal';
 import HomeScreen from './components/HomeScreenV2';
 import NavigationPanel from '@/app/studygraph/(studygraph)/components/layout/Sidebar/NavigationPanel';
-import  CardDisplay  from './components/layout/CardDisplay/v2/CardDisplay';
 import { CanvasView } from './components/layout/Canvas/CanvasView';
+import ROcanvasViewer from './components/layout/ReadOnly/map/ROcanvasView';
+import ROcardDisplay from './components/layout/ReadOnly/CardDisplay/ROcardDisplay';
 import { UserInfoPanel } from '@/app/studygraph/(studygraph)/components/layout/UserInfoPanel';
 import { ChatHistoryProvider, useChatHistory } from '@/app/Library/Context/ChatHistoryContext';
+import { CommentsProvider } from '@/app/Library/Context/CommentContext';
+import { UserDataProvider, useUserData } from '@/app/Library/Context/UserDataContext';
 import './appLayout.css';
-
 import { initializeNewDocument } from '@/app/Library/utils/LoadDocumentUtils';
 import { LessonModuleProvider , useLessonModule} from '@/app/Library/Context/LessonModuleContext';
 import { AutoSaveManager } from '@/app/Library/utils/AutoSaveManager';
@@ -55,6 +59,7 @@ import { SearchProvider } from '@/app/Library/Context/SearchContext';
 import { Menu, ChevronsLeft } from 'lucide-react';
 import SearchModal from './components/layout/SearchModal';
 import 'katex/dist/katex.min.css'
+
 
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
@@ -73,13 +78,16 @@ const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
  * 4. Provide functions to load files and create new documents.
  */
 const AppLayoutContent: React.FC = () => {
+    const router = useRouter();
+  const searchParams = useSearchParams();
+  const hasLandedRef = useRef(false);
   // Application-level screen states.
   const [currentView, setCurrentView] = useState<'home' | 'map' | 'user'>('home');
+  const { isHistoryOpen } = useVersionHistory();
 
   // Sidebar states (manual toggle and expansion tracking).
   const [isPanelManuallyOpen, setIsPanelManuallyOpen] = useState(false);
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
   const { dispatch: layoutDispatch } = useLayoutContext();
   const { dispatch: colorThemeDispatch } = useColorThemeContext();
   const {
@@ -87,8 +95,9 @@ const AppLayoutContent: React.FC = () => {
     docFileID,
     saveToFirebase,
     loadFromFirebase,
-    ydoc
+    ydoc, takeMapSnapshot
   } = useYDoc();
+  const {InitializeUserData, LoadUserData} = useUserData();
   const { messages, setMessages, clearMessages, addMessage, chatDirty, resetDirty } = useChatHistory();
   const { clearHistory } = useUndoRedo();  
   const {clearSelection} = useNodeSelection();
@@ -108,7 +117,29 @@ const AppLayoutContent: React.FC = () => {
   // Lesson module mapping hook.
   useLessonModuleMapper();
 
+    // ── Share‐link landing: read ?doc & ?shareMode once, load, switch to map, clean URL ──
+  useEffect(() => {
+const docId = searchParams?.get('doc') ?? null;
+const shareMode = (searchParams?.get('shareMode') as 'copy' | 'collab') ?? null;
 
+    if (docId && !hasLandedRef.current) {
+      hasLandedRef.current = true;
+
+      clearHistory();
+      clearSelection();
+      resetPdfState();
+
+      if (shareMode === 'copy'|| 'collab') {
+        loadFromFirebase(docId).catch(console.error);
+        LoadUserData(docId)
+      }
+      // collab auto‐connects via useCollabProvider
+
+      setActiveView('conceptMap');
+      setCurrentView('map');
+      router.replace('/studygraph');
+    }
+  }, [searchParams, clearHistory, clearSelection, resetPdfState, loadFromFirebase, setActiveView, router, LoadUserData]);
 
   /**
    * @function initializeAppOnMount
@@ -117,7 +148,7 @@ const AppLayoutContent: React.FC = () => {
   useEffect(() => {
     async function initializeApp() {
       try {
-        await initializeNewDocument(createNewDocument, layoutDispatch, colorThemeDispatch);
+        await initializeNewDocument(createNewDocument, layoutDispatch, colorThemeDispatch, InitializeUserData);
         if (viewportRef.current) {
           const centerEvent = new CustomEvent('centerMap');
           viewportRef.current.dispatchEvent(centerEvent);
@@ -129,11 +160,11 @@ const AppLayoutContent: React.FC = () => {
 
     if (!hasInitialized.current) {
       hasInitialized.current = true;
-      if (!docFileID) {
+      if ( !hasLandedRef.current && !docFileID) {
         initializeApp();
       }
     }
-  }, [docFileID, createNewDocument, layoutDispatch, colorThemeDispatch]);
+  }, [docFileID, createNewDocument, layoutDispatch, colorThemeDispatch, InitializeUserData]);
 
   /**
    * @function setupAutosave
@@ -148,6 +179,12 @@ const AppLayoutContent: React.FC = () => {
           await saveToFirebase(chatPayload) ;
           if (chatDirty) resetDirty();
           setSaveStatus('saved');
+          try {
+            await takeMapSnapshot(activeConceptMapId);
+            console.log(` 6007 Snapshot created with active mapID ${activeConceptMapId}`);
+          } catch (err){
+            console.warn('Snapshot skipped (probably rate-limited):', err);
+          }
         } catch (error) {
           console.error('Autosave error:', error);
         }
@@ -163,7 +200,7 @@ const AppLayoutContent: React.FC = () => {
         autoSaveManagerRef.current = null;
       }
     };
-  }, [currentView, ydoc, saveToFirebase, messages, chatDirty, resetDirty]);
+  }, [currentView, ydoc, saveToFirebase, messages, chatDirty, resetDirty, takeMapSnapshot, activeConceptMapId]);
 
   /**
    * @function handleFileSelect
@@ -181,6 +218,7 @@ const AppLayoutContent: React.FC = () => {
       resetPdfState();
       // Load the document state from Firebase Storage using loadFromFirebase.
       const chatData = await loadFromFirebase(fileStorageId);
+      LoadUserData(fileStorageId)
       clearMessages();
       if (chatData.length) {
         chatData.forEach(m => addMessage(m));
@@ -239,6 +277,54 @@ const AppLayoutContent: React.FC = () => {
     return isPanelExpanded ? <ChevronsLeft className="w-5 h-5 text-gray-600" /> : <Menu className="w-5 h-5 text-gray-600" />;
   };
 
+
+
+    /**
+   * @function getNavButtonPosition
+   * @description Calculates the position of the navigation button based on current view and panel states.
+   * @returns {object} CSS positioning styles
+   */
+  const getNavButtonPosition = () => {
+    // Base positioning - always fixed to viewport
+    const baseStyles = {
+      position: 'fixed' as const,
+      top: '1rem',
+      zIndex: 50,
+    };
+
+    // For home and user views, always show at left edge
+    if (currentView === 'home' || currentView === 'user') {
+      return {
+        ...baseStyles,
+        left: '1rem',
+      };
+    }
+
+    // For map view, adjust based on version history panel state
+    if (currentView === 'map') {
+      if (isHistoryOpen) {
+        // When version history is open, position button over the read-only canvas
+        // Assuming version history panel is ~300px wide, position button accordingly
+        return {
+          ...baseStyles,
+          left: '320px', // Version history panel width + margin
+        };
+      } else {
+        // When version history is closed, position at left edge
+        return {
+          ...baseStyles,
+          left: '1rem',
+        };
+      }
+    }
+
+    // Default positioning
+    return {
+      ...baseStyles,
+      left: '1rem',
+    };
+  };
+
   return (
     <div className="h-screen w-full flex bg-white">
       {/* Display AuthPromptModal if the user is not authenticated */}
@@ -253,10 +339,11 @@ const AppLayoutContent: React.FC = () => {
         />
       </div>
 
-      {/* Toggle button for Navigation Panel */}
+    {/* Toggle button for Navigation Panel - Now with dynamic positioning */}
       <button
         onClick={handleTogglePanel}
-        className="absolute top-4 left-4 z-50 p-2 bg-gray-100 rounded shadow hover:bg-gray-200 transition-colors"
+        className="p-2 bg-gray-100 rounded shadow hover:bg-gray-200 transition-colors"
+        style={getNavButtonPosition()}
         title="Toggle Navigation Panel"
         data-testid="nav-toggle-button"
       >
@@ -272,13 +359,17 @@ const AppLayoutContent: React.FC = () => {
       {currentView === 'map' && (
         <SlideShowProvider>
         <div className="flex-1 flex">
-          <CanvasView
-            isResourcePanelVisible
-            autosaveStatus={saveStatus}
-          />
-          <CardDisplay
-            currentTopicTitle="Map Title???" 
-          />
+          {/* Version History Panel (when open) */}
+            {isHistoryOpen && <VersionHistoryPanel />}
+                        {/* Canvas & Cards: historical preview or live editing */}
+            {isHistoryOpen ? (
+              <>
+                <ROcanvasViewer/>
+                <ROcardDisplay/>
+              </> ) : (<>
+                <CanvasView isResourcePanelVisible autosaveStatus={saveStatus} />
+                
+              </>) }
         </div>
         </SlideShowProvider>
       )}
@@ -309,17 +400,20 @@ export const AppLayout: React.FC = () => {
               <FileAssetProvider>
                 <NodeSelectionProvider>
                   <UndoRedoProvider>
+                    <NodesProvider> 
                   <ResourceProvider>
-                    <NodesProvider>
+                    <UserDataProvider>
+                     
                       <LessonDataProvider>
+                        <CommentsProvider>
                         <ZoomProvider>
                           <LayoutProvider>
                             <ColorThemeProvider>
                               <SubTreeProvider>
+                                <VersionHistoryProvider>
                                 <SelectionAttachmentProvider>
                                 <ChatHistoryProvider>
                                   <SearchProvider>
-                                    
                                 <AppLayoutContent />
                                 <SelectionAttachmentHandler />
                                 <div id="modal-root" />
@@ -327,13 +421,16 @@ export const AppLayout: React.FC = () => {
                                 </SearchProvider>
                                 </ChatHistoryProvider>
                                 </SelectionAttachmentProvider>
+                                 </VersionHistoryProvider>
                               </SubTreeProvider>
                             </ColorThemeProvider>
                           </LayoutProvider>
                         </ZoomProvider>
+                        </CommentsProvider>
                       </LessonDataProvider>
-                    </NodesProvider>
+                    </UserDataProvider>
                   </ResourceProvider>
+                  </NodesProvider>
                   </UndoRedoProvider>
                 </NodeSelectionProvider>
               </FileAssetProvider>

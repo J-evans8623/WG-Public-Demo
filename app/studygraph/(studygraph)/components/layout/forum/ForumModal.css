@@ -1,0 +1,45 @@
+/* File: app/studygraph/(studygraph)/components/forum/ForumModal.css
+
+   Responsibilities:
+   - Style the forum modal backdrop and container
+   - Constrain the modal’s maximum height to the viewport
+   - Enable internal scrolling when content overflows
+   - Preserve existing visual design (width, padding, border-radius, shadow)
+*/
+
+.forum-modal-backdrop {
+  position: fixed;
+  inset: 0; /* top:0; right:0; bottom:0; left:0 */
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.forum-modal {
+  /* ── Layout ─────────────────────────────────────────────────────────── */
+  max-width: 800px;
+  width: 90%;
+  /* Constrain to 80% of viewport height and enable scrolling */
+  max-height: 80vh;
+  overflow-y: auto;
+  /* ── Visual styling (preserved) ─────────────────────────────────────── */
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  position: relative;
+  
+  /* Smooth scrolling on touch devices */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Optional: ensure scrollbars appear inside the modal, not on the backdrop */
+.forum-modal::-webkit-scrollbar {
+  width: 8px;
+}
+.forum-modal::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}

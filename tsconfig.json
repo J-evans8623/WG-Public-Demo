@@ -42,7 +42,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "app/**/*.d.ts",
-    "app/src/services/*.js", 
+    "app/src/services/*.js", "app/src/services/yjs/yjs-server.js", "../archive-v1-bloom/ConceptNode.tsx", 
   ],
   "exclude": [
     "node_modules",

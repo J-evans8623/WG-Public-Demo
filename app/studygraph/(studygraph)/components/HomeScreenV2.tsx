@@ -20,7 +20,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onCreateNewDocument,
 }) => {
   const { listFiles, deleteFile } = useContext(ApiContext);
-  const [recentFiles, setRecentFiles] = useState<DriveFile[]>([]);
+    const [ownedFiles, setOwnedFiles] = useState<DriveFile[]>([]);
+  const [sharedFiles, setSharedFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [greeting, setGreeting] = useState('');
 
@@ -44,15 +45,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     setGreeting(hour < 12 ? 'Good morning'
       : hour < 18 ? 'Good afternoon'
       : 'Good evening');
-    fetchRecentFiles();
+    fetchFiles();
   }, []);
 
-  const fetchRecentFiles = async () => {
+  const fetchFiles = async () => {
     try {
-      const files = await listFiles('');
-      setRecentFiles(files);
+      console.log('HomeScreenV2.tsx 1001 › fetching both file lists');
+      const { ownedFiles, sharedFiles } = await listFiles();
+      console.log('HomeScreenV2.tsx 1002 › owned count', ownedFiles.length);
+      console.log('HomeScreenV2.tsx 1003 › shared count', sharedFiles.length);
+      setOwnedFiles(ownedFiles);
+      setSharedFiles(sharedFiles);
     } catch (err) {
-      console.error(err);
+      console.error('HomeScreenV2.tsx 1004 › fetchFiles error', err);
     } finally {
       setLoading(false);
     }
@@ -62,7 +67,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     if (window.confirm('Are you sure you want to delete this file?')) {
       try {
         await deleteFile(path);
-        fetchRecentFiles();
+        fetchFiles();
       } catch (err) {
         console.error(err);
       }
@@ -161,11 +166,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
           ) : (
             <div className="files-grid">
-              {recentFiles.slice(0, 6).map((file) => (
+              {ownedFiles.slice(0, 6).map((file) => (
                 <div
                   key={file.fileId}
                   className="file-card"
-                  onClick={() => onFileSelect(file.fileStoragePath)}
+                  onClick={() => onFileSelect(file.fileId)}
                 >
                   <div className="file-header">
                     <div className="file-icon generic-icon">
@@ -196,6 +201,36 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                     title="Delete File"
                   >
                     <Trash className="trash-icon" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="section">
+          <div className="section-header">
+            <h2 className="section-title"><FileText className="section-icon"/>Files Shared With Me</h2>
+          </div>
+          {loading ? null : (
+            <div className="files-grid">
+              {sharedFiles.map(f => (
+                <div key={f.fileId} className="file-card" onClick={() => onFileSelect(f.fileId)}>
+                  <div className="file-header">
+                    <div className="file-icon generic-icon"><FileText/></div>
+                    <div className="file-info">
+                      <div className="file-name">{f.name}</div>
+                      <div className="file-meta">
+                        Modified: {f.timestamp ? new Date(f.timestamp).toLocaleDateString() : 'Unknown date'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="file-preview">{'No preview available.'}</div>
+                  <button
+                    onClick={e => { e.stopPropagation(); handleDeleteFile(f.fileStoragePath); }}
+                    className="delete-button" title="Delete File"
+                  >
+                    <Trash className="trash-icon"/>
                   </button>
                 </div>
               ))}

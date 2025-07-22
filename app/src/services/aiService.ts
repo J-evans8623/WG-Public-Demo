@@ -100,7 +100,7 @@ class AIService {
       // --- Batch Mode ---
       // Waits for the full response, parses JSON, and returns the validated object.
       const response = await this.openai.beta.chat.completions.parse({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",

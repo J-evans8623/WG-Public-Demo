@@ -38,8 +38,13 @@ export interface UnitSyllabus {
 
 export interface SyllabusRating {
   primary_subtopics: Array<{
+    LessonOutline: string | undefined;
+    Learning_Objectives: string | undefined;
     title: string;
-    secondary_topics: Array<{ title: string; score: number }>;
+    secondary_topics: Array<{
+      LessonOutline: any;
+      Learning_Objectives: any; title: string; score: number 
+}>;
   }>;
 }
 

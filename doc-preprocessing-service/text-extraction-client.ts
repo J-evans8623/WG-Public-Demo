@@ -11,7 +11,7 @@
 import axios from 'axios';
 import FormData from 'form-data';
 
-export async function extractTextFromFileService(fileBuffer: Buffer, mimeType: string): Promise<string> {
+export async function extractTextFromFileService(fileBuffer: Buffer, mimeType: string): Promise<string[]> {
   const serviceUrl = process.env.TEXT_EXTRACTION_SERVICE_URL || 'http://localhost:8001/extract';
   
   const form = new FormData();

@@ -27,11 +27,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 export interface ResourceMenuProps {
-  onEdit: () => void;
+  
   onDelete: () => void;
   onAskAI: () => void;
   onImageCaption: () => void;
   resourceType: 'cuecard' | 'note' | 'image' | 'quiz';
+  onEdit?: () => void;
 }
 
 const ResourceMenu: React.FC<ResourceMenuProps> = ({

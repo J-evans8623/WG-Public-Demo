@@ -33,7 +33,7 @@ import {
   Citation,
 } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
-import NoteCard from '@/app/studygraph/(studygraph)/components/layout/CardDisplay/Cards/NoteCard';
+
 
 export interface ResourceContextType {
   resources: Map<string, ResourceCard[]>;
@@ -54,6 +54,7 @@ export interface ResourceContextType {
     image: File,
     mapID?: string
   ): Promise<void>;
+  restoreResource: (card: ResourceCard) => void;
   editPictureResourcev1(
     resource: PictureResource,
     newImage: boolean,
@@ -76,8 +77,40 @@ export interface ResourceContextType {
   // global undo/redo
   undo(): void;
   redo(): void;
+  updatedRivisonCard:boolean;
+  setupdatedRivisionCard: (flag:boolean) => void,
+  getGlobalResourceCard: (
+    mapId: string,
+    nodeId: string,
+    resourceId: string
+  ) => ResourceCard | undefined;
 }
 
+
+/**
+ * globalResourceCardLookup
+ * Utility function to retrieve a ResourceCard from any Y.Doc by specifying
+ * the concept‐map ID (`mapId`), the `nodeId` key, and the `resourceId`. This
+ * hides all Yjs map traversal logic behind a single function, and is
+ * exported for straightforward unit testing.
+ *
+ * @param ydocInstance - The Y.Doc to query.
+ * @param mapId         - ID of the concept map (used for Yjs map key).
+ * @param nodeId        - Node within the map to look up.
+ * @param resourceId    - Specific ResourceCard ID.
+ * @returns             - The ResourceCard if found; otherwise undefined.
+ */
+export function globalResourceCardLookup(
+  ydocInstance: Y.Doc,
+  mapId: string,
+  nodeId: string,
+  resourceId: string
+): ResourceCard | undefined {
+  const resourcesKey = `resources:${mapId}`;
+  const outer = ydocInstance.getMap<Y.Map<ResourceCard>>(resourcesKey);
+  const inner = outer.get(nodeId);
+  return inner?.get(resourceId);
+}
 const ResourceContext = createContext<ResourceContextType | undefined>(undefined);
 
 export const useResourceContext = (): ResourceContextType => {
@@ -87,13 +120,18 @@ export const useResourceContext = (): ResourceContextType => {
 };
 
 export const ResourceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { ydoc } = useYDoc();
+  const { ydoc , isReadOnly, snapshotYDoc } = useYDoc();
   const { activeConceptMapId } = useLessonModule();
   const mapKey = `resources:${activeConceptMapId}`;
-  const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>(mapKey);
+   const activeDoc = snapshotYDoc ?? ydoc;
+  const yResourcesMap =  activeDoc.getMap<Y.Map<ResourceCard>>(mapKey);
+
 
   const [resources, setResources] = useState<Map<string, ResourceCard[]>>(new Map());
   const { undo: globalUndo, redo: globalRedo } = useUndoRedo();
+   const [updatedRivisonCard, setupdatedRivisionCard] = useState(false);
+
+
 
   // Load initial state & subscribe to remote Y.Doc changes
   useEffect(() => {
@@ -132,6 +170,10 @@ const addResourcev1 = useCallback(
     },
     mapID?: string
   ) => {
+        if (isReadOnly) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+      return;
+    }
     const usedMapId = mapID || activeConceptMapId;
     const mapKey = `resources:${usedMapId}`;
     const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>(mapKey);
@@ -146,7 +188,9 @@ const addResourcev1 = useCallback(
         title,
         content,
         citations: citations ?? null,
+        mapId:usedMapId,
       } as CueCardResource;
+      setupdatedRivisionCard(true);
     } else if (type === 'note') {
       card = {
         id,
@@ -155,6 +199,7 @@ const addResourcev1 = useCallback(
         title,
         content,
         citations: citations ?? null,
+        mapId:usedMapId,
       } as NoteResource;
     } else {
       card = {
@@ -164,10 +209,13 @@ const addResourcev1 = useCallback(
         title,
         content,
         citations: citations ?? null,
+        mapId:usedMapId,
       } as PracticeSheetResource;
+      setupdatedRivisionCard(true);
     }
 
     const delta: Delta = { type: 'RESOURCE_ADD', nodeId, card };
+    setupdatedRivisionCard(true);
 
     ydoc.transact(() => {
       record(
@@ -204,19 +252,72 @@ const addResourcev1 = useCallback(
       );
     });
   },
-  [ydoc, activeConceptMapId]
+  [ydoc, activeConceptMapId, isReadOnly]
 );
 
+
+ /**
+   * @function restoreResource
+   * @description
+   *   Re-inserts a ResourceCard (with its exact ID, nodeId, and fields) into the live Y.Doc,
+   *   skipping read-only restrictions. Updates both the Y.Map and React state in a single
+   *   Y.Doc transaction with origin `{type:'system',action:'restoreResource'}`. Emits logs
+   *   at start (8101), mid (8102), and completion (8103).
+   *
+   * @param card - The full ResourceCard snapshot to restore.
+   */
+// ResourceContext.tsx
+const restoreResource = useCallback(
+  (card: ResourceCard): void => {
+    console.log(
+      'ResourceContext.tsx 8101 › restoreResource start',
+      card.id,
+      'node:',
+      card.nodeId
+    );
+    // Always write into the *live* Y.Doc map:
+    const liveMap = ydoc.getMap<Y.Map<ResourceCard>>(mapKey);
+    const yMapForNode = liveMap.get(card.nodeId) ?? new Y.Map<ResourceCard>();
+
+    ydoc.transact(
+      () => {
+        if (!liveMap.has(card.nodeId)) {
+          liveMap.set(card.nodeId, yMapForNode);
+          console.log(
+            'ResourceContext.tsx 8102 › created inner map for node',
+            card.nodeId
+          );
+        }
+        yMapForNode.set(card.id, card);
+        console.log(
+          'ResourceContext.tsx 8102 › card set in Y.Doc (no React‐state mutation)',
+          card.id
+        );
+      },
+      { type: 'system', action: 'restoreResource' }
+    );
+
+    console.log(
+      'ResourceContext.tsx 8103 › restoreResource complete',
+      card.id
+    );
+  },
+  [ydoc, mapKey]
+);
 
 
   const removeResourcev1 = useCallback(
     (nodeId: string, resourceId: string) => {
+          if (isReadOnly) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+      return;
+    }
       const current = resources.get(nodeId) || [];
       const card = current.find((c) => c.id === resourceId);
       if (!card) return;
 
       const delta: Delta = { type: 'RESOURCE_DELETE', nodeId, card };
-
+      setupdatedRivisionCard(true);
       ydoc.transact(() => {
         record(
           delta,
@@ -248,11 +349,16 @@ const addResourcev1 = useCallback(
         );
       });
     },
-    [resources, ydoc, yResourcesMap]
+    [resources, ydoc, yResourcesMap, isReadOnly]
   );
 
   const editResourcev1 = useCallback(
     async (updated: ResourceCard) => {
+
+      if (isReadOnly) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+      return;
+    }
       // grab the pre-edit card (no extra quotes added!)
       const before = resources.get(updated.nodeId)?.find((r) => r.id === updated.id);
       if (!before) return;
@@ -302,7 +408,7 @@ const addResourcev1 = useCallback(
         );
       });
     },
-    [resources, ydoc, yResourcesMap]
+    [resources, ydoc, yResourcesMap, isReadOnly]
   );
 
 const addPictureResourcev1 = useCallback(
@@ -311,6 +417,11 @@ const addPictureResourcev1 = useCallback(
     image: File,
     mapID?: string
   ) => {
+
+      if (isReadOnly) {
+        console.warn('ResourceContext.tsx 3008 › Read-only mode: addPictureResourcev1 blocked');
+        return;
+      }
     // Determine which Y.Doc map to use
     const usedMapId = mapID || activeConceptMapId;
     const mapKey = `resources:${usedMapId}`;
@@ -339,6 +450,7 @@ const addPictureResourcev1 = useCallback(
         title: params.title,
         imageUrl: serverUrl,
         description: params.description,
+        mapId: activeConceptMapId,
       };
 
       // 3) Create a single Y.Doc transaction to persist the new card
@@ -387,11 +499,15 @@ const addPictureResourcev1 = useCallback(
       throw error;
     }
   },
-  [ydoc, activeConceptMapId]
+  [ydoc, activeConceptMapId, isReadOnly]
 );
 
 const editPictureResourcev1 = useCallback(
   async (resource: PictureResource, newImage: boolean, image?: File) => {
+      if (isReadOnly) {
+        console.warn('ResourceContext.tsx 3008 › Read-only mode: addPictureResourcev1 blocked');
+        return;
+      }
     // Clone the existing resource for “previous” state
     const before = { ...resource };
     let updated: PictureResource = { ...resource };
@@ -473,7 +589,7 @@ const editPictureResourcev1 = useCallback(
       );
     });
   },
-  [ydoc, activeConceptMapId]
+  [ydoc, activeConceptMapId, isReadOnly]
 );
 
   const transferResource = useCallback(
@@ -483,6 +599,10 @@ const editPictureResourcev1 = useCallback(
       resourceIds: string[],
       command: 'copy' | 'cut' = 'cut'
     ) => {
+        if (isReadOnly) {
+        console.warn('ResourceContext.tsx 3008 › Read-only mode: addPictureResourcev1 blocked');
+        return;
+      }
       const sourceArr = resources.get(sourceNodeId) || [];
       const toMove = sourceArr.filter((r) => resourceIds.includes(r.id));
       if (toMove.length === 0) return;
@@ -567,7 +687,7 @@ const editPictureResourcev1 = useCallback(
         });
       });
     },
-    [resources, ydoc, yResourcesMap]
+    [resources, ydoc, yResourcesMap, isReadOnly]
   );
 
   // --- Selectors & bulk ops ---
@@ -621,6 +741,10 @@ const selectResourcesFn = useCallback(
 
   const setResourcesFn = useCallback(
     (newMap: Map<string, ResourceCard[]>) => {
+        if (isReadOnly) {
+        console.warn('ResourceContext.tsx 3008 › Read-only mode: addPictureResourcev1 blocked');
+        return;
+      }
       ydoc.transact(() => {
         setResources(newMap);
         yResourcesMap.forEach((ym) => ym.clear());
@@ -634,15 +758,19 @@ const selectResourcesFn = useCallback(
         });
       });
     },
-    [ydoc, yResourcesMap]
+    [ydoc, yResourcesMap, isReadOnly]
   );
 
   const resetResources = useCallback(() => {
+      if (isReadOnly) {
+        console.warn('ResourceContext.tsx 3008 › Read-only mode: addPictureResourcev1 blocked');
+        return;
+      }
     ydoc.transact(() => {
       setResources(new Map());
       yResourcesMap.forEach((ym) => ym.clear());
     });
-  }, [ydoc, yResourcesMap]);
+  }, [ydoc, yResourcesMap, isReadOnly]);
 
   const getResourceCard = useCallback(
     (id: string) => {
@@ -657,6 +785,43 @@ const selectResourcesFn = useCallback(
   // global undo/redo
   const undo = useCallback(() => globalUndo(), [globalUndo]);
   const redo = useCallback(() => globalRedo(), [globalRedo]);
+
+  /**
+   * getGlobalResourceCard
+   * Retrieves a ResourceCard from the live Y.Doc by mapId, nodeId, and resourceId.
+   * Logs entry/exit for observability and hides Yjs traversal details.
+   *
+   * @param mapId       - The concept‑map identifier.
+   * @param nodeId      - The node within that map.
+   * @param resourceId  - The resource card’s ID.
+   * @returns           - The matching ResourceCard or undefined.
+   */
+  const getGlobalResourceCard = useCallback(
+    (
+      mapId: string,
+      nodeId: string,
+      resourceId: string
+    ): ResourceCard | undefined => {
+      console.log(
+        '[ResourceContext.tsx][2001] › getGlobalResourceCard called with',
+        mapId,
+        nodeId,
+        resourceId
+      );
+      const card = globalResourceCardLookup(
+        activeDoc,
+        mapId,
+        nodeId,
+        resourceId
+      );
+      console.log(
+        '[ResourceContext.tsx][2002] › getGlobalResourceCard result',
+        card ? card.id : 'undefined'
+      );
+      return card;
+    },
+    [activeDoc]
+  );
 
   const value = useMemo<ResourceContextType>(
     () => ({
@@ -677,26 +842,12 @@ const selectResourcesFn = useCallback(
       getResourceCard,
       undo,
       redo,
+      restoreResource,
+      getGlobalResourceCard,
+      updatedRivisonCard,
+      setupdatedRivisionCard,
     }),
-    [
-      resources,
-      addResourcev1,
-      removeResourcev1,
-      editResourcev1,
-      addPictureResourcev1,
-      editPictureResourcev1,
-      transferResource,
-      selectResourcesFn,
-      selectNoteCards,
-      selectCueCards,
-      selectPictures,
-      selectPracticeSheets,
-      setResourcesFn,
-      resetResources,
-      getResourceCard,
-      undo,
-      redo,
-    ]
+    [resources, addResourcev1, removeResourcev1, editResourcev1, addPictureResourcev1, editPictureResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, selectPictures, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard]
   );
 
   return (

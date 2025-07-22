@@ -1,113 +1,102 @@
-/**
- * server.js
- *
- * Responsibilities:
- *   • Spin up an HTTP+WebSocket server for Yjs collaboration.
- *   • Persist and load Yjs updates via Redis (TTL 30 days).
- *   • Validate JWT signed by the Next.js BFF:
- *       – Check signature with RS256 and your public key.
- *       – Ensure payload.doc matches the requested room.
- *       – Ensure payload.roles includes 'editor'.
- *       – Extract payload.sub as the userId.
- *   • Hand off to y-websocket’s setupWSConnection with the authenticated userId.
- *   • Emit structured logs via Pino.
+
+/** 
+* @file yjs-server.js
+ * @responsibility
+ *   • Handle WebSocket connections using the official Y-Websocket frame protocol.
+ *   • Use Redis pub/sub (one channel per document) to sync updates across server instances.
+ *   • Maintain an in-memory Map of Y.Doc instances (docMap).
  */
 
 const http = require('http');
-const express = require('express');
 const WebSocket = require('ws');
-const { setupWSConnection } = require('y-websocket');
+const Y = require('yjs');
+const { setupWSConnection } = require('y-websocket/bin/utils');
 const { createClient } = require('redis');
-const { RedisPersistence } = require('y-redis');
-const jwt = require('jsonwebtoken');
-const pino = require('pino');
-const config = require('./config');
+const yargs = require('yargs');
 
-const logger = pino({ level: config.logLevel });
+// ---- CLI / ENV args ----
+const argv = yargs(process.argv.slice(2))
+  .option('port', {
+    alias: 'p',
+    type: 'number',
+    description: 'Server listening port',
+    default: parseInt(process.env.PORT, 10) || 1234
+  })
+  .option('redis-url', {
+    alias: 'r',
+    type: 'string',
+    description: 'Redis connection URL',
+    default: process.env.REDIS_URL || 'redis://localhost:6379'
+  })
+  .argv;
 
-const app = express();
-app.get('/healthz', (_req, res) => res.sendStatus(200));
+const PORT = argv.port;
+const REDIS_URL = argv['redis-url'];
 
-const server = http.createServer(app);
+// ---- Redis setup ----
+const pubClient = createClient({ url: REDIS_URL });
+const subClient = pubClient.duplicate();
+pubClient.on('error', err => console.error('Redis pub error:', err));
+subClient.on('error', err => console.error('Redis sub error:', err));
 
-// Set up Redis persistence if configured
-let persistence = null;
-if (config.redisUrl) {
-  const redisClient = createClient({ url: config.redisUrl });
-  redisClient.connect().catch(err => {
-    logger.error({ err }, 'Failed to connect to Redis, exiting');
-    process.exit(1);
+(async () => {
+  await pubClient.connect();
+  await subClient.connect();
+  console.log(`Connected to Redis at ${REDIS_URL}`);
+
+  // Subscribe to updates from other server instances
+  await subClient.pSubscribe('yjs-doc:*', (message, channel) => {
+    const docName = channel.split('yjs-doc:')[1];
+    const doc = docMap.get(docName);
+    if (!doc) return;
+
+    // Apply incoming update with a special origin so we don't republish
+    const update = Uint8Array.from(Buffer.from(message, 'base64'));
+    Y.applyUpdate(doc, update, 'redis');
   });
-  persistence = new RedisPersistence(redisClient, { ttl: 30 * 24 * 3600 });
-  logger.debug({ redisUrl: config.redisUrl }, 'Redis persistence initialized');
-}
+})();
 
-const wss = new WebSocket.Server({ noServer: true });
+// ---- In-memory docs with Redis listeners ----
+const docs = new Map();
+const listened = new WeakSet();
 
-server.on('upgrade', (req, socket, head) => {
-  // Only handle our Yjs collaboration path
-  if (!req.url?.startsWith('/yjs/')) {
-    socket.destroy();
-    return;
-  }
+const docMap = docs;
+const originalSet = docMap.set.bind(docMap);
 
-  // Extract the document ID from the URL: /yjs/<docId>
-  const docId = req.url.slice('/yjs/'.length);
+docMap.set = (docName, doc) => {
+  // Only attach once per Y.Doc
+  if (!listened.has(doc)) {
+    listened.add(doc);
 
-  // Normalize Sec-WebSocket-Protocol header to a single token string
-  const protocolHeader = req.headers['sec-websocket-protocol'];
-  const token = Array.isArray(protocolHeader) ? protocolHeader[0] : protocolHeader;
-  if (!token) {
-    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-    socket.destroy();
-    return;
-  }
-
-  let payload;
-  try {
-    // Verify JWT signature and audience/issuer as desired
-    payload = jwt.verify(token, config.authPublicKey, {
-      algorithms: ['RS256'],
-      issuer: config.authIssuer,
+    // On every local update, publish it to Redis
+    doc.on('update', (update, origin) => {
+      if (origin !== 'redis') {
+        const b64 = Buffer.from(update).toString('base64');
+        pubClient.publish(`yjs-doc:${docName}`, b64);
+      }
     });
-  } catch (err) {
-    logger.warn({ err: err.message }, 'JWT verification failed');
-    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-    socket.destroy();
-    return;
   }
 
-  // Ensure the token is for this document
-  if (payload.doc !== docId) {
-    logger.warn({ payloadDoc: payload.doc, requestedDoc: docId }, 'Doc ID mismatch');
-    socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
-    socket.destroy();
-    return;
-  }
+  return originalSet(docName, doc);
+};
 
-  // Enforce that the user has the "editor" role
-  const roles = Array.isArray(payload.roles) ? payload.roles : [];
-  if (!roles.includes('editor')) {
-    logger.warn({ roles }, 'ACL denied: missing "editor" role');
-    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-    socket.destroy();
-    return;
-  }
+// ---- HTTP + WebSocket server ----
+const server = http.createServer();
+const wss = new WebSocket.Server({ server });
 
-  // Attach the authenticated userId for Yjs context
-  req.headers['x-user-id'] = payload.sub;
-  logger.debug({ userId: payload.sub, docId }, 'WebSocket authenticated');
+wss.on('connection', (ws, req) => {
+  // Expect URL format ws://host:port/<docName>
+  const path = req.url || '/';
+  // Remove leading slash
+  const docName = path.slice(1);
 
-  // Delegate to y-websocket
-  wss.handleUpgrade(req, socket, head, ws => {
-    setupWSConnection(ws, req, {
-      docName: docId,
-      persistence,
-      userId: payload.sub,
-    });
+  // Delegate to the official Y-Websocket handler
+  setupWSConnection(ws, req, {
+    docMap,
+    gc: true
   });
 });
 
-server.listen(config.port, () => {
-  logger.info({ port: config.port }, 'Yjs WebSocket server listening');
+server.listen(PORT, () => {
+  console.log(`Yjs server listening on port ${PORT}`);
 });

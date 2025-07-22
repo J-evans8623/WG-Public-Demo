@@ -2,63 +2,110 @@
  * @file delete.ts
  * @description
  *   API Endpoint to delete a document:
- *     • Deletes the binary from Firebase Storage.
- *     • In a Firestore transaction:
- *         – Removes the file‐metadata doc under `userFiles/{docId}`.
- *         – Deletes the entire `documents/{docId}` tree (and all its subcollections).
+ *     • If caller is owner:
+ *         – Deletes the binary from Firebase Storage.
+ *         – In a Firestore transaction:
+ *             • Removes the file‐metadata doc under `userFiles/{docId}`.
+ *             • Deletes the entire `documents/{docId}` tree (and its subcollections).
+ *         – Recursively deletes all subcollections under `documents/{docId}`.
+ *     • If caller is not owner:
+ *         – Deletes their ACL entry under `documents/{docId}/editors/{userEmail}`.
+ *         – Removes their email from `userFiles/{docId}.sharedWith`.
+ *
+ * Responsibilities:
+ *   - Authenticate and enforce DELETE.
+ *   - Enforce “owner-only” vs. “self-remove” logic.
+ *   - Log critical checkpoints for observability.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import admin from 'firebase-admin';
-import { deleteDocumentFile } from '@/app/src/services/firebase';
+import { deleteDocumentFile, removeEditor } from '@/app/src/services/firebase';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
+  console.log('delete.ts 1001 › handler start, method=', req.method);
+
   if (req.method !== 'DELETE') {
     res.setHeader('Allow', ['DELETE']);
+    console.log('delete.ts 1002 › method not allowed');
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   // Authenticate user
   const session = await authenticateRequest(req, res);
-  if (!session) return;
+  if (!session) {
+    console.log('delete.ts 1003 › authentication failed');
+    return;
+  }
+  const userEmail = session.user.email!;
+  console.log('delete.ts 1004 › authenticated user=', userEmail);
 
   try {
     // Parse & validate query
     const fileStorageId = req.query.fileStorageId;
     if (!fileStorageId || typeof fileStorageId !== 'string') {
+      console.log('delete.ts 1005 › missing or invalid fileStorageId');
       return res.status(400).json({ error: 'Missing fileStorageId parameter' });
     }
 
     // Derive docId from storage path "documents/{docId}.bloomdocx"
     const match = fileStorageId.match(/^documents\/(.+)\.bloomdocx$/);
     const docId = match ? match[1] : fileStorageId;
+    console.log('delete.ts 1006 › derived docId=', docId);
 
-    // 1) Delete the binary from Storage
-    await deleteDocumentFile(fileStorageId);
-
-    // 2) Firestore transaction to delete both metadata and the entire documents/{docId} subtree
     const firestore = admin.firestore();
-    const userFilesRef = firestore.collection('userFiles').doc(docId);
-    const documentsRootRef = firestore.collection('documents').doc(docId);
+    const metaRef = firestore.collection('userFiles').doc(docId);
+    const metaSnap = await metaRef.get();
 
+    if (!metaSnap.exists) {
+      console.log('delete.ts 1007 › metadata not found for docId=', docId);
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const { ownerId } = metaSnap.data() as { ownerId: string };
+    console.log('delete.ts 1008 › ownerId=', ownerId);
+
+    // Non-owner: remove own access
+    if (userEmail !== ownerId) {
+      console.log('delete.ts 1009 › non-owner removal requested by=', userEmail);
+      await removeEditor(docId, userEmail);
+      console.log('delete.ts 1010 › access removed for=', userEmail);
+      return res
+        .status(200)
+        .json({ message: 'Your access to this document has been removed.' });
+    }
+
+    // Owner: proceed with full deletion
+    console.log('delete.ts 1011 › owner deletion starting for docId=', docId);
+
+    // 1) Delete binary from Storage
+    await deleteDocumentFile(fileStorageId);
+    console.log('delete.ts 1012 › deleteDocumentFile succeeded for=', fileStorageId);
+
+    // 2) Firestore transaction to delete metadata and root document
+    const userFilesRef = metaRef;
+    const documentsRootRef = firestore.collection('documents').doc(docId);
+    console.log('delete.ts 1013 › running transaction to delete metadata & root');
     await firestore.runTransaction(async (tx) => {
-      // Delete the userFiles/{docId} metadata
       tx.delete(userFilesRef);
-      // Delete the root document, which will mark it removed—subcollections must be
-      // removed with recursiveDelete (cannot be done in a transaction)
       tx.delete(documentsRootRef);
     });
+    console.log('delete.ts 1014 › transaction committed');
 
     // 3) Recursively delete all subcollections under documents/{docId}
+    console.log('delete.ts 1015 › starting recursiveDelete');
     await firestore.recursiveDelete(documentsRootRef);
+    console.log('delete.ts 1016 › recursiveDelete complete');
 
-    return res.status(200).json({ message: 'Document, metadata, and chat history deleted.' });
+    return res
+      .status(200)
+      .json({ message: 'Document, metadata, and chat history deleted.' });
   } catch (error) {
-    console.error('Delete endpoint error:', error);
+    console.error('delete.ts 1999 › Delete endpoint error:', error);
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }

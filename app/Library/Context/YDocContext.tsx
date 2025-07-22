@@ -37,7 +37,9 @@ import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 import JSZip from 'jszip';
 import { useCollabProvider } from '@/app/studygraph/collab/useCollabProvider';
-
+import { getUploadUrl, getDownloadUrl } from '@/app/studygraph/(studygraph)/components/utils/storageUrls';
+import { takeMapSnapshot as _takeMapSnapshot } from '@/app/studygraph/(studygraph)/components/versionHistory/versionHistory';
+import { makeCommentMap, mapToComment, Comment, Reply } from '@/app/studygraph/(studygraph)/components/layout/forum/comment/CommentDefinitions';
 
 interface ChatMessage {
   id: number;
@@ -47,10 +49,15 @@ interface ChatMessage {
 
 export interface YDocContextType {
   ydoc: Y.Doc;
+  snapshotYDoc: Y.Doc | null;
+   /** Setter to load or unload a snapshot document from version history. */
+  setSnapshotYDoc: (doc: Y.Doc | null) => void;
+    /** True if a snapshot is currently active (read-only mode). */
+  isReadOnly: boolean;
   fileName: string;
   docFileID: string | null;
   isInitialized: boolean;
-  createNewDocument: () => Promise<void>;
+  createNewDocument: () => Promise<string>;
   loadData: (
     fileName: string,
     driveFileId: string | undefined,
@@ -58,12 +65,16 @@ export interface YDocContextType {
   ) => Promise<void>;
   applyUpdate: (update: Uint8Array) => void;
   getState: () => Uint8Array;
+  /*forkDoc: () => Promise<string>;*/
   updateFileName: (name: string) => void;
   persistDoc: () => Uint8Array;
   getLessonModuleJSON: () => string;
   getFileName: () => string;
   saveToFirebase: (chatData?:ChatMessage[]) => Promise<void>;
   loadFromFirebase: (fileStorageId: string) => Promise<ChatMessage[]>;
+  getVisibility: () => 'private' | 'public';
+  updateVisibility: (v: 'private' | 'public') => void;
+  takeMapSnapshot: (mapId: string) => Promise<string>
 }
 
 const YDocContext = createContext<YDocContextType | undefined>(undefined);
@@ -82,18 +93,26 @@ interface YDocProviderProps {
 
 export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   // Initialize state for Y.Doc, fileName, driveFileId (Firebase path), internal docFileID, and initialization flag.
-  const [ydoc, setYDoc] = useState<Y.Doc>(() => new Y.Doc());
+  const [ydoc, setYDoc] = useState<Y.Doc>(() => new Y.Doc()); // live Y doc
+  const [snapshotYDoc, setSnapshotYDoc] = useState<Y.Doc | null>(null);
+
+  /** Flag to indicate read-only mode. */
+  const isReadOnly = snapshotYDoc !== null;
+
   const [fileName, setFileName] = useState<string>('Untitled Document');
   const [docFileID, setDocFileID] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState<boolean>(false);
-  const { status } = useCollabProvider(ydoc, docFileID);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false); 
+  const [visibility, setVisibility] = useState<'private'|'public'>(() => {
+  const v = ydoc.getMap('metadata').get('visibility');
+  return v === 'public' ? 'public' : 'private';
+});
 
-
+const { status } = useCollabProvider(ydoc, docFileID, visibility);
 
     // Notify on connection
   useEffect(() => {
     if (status === 'connected') {
-      console.log('Connected to live collaboration');
+      console.log('111- Ydoc Connected to live collaboration');
     }
   }, [status]);
   
@@ -109,6 +128,45 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       toast.error('Failed to apply document update');
     }
   }, [ydoc]);
+
+
+
+  useEffect(() => {
+    if (!snapshotYDoc) return;
+
+    console.log('YDocContext.tsx 7000 › Loaded snapshotYDoc — inspecting contents');
+
+    // 1) Concept maps
+    const lessonModule = snapshotYDoc.getMap('lessonModule');
+    const cmArray = lessonModule.get('conceptMaps') as Y.Array<any> | undefined;
+    const maps = cmArray ? cmArray.toArray() : [];
+    console.log('YDocContext.tsx 7001 › snapshot conceptMaps:', maps);
+
+    // 2) For each map, log nodes & resources
+    maps.forEach((cm: any) => {
+      const mapId = cm.id;
+      const nodesKey = `nodes:${mapId}`;
+      const resourcesKey = `resources:${mapId}`;
+
+      const nodesMap = snapshotYDoc.getMap<ConceptNode>(nodesKey);
+      console.log(
+        'YDocContext.tsx 7002 › snapshot nodes entries:',
+        nodesKey,
+        'count=',
+        nodesMap.size,
+        Array.from(nodesMap.entries())
+      );
+
+      const resMap = snapshotYDoc.getMap<any>(resourcesKey);
+      console.log(
+        'YDocContext.tsx 7003 › snapshot resources entries:',
+        resourcesKey,
+        'count=',
+        resMap.size,
+        Array.from(resMap.entries())
+      );
+    });
+  }, [snapshotYDoc]);
 
   /**
    * Encodes the current Y.Doc state as a Uint8Array.
@@ -126,11 +184,23 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
     return Y.encodeStateAsUpdate(ydoc);
   }, [ydoc]);
 
+    const getVisibility = useCallback((): 'private' | 'public' => {
+    const v = visibility
+    const out = v === 'public' ? 'public' : 'private';
+    console.log('YDocContext.tsx 6002 › getVisibility=', out);
+    return out;
+  }, [visibility]);
+
+const updateVisibility = useCallback((v: 'private' | 'public') => {
+  ydoc.getMap('metadata').set('visibility', v);
+  setVisibility(v);
+}, [ydoc]);
+
   /**
    * Creates a new document with default settings.
    * Initializes shared maps, arrays, and sets metadata (internal docFileID and fileName).
    */
-  const createNewDocument = useCallback(async (): Promise<void> => {
+  const createNewDocument = useCallback(async (): Promise<string> => {
     try {
       setIsInitialized(false);
       const newYDoc = new Y.Doc();
@@ -144,9 +214,14 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
         metadata.clear();
         metadata.set('docFileID', newDocId);
         metadata.set('fileName', 'Untitled Document');
+        metadata.set('visibility', 'private');
+        setVisibility('private')
 
         newYDoc.getMap('resources').clear();
         newYDoc.getMap('subtrees').clear();
+        // ─── Initialize empty comments map ─────────────────────────
+        const postsMap = newYDoc.getMap<Y.Map<any>>('posts');
+        postsMap.clear();
 
         const lessonModule = newYDoc.getMap('lessonModule');
         lessonModule.clear();
@@ -191,11 +266,15 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       setFileName('Untitled Document');
       setDocFileID(newDocId);
       setYDoc(newYDoc);
+      setSnapshotYDoc(null);
       setIsInitialized(true);
       toast.success('New document created');
+
+      return newDocId
     } catch (error) {
       console.error('Error creating new document:', error);
       toast.error('Failed to create new document');
+      throw error;
     }
   }, []);
 
@@ -235,8 +314,11 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
 
       // Step 2: Retrieve persisted metadata from the loaded document.
       const metadataMap = newYDoc.getMap('metadata');
-      console.log(`metadata map observed in loaddata`)
-      console.log(metadataMap)
+      if (!metadataMap.has('visibility')){
+        metadataMap.set('visibility', 'private');
+      }
+      const visibility : 'private'|'public' = metadataMap.get('visibility') as 'private'|'public';
+      setVisibility(visibility)
       const FileName = metadataMap.get('fileName') as string
       setFileName(FileName);
       console.log(`Loaded Filename ${FileName}`)
@@ -254,6 +336,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       
 
       setYDoc(newYDoc);
+      setSnapshotYDoc(null)
       setIsInitialized(true);
       console.log('loadData completed successfully');
     } catch (error) {
@@ -293,90 +376,208 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
 
 /**
  * Saves the current document state (and optional chat) to our single save endpoint.
+ *
+ * New strategy – step by step:
+ * 1. Persist document: encode Y.Doc update to Uint8Array and base64-encode it.
+ * 2. Upload document state: request a signed PUT URL for type='doc', then PUT the binary to Firebase Storage.
+ * 3. Upload chat (if provided): request a signed PUT URL for type='chat', then PUT the JSON payload.
+ * 4. Sync metadata: POST { fileName, docFileID, chatPath } to `/api/document/save` to update Firestore.
  */
-const saveToFirebase = useCallback(
-  async (chatData?: ChatMessage[]): Promise<void> => {
-    if (!docFileID) {
-      throw new Error('Document has no ID; cannot save.');
-    }
+  const saveToFirebase = useCallback(
+    async (chatData?: ChatMessage[]): Promise<void> => {
+      if (!docFileID) throw new Error('No docFileID');
 
-    // 1) encode Yjs state
-    const docState = persistDoc();
-    const base64Data = Buffer.from(docState).toString('base64');
+      // -- upload doc state --
+      const state = persistDoc();
+      const fileSize = state.byteLength;
+      const base64 = Buffer.from(state).toString('base64');
+      const { uploadUrl: docUrl, fileStoragePath: docPath } = await getUploadUrl(docFileID, 'doc');
 
-    // 2) Read the up-to-date fileName from metadata
-    const metadataMap = ydoc.getMap('metadata');
-    const currentFileName = (metadataMap.get('fileName') as string) || 'Untitled Document';
 
-    // 3) build payload including chatData (if provided)
-    const payload: {
-      fileName: string;
-      docFileID: string;
-      fileData: string;
-      chatData?: ChatMessage[];
-    } = {
-      fileName: currentFileName,
-      docFileID,
-      fileData: base64Data
-    };
-    if (chatData) {
-      payload.chatData = chatData;
-    }
+      await fetch(docUrl, {
+        method: 'PUT',
+        body: new Uint8Array(Buffer.from(base64, 'base64')),
+        headers: { 'Content-Type': 'application/octet-stream' },
+      });
+      console.log('YDocContext.tsx 0107 › doc PUT complete', docPath);
 
-    // 4) POST
-    const res = await fetch('/api/document/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      throw new Error(`Save failed: ${res.statusText}`);
-    }
-    toast.success('Saved document & chat');
-  },
-  [persistDoc, docFileID, ydoc]
-);
+      // -- upload chat if needed --
+      let chatPath: string | undefined;
+      if (chatData) {
+        const { uploadUrl: cUrl, fileStoragePath: cPath } =
+          await getUploadUrl(docFileID, 'chat');
+        await fetch(cUrl, {
+          method: 'PUT',
+          body: JSON.stringify(chatData),
+          headers: { 'Content-Type': 'application/json' },
+        });
+        chatPath = cPath;
+        console.log('YDocContext.tsx 0108 › chat PUT complete', chatPath);
+      }
+
+      // -- metadata sync --
+      const resp = await fetch('/api/document/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          fileName,
+          docFileID,
+          fileStoragePath:docPath,
+          chatPath,
+          fileSize,
+        }),
+      });
+      if (!resp.ok) throw new Error(`Meta sync failed: ${resp.statusText}`);
+      toast.success('Save complete');
+    },
+    [docFileID, fileName, persistDoc]
+  );
 
   /**
    * Loads a document file from Firebase Storage via /api/document/load.
    * @param fileStorageId - The Firebase storage file path.
    */
-  const loadFromFirebase = useCallback(async (fileStorageId: string): Promise<ChatMessage[]> => {
-    console.log(`LoadFromFirebase called with docID ${docFileID}`);
-    console.log(`LoadFromFirebase called with FileStorageID ${fileStorageId}`);
+const loadFromFirebase = useCallback(
+  async (fileStorageId: string): Promise<ChatMessage[]> => {
+    console.log(`[loadFromFirebase] START: fileStorageId=${fileStorageId}`);
+
+    // 1. Get doc download URL
+    console.log(`[loadFromFirebase] ▶️ Requesting doc URL for ${fileStorageId}`);
+    const { downloadUrl: dUrl } = await getDownloadUrl(fileStorageId, 'doc');
+    console.log(`[loadFromFirebase] ✔️ Received doc URL: ${dUrl}`);
+
     try {
-      const response = await fetch(
-        `/api/document/load?fileStorageId=${encodeURIComponent(fileStorageId)}`,
-        { credentials: 'include' }
-      );
+      // 2. Fetch the document bytes (no credentials)
+      console.log(`[loadFromFirebase] ▶️ Fetching doc bytes`);
+      const response = await fetch(dUrl);
+      console.log(`[loadFromFirebase] Response status: ${response.status}`);
       if (!response.ok) {
-        throw new Error(`Failed to load document: ${response.statusText}`);
+        throw new Error(`Failed to load document: ${response.status} ${response.statusText}`);
       }
-      const { fileData, chatData } = await response.json();
-      console.log(fileData)
 
-      // Decode the base64 data.
-      const buffer = Buffer.from(fileData, 'base64');
-      const docState = new Uint8Array(buffer);
+      // 3. Get chat download URL
+      console.log(`[loadFromFirebase] ▶️ Requesting chat URL for ${fileStorageId}`);
+      const { downloadUrl: cUrl } = await getDownloadUrl(fileStorageId, 'chat');
+      console.log(`[loadFromFirebase] ✔️ Received chat URL: ${cUrl}`);
 
-      // Load the document state without overwriting the internal docFileID.
-      await loadData(fileName, fileStorageId, docState);
+      // 4. Attempt to fetch the chat JSON, swallow 404 (no credentials)
+      console.log(`[loadFromFirebase] ▶️ Fetching chat JSON`);
+      let chatData: ChatMessage[] = [];
+      try {
+        const chatResp = await fetch(cUrl);
+        console.log(`[loadFromFirebase] Chat response status: ${chatResp.status}`);
+        if (chatResp.ok) {
+          chatData = await chatResp.json();
+        } else if (chatResp.status === 404) {
+          console.warn(`[loadFromFirebase] No chat file (404); continuing with empty chat.`);
+        } else {
+          throw new Error(`Chat download failed: ${chatResp.status} ${chatResp.statusText}`);
+        }
+      } catch (err) {
+        console.error(`[loadFromFirebase] Chat fetch error (non-fatal):`, err);
+      }
+
+      // 5. Read and decode document
+      console.log(`[loadFromFirebase] ▶️ Reading document as arrayBuffer`);
+      const buffer = await response.arrayBuffer();
+      console.log(`[loadFromFirebase] 📦 Document byte length: ${buffer.byteLength}`);
+
+      // 6. Load into Y.Doc
+      console.log(`[loadFromFirebase] ▶️ Calling loadData() with fileName=${fileName}`);
+      await loadData(fileName, fileStorageId, new Uint8Array(buffer));
+      console.log(`[loadFromFirebase] ✔️ loadData() completed`);
+
       toast.success('Document loaded from Firebase Storage successfully');
-      return Array.isArray(chatData)? chatData:[];
+      return Array.isArray(chatData) ? chatData : [];
     } catch (error) {
-      console.error('Error loading document from Firebase:', error);
+      console.error('[loadFromFirebase] ❌ Error:', error);
       toast.error('Failed to load document from Firebase');
-
       return [];
     }
-  }, [fileName, loadData]);
+  },
+  [fileName, loadData]
+);
+
+  /**
+   * takeMapSnapshotCallback
+   *
+   * Front-end wrapper around the versionHistory service. Logs entry and exit for observability.
+   */
+  const takeMapSnapshotCallback = useCallback(
+    async (mapId: string): Promise<string> => {
+      if (!docFileID) {
+        console.error('YDocContext.tsx 6007 › No docFileID for snapshot');
+        throw new Error('Cannot snapshot: missing docFileID');
+      }
+      console.log('YDocContext.tsx 6007 › Initiating takeMapSnapshot for', mapId);
+      const snapshotId = await _takeMapSnapshot(ydoc, docFileID, mapId);
+      console.log('YDocContext.tsx 6007 › takeMapSnapshot completed snapshotId=', snapshotId);
+      return snapshotId;
+    },
+    [ydoc, docFileID]
+  );
+
+ /* 
+ // Needs to be reviewed, fundamental flaw, changing the docId doesn't not "truly"
+end a collaboration session, distributing a file this way could theoretically cause multiple people to have acces
+to the same file, if any number of these person decide to make the document public.
+
+
+ const forkDoc = useCallback(async (): Promise<string> => {
+  if (!docFileID) throw new Error("No doc to fork")
+
+  const newId = uuidv4()
+  // 1) clone the Y.Doc
+  const update = Y.encodeStateAsUpdate(ydoc)
+  const copy = new Y.Doc()
+  Y.applyUpdate(copy, update)
+  
+
+  // 2) stamp on the new ID
+  copy.getMap('metadata').set('docFileID', newId)
+  const state = Y.encodeStateAsUpdate(copy);
+  const base64 = Buffer.from(state).toString('base64');
+
+  const { uploadUrl: docUrl, fileStoragePath: docPath } = await getUploadUrl(newId, 'doc');
+
+
+  await fetch(docUrl, {
+    method: 'PUT',
+    body: new Uint8Array(Buffer.from(base64, 'base64')),
+    headers: { 'Content-Type': 'application/octet-stream' },
+    });
+    console.log('YDocContext.tsx 0107 › doc PUT complete', docPath);
+
+  // 3) save only the copy once
+ /** const payload = {
+    fileName: copy.getMap('metadata').get('fileName'),
+    docFileID: newId,
+    fileData: Buffer.from(Y.encodeStateAsUpdate(copy)).toString('base64'),
+  } **/ 
+  
+  /**const res = await fetch('/api/document/save',  {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    })
+  const { fileStorageId } = await res.json() 
+
+
+  return fileStorageId
+}, [ydoc, docFileID])  **/
+
 
   /**
    * Memoizes and returns the context value for YDocContext.
    */
+  
   const value = useMemo<YDocContextType>(() => ({
     ydoc,
+    snapshotYDoc,
+    setSnapshotYDoc,
+    isReadOnly,
     fileName,
     docFileID,
     isInitialized,
@@ -390,22 +591,11 @@ const saveToFirebase = useCallback(
     getFileName,
     saveToFirebase,
     loadFromFirebase,
-  }), [
-    ydoc,
-    fileName,
-    docFileID,
-    isInitialized,
-    createNewDocument,
-    applyUpdate,
-    getState,
-    updateFileName,
-    loadData,
-    persistDoc,
-    getLessonModuleJSON,
-    getFileName,
-    saveToFirebase,
-    loadFromFirebase,
-  ]);
+    //forkDoc,
+    getVisibility,
+    updateVisibility,
+     takeMapSnapshot: takeMapSnapshotCallback
+  }), [ydoc, snapshotYDoc, isReadOnly, fileName, docFileID, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, loadData, persistDoc, getLessonModuleJSON, getFileName, saveToFirebase, loadFromFirebase, getVisibility, updateVisibility, takeMapSnapshotCallback]);
 
   return (
     <YDocContext.Provider value={value}>

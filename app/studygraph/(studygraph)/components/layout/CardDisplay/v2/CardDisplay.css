@@ -19,7 +19,7 @@
 .panel {
   /* allow percentage-based resizing; fallback to var when not set */
   width: var(--card-display-width, 200px);
-  max-width: 28%;
+  max-width: none;
   height: 100%;
 
   /* Keep the same background gradient */

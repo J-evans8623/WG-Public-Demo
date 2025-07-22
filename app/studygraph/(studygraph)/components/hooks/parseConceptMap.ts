@@ -95,10 +95,12 @@
  *    process the AI response in one synchronous batch.
  */
 import { v4 as uuidv4 } from 'uuid';
-import { compositeLayout } from '@/app/Library/components/AI/layoutUtils';
+import { compositeLayout } from '@/app/studygraph/(studygraph)/components/hooks/layoutUtils';
 import markdownIt from 'markdown-it';
 import { transformPlaceholders } from '../utils/transformPlaceholders';
 import { Citation } from '@/app/Library/Definitions/Definitions';
+import { renderMarkdownWithMath } from './renderMarkdownWithMath';
+
 
 // Initialize markdown-it parser instance.
 export const mdParser = new markdownIt({
@@ -106,8 +108,44 @@ export const mdParser = new markdownIt({
   linkify: true,
   breaks: true,
 })
-.disable(['escape']) 
 
+
+
+/**
+ * Generate the feed sequence to counter the alternating center-insert layout,
+ * then swap the two halves so that all A/B/C groups remain contiguous.
+ *
+ * @param items Already sorted by lessonOrder (A→C) and any tie-breaker.
+ * @returns A new array in the exact feed order you should insert.
+ */
+function centerAwareSequencev2<T>(items:T[]):T[]{
+  let result:T[]= [];
+  const src = [...items]
+  if (items.length <= 2) result = [...items];
+  else {
+    const midPoint = Math.floor(items.length / 2);
+    let leftSubtree = src.slice(0,midPoint)
+    let rightSubtree = src.slice(midPoint)
+    // All odd indices will be in the left tree, and even will be the right tree.
+    // We need to preserve the arrangement of adjacent subtrees
+    // Eg trees (1,2,3,4,5,6) becomes (1,4,2,5,3,6) 
+    // Because 1,2,3 are in the odd indices they will become the left subtree
+    // 4,5,6 are in the even indices, they become the right subtree
+    while((leftSubtree.length > 0) && (rightSubtree.length>0)){
+      // build left subtree by always inserting at the odd index
+      if(leftSubtree.length > 0){
+        result.push(leftSubtree.shift()!);
+      }
+      // build right subtree by always inserting at the even index
+      if (rightSubtree.length>0){
+       result.push(rightSubtree.shift()!);
+      }
+
+    }
+  }
+  console.log(`centerAwareSequencev2 results [2009] ${console.log(JSON.stringify(result))}`);
+  return result
+}
 
 export async function parseConceptMap(
   responseData: any,
@@ -133,15 +171,20 @@ export async function parseConceptMap(
   // ---------------------------------------------------------------------------
   const rootNodeId = dependencies.getRootNode();
   const rootNodeTitle = responseData.main_topic.title;
+  //const GlobalCitations = responseData.main_topic.global_citations?? []; // declare once
 
   // Create resources for the root node.
   if (responseData?.main_topic?.introduction) {
+        console.log(`pCM-1234: rendering introduction for rootNode ${rootNodeId}`);
+    const content = renderMarkdownWithMath(responseData.main_topic.introduction);
+    console.log(`pCM-1234: Before : rendering introduction for rootNode ${responseData.main_topic.introduction}`);
+    console.log(`pCM-1234: After : rendering introduction for rootNode ${content}`);
     await dependencies.createResource({
       nodeId: rootNodeId,
       type: 'note',
       title: 'Introduction',
-      content: mdParser.render(responseData.main_topic.introduction),
-      citations: responseData.main_topic.lesson_citation ?? null,
+      content,
+      citations: null,
       mapId: mapID,
     });
   }
@@ -165,7 +208,7 @@ export async function parseConceptMap(
     subtopics: any[],
     parentNodeId: string,
     depth: number,
-    citation? : Citation[],
+    parentCitation?:Citation[],
   ) => {
     console.log(`\n=== PROCESSING DEPTH ${depth} NODES ===`);
     console.log(`Number of subtopics at depth ${depth}: ${subtopics.length}`);
@@ -183,7 +226,10 @@ export async function parseConceptMap(
         depth,
         x: undefined,
         y: undefined,
+        lessonOrder: subtopic.lessonOrder ?? null,
       };
+
+      console.log(`220 - Processing node: ${JSON.stringify(newNode)}`);
 
       // Update the local state.
       localNodes.set(subtopicNodeId, newNode);
@@ -227,63 +273,80 @@ export async function parseConceptMap(
         if (subtopic.lesson.lecture_note) {
 
             let transformedContent = transformPlaceholders(subtopic.lesson.lecture_note, subtopic.lesson_citation);//
-          let renderedContent = mdParser.render(transformedContent);
-        
-          console.log(`Subtopic title:  ${subtopic.title}, Transformed content : ${transformedContent}`)
+          const content = renderMarkdownWithMath(transformedContent.content);
+          console.log(`Subtopic title:  ${subtopic.title}, Before rendering content : ${transformedContent.content}`)
+          console.log(`Subtopic title:  ${subtopic.title}, After rendering content : ${content}`)
 
           await dependencies.createResource({
             nodeId: subtopicNodeId,
             type: 'note',
             title: `Overview`,
-            content: renderedContent,
-            citations: subtopic.lesson_citation ?? null,
+            content,
+            citations: transformedContent.citations?? null,
             mapId: mapID,
           });
         }
         if (subtopic.lesson.flash_cards && Array.isArray(subtopic.lesson.flash_cards)) {
           for (const card of subtopic.lesson.flash_cards) {
+            console.log(`pCM-1234: rendering flash_card "${card.term}" for node ${subtopicNodeId}`);
+          let transformedContent = transformPlaceholders(card.definition, subtopic.lesson_citation)
+          const content = renderMarkdownWithMath(transformedContent.content);
             await dependencies.createResource({
               nodeId: subtopicNodeId,
               type: 'cuecard',
               title: card.term,
-              content: mdParser.render(card.definition),
-              citations: subtopic.lesson_citation  ?? null,
+              content,
+              citations: transformedContent.citations  ?? null,
               mapId: mapID,
             });
           }
         }
-        if (subtopic.lesson.quiz) {
+        if (subtopic.quiz) {
+          const subtopicQuiz = subtopic.quiz;
+          const translatedNodeQuiz = {
+            quizType: 'matching',
+            quizContent: subtopicQuiz.questions.map((q: any) => ({
+      id: q.id,
+      type: 'matching',
+      question: q.matchingTerm,      // Renaming from matchingTerm to question
+      correctAnswer: q.matchingAnswer // Renaming from matchingAnswer to correctAnswer
+    }))
+          }
           await dependencies.createResource({
             nodeId: subtopicNodeId,
             type: 'quiz',
             title: `${subtopic.title} Quiz`,
-            content: subtopic.lesson.quiz,
+            content: translatedNodeQuiz,
             mapId: mapID,
           });
         }
       } else if (subtopic.lecture_note) {
         // Secondary subtopic (depth 2) has its properties at the root level.
 
-          let transformedContent = transformPlaceholders(subtopic.lecture_note, citation)
-          let renderedContent = mdParser.render(transformedContent);
-          console.log(`Subtopic title:  ${subtopic.title}, Transformed content : ${transformedContent}`)
+          let transformedContent = transformPlaceholders(subtopic.lecture_note, parentCitation!)
+          const content = renderMarkdownWithMath(transformedContent.content);
+           console.log(`Subtopic title:  ${subtopic.title}, Before rendering content : ${transformedContent.content}`)
+          console.log(`Subtopic title:  ${subtopic.title}, After rendering content : ${content}`)
 
         await dependencies.createResource({
           nodeId: subtopicNodeId,
           type: 'note',
           title: `Overview`,
-          content: renderedContent,
-          citations: citation ?? null,
+          content,
+          citations: transformedContent.citations ?? null,
           mapId: mapID,
         });
         if (subtopic.flash_cards && Array.isArray(subtopic.flash_cards)) {
           for (const card of subtopic.flash_cards) {
+
+          let transformedContent = transformPlaceholders(card.definition, parentCitation!)
+          const content = renderMarkdownWithMath(transformedContent.content);
             await dependencies.createResource({
               nodeId: subtopicNodeId,
               type: 'cuecard',
               title: card.term,
-              content:  mdParser.render(card.definition),
-              citations: null,
+              content,
+              citations: transformedContent.citations,
               mapId: mapID,
             });
           }
@@ -302,7 +365,7 @@ export async function parseConceptMap(
           subtopic.secondary_subtopic,
           subtopicNodeId,
           depth + 1,
-           subtopic.lesson_citation, // use citations from primary subtopic
+          subtopic.lesson_citation
         );
       }
 
@@ -319,8 +382,16 @@ export async function parseConceptMap(
       'Primary subtopics count:',
       responseData.main_topic.primary_subtopics.length
     );
+    const primaries: any[] = responseData.main_topic.primary_subtopics;
+    const sorted = [...primaries].sort(
+  (a, b) => (a.ChronologicalOrder ?? 0) - (b.ChronologicalOrder ?? 0)
+);;
+    console.log('[parseConceptMap.ts][2009] processing primary subtopics in feed order', { order: sorted.map((s: any) => s.title) });
+    const feedOrder = centerAwareSequencev2(sorted);
+    console.log('[parseConceptMap.ts][2010] processing primary subtopics in feed order', { order: feedOrder.map((s: any) => s.title) });
+
     await processSubtopicsInOrder(
-      responseData.main_topic.primary_subtopics,
+      feedOrder,
       rootNodeId,
       (localNodes.get(rootNodeId)?.depth || 0) + 1
     );

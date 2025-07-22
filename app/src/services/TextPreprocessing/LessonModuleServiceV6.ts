@@ -20,10 +20,11 @@ import {
   generateUnitSyllabus,
   scoreUnitSyllabus,
   generateFinalizedSyllabusv2          // non-blocking metadata util
-} from './aiTextPreProcessingV3';
+} from './aiTextPreProcessingV32';
 import { nextKey2, Key2 }                 from './TextKeys';
 import {
   PrimaryNode,
+  rank,
   UnitContext
 } from './LessonModuleTypes';
 import AIController                       from '../../controllers/aiController';
@@ -43,7 +44,8 @@ async function structuralPass(
 
   /* ---------- Stage A : split to units ----------------------------- */
   let units = 1;
-  if (pageCount >= 5 && pageCount <= 10) units = 2;
+  let order :rank[]= ['A','B','C']
+  if (pageCount >= 5 && pageCount <= 15) units = 2;
   else if (pageCount > 10)               units = 3;
 
   const slice = Math.ceil(fullText.length / units);
@@ -56,7 +58,8 @@ async function structuralPass(
       unit_text: fullText.substring(start, end),
       syllabus : undefined,
       rating   : undefined,
-      prunedStubs: []
+      prunedStubs: [],
+      order : order[i],
     });
   }
 
@@ -82,19 +85,32 @@ async function structuralPass(
       const stubs: PrimaryNode[] = [];
       let idCntr = ctx.unit_id * 1000;
       ctx.rating!.primary_subtopics.forEach(ps => {
-        const kept = ps.secondary_topics.filter(st => st.score >= 3);
+        const kept = ps.secondary_topics.filter(st => st.score >= 0); // keep all 
         if (!kept.length) return;
         const parentId = nextKey2(idCntr++) as Key2;
         stubs.push({
           node_id: parentId,
           unit_text: ctx.unit_text,
           title: ps.title,
-          depth2_subtopics: kept.map(k => ({ title: k.title }))
+          Learning_Objectives: ps.Learning_Objectives,
+          LessonOutline: ps.LessonOutline,
+          depth2_subtopics: kept.map(k => ({ title: k.title, Learning_Objectives: k.Learning_Objectives, LessonOutline: k.LessonOutline })),
+          lessonOrder:ctx.order,
         });
       });
+
+            // ** Debug log: print only title & lessonOrder of each stub **
+      console.log(
+        '[LessonModuleServiceV6.ts][3939] prunedStubs for unit',
+        ctx.unit_id,
+        stubs.map(s => ({ title: s.title, lessonOrder: s.lessonOrder }))
+      );
+
       ctx.prunedStubs = stubs;
     })
   );
+
+  
 
   /* ---------- flatten hierarchy ------------------------------------ */
   return contexts.flatMap(c => c.prunedStubs!);
@@ -158,9 +174,6 @@ export async function generateLessonFromSegment(
     }
   };
 
-  console.log(
-    '[generateLessonFromSegment] → sending to FE:',
-    JSON.stringify(payload)
-  );
+
   return payload;
 }

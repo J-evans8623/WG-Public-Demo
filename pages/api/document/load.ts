@@ -27,14 +27,17 @@ export default async function handler(
       return res.status(400).json({ error: 'Missing fileStorageId' });
     }
 
+
+
     // 3) Download binary
-    const fileBuffer = await loadDocumentFile(fileStorageId);
+    const location = fileStorageId.includes('documents') ? fileStorageId : `documents/${fileStorageId}.bloomdocx`;
+    const fileBuffer = await loadDocumentFile(location);
     const fileData = fileBuffer.toString('base64');
 
     // 4) Derive docId + load chat
     const match = fileStorageId.match(/^documents\/(.+)\.bloomdocx$/);
-    const docId = match ? match[1] : fileStorageId;
-    const userEmail = session.user.email;
+    const docId = match ? match[1] : fileStorageId; // `documents/${fileStorageId}.bloomdocx`
+    const userEmail = session.user.email!;
     const chatData: ChatMessage[] = await getUserChat(docId, userEmail);
 
     console.log('[106] returning chatData length:', chatData.length);

@@ -5,7 +5,7 @@ import QuizBase from './QuizBase';
 
 interface TrueFalseQuizProps {
   quizData: IQuizQuestion[];
-  onSubmit: (score: number, total: number) => void;
+  onSubmit: (results: { id: string; correct: boolean }[]) => void;
   onClose: () => void;
 }
 
@@ -17,11 +17,15 @@ const TrueFalseQuiz: React.FC<TrueFalseQuizProps> = ({ quizData, onSubmit, onClo
     setSelectedAnswers((prev) => ({ ...prev, [questionId]: answer }));
   };
 
-  const handleSubmit = () => {
-    const correct = quizData.reduce((score, question) =>
-      selectedAnswers[question.id] === question.correctAnswer ? score + 1 : score, 0);
-    onSubmit(correct, quizData.length);
-  };
+const handleSubmit = () => {
+  const results = quizData.map((q) => ({
+    id: q.id,
+    correct:
+      (selectedAnswers[q.id] as boolean) ===
+      (q as ITrueFalseQuestion).correctAnswer,
+  }));
+  onSubmit(results);
+};
 
   const allQuestionsAnswered = quizData.every(question => 
     selectedAnswers[question.id] === true || selectedAnswers[question.id] === false

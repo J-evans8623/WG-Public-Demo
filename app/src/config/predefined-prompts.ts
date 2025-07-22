@@ -142,40 +142,66 @@ citedText : " Photosynthesis is a chemical process where plants make food  "
  */
 export function buildSubtreePrompt(
   mainTopic: string,
-  primarySubtopic: string,
-  secondarySubtopics: string[] | null
+syllabusBlock: string,
 ): string {
   return `
-You are tasked with creating a lesson on the given primary subtopic and ALL of its nested secondary subtopics (if present, otherwise you can leave the secondary subtopic null). Each lesson entails a lecture note, flash cards, and two matching quiz question-answer pairs. The lesson you are creating is a part of a larger syllabus whose main topic is "${mainTopic}". You are given a specific primary topic from this syllabus.:
+You are tasked with creating compact study notes on the given primary subtopic and ALL of its nested secondary subtopics (if present, otherwise you can leave the secondary subtopic null). Each lesson entails a lecture note, flash cards, and two matching quiz question-answer pairs. The lesson you are creating is a part of a larger syllabus whose main topic is "${mainTopic}". You are given a specific primary topic from this syllabus.:
 
-Primary subtopic: ${primarySubtopic}
-
-Secondary subtopic(s): ${secondarySubtopics === null ? 'null' : JSON.stringify(secondarySubtopics)}
+${syllabusBlock}
 
 Instructions
 
-1. Create a lesson that is grounded in the provided text. Explain the main points in the given text.
+1. Create condense study notes that is grounded in the provided text and use the learning objectives to enhance the quality of your lesson. Explain the main points in the given text.
 2. If applicable draw concrete examples / problems from the uploaded material and explain them, if they are present in the uploaded text. These examples or problems must be grounded in the text, if the text doesn't have examples or problems you can skip this step.
 
 3. Create flash cards to document key concepts, ideas, events, or formula that are found in the lesson. The nature of the flash cards largely depend on the domain of the lesson, the aim is to create a glossary so try to document the key ideas that are most relevant and helpful to the user. For instance, the glossary for a Science subject would typically be different from a History subject (which might highlight key events or figures etc), the same is true for other domains of knowledge such as sociology, religion, formal math. Try to create appropriate flash cards based on the subject domain involved to create cards that will be helpful to the user.
 
-4. Finally create two matching quiz question-answer pairs.
+4. Finally create three matching quiz question-answer pairs.
 
 ## Instructions on Readability and Math Formatting
 
 1. **Structure**:
    - Use Markdown syntax where appropriate:
-     - Use '######' for headings.
-     - Don't use redundant headings which repeats the subtopic's title. Never use the term "Lecture note".
+     - Use '#####' for subheadings to improve readability (this is a heading level of 5).
+     - **Do not add a heading before the first paragraph.**
+     - Insert headings only when they add structure or clarity—not after every paragraph.
+     - Avoid repeating the subtopic title as a heading.
+     - Never use the phrase "Lecture note".
      - Use bullet points or numbered lists for organization.
-     - Use tables to compare or summarize data.
+     
 
-2. **Math Formatting Rules (Critical!)**:
-   You have a MathJax render environment.
-- Any LaTeX text between single dollar sign ($) will be rendered as a TeX formula;
-- Use $(tex_formula)$ in-line delimiters to display equations instead of backslash;
-- The render environment only uses $ (single dollarsign) as a container delimiter, never output $$.
-Example: $x^2 + 3x$ is output for "x² + 3x" to appear as TeX.
+      *Headings should appear where they feel natural to a human reader—like in a well-written textbook—not after every paragraph.*
+
+     Example:
+
+##### Light-Dependent Reactions  
+Chlorophyll in the thylakoid membrane absorbs photons, exciting electrons that flow through an electron transport chain to produce ATP and NADPH.
+
+##### Calvin Cycle  
+CO₂ is fixed by RuBisCO into 3-phosphoglycerate, then reduced to G3P using ATP and NADPH; finally RuBP is regenerated to continue the cycle.
+
+##### Pigments and Light Absorption  
+- **Chlorophyll a/b** absorb primarily blue (430–450 nm) and red (640–680 nm) light.  
+- **Carotenoids** extend the range by capturing green wavelengths and protecting against photooxidative damage.
+
+
+     
+
+2. **Math Formatting Rules (Critical!)**:  
+   When you are creating lessons for math related subjects that involve mathematical symbols (eg algebra, calculus, formal logic, classical math, computer science, engineering, physics, chemistry etc ... ).  Please use the following formatting for mathematical notations to render the symbols in a katex environment :
+
+
+ You have a MathJax render environment.
+- Use '\\(' and '\\)' for inline math equations within paragraphs
+- Use '\\[' and '\\]\ for block math equations on separate lines
+- Always escape the backslashes in the delimiters when writing them
+  
+
+
+Examples:
+- Inline math: "The quadratic formula \\(x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}\\) is used to solve..."
+- Block math: "The energy-mass equivalence is expressed as: \\[E = mc^2\\]"
+- Chemical equation: "The balanced equation is \\[2H_2 + O_2 \\rightarrow 2H_2O\\]"
 
 
 
@@ -225,10 +251,180 @@ Inline text example in lecture_note content :
 .....Plants make food via photosynthesis <<3>>.....
 
 
-Citation object :
-index : 3
-page number : 7
-citedText : " Photosynthesis is a chemical process where plants make food  "
+CAVEAT :
+Do not add any JSON object or array inside lecture_note—all citation objects must go into the sibling lesson_citation array.
+"
+
+  `.trim();
+}
+
+
+export function buildSubtreePromptV2(
+  mainTopic: string,
+syllabusBlock: string,
+psAmount:number,
+wordCount:number,
+): string {
+  return `
+You are tasked with creating compact study notes for the given syllabus. The syllabus consists of primary subtopics and nested secondary subtopics, you must create study notes for ALL of the given primary subtopics and their nested secondary subtopics (if present, otherwise you can leave the secondary subtopic null). Each lesson entails a lecture note, flash cards, and two matching quiz question-answer pairs. The lesson you are creating is a part of a larger syllabus whose main topic is "${mainTopic}".  :
+The syllabus consists of exactly ${psAmount} primary subtopics, each with their own nested secondary subtopics. Each primary subtopic and their nested secondary subtopics (if present)  are separated woth the following delimiter #########.
+
+####Start of Syllabus###
+${syllabusBlock}
+###End of Syllabus####
+
+You will be given a schema and will return a structured output. Here are some of notable parts of the schema :
+
+Lecture_note : This is the main body of a primary subtopic or secondary subtopic, the content here should align with the specifications in the syllabus. It is essentially a stand alone micro lesson and each lecture_note should not exceed ${wordCount} words. Lecture_notes should include citations where possible, please strictly adhere to the citation formating instructions below.
+flash_cards : These are flash cards, please see the guidelines below on how to design effective cards. Do not exceed more than four flash cards per subtopic. See the self assesment section for more guidelines.
+quiz : You are expected to create 3 quiz questions (total) to reinforce the learning objectives of the syllabus or content of the micro lessons. See the self assesment section for more guidelines.
+
+
+Instructions
+
+1. Create condense study notes that is grounded in the provided text and use the learning objectives to enhance the quality of your lesson. Explain the main points in the given text.
+2. If applicable draw concrete examples / problems from the uploaded material and explain them, if they are present in the uploaded text. These examples or problems must be grounded in the text, if the text doesn't have examples or problems you can skip this step.
+
+## Instructions on Readability and Math Formatting (Applies to preparing the lecture_note field of the Schema for each topic in the syllabus)
+
+1. **Structure**:
+   - Use Markdown syntax where appropriate:
+     - Use '#####' for subheadings to improve readability (this is a heading level of 5).
+     - **Do not add a heading before the first paragraph.**
+     - Insert headings only when they add structure or clarity—not after every paragraph.
+     - Avoid repeating the subtopic title as a heading.
+     - Never use the phrase "Lecture note".
+     - Use bullet points or numbered lists for organization.
+     
+
+      *Headings should appear where they feel natural to a human reader—like in a well-written textbook—not after every paragraph.*
+
+     Example:
+
+##### Light-Dependent Reactions  
+Chlorophyll in the thylakoid membrane absorbs photons, exciting electrons that flow through an electron transport chain to produce ATP and NADPH.
+
+##### Calvin Cycle  
+CO₂ is fixed by RuBisCO into 3-phosphoglycerate, then reduced to G3P using ATP and NADPH; finally RuBP is regenerated to continue the cycle.
+
+##### Pigments and Light Absorption  
+- **Chlorophyll a/b** absorb primarily blue (430–450 nm) and red (640–680 nm) light.  
+- **Carotenoids** extend the range by capturing green wavelengths and protecting against photooxidative damage.
+
+
+2. **Math Formatting Rules (Critical! Applies to lecture_note only)**:  
+   When you are creating lessons for math related subjects that involve mathematical symbols (eg algebra, calculus, formal logic, classical math, computer science, engineering, physics, chemistry etc ... ).  Please use the following formatting for mathematical notations to render the symbols in a katex environment :
+
+
+ You have a MathJax render environment.
+- Use '\\(' and '\\)' for inline math equations within paragraphs
+- Use '\\[' and '\\]\ for block math equations on separate lines
+- Always escape the backslashes in the delimiters when writing them
+  
+
+Examples:
+- Inline math: "The quadratic formula \\(x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}\\) is used to solve..."
+- Block math: "The energy-mass equivalence is expressed as: \\[E = mc^2\\]"
+- Chemical equation: "The balanced equation is \\[2H_2 + O_2 \\rightarrow 2H_2O\\]"
+
+
+
+3. ########## Instructions on citation formatting (lecture_note only) ######
+
+1. When a major concept or idea is bought up we should insert an inline citation
+to give the user the source of this information from their uploaded material. Citations should only be added to the lecture_note content, and this should be used conservatively , only cite the Major concepts and ideas. Follow these steps to make an inline citation
+
+a. At the end of paragraph inside a lecture note where a major idea or concept was mentioned, insert the index of the citation, and enclose them with double angled bracket , example :
+<<1>>. 
+
+b. Use the lesson_citation to complete the citation that corresponds to the index. 
+Example :
+
+index : The index associated with the citation
+textsource : " A short quote from the uploaded material that is the source of the idea "
+page_number : The page the text source is found on.
+
+
+The page number will be clearly marked in the uploaded material, here is how they look :
+
+[#### START OF PAGE N ####]
+[#### END OF PAGE N ####]
+
+
+
+c. Never exceed more than four citations. Only provide citations for the lecture note of given sub topic. The textsource quote should not exceed 40 words.
+
+
+Here is full example :
+
+
+
+Uploaded material :
+[#### START OF PAGE 7 #### ]
+
+..... Photosynthesis is a chemical process where plants make food .....
+
+[#### END OF PAGE 7 #### ]
+
+
+
+Inline text example in lecture_note content :
+
+
+.....Plants make food via photosynthesis <<3>>.....
+
+
+Example of multiple citations :
+
+... Emile Durkheim posits that norms serve a purpose of fostering cohesiveness <<4>> <<5>> <<9>> ...
+
+
+CAVEAT :
+Do not add any JSON object or array inside lecture_note—all citation objects must go into the sibling lesson_citation array.
+
+
+
+#### Self Assesment Resource Guidlines (Flash cards and Matching Quiz) 
+General guidelines for designing self assement material :
+
+a. Active Recall is Paramount: Force the brain to retrieve information, strengthening memory more effectively than passive review.
+b. Desirable Difficulty: Questions should require effortful retrieval without being ambiguous or frustrating.
+c. Precision is Key: Ambiguous questions or cues hinder learning and accurate self-assessment.
+d. Alignment Matters: Resources must target specific, valuable learning objectives.
+
+
+3. Create flash cards to document key concepts, ideas, events, or formula that are found in the lesson.
+ The nature of the flash cards largely depend on the domain of the lesson, the aim is to create an effective set of flash cards
+ that will drive active recall , reinforce long term retention and most importantly they should align with the learning objectives of the unit. Here are some guidelines to prepare highly effective flash cards :
+
+#### Axis for effective Flash card design 
+a. Cognitive Demand Level: Design the prompt (front side of card) to require retrieval of a single, specific piece of information (fact, definition, concept) or a concise application/explanation, avoiding mere recognition.
+ A proportion of cards should require applying or explaining the idea so higher order retrieval is rehearsed.
+
+b. Contextual Precision: Provide minimal, relevant context on the question side to ground the recall task without giving away the answer or creating ambiguity. A proportion of the cards MUST ask a question that provides minimal context to frame its response, avoid overusing single term flash cards as they provide zero context. 
+ 
+c. Answer Specificity: Ensure the correct answer is unambiguous and concise, allowing for clear self-grading.
+
+d. Cue Effectiveness: Avoid unintentional hints within the prompt or structure that make retrieval trivial.
+
+
+
+
+##### Matching Quiz instructions
+
+4. Create three matching quiz question-answer pairs, use the following guidelines to preparing effective matching questions :
+
+a. Association Clarity: Ensure the relationship between the items in the two columns (e.g., term-definition, cause-effect) is explicit, consistent, and directly tests a specific type of paired knowledge.
+
+b. Column Homogeneity: Maintain consistent content type and format within each column (e.g., all terms on the left, all definitions on the right; all single words or all short phrases).
+
+c. Match Uniqueness: Design the items so each premise (left column item) has only one unambiguous correct match in the response (right column), and vice versa (unless deliberately including unused responses).
+
+d. Clue Minimization: Avoid formatting, wording, or logical inconsistencies that allow matches to be deduced through the process of elimination unrelated to the target knowledge.
+
+
+
+"
 
   `.trim();
 }

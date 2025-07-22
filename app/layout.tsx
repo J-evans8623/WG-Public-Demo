@@ -1,10 +1,14 @@
 // /app/layout.tsx
 import React from 'react';
-import '@/app/globals.css';
 import Head from 'next/head';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/pages/api/auth/[...nextauth]";
+import Providers from "./AuthProvider"; 
+import '@/app/globals.css';
 import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/Cards/slideshow.css'
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = await getServerSession(authOptions);
   return (
     <html lang="en">
       <Head>
@@ -14,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </Head>
       <body className="h-screen w-screen overflow-x-hidden bg-[#F9FBFD]">
-        {children}
+       <Providers session={session}>{children}</Providers>
       </body>
     </html>
   );

@@ -18,6 +18,7 @@
 import JSZip from 'jszip';
 import { resetColorTheme } from '@/app/Library/Context/colorThemeActions';
 import { toast } from 'react-toastify';
+import { RevisionMetaData } from '../Definitions/UserDataDefinitions';
 
 
 
@@ -39,15 +40,16 @@ import { toast } from 'react-toastify';
  * @param mapHeight - Height of the map layout
  */
 export const initializeNewDocument = async (
-     createNewDocument: () => Promise<void>,  
+    createNewDocument: () => Promise<string>,  
     layoutDispatch: React.Dispatch<any>,
     colorThemeDispatch: React.Dispatch<any>,
-    mapWidth: number = 1800,// used to make a layout dispatch call .. can be moved up to topbar.tsx 
-    mapHeight: number = 1800 // used to make a layout dispatch call .. can be moved up to topbar.tsx 
-  ): Promise<void> => {
+    InitializeUserData: (documentID:string) => Promise<RevisionMetaData>,
+  ): Promise<string> => {
         try {
 
-        await createNewDocument();
+        const docId = await createNewDocument();
+        InitializeUserData(docId);
+
         console.log('Starting transactional document initialization');
   
 
@@ -61,13 +63,14 @@ export const initializeNewDocument = async (
         layoutDispatch({ // this can be lifted to top bar.tsx
           type: 'SET_MAP_SIZE', 
           payload: { 
-            mapWidth: mapWidth || 1800, 
-            mapHeight: mapHeight || 1800 
+            mapWidth:  1800, 
+            mapHeight: 1800 
           } 
         });
-  
+        
         console.log('Document initialization completed successfully');
         toast.success('New document initialized successfully.');
+        return docId
       } catch (error) {
         console.error('Error initializing document:', error);
         toast.error('Failed to initialize new document');

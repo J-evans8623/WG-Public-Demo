@@ -10,7 +10,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { compositeLayout } from '@/app/Library/components/AI/layoutUtils';
+import { compositeLayout } from '@/app/studygraph/(studygraph)/components/hooks/layoutUtils';
 import markdownIt from 'markdown-it';
 
 // Initialize markdown-it parser instance.

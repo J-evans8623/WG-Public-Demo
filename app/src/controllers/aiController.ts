@@ -22,16 +22,17 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import AIService from "../services/aiService";
-import { lessonPrompt, predefinedPrompts, buildSubtreePrompt } from "../config/predefined-prompts";
-import OpenAIClient from "../config/openai";
-import { lessonSchema, subtreeSchema, topicSchema } from "../schemas/lessonSchema";
+import AIService from "../services/aiServiceV2";
+import { lessonPrompt, predefinedPrompts, buildSubtreePromptV2, buildSubtreePrompt } from "../config/predefined-prompts";
+//import OpenAIClient from "../config/openai";
+import { lessonSchema, subtreeSchemaV3, topicSchema, subtreeSchemaV4, EnrichedPrimary, Citation } from "../schemas/lessonSchema";
 import { MatchingQuizSchema, MultipleChoiceSchema, FillInBlankSchema, TrueFalseSchema } from "../schemas/quizSchema";
 import { LessonModule } from "../services/TextPreprocessing/LessonModuleServiceV2";
 import { getTextContext } from '@/app/src/services/TextPreprocessing/QuestionContextService';
 import { QAschema } from '@/app/src/schemas/QASchema';
 import { formatLessonMetadata } from "../services/TextPreprocessing/MetaDataFormatter";
-import { PrimaryNode } from '../services/TextPreprocessing/LessonModuleTypes';
+import { formatSyllabusForPrompt, PrimaryForPrompt } from './formatSyllabus';
+
 
 
 class AIController {
@@ -41,8 +42,8 @@ class AIController {
   private static getAIService(): AIService {
     if (!this.aiService) {
       console.log('[AIController] Initializing AI Service');
-      const openaiClient = OpenAIClient.getClient();
-      this.aiService = new AIService(openaiClient);
+     // const openaiClient = OpenAIClient.getClient();
+      this.aiService = new AIService();
     }
     return this.aiService;
   }
@@ -262,16 +263,24 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
   public static async generateSubtreeLesson(root: any, mainTopic:string): Promise<any> {
     const aiService = this.getAIService();
 
-    const secondaryTitles =
-      Array.isArray(root.depth2_subtopics) && root.depth2_subtopics.length > 0
-        ? root.depth2_subtopics.map((s: { title: any; }) => s.title || '')
-        : null;
+    
+      const primary: PrimaryForPrompt = {
+    title: root.title!,
+    Learning_Objectives: root.Learning_Objectives!,
+    LessonOutline: root.LessonOutline!,
+    secondary_topics: (root.depth2_subtopics || []).map((s: any) => ({
+      title: s.title,
+      Learning_Objectives: s.Learning_Objectives,
+      LessonOutline: s.LessonOutline
+    }))
+  };
+
+  
+  // produce the formatted string
+  const syllabusBlock = formatSyllabusForPrompt(primary);
+  console.log(`[aiController 444442] ${JSON.stringify(syllabusBlock)} `);
     // System prompt to guide structured subtree output
-    const systemPrompt = buildSubtreePrompt(
-      mainTopic,
-      root.title !, 
-      secondaryTitles
-    );
+  const systemPrompt = buildSubtreePrompt(mainTopic, syllabusBlock);
 
     // User content: pass the root object with its title, text, and nested children
     const userInput = JSON.stringify({
@@ -286,7 +295,7 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
 
     // Perform the structured call
     const response = await aiService.generateStructuredOutput(
-      { name: subtreeSchema.name, schema: subtreeSchema.schema, strict: subtreeSchema.strict },
+      { name: subtreeSchemaV4.name, schema: subtreeSchemaV4.schema, strict: subtreeSchemaV4.strict },
       userInput,
       systemPrompt
     );
@@ -296,7 +305,7 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
   // ─── Hydrate PRIMARY node ────────────────────────────────────────
   root.lesson          = subtree.lesson;
   root.lesson_citation = subtree.lesson_citation ?? null;
-
+  root.ChronologicalOrder = root.lessonOrder;
   // ─── Hydrate SECONDARY nodes (keep citations!) ───────────────────
   root.secondary_subtopic = Array.isArray(subtree.secondary_subtopic)
     ? subtree.secondary_subtopic.map((ss: any) => ({
@@ -309,7 +318,131 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
   // ─── Quiz  ────────────────────────────────────────────────────────
   root.quiz = subtree.quiz;
 
+
+  console.log(`\n\n\n ############################ \n [Aicontroller] #9292 lesson unit output ${JSON.stringify(subtree)} \n ###########################`)
+
   return root;
+  }
+
+
+  /**
+   * generateSubtreeLessonV2
+   *
+   * Generates detailed lesson content, flash cards, optional secondary subtree,
+   * and a quiz for multiple depth-1 PrimaryNode and its children.
+   *
+   * @param root - A PrimaryNode with .title, .aggregated_text, and optional depth2_subtopics.
+   * @returns Promise resolving to the enriched PrimaryNode with:
+   *   - lesson: { lecture_note, flash_cards }
+   *   - secondary_subtopic: ...[]
+   *   - quiz: matching_quiz object
+   */
+  public static async generateSubtreeLessonV2(roots: any[], mainTopic:string, fullText:string): Promise<{
+  primary_subtopics: EnrichedPrimary[];
+  citations: Citation[];
+}> {
+    const aiService = this.getAIService();
+
+    let syllabus: string = '';
+    roots.forEach(root => {
+      const primary: PrimaryForPrompt = {
+    title: root.title!,
+    Learning_Objectives: root.Learning_Objectives!,
+    LessonOutline: root.LessonOutline!,
+    ChronologicalOrder: root.ChronologicalOrder,
+    secondary_topics: (root.depth2_subtopics || []).map((s: any) => ({
+      title: s.title,
+      Learning_Objectives: s.Learning_Objectives,
+      LessonOutline: s.LessonOutline,
+    }))
+  };
+    syllabus+= formatSyllabusForPrompt(primary) + '\n ######## \n';
+    })
+      
+
+  
+  // produce the formatted string
+  //const syllabusBlock = formatSyllabusForPrompt(primary);
+  console.log(`[aiController 444442] ${JSON.stringify(syllabus)} `);
+    // System prompt to guide structured subtree output
+  const systemPrompt = buildSubtreePromptV2(mainTopic, syllabus, roots.length);
+
+
+    // Perform the structured call
+    const response = await aiService.generateStructuredOutput(
+      { name: subtreeSchemaV4.name, schema: subtreeSchemaV4.schema, strict: subtreeSchemaV4.strict },
+      fullText,
+      systemPrompt
+    );
+
+
+    const batch = (response as any).primary_subtopics as EnrichedPrimary[];
+    const global_citations = (response as any).citations as Citation[]
+
+    const payload = {
+      primary_subtopics : batch,
+      citations: global_citations,
+    }
+    
+    return payload;
+  }
+
+  
+
+    /**
+   * generateSubtreeLessonV3
+   *
+   * Generates detailed lesson content, flash cards, optional secondary subtree,
+   * and a quiz for multiple depth-1 PrimaryNode and its children.
+   *
+   * @param root - A PrimaryNode with .title, .aggregated_text, and optional depth2_subtopics.
+   * @returns Promise resolving to the enriched PrimaryNode with:
+   *   - lesson: { lecture_note, flash_cards }
+   *   - secondary_subtopic: ...[]
+   *   - quiz: matching_quiz object
+   */
+  public static async generateSubtreeLessonV3(roots: any[], mainTopic:string, LessonText:string, wordcount:number): Promise<{
+  primary_subtopics: EnrichedPrimary[];
+}> {
+    const aiService = this.getAIService();
+
+    let syllabus: string = '';
+    roots.forEach(root => {
+      const primary: PrimaryForPrompt = {
+    title: root.title!,
+    Learning_Objectives: root.Learning_Objectives!,
+    LessonOutline: root.LessonOutline!,
+    ChronologicalOrder: root.ChronologicalOrder,
+    secondary_topics: (root.depth2_subtopics || []).map((s: any) => ({
+      title: s.title,
+      Learning_Objectives: s.Learning_Objectives,
+      LessonOutline: s.LessonOutline,
+    }))
+  };
+    syllabus+= formatSyllabusForPrompt(primary) + '\n ######## \n';
+    })
+      
+
+  
+  // produce the formatted string
+  //const syllabusBlock = formatSyllabusForPrompt(primary);
+  console.log(`[aiController 444442] ${JSON.stringify(syllabus)} `);
+    // System prompt to guide structured subtree output
+  const systemPrompt = buildSubtreePromptV2(mainTopic, syllabus, roots.length, wordcount);
+
+
+    // Perform the structured call
+    const response = await aiService.generateStructuredOutput(
+      { name: subtreeSchemaV3.name, schema: subtreeSchemaV3.schema, strict: subtreeSchemaV3.strict },
+      LessonText,
+      systemPrompt
+    );
+
+
+    const payload = (response as any).primary_subtopics as EnrichedPrimary[];
+
+    
+    return {primary_subtopics :payload}
   }
 
 }

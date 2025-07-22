@@ -20,11 +20,16 @@ export interface PrimaryNode {
   node_id: string;
   unit_text: string; // unit text goes here
   title?: string; // primary subtopic title goes here
+  Learning_Objectives?:string;
+  LessonOutline?:string;
   depth2_subtopics?: secondaryNode[]; // secondary topic goes here
+  lessonOrder?: rank
 }
 
-interface secondaryNode {
+export interface secondaryNode {
   title:string
+  LessonOutline: string;
+  Learning_Objectives: string;
 }
 
 
@@ -51,6 +56,7 @@ export interface LessonModuleV3 {
 }
 
 
+export type rank = 'A' | 'B' | 'C' ;
 /**
  * UnitContext
  * Tracks one “unit” of the full text through all three passes:
@@ -66,4 +72,5 @@ export interface UnitContext {
   syllabus?: UnitSyllabus;
   rating?: SyllabusRating;
   prunedStubs?: PrimaryNode[];
+  order?: rank;
 }

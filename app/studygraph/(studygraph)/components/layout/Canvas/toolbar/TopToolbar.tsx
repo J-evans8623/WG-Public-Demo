@@ -35,18 +35,22 @@ import {
   MousePointer,
   ClipboardList,
   Monitor,
+  Clock as ClockIcon,
 } from 'lucide-react';
 import './CanvasToolbar.css';
 
 export interface TopToolbarProps {
   /** Which view is currently active: 'conceptMap' or 'pdf' */
-  activeView: 'conceptMap' | 'pdf';
+  activeView?: 'conceptMap' | 'pdf';
 
   /** Callback to open the global search modal */
   onSearch: () => void;
 
   /** Callback to perform “share” action */
   onShare: () => void;
+
+  /** Open version history panel */
+  onVersionHistory: () => void;
 
   /** Whether “undo” is currently available */
   canUndo: boolean;
@@ -109,6 +113,7 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
   activeView,
   onSearch,
   onShare,
+  onVersionHistory,
   canUndo,
   canRedo,
   undo,
@@ -288,6 +293,20 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
             <Redo2 size={20} />
             <span>Redo</span>
           </button>
+
+                {/* Version History Button */}
+      <button
+        className="toolbar-btn"
+        onClick={() => {
+          console.log('TopToolbar.tsx 7006 › Version History clicked');
+          onVersionHistory();
+        }}
+        title="Version History"
+        aria-label="Version History"
+      >
+        <ClockIcon size={20} />
+        <span>Version History</span>
+      </button>
 
           {/* Multi-Select */}
           <button

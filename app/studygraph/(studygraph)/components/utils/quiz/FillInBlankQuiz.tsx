@@ -5,7 +5,7 @@ import QuizBase from './QuizBase';
 
 interface FillInBlankQuizProps {
   quizData: IQuizQuestion[];
-  onSubmit: (score: number, total: number) => void;
+  onSubmit: (results: { id: string; correct: boolean }[]) => void;
   onClose: () => void;
 }
 
@@ -27,15 +27,19 @@ const FillInBlankQuiz: React.FC<FillInBlankQuizProps> = ({ quizData, onSubmit, o
     });
   };
 
-  const handleSubmit = () => {
-    const correct = quizData.reduce((score, question, index) =>
-      answers[index]?.trim().toLowerCase() === (question as IFillInBlankQuestion).correctAnswer.toString().trim().toLowerCase()
-        ? score + 1
-        : score,
-      0
-    );
-    onSubmit(correct, quizData.length);
-  };
+const handleSubmit = () => {
+  const results = quizData.map((q, i) => ({
+    id: q.id,
+    correct:
+      answers[i].trim().toLowerCase() ===
+      (q as IFillInBlankQuestion)
+        .correctAnswer
+        .toString()
+        .trim()
+        .toLowerCase(),
+  }));
+  onSubmit(results);
+};
 
   const isAnswerSelected = (answer: string) => answers.includes(answer);
   

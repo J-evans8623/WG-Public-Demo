@@ -12,7 +12,7 @@ import * as admin from "firebase-admin";
 /* ──────────────────────────────────────────────────────────────
  *  Firebase initialisation
  * ────────────────────────────────────────────────────────────── */
-admin.initializeApp();
+
 const firestore = admin.firestore();
 
 /* ──────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import MultipleChoiceQuiz from './MultipleChoiceQuiz';
 import TrueFalseQuiz from './TrueFalseQuiz';
 import FillInBlankQuiz from './FillInBlankQuiz';
 import MatchingQuiz from './MatchingQuiz';
+import { useUserData } from '@/app/Library/Context/UserDataContext';
 
 interface QuizOverlayProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface QuizOverlayProps {
 }
 
 const QuizOverlay: React.FC<QuizOverlayProps> = ({ isOpen, onClose, quizType, title, quizData }) => {
+   const { recordQuizAttempt, recordQuizSession } = useUserData();
   const [showScore, setShowScore] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
 
@@ -28,10 +30,22 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({ isOpen, onClose, quizType, ti
     }
   }, [isOpen]);
 
-  const handleScoreSubmit = (correct: number, total: number) => {
-    setScore({ correct, total });
-    setShowScore(true);
-  };
+const handleScoreSubmit = (
+  results: { id: string; correct: boolean }[]
+) => {
+  // 1) record each attempt
+  results.forEach(r =>
+    recordQuizAttempt(r.id, quizType, r.correct)
+  );
+  // 2) record one quiz session
+  recordQuizSession();
+
+
+  // 2) compute aggregate score
+  const correctCount = results.filter(r => r.correct).length;
+  setScore({ correct: correctCount, total: results.length });
+  setShowScore(true);
+};
 
   const handleExit = () => {
     setShowScore(false);

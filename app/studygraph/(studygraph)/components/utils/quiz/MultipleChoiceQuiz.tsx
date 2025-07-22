@@ -5,7 +5,7 @@ import QuizBase from './QuizBase';
 
 interface MultipleChoiceQuizProps {
   quizData: IQuizQuestion[];
-  onSubmit: (score: number, total: number) => void;
+  onSubmit: (results: { id: string; correct: boolean }[]) => void;
   onClose: () => void;
 }
 
@@ -17,14 +17,15 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ quizData, onSub
     setSelectedOptions((prev) => ({ ...prev, [questionId]: option }));
   };
 
-  const handleSubmit = () => {
-    const correct = quizData.reduce(
-      (score, question) =>
-        selectedOptions[question.id] === question.correctAnswer ? score + 1 : score,
-      0
-    );
-    onSubmit(correct, quizData.length);
-  };
+const handleSubmit = () => {
+  const results = quizData.map((q) => ({
+    id: q.id,
+    correct:
+      (selectedOptions[q.id] as string) ===
+      (q as IMultipleChoiceQuestion).correctAnswer,
+  }));
+  onSubmit(results);
+};
 
   const allQuestionsAnswered = Object.keys(selectedOptions).length === quizData.length;
 

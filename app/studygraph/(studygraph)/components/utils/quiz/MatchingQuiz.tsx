@@ -25,7 +25,7 @@ function shuffleArray<T>(arr: T[]): T[] {
 
 interface MatchingQuizProps {
   quizData: IQuizQuestion[];
-  onSubmit: (score: number, total: number) => void;
+  onSubmit: (results: { id: string; correct: boolean }[]) => void;
   onClose: () => void;
 }
 
@@ -58,19 +58,19 @@ const MatchingQuiz: React.FC<MatchingQuizProps> = ({
     setMatchingAnswers(next);
   };
 
-  const handleSubmit = () => {
-    let correct = 0;
-    matchingAnswers.forEach((letter, qi) => {
-      if (letter) {
-        const idx = letter.charCodeAt(0) - 65;
-        if (answerBank[idx] === quizData[qi].correctAnswer) {
-          correct++;
-        }
-      }
-    });
-    onSubmit(correct, quizData.length);
-    setShowScore(true);
-  };
+// Replace your existing handleSubmit with this:
+const handleSubmit = () => {
+  const results = quizData.map((q, qi) => {
+    const letter = matchingAnswers[qi];
+    const idx    = letter.charCodeAt(0) - 65;
+    return {
+      id: q.id,
+      correct: answerBank[idx] === q.correctAnswer,
+    };
+  });
+  onSubmit(results);
+};
+
 
   const isComplete = matchingAnswers.every(a => a !== '');
 

@@ -15,7 +15,7 @@ export interface Invite {
   originalMode: 'copy' | 'collab';   // Mode at creation time
   mode: 'copy' | 'collab';           // Current redemption behaviour
   delivery: 'link' | 'email' | 'flyer';
-  permission?: 'edit' | 'comment';   // Only for collab-mode invites
+  permission: 'edit' | 'view';   // Only for collab-mode invites
   singleUse: boolean;                // True if one-time only
   uses: number;                      // Incremented on each redeem
   issuedAt: Timestamp;               // When created

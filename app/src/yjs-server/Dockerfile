@@ -1,20 +1,32 @@
-# Dockerfile for Yjs collaboration server
-# Responsibilities:
-#  - Build a minimal Node.js image with only production dependencies.
-#  - Expose configured PORT (default 1234).
-FROM node:20-alpine
+# Use Node.js 18 Alpine for smaller image size
+FROM node:18-alpine
+
+# Set working directory
 WORKDIR /app
 
-# Copy and install dependencies
+# Copy package files
 COPY package*.json ./
-RUN npm ci --omit=dev
 
-# Copy server code
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy application code
 COPY . .
 
-# Default environment variables
-ENV PORT=1234
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S yjs -u 1001
 
-# Expose the port and launch
-EXPOSE ${PORT}
-CMD ["node", "server.js"]
+# Change ownership of the app directory
+RUN chown -R yjs:nodejs /app
+USER yjs
+
+# Expose the port
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+
+# Start the server
+CMD ["npm", "start"]

@@ -17,10 +17,9 @@ import React, {
   useMemo,
 } from 'react';
 import * as Y from 'yjs';
-import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+import { ConceptNode, SystemActionType  } from '@/app/Library/Definitions/Definitions';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
-import { SystemActionType } from '@/app/Library/Tests/Synchro/Centralize/SystemOriginTypes';
 import { record } from '@/app/studygraph/(studygraph)/components/utils/deltaEngine';
 import { Delta } from '@/app/Library/Definitions/deltaTypes';
 import { useUndoRedo } from '@/app/studygraph/(studygraph)/components/Context/UndoRedoContext';
@@ -37,9 +36,11 @@ interface NodesContextValue {
   setNodes(
     nodes: Map<string, ConceptNode>,
     options?: { origin?: { type: 'system'; action: SystemActionType } },
-    mapId?: string
+    mapId?: string,
+    restore?:boolean,
   ): void;
   createNewNode(title: string, parentNodeId: string, newNodeId: string): void;
+  restoreNode: (node: ConceptNode, parentId: string) => void;
   updateNodeTitle(nodeId: string, newTitle: string, mapId?: string): void;
   deleteNode(nodeId: string): void;
   transferNode(sourceNodeId: string, targetNodeId: string): void;
@@ -49,6 +50,8 @@ interface NodesContextValue {
   getRootNode(): string;
   getReviewNode(): { id: string; exist: boolean };
   saveEditwithNewNode(nodeTitle: string): string;
+  getNodes(mode:"History"|"Live") : Map<string, ConceptNode> | null;
+  getGlobalNode: (mapId: string, nodeId: string) => ConceptNode | undefined;
 }
 
 const NodesContext = createContext<NodesContextValue | undefined>(undefined);
@@ -60,10 +63,11 @@ export const useNodesContext = (): NodesContextValue => {
 };
 
 export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { ydoc, updateFileName, getFileName }  = useYDoc();
+  const { ydoc, updateFileName, getFileName, isReadOnly, snapshotYDoc  }  = useYDoc();
   const { activeConceptMapId ,  getLessonModule, updateConceptMapTitle} = useLessonModule();
   const mapKey = `nodes:${activeConceptMapId}`;
-  const yNodesMap = ydoc.getMap<ConceptNode>(mapKey);
+   const activeDoc = snapshotYDoc ?? ydoc;
+  const yNodesMap = activeDoc.getMap<ConceptNode>(mapKey);
 
   const [nodes, setNodesState] = useState<Map<string, ConceptNode>>(new Map());
   const { undo: globalUndo, redo: globalRedo } = useUndoRedo();
@@ -78,6 +82,20 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     yNodesMap.observeDeep(onUpdate);
     return () => yNodesMap.unobserveDeep(onUpdate);
   }, [yNodesMap]);
+
+
+  const getNodes = useCallback((mode:"History"|"Live") : Map<string, ConceptNode> | null => {
+    let nodedata = null;
+    if (mode.toLowerCase() == "history" && snapshotYDoc){
+      nodedata = snapshotYDoc.getMap<ConceptNode>(mapKey);
+    }
+    else {
+      // Live
+      nodedata = ydoc.getMap<ConceptNode>(mapKey);
+    }
+
+    return  new Map<string, ConceptNode>(Array.from(nodedata.entries()));
+  }, [mapKey, snapshotYDoc, ydoc])
 
   // Helpers
   const getRootNode = useCallback(() => 'node-1', []);
@@ -97,8 +115,15 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     (
       newMap: Map<string, ConceptNode>,
       options?: { origin?: { type: 'system'; action: SystemActionType } },
-      mapID?: string
+      mapID?: string,
+      restore?:boolean
     ) => {
+
+      if (isReadOnly && !restore) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+      return;
+      }
+
       const usedMap = mapID || activeConceptMapId;
       const targetKey = `nodes:${usedMap}`;
       const yMap = ydoc.getMap<ConceptNode>(targetKey);
@@ -110,11 +135,15 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         options?.origin
       );
     },
-    [ydoc, activeConceptMapId]
+    [isReadOnly, activeConceptMapId, ydoc]
   );
 
   // 2) initNewDocument
   const initNewDocument = useCallback(() => {
+        if (isReadOnly) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+      return;
+    }
     const root: ConceptNode = {
       id: 'node-1',
       title: 'Root Concept',
@@ -133,12 +162,16 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       },
       { origin: { type: 'system', action: 'initialize' } }
     );
-  }, [ydoc, yNodesMap]);
+  }, [ydoc, yNodesMap, isReadOnly]);
 
 
 // 3) createNewNode (no undo/redo tracking)
 const createNewNode = useCallback(
   (title: string, parentId: string, newId: string) => {
+        if (isReadOnly) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+      return;
+    }
     const parent = yNodesMap.get(parentId);
     if (!parent) return;
 
@@ -174,8 +207,54 @@ const createNewNode = useCallback(
       }
     );
   },
-  [ydoc, yNodesMap]
+  [ydoc, yNodesMap, isReadOnly]
 );
+
+
+/**
+   * @function restoreNode
+   * @description
+   *   Reinstates a ConceptNode (with its original ID, title, depth, and children) into
+   *   the live Y.Doc under the specified parent. Skips any read-only check and wraps
+   *   both the node insertion and parent update in one atomic transaction for undo/redo.
+   *
+   *   - `node`: the exact snapshot node to restore.
+   *   - `parentId`: the live parent node ID under which to reattach.
+   *   - Logs start (8001), mid (8002), and completion (8003) events.
+   */
+  const restoreNode = useCallback(
+    (node: ConceptNode, parentId: string): void => {
+      console.log('NodesProvider.tsx 8001 › restoreNode start', node.id, 'parent:', parentId);
+      
+      // Compute depth based on parent
+      const parent = yNodesMap.get(parentId);
+      const depth = parent ? (parent.depth || 0) + 1 : 0;
+      const x = undefined;
+      const y= undefined;
+      const restored: ConceptNode = { ...node, parentNodeId: parentId, depth, x , y };
+      console.log(`takku restoreNode ${restored}`);
+
+      ydoc.transact(
+        () => {
+          // 1) Insert the node
+          const liveMap = ydoc.getMap<ConceptNode>(`nodes:${activeConceptMapId}`);
+          liveMap.set(restored.id, restored);
+          console.log('NodesProvider.tsx 8002 › node set in map', restored.id);
+
+          // 2) Update parent’s children array
+          if (parent) {
+            const updatedChildren = [...(parent.childrenNodeIds || []), restored.id];
+            yNodesMap.set(parentId, { ...parent, childrenNodeIds: updatedChildren });
+            console.log('NodesProvider.tsx 8002 › parent updated', parentId, 'children:', updatedChildren);
+          }
+        },
+        { type: 'system', action: 'restoreNode' }
+      );
+
+      console.log('NodesProvider.tsx 8003 › restoreNode complete', restored.id);
+    },
+    [yNodesMap, ydoc, activeConceptMapId]
+  );
 
 
 
@@ -184,6 +263,10 @@ const createNewNode = useCallback(
   // 4) updateNodeTitle
   const updateNodeTitle = useCallback(
     (nodeId: string, newTitle: string, mapID?: string) => {
+          if (isReadOnly) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+      return;
+    }
       const usedKey = mapID ? `nodes:${mapID}` : mapKey;
       const yMap = mapID ? ydoc.getMap<ConceptNode>(usedKey) : yNodesMap;
       const before = yMap.get(nodeId);
@@ -230,12 +313,16 @@ const createNewNode = useCallback(
         }
       });
     },
-    [ydoc, yNodesMap, mapKey, getFileName, updateFileName, getLessonModule, updateConceptMapTitle]
+    [ydoc,isReadOnly, yNodesMap, mapKey, getFileName, updateFileName, getLessonModule, updateConceptMapTitle]
   );
 
   // 5) deleteNode
   const deleteNode = useCallback(
     (nodeId: string) => {
+          if (isReadOnly) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+      return;
+    }
       const node = yNodesMap.get(nodeId);
       if (!node || node.isRoot) return;
       const parentId = node.parentNodeId!;
@@ -252,7 +339,8 @@ const createNewNode = useCallback(
             yNodesMap.set(parentId, {
               ...parent,
               childrenNodeIds: parent.childrenNodeIds!.filter((c) => c !== nodeId),
-            });
+            })
+            console.log(` takku data after delete ${JSON.stringify(yNodesMap)}`);
           },
           () => {
             yNodesMap.set(nodeId, node);
@@ -261,11 +349,15 @@ const createNewNode = useCallback(
         );
       });
     },
-    [ydoc, yNodesMap]
+    [ydoc, yNodesMap, isReadOnly]
   );
 
   const transferNode = useCallback(
     (sourceId: string, targetId: string) => {
+          if (isReadOnly) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+      return;
+    }
       const source = yNodesMap.get(sourceId);
       const target = yNodesMap.get(targetId);
       if (!source || !target || source.isRoot) return;
@@ -304,21 +396,29 @@ const createNewNode = useCallback(
         { origin: { type: 'system', action: 'transfer' as SystemActionType } }
       );
     },
-    [ydoc, yNodesMap]
+    [ydoc, yNodesMap, isReadOnly]
   );
 
   // 7) resetNodes
   const resetNodes = useCallback(() => {
+        if (isReadOnly) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+      return;
+    }
     ydoc.transact(() => {
       yNodesMap.clear();
       setNodesState(new Map());
     });
-  }, [ydoc, yNodesMap]);
+  }, [ydoc, yNodesMap, isReadOnly]);
 
 
   // NodesProvider.tsx - Add the implementation of saveEditwithNewNode
 const saveEditwithNewNode = useCallback(
   (nodeTitle: string) => {
+        if (isReadOnly) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+      return;
+    }
     const rootNodeId = getRootNode();
     const newNodeId = `node-${Date.now()}`;
     
@@ -327,8 +427,19 @@ const saveEditwithNewNode = useCallback(
     
     return newNodeId; // Return the ID for saving the card
   },
-  [createNewNode, getRootNode]
+  [createNewNode, getRootNode, isReadOnly]
 );
+
+const getGlobalNode = useCallback(
+  (mapId: string, nodeId: string): ConceptNode | undefined => {
+    // look up in the live Y.Doc
+    const key = `nodes:${mapId}`;
+    const yMap = ydoc.getMap<ConceptNode>(key);
+    return yMap.get(nodeId);
+  },
+  [ydoc]
+);
+
 
   const contextValue = useMemo(
     () => ({
@@ -343,22 +454,12 @@ const saveEditwithNewNode = useCallback(
       getNodeTitle,
       getRootNode,
       getReviewNode,
-      saveEditwithNewNode
+      restoreNode,
+      saveEditwithNewNode,
+      getNodes,
+      getGlobalNode,
     }),
-    [
-      nodes,
-      setNodes,
-      createNewNode,
-      updateNodeTitle,
-      deleteNode,
-      transferNode,
-      resetNodes,
-      initNewDocument,
-      getNodeTitle,
-      getRootNode,
-      getReviewNode,
-      saveEditwithNewNode
-    ]
+    [nodes, setNodes, createNewNode, updateNodeTitle, deleteNode, transferNode, resetNodes, initNewDocument, getNodeTitle, getRootNode, getReviewNode, restoreNode, saveEditwithNewNode, getNodes, getGlobalNode]
   );
 
   return <NodesContext.Provider value={contextValue}>{children}</NodesContext.Provider>;

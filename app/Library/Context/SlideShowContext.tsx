@@ -35,7 +35,7 @@ interface SlideShowContextValue {
   // The currently displayed slide (or null if index is out of range)
   currentSlide: ResourceCard | null;
   // Default mode: open slideshow at a particular resource (selection-based)
-  open: (resourceId: string, nodeId:boolean) => void;
+  open: (resourceId: string, nodeId?:boolean) => void;
   // Close the slideshow (also resets any override)
   close: () => void;
   // Advance to next slide

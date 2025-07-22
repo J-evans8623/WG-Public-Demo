@@ -18,7 +18,7 @@ import multer from 'multer';
 import connectDB from '@/app/src/config/db';
 import { convertFileToPdf } from '@/doc-preprocessing-service/gotenberg-service-client';
 import { extractTextFromFileService } from '@/doc-preprocessing-service/text-extraction-client';
-import { generateLessonFromSegment } from '@/app/src/services/TextPreprocessing/LessonModuleServiceV6';
+import { generateLessonFromSegment } from '@/app/src/services/TextPreprocessing/LessonModuleServiceV8';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import { v4 as uuidv4 } from 'uuid';
 import pdfParse from 'pdf-parse';
@@ -46,7 +46,7 @@ interface StoredFile {
 }
 
 interface moduleData {
-  modules: string[];
+  modules: string[][];
   moduleSize : number;
 }
 
@@ -149,32 +149,40 @@ async function storeFile(
 
 /**
  * splitTextIntoModules
- * Splits the extracted text into up to five segments using a heuristic.
+ * Splits the extracted text array into up to five segments using a heuristic.
  */
-function splitTextIntoModules(fullText: string, pgCount: number): moduleData {
-    const chapterEstimate = Math.round(pgCount /20);
-  const numModules = Math.min( chapterEstimate || 1, 5);
-  const modSize = (pgCount/ numModules);
-
-  const totalLength = fullText.length;
-  const segmentLength = Math.floor(totalLength / numModules);
+function splitTextIntoModules(fullText: string[]): moduleData {
+  const pgCount = fullText.length;
+  const chapterEstimate = Math.round(pgCount / 30);
+  const numModules = Math.min(chapterEstimate || 1, 5);
+  const moduleSize = pgCount / numModules;  // for metadata
 
   console.log('4560-splitTextIntoModules Debug:');
-  console.log('4560-fullText.length:', totalLength);
-  console.log('4560-pageCount (fullText.length / 2500):', pgCount);
-  console.log('4560-chapterEstimate (pageCount / 20):', chapterEstimate);
-  console.log('4560-numModules (min(round(chapterEstimate) || 1, 5)):', numModules);
-  console.log(` The module size is ${modSize}`)
+  console.log('  total pages:', pgCount);
+  console.log('  chapterEstimate:', chapterEstimate);
+  console.log('  numModules:', numModules);
+  console.log('  moduleSize:', moduleSize);
 
-  const segments: string[] = [];
-  let start = 0;
+  const baseSize = Math.floor(pgCount / numModules);
+  const modules: string[][] = [];
+  let cursor = 0;
+
   for (let i = 0; i < numModules; i++) {
-    const end = start + segmentLength;
-    segments.push(fullText.substring(start, end));
-    start += segmentLength;
+    // last module takes any leftover pages
+    const end = (i === numModules - 1)
+      ? pgCount
+      : cursor + baseSize;
+
+    modules.push(fullText.slice(cursor, end));
+    cursor = end;
   }
-  return {modules: segments, moduleSize: modSize};
+
+  return {
+    modules,
+    moduleSize
+  };
 }
+
 
 /**
  * runMiddleware
@@ -247,19 +255,19 @@ export default async function handler(
     const stored = await storeFile(processed, req.file.originalname, req.file.size);
 
     // Step 4: Extract text from the file.
-    let extractedText: string;
+    let extractedTextArray: string[];
     if (req.file.mimetype === 'text/plain') {
-      extractedText = req.file.buffer.toString('utf-8');
+      extractedTextArray = [req.file.buffer.toString('utf-8')];
     } else {
       const ext = req.file.originalname.split('.').pop()?.toLowerCase();
       const fileExtension = ext ? `.${ext}` : req.file.mimetype;
       console.time(`8640-extracting text`)  
-      extractedText = await extractTextFromFileService(req.file.buffer, fileExtension);
-      console.log(`3333 Page marker test ${JSON.stringify(extractedText)}`);
+      extractedTextArray = await extractTextFromFileService(req.file.buffer, fileExtension);
+      console.log(`3333 Page marker test ${JSON.stringify(extractedTextArray)}`);
       console.timeEnd(`8640-extracting text`)
     }
 
-    if (!extractedText.trim()) {
+    if (extractedTextArray.length == 0) {
       return res.status(400).json({ error: 'No text could be extracted from the file.' });
     }
 
@@ -267,10 +275,9 @@ export default async function handler(
 
     // Step 4.5: Count pages & inject page markers
     const pdfData = await pdfParse(finalPDFBuffer);
-    const pageCount = pdfData.numpages;
   
     // Step 5: Split the text into segments, each segment will be turned into a lesson module.
-    const textSegments = splitTextIntoModules(extractedText, pageCount);
+    const textSegments = splitTextIntoModules(extractedTextArray);
     const moduleSize = textSegments.moduleSize;
     console.log(`GenerateLesson.ts issue 12# Here are the text segments :  ${textSegments}`);
 
@@ -280,7 +287,7 @@ export default async function handler(
 
     // Step 7: Generate lesson modules concurrently.
     const lessonPromises = textSegments.modules.map((segment) =>
-      generateLessonFromSegment(segment, documentID, fileId, moduleSize)
+      generateLessonFromSegment(extractedTextArray,segment, documentID, fileId, moduleSize)
     );
     const generatedLessons = await Promise.all(lessonPromises);
 

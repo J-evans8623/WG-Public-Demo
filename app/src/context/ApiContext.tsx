@@ -30,14 +30,17 @@ interface User {
 
 interface ApiContextType {
   signOut: () => Promise<void>;
-  listFiles: (query?: string) => Promise<DriveFile[]>;
+  listFiles: (query?: string) => Promise<{
+    ownedFiles: DriveFile[];
+    sharedFiles: DriveFile[];
+  }>;
   getWebSocketUrl: (documentId: string) => Promise<string>;
   deleteFile: (fileStorageId: string) => Promise<void>;
 }
 
 export const ApiContext = createContext<ApiContextType>({
   signOut: async () => {},
-  listFiles: async () => [],
+  listFiles: async () => ({ ownedFiles: [], sharedFiles: [] }),
   getWebSocketUrl: async () => '',
   deleteFile: async () => {},
 });
@@ -57,35 +60,41 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
   };
 
 
-  const listFiles = async (query?: string): Promise<DriveFile[]> => {
-    try {
-      const url = new URL('/api/files/list', window.location.origin);
-      if (query) {
-        url.searchParams.append('query', query);
-      }
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        credentials: 'include'
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('List files failed:', response.statusText, errorText);
-        throw new Error(`List files failed: ${response.statusText}`);
-      }
-      const data = await response.json();
-      const mappedFiles: DriveFile[] = data.files.map((f: any) => ({
-        fileId: f.fileId,
-        name: f.fileName,
-        timestamp: f.timestamp,
-        fileSize: f.fileSize,
-        contentType: f.contentType,
-        fileStoragePath: f.fileStoragePath
-      }));
-      return mappedFiles;
-    } catch (error) {
-      console.error('Error listing files:', error);
-      throw error;
+const listFiles = async (query?: string) => {
+    console.log('ApiContext.tsx 9001 › fetching file lists');
+    const url = new URL('/api/files/list', window.location.origin);
+    if (query) url.searchParams.append('query', query);
+
+    const res = await fetch(url.toString(), {
+      method: 'GET',
+      credentials: 'include'
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error('ApiContext.tsx 9002 › listFiles failed:', res.statusText, text);
+      throw new Error(`List files failed: ${res.statusText}`);
     }
+
+    const data = await res.json() as {
+      ownedFiles: any[];
+      sharedFiles: any[];
+    };
+    console.log('ApiContext.tsx 9003 › received ownedFiles count', data.ownedFiles.length);
+    console.log('ApiContext.tsx 9004 › received sharedFiles count', data.sharedFiles.length);
+
+    const mapDriveFile = (f: any): DriveFile => ({
+      fileId: f.fileId,
+      name: f.fileName,
+      timestamp: f.timestamp,
+      fileSize: f.fileSize,
+      contentType: f.contentType,
+      fileStoragePath: f.fileStoragePath
+    });
+
+    return {
+      ownedFiles: data.ownedFiles.map(mapDriveFile),
+      sharedFiles: data.sharedFiles.map(mapDriveFile),
+    };
   };
 
   const getWebSocketUrl = async (documentId: string): Promise<string> => {

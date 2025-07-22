@@ -104,7 +104,7 @@ const MenuBar: React.FC<{ editor: any }> = ({ editor }) => {
         size="sm"
         pressed={editor.isActive('inlineMath')}
         onPressedChange={() => editor.chain().focus().insertContent({ type: 'inlineMath' }).run()}
-        title="Inline Math ($…$) (Ctrl+M)"
+        title="Inline Math \(...\) (Ctrl+M)"
       >
         <Sigma className="h-4 w-4" />
       </Toggle>
@@ -118,7 +118,7 @@ const MenuBar: React.FC<{ editor: any }> = ({ editor }) => {
             .insertContent({ type: 'blockMath', attrs: { display: true } })
             .run()
         }
-        title="Block Math ($$…$$) (Ctrl+Alt+M)"
+        title="Block Math \[…\] (Ctrl+Alt+M)"
       >
         <Code className="h-4 w-4" />
       </Toggle>

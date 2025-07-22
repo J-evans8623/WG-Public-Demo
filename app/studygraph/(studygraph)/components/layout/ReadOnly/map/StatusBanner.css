@@ -1,0 +1,83 @@
+/* Replace the green status message with this more cohesive styling */
+
+.simple-status-message {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: #374151; /* Dark gray text */
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #3b82f6; /* Blue accent border */
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  animation: statusSlideIn 0.3s ease-out;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+@keyframes statusSlideIn {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Alternative: More subtle success styling */
+.simple-status-message {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background: rgba(248, 250, 252, 0.95); /* Light blue-gray background */
+  color: #1e293b; /* Darker text */
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #0ea5e9; /* Sky blue accent */
+  padding: 0.75rem 1rem 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  animation: statusSlideIn 0.3s ease-out;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Dark mode variant if your app supports it */
+@media (prefers-color-scheme: dark) {
+  .simple-status-message {
+    background: rgba(30, 41, 59, 0.95);
+    color: #f1f5f9;
+    border-color: #475569;
+    border-left-color: #38bdf8;
+  }
+}
+
+/* Even more minimal approach matching your UI */
+.simple-status-message {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background: rgba(255, 255, 255, 0.92);
+  color: #4b5563;
+  border: 1px solid #d1d5db;
+  padding: 0.625rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  z-index: 1000;
+  animation: statusFadeIn 0.25s ease-out;
+}
+
+@keyframes statusFadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

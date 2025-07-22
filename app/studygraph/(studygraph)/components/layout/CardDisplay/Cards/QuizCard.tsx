@@ -1,4 +1,4 @@
-// QuizCard.tsx
+// File: src/app/studygraph/(studygraph)/components/layout/CardDisplay/Cards/QuizCard.tsx
 
 /**
  * @file QuizCard.tsx
@@ -6,44 +6,60 @@
  *   Interactive quiz card body only (no footer).
  *   - Displays type-specific badge & title by default.
  *   - “Start Quiz” button that opens the overlay.
- *   - New prop `hideHeader` to suppress badge + title.
+ *   - Limits quiz questions to a random sample of up to 10 per session.
+ *   - Logs sampling for observability.
+ *
+ * @responsibilities
+ *   - Sample quizContent via shuffleAndLimit.
+ *   - Maintain selectedQuestions state.
+ *   - Pass sampled questions into QuizOverlay.
  */
 
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import QuizOverlay from '../../../utils/quiz/QuizOverlay';
 import { IQuizQuestion, QuizType } from '@/app/Library/Definitions/Definitions';
+import { shuffleAndLimit } from './quizUtils';
 
 // Badge styles per quiz type
 const QUIZ_TYPE_STYLES: Record<QuizType, { label: string; classes: string }> = {
-  multipleChoice: { label: 'Multiple Choice',    classes: 'bg-blue-100 text-blue-700 border-blue-200' },
-  'true-false':   { label: 'True / False',       classes: 'bg-red-100 text-red-700 border-red-200' },
-  FIB:            { label: 'Fill in the Blank',  classes: 'bg-green-100 text-green-700 border-green-200' },
-  matching:       { label: 'Matching',           classes: 'bg-purple-100 text-purple-700 border-purple-200' },
+  multipleChoice: { label: 'Multiple Choice', classes: 'bg-blue-100 text-blue-700 border-blue-200' },
+  'true-false':   { label: 'True / False',    classes: 'bg-red-100 text-red-700 border-red-200' },
+  FIB:            { label: 'Fill in the Blank', classes: 'bg-green-100 text-green-700 border-green-200' },
+  matching:       { label: 'Matching',         classes: 'bg-purple-100 text-purple-700 border-purple-200' },
 };
 
 export interface QuizCardProps {
-  /** Card title (shown above “Start Quiz”) */
+  /** Card title (displayed above “Start Quiz”) */
   title: string;
-  /** Data & type */
+  /** Quiz data & type */
   content: {
     quizType: QuizType;
     quizContent: IQuizQuestion[];
   };
-  /** When true, do NOT render badge + title */
+  parentQuizId: string;
+  mapId: string
+  /** When true, suppress badge + title */
   hideHeader?: boolean;
 }
 
-const QuizCard: React.FC<QuizCardProps> = ({
-  title,
-  content,
-  hideHeader = false,
-}) => {
+const QuizCard: React.FC<QuizCardProps> = ({ title, content, hideHeader = false , mapId,parentQuizId}) => {
   const [isQuizOpen, setIsQuizOpen] = useState(false);
+  const [selectedQuestions, setSelectedQuestions] = useState<IQuizQuestion[]>([]);
   const { quizType, quizContent } = content;
   const { label, classes } = QUIZ_TYPE_STYLES[quizType] || {
-    label: 'Quiz',
-    classes: 'bg-gray-100 text-gray-700 border-gray-200',
+    label: 'Quiz', classes: 'bg-gray-100 text-gray-700 border-gray-200'
+  };
+
+  const handleStartQuiz = () => {
+    console.log('[QuizCard.tsx:1001] handleStartQuiz total questions:', quizContent.length);
+    const sample = shuffleAndLimit(quizContent, 10).map(q => ({
+    ...q,
+    parentQuizId: parentQuizId,   // sheet is the PracticeSheetResource
+    mapId:        mapId
+  }));
+setSelectedQuestions(sample);
+    setIsQuizOpen(true);
   };
 
   return (
@@ -62,9 +78,8 @@ const QuizCard: React.FC<QuizCardProps> = ({
             </h3>
           </>
         )}
-
         <button
-          onClick={() => setIsQuizOpen(true)}
+          onClick={handleStartQuiz}
           className="
             mt-6
             bg-gray-50 hover:bg-gray-100
@@ -82,7 +97,7 @@ const QuizCard: React.FC<QuizCardProps> = ({
         onClose={() => setIsQuizOpen(false)}
         quizType={quizType}
         title={title}
-        quizData={quizContent}
+        quizData={selectedQuestions}
       />
     </>
   );

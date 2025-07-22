@@ -24,4 +24,9 @@
   }
   
 
-  
+  .resource-panel {
+  flex-shrink: 0;   
+  width: 320px;            /* or whatever fixed width you prefer */
+  border-left: 1px solid #e2e8f0;
+  overflow-y: auto;
+}

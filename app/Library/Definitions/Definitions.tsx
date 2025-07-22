@@ -221,6 +221,7 @@ export interface BaseResource {
   source?: string;
   conceptNodeTitle?:string;
   citations?: Citation[] | null;
+  mapId:string;
 }
 
 /***
@@ -275,6 +276,8 @@ export interface IQuizQuestion {
   type: QuizType;
   question: string;
   correctAnswer: string | string[] | Boolean;
+  parentQuizId: string;
+  mapId: string;
 }
 
 // Multiple choice specific interface
@@ -376,3 +379,23 @@ export const mapviewthemes = {
 
 }
 
+
+
+/**
+ * @file SystemOriginTypes.ts
+ * @description
+ * Defines types for system-originated transactions to differentiate them from user-initiated updates.
+ */
+
+export type SystemActionType = 
+  | 'reset' 
+  | 'fileLoad' 
+  | 'cleanup' 
+  | 'initialize'
+  | 'documentSwitch';
+
+export interface SystemOrigin {
+  type: 'system';
+  action: SystemActionType;
+  transactionId?: string; // Optional identifier for tracking related operations
+}

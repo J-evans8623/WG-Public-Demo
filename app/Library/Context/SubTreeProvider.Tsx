@@ -2,6 +2,7 @@ import React, { useCallback, createContext, useContext, useState, ReactNode, use
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import * as Y from 'yjs';
+import { mapKeys } from 'lodash';
 
 export interface SubtreeData {
   minX: number;
@@ -19,22 +20,24 @@ interface SubTreeContextType {
   getMaxSubtreeHeight: () => number;
   setSubtreePosition: (nodeId: string, position: { x: number; y: number }) => void;
   resetSubtrees: () => void;
-  setSubtrees : (newSubtrees: Map<string, SubtreeData>, options?: { isInitialization?: boolean }, mapID?:string) => void;
+  setSubtrees : (newSubtrees: Map<string, SubtreeData>, options?: { isInitialization?: boolean }, mapID?:string, restore?:boolean) => void;
   draggingSubtreeId: string | null;
   targetSubtreeId: string | null;
   setDraggingSubtreeId: (id: string | null) => void;
   setTargetSubtreeId: (id: string | null) => void;
   commitSwap: () => void;
+  getSubtrees(mode:"History"|"Live") : Map<string, SubtreeData> | null;
 }
 
 const SubTreeContext = createContext<SubTreeContextType | undefined>(undefined);
 
 export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
-  const { ydoc } = useYDoc();
+  const { ydoc ,snapshotYDoc, isReadOnly} = useYDoc();
   const { activeConceptMapId } = useLessonModule();
   // Use namespaced key for subtrees based on the active concept map
   const subtreesMapKey = `subtrees:${activeConceptMapId}`;
-  const ySubtreesMap = ydoc.getMap<SubtreeData>(subtreesMapKey);
+  const activeDoc = snapshotYDoc ?? ydoc;
+  const ySubtreesMap = activeDoc.getMap<SubtreeData>(subtreesMapKey);
   
   const [subtrees, setSubtreesState] = useState<Map<string, SubtreeData>>(new Map());
   const [draggingSubtreeId, setDraggingSubtreeId] = useState<string | null>(null);
@@ -109,6 +112,17 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [ySubtreesMap, ydoc]);
 
+
+  const getSubtrees = useCallback((mode:"History"|"Live") : Map<string, SubtreeData> | null => {
+    let subtreeData = null
+    if (mode.toLowerCase() == "history" && snapshotYDoc){
+      subtreeData = snapshotYDoc.getMap<SubtreeData>(subtreesMapKey);
+    } else {
+      subtreeData = ydoc.getMap<SubtreeData>(subtreesMapKey);
+    }
+    return new Map<string, SubtreeData>(Array.from(subtreeData.entries()));
+  },[snapshotYDoc, subtreesMapKey, ydoc])
+
   const getTotalSubtreeWidths = useCallback(() => {
     let totalWidth = 0;
     subtrees.forEach((subtree) => {
@@ -129,12 +143,13 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
 
   const setSubtreePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
     ydoc.transact(() => {
-      const subtree = ySubtreesMap.get(nodeId);
+      const liveMap = ydoc.getMap<SubtreeData>(subtreesMapKey);
+      const subtree = liveMap.get(nodeId);
       if (subtree) {
         ySubtreesMap.set(nodeId, { ...subtree, position });
       }
     });
-  }, [ydoc, ySubtreesMap]);
+  }, [ydoc, subtreesMapKey, ySubtreesMap]);
 
   const resetSubtrees = useCallback(() => {
     ydoc.transact(() => {
@@ -153,7 +168,12 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     }, { type: 'system', action: 'reset' });
   }, [ydoc, ySubtreesMap]);
 
-  const setSubtrees = useCallback((newSubtrees: Map<string, SubtreeData>, options?: { isInitialization?: boolean }, mapID?:string) => {
+  const setSubtrees = useCallback((newSubtrees: Map<string, SubtreeData>, options?: { isInitialization?: boolean }, mapID?:string, restore?:boolean) => {
+
+      if (isReadOnly && !restore) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+      return;
+      }
     const usedMapID = mapID || activeConceptMapId;
     const subtreesKey = `subtrees:${usedMapID}`;
     const ySubtrees = ydoc.getMap<SubtreeData>(subtreesKey);
@@ -178,7 +198,7 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
         ySubtrees.set(nodeId, subtree);
       });
     }, transactionOptions);
-  }, [ydoc,  activeConceptMapId]);
+  }, [isReadOnly, activeConceptMapId, ydoc]);
 
   const commitSwap = useCallback(() => {
     if (draggingSubtreeId && targetSubtreeId) {
@@ -208,6 +228,7 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     setDraggingSubtreeId,
     setTargetSubtreeId,
     commitSwap,
+    getSubtrees
   }), [
     subtrees,
     getTotalSubtreeWidths,
@@ -220,6 +241,7 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     setDraggingSubtreeId,
     setTargetSubtreeId,
     commitSwap,
+    getSubtrees
   ]);
 
   return <SubTreeContext.Provider value={contextValue}>{children}</SubTreeContext.Provider>;

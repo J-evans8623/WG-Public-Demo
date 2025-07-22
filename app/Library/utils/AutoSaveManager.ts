@@ -1,190 +1,122 @@
 // AutoSaveManager.ts
+/**
+ * AutoSaveManager.ts
+ *
+ * Responsibilities:
+ *  - Automatically persist Y.Doc changes via a single afterTransaction hook.
+ *  - Debounce inactivity and enforce a guaranteed save interval.
+ *  - Protect against concurrent saves and ensure final save on page unload.
+ *  - Expose destroy() to clean up all listeners and timers.
+ */
+
 import * as Y from 'yjs';
 import { debounce } from 'lodash';
-import { WebsocketProvider } from 'y-websocket';
-import { v4 as uuidv4 } from 'uuid';
 
-/**
- * Configuration interface for AutoSaveManager
- */
+/** Configuration overrides for AutoSaveManager */
 interface AutoSaveConfig {
-  guaranteedSaveInterval: number;  // Maximum time between saves if changes exist
-  inactivitySaveDelay: number;    // Time to wait after last change before saving
+  guaranteedSaveInterval: number;  // max ms between saves if unsaved changes exist
+  inactivitySaveDelay: number;     // ms of inactivity before triggering save
 }
 
-/**
- * Manages automatic saving of Y.js documents with protection against concurrent saves
- * and proper handling of local vs. remote changes.
- */
 export class AutoSaveManager {
   private ydoc: Y.Doc;
   private config: AutoSaveConfig;
-  private lastSaveTime: number = 0;
-  private hasUntrackedChanges: boolean = false;
+  private lastSaveTime = 0;
+  private hasUntrackedChanges = false;
   private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
   private guaranteedSaveTimer: ReturnType<typeof setTimeout> | null = null;
   private saveCallback: () => Promise<void>;
-  private isAutosaving: boolean = false;
+  private isAutosaving = false;
   private savePromise: Promise<void> | null = null;
-  private nodesObserver: ((event: Y.YMapEvent<any>) => void) | null = null;
-  private resourcesObserver: ((event: Y.YMapEvent<any>) => void) | null = null;
-  private id: string;
+  private afterTxHandler: (tx: Y.Transaction) => void;
+  private beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
 
   /**
-   * Named handler for Y.Doc updates
-   */
-  private handleYdocUpdate = (update: Uint8Array, origin: any) => {
-    // Ignore updates from WebsocketProvider, 'autosave', and system actions
-    if (
-      origin instanceof WebsocketProvider ||
-      origin === 'autosave' ||
-      (origin && typeof origin === 'object' && origin.type === 'system')
-    ) {
-      console.log('[AutoSaveManager] Ignoring update from origin:', origin);
-      return;
-    }
-
-    const hasActualChanges = update.length > 0;
-    console.log('[AutoSaveManager] Update detected:', {
-      updateSize: update.length,
-      hasActualChanges,
-      origin: origin
-    });
-
-    if (hasActualChanges) {
-      this.handleLocalChange();
-    }
-  };
-
-  /**
-   * Creates a new AutoSaveManager instance
-   * @param ydoc - The Y.js document to monitor
-   * @param saveCallback - Function to call when saving is needed
-   * @param config - Optional configuration overrides
+   * Constructs and begins observing only afterTransaction events.
+   * @param ydoc       The Y.Doc instance to monitor.
+   * @param saveCb     Callback invoked when a save should occur.
+   * @param configOvrs Optional overrides for autosave timing.
    */
   constructor(
-    ydoc: Y.Doc, 
-    saveCallback: () => Promise<void>,
-    config: Partial<AutoSaveConfig> = {}
+    ydoc: Y.Doc,
+    saveCb: () => Promise<void>,
+    configOvrs: Partial<AutoSaveConfig> = {}
   ) {
+    console.log('AutoSaveManager.ts 1001 › Initializing AutoSaveManager');
     this.ydoc = ydoc;
-    this.saveCallback = saveCallback;
+    this.saveCallback = saveCb;
     this.config = {
-      guaranteedSaveInterval: 60000, // 1 minute
-      inactivitySaveDelay: 3000,    // 10 seconds
-      ...config
+      guaranteedSaveInterval: 60000,
+      inactivitySaveDelay: 3000,
+      ...configOvrs
     };
 
-    this.id = uuidv4();
-
-    this.setupObservers();
-    this.setupBeforeUnloadHandler();
-  }
-
-  /**
-   * Sets up observers for Y.js document changes
-   * Monitors both document-level updates and specific shared types
-   */
-  private setupObservers(): void {
-    console.log(`[AutoSaveManager ${this.id}] Setting up observers`);
-
-    // 1) Re-attach your original map observers:
-    const nodesMap = this.ydoc.getMap('nodes');
-    const resourcesMap = this.ydoc.getMap('resources');
-
-    this.nodesObserver = (event: Y.YMapEvent<any>) => {
-      const hasChanges = event.changes.keys.size > 0 || event.changes.delta.length > 0;
-      if (hasChanges) console.log('[AutoSaveManager] Nodes map changed');
-    };
-    this.resourcesObserver = (event: Y.YMapEvent<any>) => {
-      const hasChanges = event.changes.keys.size > 0 || event.changes.delta.length > 0;
-      if (hasChanges) console.log('[AutoSaveManager] Resources map changed');
-    };
-    nodesMap.observe(this.nodesObserver);
-    resourcesMap.observe(this.resourcesObserver);
-
-    // 2) Add afterTransaction listener to schedule a save once the
-    //    entire Y.Doc transaction (including metadata updates) is done.
-    this.ydoc.on('afterTransaction', (tx: Y.Transaction) => {
+    // Bind and register the afterTransaction handler
+    this.afterTxHandler = (tx) => {
       const origin = (tx as any).origin;
       if (
-        origin instanceof WebsocketProvider ||
-        origin === 'autosave' ||
+         origin === 'autosave' ||
         (origin && typeof origin === 'object' && origin.type === 'system')
       ) {
         return;
       }
+      console.log('AutoSaveManager.ts 1002 › afterTransaction triggered', {
+        origin
+      });
       this.handleLocalChange();
-    });
+    };
+    this.ydoc.on('afterTransaction', this.afterTxHandler);
+
+    this.setupBeforeUnloadHandler();
   }
 
-  /**
-   * Sets up handler for page unload events to ensure changes are saved
-   */
+  /** Sets up page-unload listener to flush unsaved changes. */
   private setupBeforeUnloadHandler(): void {
-    const beforeUnloadHandler = async (event: BeforeUnloadEvent) => {
+    const handler = async (event: BeforeUnloadEvent) => {
       if (this.hasUntrackedChanges) {
+        console.log('AutoSaveManager.ts 1003 › beforeunload: unsaved changes detected');
         event.preventDefault();
         event.returnValue = '';
-        
         try {
           await this.forceSave();
-        } catch (error) {
-          console.error('[AutoSaveManager] Failed to save before unload:', error);
+        } catch (err) {
+          console.error('AutoSaveManager.ts 1004 › forceSave on unload failed', err);
         }
       }
     };
-
-    window.addEventListener('beforeunload', beforeUnloadHandler);
-
-    // Store reference for removal
-    this.beforeUnloadHandler = beforeUnloadHandler;
+    window.addEventListener('beforeunload', handler);
+    this.beforeUnloadHandler = handler;
   }
 
-  // Store the beforeUnloadHandler to remove it later
-  private beforeUnloadHandler: ((event: BeforeUnloadEvent) => void) | null = null;
-
-  /**
-   * Handles local changes to the document
-   * Manages save timers and change tracking
-   */
+  /** Marks that a local change occurred and schedules saves. */
   private handleLocalChange(): void {
-    if (!this.isAutosaving) {
-      console.log('[AutoSaveManager] Local change detected, initiating save timers');
-      this.hasUntrackedChanges = true;
-      this.resetInactivityTimer();
-      this.ensureGuaranteedSaveTimer();
-    } else {
-      console.log('[AutoSaveManager] Save in progress, change tracking deferred');
+    if (this.isAutosaving) {
+      console.log('AutoSaveManager.ts 1005 › Save in progress, skipping scheduling');
+      return;
     }
+    console.log('AutoSaveManager.ts 1006 › Scheduling save timers');
+    this.hasUntrackedChanges = true;
+    this.resetInactivityTimer();
+    this.ensureGuaranteedSaveTimer();
   }
 
-  /**
-   * Resets the inactivity timer with debouncing
-   * Saves after a period of inactivity
-   */
+  /** Debounced inactivity timer: triggers save after idle period. */
   private resetInactivityTimer = debounce(async (): Promise<void> => {
-    if (this.inactivityTimer) {
-      clearTimeout(this.inactivityTimer);
-    }
-
+    if (this.inactivityTimer) clearTimeout(this.inactivityTimer);
     this.inactivityTimer = setTimeout(async () => {
       if (this.hasUntrackedChanges && !this.isAutosaving) {
-        console.log('Inactivity threshold reached attempting save.....')
+        console.log('AutoSaveManager.ts 1007 › Inactivity threshold reached');
         await this.save();
       }
     }, this.config.inactivitySaveDelay);
   }, 100);
 
-  /**
-   * Ensures the guaranteed save timer is running
-   * Forces a save after maximum interval if changes exist
-   */
+  /** Ensures a guaranteed save after the max interval if unsaved changes exist. */
   private ensureGuaranteedSaveTimer(): void {
     if (!this.guaranteedSaveTimer) {
       this.guaranteedSaveTimer = setTimeout(async () => {
         if (this.hasUntrackedChanges && !this.isAutosaving) {
-          console.log('Guaranteed save threshold reached attempting save.....')
+          console.log('AutoSaveManager.ts 1008 › Guaranteed interval reached');
           await this.save();
         }
         this.guaranteedSaveTimer = null;
@@ -192,64 +124,51 @@ export class AutoSaveManager {
     }
   }
 
-  /**
-   * Performs the actual save operation with concurrency protection
-   */
+  /** Performs the save callback with concurrency protection and logging. */
   private async save(): Promise<void> {
-    console.log('[AutoSaveManager] Save requested:', {
+    console.log('AutoSaveManager.ts 1009 › save() start', {
       hasUntrackedChanges: this.hasUntrackedChanges,
-      isAutosaving: this.isAutosaving,
-      lastSaveTime: this.lastSaveTime,
-      timeSinceLastSave: Date.now() - this.lastSaveTime
+      timeSinceLast: Date.now() - this.lastSaveTime
     });
 
-    // Return existing promise if save is in progress
     if (this.isAutosaving) {
-      console.log('[AutoSaveManager] Save already in progress, waiting...');
+      console.log('AutoSaveManager.ts 1010 › Already autosaving; awaiting existing promise');
       return this.savePromise || Promise.resolve();
     }
-
     if (!this.hasUntrackedChanges) {
-      console.log('[AutoSaveManager] No untracked changes, skipping save');
-      return Promise.resolve();
+      console.log('AutoSaveManager.ts 1011 › No changes to save; skipping');
+      return;
     }
 
-    try {
-      this.isAutosaving = true;
-      this.savePromise = (async () => {
-        try {
-          await this.saveCallback();
-          this.lastSaveTime = Date.now();
-          this.hasUntrackedChanges = false;
-          this.clearTimers();
-        } finally {
-          this.isAutosaving = false;
-          this.savePromise = null;
-          console.log('AutoSave completed exiting save.....');
-        }
-      })();
+    this.isAutosaving = true;
+    this.savePromise = (async () => {
+      try {
+        await this.saveCallback();
+        this.lastSaveTime = Date.now();
+        this.hasUntrackedChanges = false;
+        this.clearTimers();
+        console.log('AutoSaveManager.ts 1012 › saveCallback succeeded');
+      } catch (err) {
+        console.error('AutoSaveManager.ts 1013 › saveCallback failed', err);
+        throw err;
+      } finally {
+        this.isAutosaving = false;
+        this.savePromise = null;
+      }
+    })();
 
-      return this.savePromise;
-    } catch (error) {
-      console.error('[AutoSaveManager] Save failed:', error);
-      this.isAutosaving = false;
-      this.savePromise = null;
-      throw error;
-    }
+    return this.savePromise;
   }
 
-  /**
-   * Forces an immediate save if there are untracked changes
-   */
+  /** Forces an immediate save if needed. */
   public async forceSave(): Promise<void> {
     if (this.hasUntrackedChanges || this.isAutosaving) {
+      console.log('AutoSaveManager.ts 1014 › forceSave invoked');
       return this.save();
     }
   }
 
-  /**
-   * Cleans up all active timers
-   */
+  /** Clears any active timers for inactivity or guaranteed saves. */
   private clearTimers(): void {
     if (this.inactivityTimer) {
       clearTimeout(this.inactivityTimer);
@@ -261,29 +180,14 @@ export class AutoSaveManager {
     }
   }
 
-  /**
-   * Cleans up resources when the manager is destroyed
-   */
+  /** Cleans up all listeners and timers when disposing of this manager. */
   public destroy(): void {
-    console.log('[AutoSaveManager] Destroying instance');
+    console.log('AutoSaveManager.ts 1015 › destroy() cleaning up');
     this.clearTimers();
-    
-    if (this.ydoc) {
-      // Properly remove the named handler
-      this.ydoc.off('update', this.handleYdocUpdate);
-      
-      const nodesMap = this.ydoc.getMap('nodes');
-      const resourcesMap = this.ydoc.getMap('resources');
-      
-      // Properly unregister observers
-      if (this.nodesObserver) {
-        nodesMap.unobserve(this.nodesObserver);
-      }
-      if (this.resourcesObserver) {
-        resourcesMap.unobserve(this.resourcesObserver);
-      }
+
+    if (this.ydoc && this.afterTxHandler) {
+      this.ydoc.off('afterTransaction', this.afterTxHandler);
     }
-    
     if (this.beforeUnloadHandler) {
       window.removeEventListener('beforeunload', this.beforeUnloadHandler);
       this.beforeUnloadHandler = null;

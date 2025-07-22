@@ -16,6 +16,7 @@
  * @date 
  ***********************************************************************************************/
 import NextAuth, {
+  DefaultSession,
   type NextAuthOptions,
   type Session as NextAuthSession,
 } from 'next-auth';
@@ -28,11 +29,10 @@ import GoogleProvider from 'next-auth/providers/google';
  * This ensures the session.user object contains both email and accountType.
  */
 declare module 'next-auth' {
-  interface Session {
-    user: {
-      email: string;
-      accountType: string;
-    };
+interface Session extends DefaultSession {
+    user: DefaultSession["user"] & {
+      accountType: string
+    }
   }
 }
 
@@ -51,6 +51,11 @@ interface CustomToken extends JWT {
 
 export const authOptions: NextAuthOptions = {
   // Configure the only provider we support: Google.
+
+    pages: {
+    signIn: '/signin', 
+  },
+
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,

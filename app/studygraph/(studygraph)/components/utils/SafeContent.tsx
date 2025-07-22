@@ -1,31 +1,14 @@
-/**
- * SafeContent.tsx
- *
- * Responsibilities
- * ────────────────
- * 1)  Sanitize incoming HTML via DOMPurify.
- * 2)  Run KaTeX auto-render on the sanitized DOM.
- * 3)  Attach click-handlers to any
- *     <sup class="citation" data-cite="n">…</sup> elements.
- */
+// SafeContent.tsx
 
-import React, { useEffect, useRef } from 'react'
-import DOMPurify from 'dompurify'
-import 'katex/dist/katex.min.css'
-import renderMathInElement from 'katex/contrib/auto-render'
-
-/* ------------------------------------------------------------------ */
-/*  Allow our citation markup to pass through the purifier             */
-/* ------------------------------------------------------------------ */
-DOMPurify.setConfig({
-  ADD_TAGS : ['sup'],                       // <sup> is already allowed, but explicit
-  ADD_ATTR : ['class', 'data-cite'],        // keep the citation attributes
-})
+import React, { useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
+import 'katex/dist/katex.min.css';
+import renderMathInElement from 'katex/contrib/auto-render';
 
 interface SafeContentProps {
-  html: string
-  className?: string
-  onCitationClick?: (index: number) => void
+  html: string;
+  className?: string;
+  onCitationClick?: (index: number) => void;
 }
 
 const SafeContent: React.FC<SafeContentProps> = ({
@@ -33,51 +16,63 @@ const SafeContent: React.FC<SafeContentProps> = ({
   className,
   onCitationClick,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  /* Sanitize once, memoised by input string */
-  const sanitized = React.useMemo(() => DOMPurify.sanitize(html), [html])
+  // Move configuration into client-only effect
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // 3443 SafeContent.tsx: running DOMPurify.setConfig on client
+    DOMPurify.setConfig({
+      ADD_TAGS: ['sup', 'ul', 'li'],
+      ADD_ATTR: ['class', 'data-cite'],
+    });
+  }, []);
+
+  // Sanitize once, memoized by input string
+  const sanitized = React.useMemo(() => {
+    // 3443 SafeContent.tsx: sanitizing HTML
+    return DOMPurify.sanitize(html);
+  }, [html]);
 
   useEffect(() => {
-    if (!containerRef.current) return
+    if (!containerRef.current) return;
 
-    /* 1) Inject HTML */
-    containerRef.current.innerHTML = sanitized
+    containerRef.current.innerHTML = sanitized;
 
-    /* 2) Render KaTeX */
+    // 3443 SafeContent.tsx: rendering math in element
     renderMathInElement(containerRef.current, {
-      delimiters: [
-        { left: '$$', right: '$$', display: true },
-        { left: '$',  right: '$',  display: false },
-      ],
-      throwOnError: false,
-    })
+  delimiters: [
+    { left: '\\\\(', right: '\\\\)', display: false }, // match “\\( … \\)”
+    { left: '\\(',   right: '\\)',   display: false }, // match “\( … \)”
+    { left: '\\\\[', right: '\\\\]', display: true  }, // match “\\[ … \\]”
+    { left: '\\[',   right: '\\]',   display: true  }, // match “\[ … \]”
+  ],
+      throwOnError: true,
+    });
 
-    /* 3) Wire citation clicks */
     const nodes = Array.from(
       containerRef.current.querySelectorAll<HTMLElement>('sup.citation')
-    )
-
-    const listeners: Array<() => void> = []
+    );
+    const listeners: Array<() => void> = [];
 
     nodes.forEach(el => {
       const handler = (e: MouseEvent) => {
-        e.preventDefault()
-        const raw = el.getAttribute('data-cite') ?? ''
-        const idx  = parseInt(raw, 10)
+        e.preventDefault();
+        const raw = el.getAttribute('data-cite') ?? '';
+        const idx = parseInt(raw, 10);
         if (!isNaN(idx) && onCitationClick) {
-          onCitationClick(idx)
+          onCitationClick(idx);
         }
-      }
-      el.addEventListener('click', handler)
-      listeners.push(() => el.removeEventListener('click', handler))
-    })
+      };
+      el.addEventListener('click', handler);
+      listeners.push(() => el.removeEventListener('click', handler));
+    });
 
-    /* Cleanup on unmount / re-render */
-    return () => listeners.forEach(fn => fn())
-  }, [sanitized, onCitationClick])
+    return () => listeners.forEach(fn => fn());
+  }, [sanitized, onCitationClick]);
 
-  return <div ref={containerRef} className={className} />
-}
+  return <div ref={containerRef} className={className} />;
+};
 
-export default SafeContent
+export default SafeContent;

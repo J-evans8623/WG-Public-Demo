@@ -1,0 +1,18 @@
+{
+  "name": "yjs-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lightweight Y-WebSocket + Redis bridge with optional JWT auth",
+  "main": "yjs-server.js",
+  "scripts": {
+    "start": "node yjs-server.js"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "redis": "^4.7.0",
+    "ws": "^8.18.0",
+    "y-websocket": "2.1.0",
+    "yargs": "^17.7.2",
+    "yjs": "^13.6.22"
+  }
+}
