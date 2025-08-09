@@ -10,6 +10,7 @@ import {
   Share2,
   History,
   Lock,
+  Loader2
 } from 'lucide-react';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
@@ -99,7 +100,16 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
           {isPrivate && (
             <Lock size={16} className="text-gray-600 ml-1 flex-shrink-0" />
           )}
+
+                  {isSaving && (
+    <div className="flex items-center gap-2 ml-2 text-blue-600">
+      <Loader2 size={14} className="animate-spin" />
+      <span className="text-xs font-medium">Saving...</span>
+    </div>
+  )}
         </div>
+
+
 
         {/* Inline editor overlay */}
         {isEditing && !isSaving && (

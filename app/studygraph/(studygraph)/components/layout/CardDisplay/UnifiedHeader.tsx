@@ -15,13 +15,14 @@
  ***************************************************************************************/
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import '@/app/studygraph/(studygraph)/components/layout/mapTheme.css';
-
+import BackButton from './BackButton';
+import SearchButton from './SearchButton';
+import { useSearchContext } from '@/app/Library/Context/SearchContext';
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -128,6 +129,7 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   onTopicChange,
 }) => {
   const { activeView } = useViewSwitch();
+  const { open: openSearchModal } = useSearchContext();
 
   return (
     <header
@@ -138,38 +140,25 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
         flex justify-between items-center
       "
     >
-      {/* Tabs ------------------------------------------------------------- */}
-      <Tabs value={activeTab} onValueChange={v => onTabChange(v as 'notes' | 'chat')}>
-        <TabsList className="bg-transparent gap-1">
-          <TabsTrigger
-            value="notes"
-            className="
-              px-4 py-1.5 rounded-md text-sm font-medium
-              bg-[var(--left-pane-bg)] hover:bg-[var(--bg-selected)]
-              data-[state=active]:bg-[var(--header-bg)]
-              data-[state=active]:text-slate-900
-              data-[state=active]:shadow
-            "
-          >
-            Notes
-          </TabsTrigger>
-          <TabsTrigger
-            value="chat"
-            className="
-              px-4 py-1.5 rounded-md text-sm font-medium
-              bg-[var(--left-pane-bg)] hover:bg-[var(--bg-selected)]
-              data-[state=active]:bg-[var(--header-bg)]
-              data-[state=active]:text-slate-900
-              data-[state=active]:shadow
-            "
-          >
-            Chat
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {/* Left side: BackButton (chat) or placeholder (notes) */}
+      <div className="flex items-center">
+        {activeTab === 'chat' ? (
+          <BackButton onClick={() => onTabChange('notes')} />
+        ) : (
+          <div style={{ width: '64px' }} /> /* reserve space */
+        )}
+      </div>
 
+      
+      
       {/* Contextual controls (FontSizeButton removed) --------------------- */}
       <div className="flex items-center gap-2">
+         {activeTab === 'notes' && (
+          <SearchButton onClick={() => {
+            console.log('[UnifiedHeader.tsx][6001] › SearchButton clicked');
+            openSearchModal();
+          }} />
+        )}
         {activeTab === 'notes' && activeView === 'pdf' && (
           <TopicsDropdown onTopicChange={onTopicChange} />
         )}

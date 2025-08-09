@@ -1,0 +1,18 @@
+/* BackButton.css
+ *
+ * Responsibilities:
+ *   1. Style the back-button inside CardDisplay when in chat mode.
+ *   2. Provide hover feedback (underline) for click affordance.
+ *   3. Keep styling minimal: transparent background, borderless, consistent font size.
+ */
+
+.back-button {
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.back-button:hover {
+  text-decoration: underline;
+}

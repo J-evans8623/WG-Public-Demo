@@ -48,12 +48,12 @@ export interface BatchedSyllabus {
 // ─── Combined Syllabus + Metadata Generation ────────────────────────────────────
 export async function generateBatchedUnitSyllabus(
   fullText: string,
-  topicAmount: number,
+  topicAmount: string,
   max: number,
 ): Promise<BatchedSyllabus> {
   console.log('[aiTextPreProcessingV32.ts][2003] generateBatchedUnitSyllabus START', { topicAmount, max });
 
-  const prompt = unitSyllabusPromptV2(topicAmount.toString(), max);
+  const prompt = unitSyllabusPromptV2(topicAmount, max);
   const raw: any = await aiService.generateStructuredOutput(
     { name: unitSyllabusArray.name, schema: unitSyllabusArray.schema, strict: unitSyllabusArray.strict },
     fullText,

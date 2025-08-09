@@ -41,12 +41,10 @@ import { usePreorderTraversal } from '@/app/studygraph/(studygraph)/components/h
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
-import { Bookmark, BookmarkIcon, CheckCircle2, Lock, Menu, MessageCircle, Play } from 'lucide-react';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import './CanvasView.css';
 import { useLessonUnitOrder } from '../../hooks/useLessonUnitOrder';
-import DiscussButton from '../forum/DiscussButton';
 import MentionBadge from '../forum/MentionBadge';
 import ForumModal from '../forum/ForumModal';
 import { useComments } from '@/app/Library/Context/CommentContext';
@@ -55,6 +53,7 @@ import { useUserData } from '@/app/Library/Context/UserDataContext';
 import BookmarkModal from './Bookmarks/BookmarkModal';
 import CanvasHeader from './bottomUtilityBar/CanvasHeader';
 import CardDisplay from '../CardDisplay/v2/CardDisplay';
+import AiTutorChatButton from './AiTutorChatButton';
 
 interface CanvasViewProps {
   /** Indicates whether we are in the process of autosaving or have just saved */
@@ -188,6 +187,19 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
     updateConceptMapTitle(activeConceptMapId, newTitle);
   }, [activeConceptMapId, updateConceptMapTitle]);
 
+
+  /*-------------------------------- Card Display mode State ------*/
+  type Mode = 'note' | 'edit' | 'chat';
+  const [CardDisplaymode, setCardDisplayMode] = useState<Mode>('note');
+
+  const handleCardDisplayTabChange = (mode:Mode) => {
+    setCardDisplayMode(mode);
+  }
+
+    const handleCardDisplayTabChangeChat = () => {
+    setCardDisplayMode('chat');
+  }
+
   /* ───────────────────────────── Render ──────────────────────────────── */
   return (
     <div
@@ -195,8 +207,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
       data-testid="canvas-viewer"
     >
       {/* Step 1: Render integrated header in conceptMap view */}
-      {activeView === 'conceptMap' && (
-         <CanvasHeader
+              <CanvasHeader
           isSaving={autosaveStatus === 'saving'}
           onMenuToggle={() => {/* your menu logic */}}
           onDiscuss={openForum}
@@ -206,73 +217,73 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
           onShare={() => setShareOpen(true)}
           onVersionHistory={openHistory}
         />
-      )}
+    
 
-      {/* Step 2: Inline title editor */}
-      {isEditingTitle && autosaveStatus !== 'saving' && (
-        <div className="absolute top-12 left-20 z-30">
-          <textarea
-            value={titleDraft}
-            onChange={e => setTitleDraft(e.target.value)}
-            onBlur={commitTitleChange}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                commitTitleChange();
-                e.preventDefault();
-              }
-              if (e.key === 'Escape') setIsEditingTitle(false);
-            }}
-            className="w-64 border border-gray-300 rounded px-2 py-1 text-sm resize-none shadow focus:outline-none focus:ring-1 focus:ring-blue-500"
-            rows={2}
-            autoFocus
+{/** ──────────────────────────────────────────────────────────────── **/
+ /* Step 2 & 3: Layout for Map/PDF, Resource Panel, and BottomToolbar */
+ /** ──────────────────────────────────────────────────────────────── **/}
+<div className="canvas-panels flex-1">
+
+  {/** ─── Column 1: Map/PDF + BottomToolbar ─── **/}
+  <div className="map-column flex flex-col relative">
+
+    {/** 3.1: Viewport wrapper (overflow‑hidden) **/}
+    <div className="map-cell flex-1 relative overflow-hidden">
+      {activeView === 'conceptMap' && (
+        <div className="view-panel map-panel">
+          <div className={colorTheme}>
+            <MapRenderer />
+          </div>
+        </div>
+      )}
+      {activeView === 'pdf' && (
+        <div className="view-panel pdf-panel">
+          <PDFRenderer
+            ref={pdfRef}
+            fileUrl={selectedPdfUrl}
+            scale={pdfScale}
+            onPageChange={handlePageChange}
           />
         </div>
       )}
 
-      {/* Step 3: Panels + resource container */}
-      <div className="flex-1 flex">
-        {/* Step 3.1: Relative wrapper for absolute view panels */}
-        <div className="relative flex-1">
-          {/* Concept map panel */}
-          <div className={`view-panel map-panel ${activeView !== 'conceptMap' ? 'hidden' : ''}`}>
-            <div className={colorTheme}>
-              <MapRenderer />
-            </div>
-          </div>
-          {/* PDF panel */}
-          <div className={`view-panel pdf-panel ${activeView !== 'pdf' ? 'hidden' : ''}`}>
-            <PDFRenderer
-              ref={pdfRef}
-              fileUrl={selectedPdfUrl}
-              scale={pdfScale}
-              onPageChange={handlePageChange}
-            />
-          </div>
-        </div>
-
-        {/* Step 3.2: Static resource panel sibling */}
-        {activeView === 'conceptMap' && (
-          <div className="resource-pan flex-shrink-0">
-            <CardDisplay />
-          </div>
-        )}
-      </div>
-
-      {/* Step 4: Bottom toolbar */}
-      <BottomToolbar
-        activeView={activeView}
-        zoomLevel={activeView === 'conceptMap' ? zoomLevel : pdfScale}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        pdfPageInfo={
-          activeView === 'pdf'
-            ? { current: pdfCurrentPage, total: pdfTotalPages }
-            : undefined
-        }
-        onPdfPrevPage={activeView === 'pdf' ? handlePdfPrev : undefined}
-        onPdfNextPage={activeView === 'pdf' ? handlePdfNext : undefined}
-        onPdfGoToPage={activeView === 'pdf' ? handlePdfGoToPage : undefined}
+      <AiTutorChatButton
+      className='chat-btn' 
+        onClick={handleCardDisplayTabChangeChat}
       />
+    </div>
+
+
+    
+
+    {/** 4: Bottom‑centered toolbar, sits outside the overflow container **/}
+    <BottomToolbar
+      activeView={activeView}
+      zoomLevel={activeView === 'conceptMap' ? zoomLevel : pdfScale}
+      onZoomIn={handleZoomIn}
+      onZoomOut={handleZoomOut}
+      canUndo={canUndo}
+      canRedo={canRedo}
+      onUndo={undo}
+      onRedo={redo}
+      pdfPageInfo={
+        activeView === 'pdf'
+          ? { current: pdfCurrentPage, total: pdfTotalPages }
+          : undefined
+      }
+      onPdfPrevPage={activeView === 'pdf' ? handlePdfPrev : undefined}
+      onPdfNextPage={activeView === 'pdf' ? handlePdfNext : undefined}
+      onPdfGoToPage={activeView === 'pdf' ? handlePdfGoToPage : undefined}
+    />
+  </div>
+
+  {/** ─── Column 2: Static Resource Panel ─── **/}
+    <div className="resource-cell">
+      <CardDisplay mode={CardDisplaymode} setMode={handleCardDisplayTabChange} />
+    </div>
+  
+</div>
+
 
       {/* Step 5: Modals */}
       {isQuizModalOpen &&

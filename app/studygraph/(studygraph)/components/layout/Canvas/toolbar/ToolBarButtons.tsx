@@ -120,11 +120,19 @@ export const UndoButton: React.FC<UndoButtonProps> = ({ onClick, disabled = fals
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`toolbar-btn ${disabled ? 'disabled' : ''}`}
+    className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:bg-transparent"
     title="Undo"
     aria-label="Undo"
   >
-    <Undo2 size={20} />
+              <svg 
+            className="w-4 h-4" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth={1.5} 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"/>
+          </svg>
   </button>
 );
 
@@ -145,11 +153,19 @@ export const RedoButton: React.FC<RedoButtonProps> = ({ onClick, disabled = fals
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`toolbar-btn ${disabled ? 'disabled' : ''}`}
+    className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:bg-transparent"
     title="Redo"
     aria-label="Redo"
   >
-    <Redo2 size={20} />
+   <svg 
+            className="w-4 h-4" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth={1.5} 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3"/>
+          </svg> 
   </button>
 );
 
@@ -238,17 +254,23 @@ export const ZoomInButton: React.FC<ZoomInButtonProps> = ({ onClick, disabled = 
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`toolbar-btn ${disabled ? 'disabled' : ''}`}
+    className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:bg-transparent"
     title="Zoom In"
     aria-label="Zoom In"
   >
     {/* SVG: magnifier with plus inside */}
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="11" cy="11" r="8" />
-      <path d="M11 8v6" />
-      <path d="M8 11h6" />
-      <path d="M21 21l-4.35-4.35" />
-    </svg>
+    <svg 
+            className="w-4 h-4" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth={1.5} 
+            viewBox="0 0 24 24"
+          >
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+            <path d="M11 8v6"/>
+            <path d="M8 11h6"/>
+          </svg>
   </button>
 );
 
@@ -267,18 +289,25 @@ export interface ZoomOutButtonProps {
 }
 export const ZoomOutButton: React.FC<ZoomOutButtonProps> = ({ onClick, disabled = false }) => (
   <button
+  
     onClick={onClick}
     disabled={disabled}
-    className={`toolbar-btn ${disabled ? 'disabled' : ''}`}
+    className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:bg-transparent"
     title="Zoom Out"
     aria-label="Zoom Out"
   >
     {/* SVG: magnifier with minus inside */}
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="11" cy="11" r="8" />
-      <path d="M8 11h6" />
-      <path d="M21 21l-4.35-4.35" />
-    </svg>
+<svg 
+            className="w-4 h-4" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth={1.5} 
+            viewBox="0 0 24 24"
+          >
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+            <path d="M8 11h6"/>
+          </svg>
   </button>
 );
 

@@ -131,7 +131,7 @@ function centerAwareSequencev2<T>(items:T[]):T[]{
     // Eg trees (1,2,3,4,5,6) becomes (1,4,2,5,3,6) 
     // Because 1,2,3 are in the odd indices they will become the left subtree
     // 4,5,6 are in the even indices, they become the right subtree
-    while((leftSubtree.length > 0) && (rightSubtree.length>0)){
+    while((leftSubtree.length > 0) || (rightSubtree.length>0)){
       // build left subtree by always inserting at the odd index
       if(leftSubtree.length > 0){
         result.push(leftSubtree.shift()!);

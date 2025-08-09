@@ -1,0 +1,199 @@
+/**
+ * @file canvas.css
+ * @description
+ * Defines the presentational styling for the Canvas component in Studygraph.
+ * Header now uses a 25%/75% split, with a vertical divider at 25%. 
+ * The grid background, floating toolbar, and right-hand card panel remain unchanged.
+ */
+
+/* Full-screen flex container */
+.canvas-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ─── HEADER ─── */
+.canvas-header {
+  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,245,240,0.95) 100%);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(212,199,184,0.6);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 12px rgba(139,121,94,0.08);
+  font-family: 'Georgia','Times New Roman',serif;
+}
+
+.header-title {
+  flex: 0 0 25%;
+  font-family: 'Georgia', 'Times New Roman', serif;
+}
+/* Vertical divider now sits immediately after the 25% title */
+.header-divider {
+  flex: 0 0 1px;
+  background-color: #ddd;
+  height: 40%;
+  margin: 0 16px;
+  align-self: center;
+}
+.header-actions {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;              /* small, consistent spacing */
+  justify-content: flex-start; /* prevent full-width spread */
+}
+        .primary-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: inherit;
+            letter-spacing: -0.1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(74, 144, 226, 0.2);
+            font-size:10px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(34, 197, 94, 0.2);
+            font-size:10px;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        }
+
+        .discussion-button {
+  background: rgba(232, 220, 198, 0.6);
+  color: #2c2420;
+  border: 1px solid rgba(201, 173, 140, 0.4);
+  box-shadow: 0 2px 6px rgba(139, 121, 94, 0.1);
+
+  /* ← new: match other buttons’ rounding */
+  border-radius: 8px;
+}
+        .discussion-button:hover {
+            background: rgba(232, 220, 198, 0.8);
+            border-color: rgba(201, 173, 140, 0.6);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(139, 121, 94, 0.15);
+        }
+
+
+/* ─── MAIN ─── */
+.canvas-main {
+  position: relative;
+  flex: 1;
+  background: #f9f9f9;
+}
+
+.canvas-area {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+ background: 
+  /* Dot pattern overlay */
+  radial-gradient(circle at center, rgba(139, 109, 86, 0.3) 0.8px, transparent 0.8px),
+  
+  /* Base gradient - warm almond/cream */
+  #f0e8d6;
+  background-size: 
+  16px 16px,  /* Main dot spacing */
+  8px 8px,    /* Secondary texture dots */
+  100% 100%;  /* Gradient covers full area */
+  
+background-position: 
+  0 0, 
+  4px 4px, 
+  0 0;
+}
+
+.canvas-toolbar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 5;
+}
+.canvas-toolbar button {
+  margin-right: 8px;
+}
+.canvas-toolbar span {
+  min-width: 2ch;
+  text-align: center;
+}
+
+/* Right-hand slide/card display panel */
+.canvas-cardDisplay {
+  position: absolute;
+  top: 4vh;  
+  right: 0.5rem;
+  bottom: 4vh;
+  width: 375px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+  z-index: 20;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+}
+.canvas-cardDisplay:hover {
+  box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+.canvas-cardDisplay h3 {
+  margin-top: 0;
+  color: #333;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.canvas-cardDisplay p {
+  color: #666;
+  line-height: 1.5;
+}
+
+
+/* ─── HEADER GROUPS ─── */
+/* 1. Wraps file title, Lessons and Uploads buttons */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 2. Wraps Calendar, Share, History buttons */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

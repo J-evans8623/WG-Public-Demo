@@ -1,0 +1,24 @@
+/***************************************************************************************
+ * @file SearchButton.css
+ * @description
+ *   Positions the SearchButton icon at the left edge of its parent UnifiedHeader.
+ *   This file’s sole responsibility is absolute placement: offsets from the header’s
+ *   left padding. All decorative and interactive rules have been removed so you can
+ *   apply your final styling without conflicts.
+ *
+ *   Responsibilities:
+ *     1. Position `.search-button` absolutely within its header container.
+ *     2. Offset from the left to align with header padding.
+ *     3. Remove all backgrounds, borders, padding, margins, and hover/focus rules.
+ ***************************************************************************************/
+.search-button {
+  /* Pin to header (which is already `position: relative`) */
+  position: absolute;
+
+  /* Align to the left padding of the header */
+  left: 16px;
+
+  /* Strip out all presentational styling */
+  padding: 0;
+  margin: 0;
+}

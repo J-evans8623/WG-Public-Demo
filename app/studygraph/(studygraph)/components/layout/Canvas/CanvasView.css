@@ -30,3 +30,61 @@
   border-left: 1px solid #e2e8f0;
   overflow-y: auto;
 }
+
+
+/* 1. Make the two‑cell container a grid */
+.canvas-panels {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  height: 100%;
+  /* critical: allow flex‐parent to constrain height properly */
+  min-height: 0;
+}
+
+.map-column {
+  display: flex;
+  flex-direction: column;
+  position: relative; /* for toolbar’s absolute centering */
+  /* ensure full height */
+  min-height: 0;
+}
+
+
+/* 2. Ensure the left grid cell still establishes the relative positioning */
+.map-cell {
+  position: relative;
+  overflow: hidden; /* same as your old .map-panel wrapper */
+}
+
+.resource-cell {
+  overflow-y: auto;
+}
+
+.bottom-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;             /* now 50% of map-column */
+  transform: translateX(-50%);
+  /* no other change */
+}
+
+
+/* -------------------------------------------------------------------------- */
+/*                         Chat Button Overlay                                */
+/* -------------------------------------------------------------------------- */
+/* This will only work because .map-cell is position: relative */
+.chat-btn {
+  position: absolute;
+  bottom: 20px;            /* distance from bottom of .map-cell */
+  right: 20px;             /* distance from right of .map-cell */
+  z-index: 60;             /* make sure it floats above the map but below modals */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.chat-btn:hover {
+  transform: scale(1.05);
+}

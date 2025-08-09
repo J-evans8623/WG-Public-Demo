@@ -309,3 +309,69 @@
 .empty-description {
   color: #64748b;
 }
+
+/* ===== RECENT FILES 2-ROW HORIZONTAL SCROLL ===== */
+.recent-files-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.recent-files-grid {
+  display: grid;
+  grid-template-rows: 1fr 1fr; /* Exactly 2 rows */
+  grid-auto-flow: column;       /* Fill columns first, then create new columns */
+  grid-auto-columns: 320px;     /* Each column is 320px wide */
+  gap: 1rem;                    /* Gap between cards */
+  height: 400px;                /* Fixed height to contain 2 rows */
+  width: max-content;           /* Allow grid to extend horizontally */
+  padding: 0.5rem 0;
+}
+
+.recent-files-grid .file-card {
+  min-width: 320px;
+  max-width: 320px;
+  width: 320px;
+  height: 180px;              /* Fixed height for each card */
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Scrollbar styling for recent files container */
+.recent-files-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.recent-files-container::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: rgba(100, 116, 139, 0.5);
+}
+
+.recent-files-container::-webkit-scrollbar-track {
+  background: rgba(100, 116, 139, 0.1);
+  border-radius: 4px;
+}
+
+/* Firefox scrollbar styling for recent files */
+.recent-files-container {
+  scrollbar-color: rgba(100, 116, 139, 0.5) rgba(100, 116, 139, 0.1);
+  scrollbar-width: thin;
+}
+
+/* Ensure file content fits properly in recent files */
+.recent-files-grid .file-card .file-header {
+  margin-bottom: 0.5rem;
+}
+
+.recent-files-grid .file-card .file-preview {
+  margin-top: 0.5rem;
+  flex-grow: 1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}

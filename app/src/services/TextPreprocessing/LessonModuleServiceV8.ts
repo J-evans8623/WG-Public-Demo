@@ -67,9 +67,9 @@ async function structuralPass(
   void persistLessonContext(segmentText.join("\n\n"), documentID, fileId);
 
   // determine topic counts
-  let topicAmount = 2;
-  if (pageCount >= 5 && pageCount <= 15) topicAmount = 4;
-  else if (pageCount > 15) topicAmount = 6;
+  let topicAmount : string = '2';
+  if (pageCount >= 5 && pageCount <= 15) topicAmount = '3 to 4';
+  else if (pageCount > 15) topicAmount = '5 to 6';
   const max = topicAmount;
 
   // single Gemini call for syllabus + metadata
@@ -152,7 +152,7 @@ console.log('[LessonModuleServiceV7.ts][6001] START generateLessonFromSegment', 
       .split(/\s+/)
       .filter(Boolean)
       .length;
-    const shrinkFactor = 0.6;
+    const shrinkFactor = 0.5;
     const subtopicCount = 1 + node.depth2_subtopics.length;
     const maxWordsPerSubtopic = Math.floor((rawWordCount * shrinkFactor) / subtopicCount);
     console.log('[LessonModuleServiceV8.ts][7001] Building LessonSegment for node', {

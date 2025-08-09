@@ -22,13 +22,15 @@ import type { ResourceType } from './AddResourceDropdown';
 import type { ResourceFormInput } from '../types/resourceForm';
 import './CardDisplay.css'; // Existing styling overrides for panel, header, footer
 
-export interface CardDisplayProps {}
+type Mode = 'note' | 'edit' | 'chat';
 
-type Mode = 'read' | 'edit' | 'chat';
+export interface CardDisplayProps {mode: Mode, setMode: (tab:Mode)=> void}
 
-const CardDisplay: React.FC<CardDisplayProps> = () => {
+
+
+const CardDisplay: React.FC<CardDisplayProps> = ({mode, setMode}) => {
   // 1) Which panel are we in?
-  const [mode, setMode] = useState<Mode>('read');
+  
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
   const editTabRef = useRef<EditTabRef>(null);
 
@@ -48,11 +50,11 @@ const CardDisplay: React.FC<CardDisplayProps> = () => {
   const { selectedResultIds } = useSearchContext();
   useEffect(() => {
     if (isAskOpen) setMode('chat');
-    else if (isExploreOpen || isQuizOpen) setMode('read');
-  }, [isAskOpen, isExploreOpen, isQuizOpen]);
+    else if (isExploreOpen || isQuizOpen) setMode('note');
+  }, [isAskOpen, isExploreOpen, isQuizOpen, setMode]);
   useEffect(() => {
-    if (selectedResultIds) setMode('read');
-  }, [selectedResultIds]);
+    if (selectedResultIds.length>0) setMode('note');
+  }, [selectedResultIds, setMode]);
 
   // 4) Handlers for NotesTab “add” and “edit”
   const handleAddResource = (type: ResourceType) => {
@@ -72,12 +74,12 @@ const CardDisplay: React.FC<CardDisplayProps> = () => {
   const handleSave = async () => {
     await editTabRef.current?.save();
     setEditingResourceId(null);
-    setMode('read');
+    setMode('note');
   };
   const handleCancel = () => {
     editTabRef.current?.cancel();
     setEditingResourceId(null);
-    setMode('read');
+    setMode('note');
   };
 
   // 6) Tab switching must clean up any in‐progress edit
@@ -87,7 +89,7 @@ const CardDisplay: React.FC<CardDisplayProps> = () => {
       editTabRef.current?.cancel();
       setEditingResourceId(null);
     }
-    setMode(tab === 'chat' ? 'chat' : 'read');
+    setMode(tab === 'chat' ? 'chat' : 'note');
   };
 
   return (
@@ -115,7 +117,7 @@ const CardDisplay: React.FC<CardDisplayProps> = () => {
         <div className={`absolute inset-0 ${mode !== 'chat' ? 'pb-16' : ''}`}>
           {mode === 'chat' && <ChatTab />}
 
-          {mode === 'read' && (
+          {mode === 'note' && (
             <NotesTab
               onAddResource={handleAddResource}
               onEditResource={handleEditExisting}

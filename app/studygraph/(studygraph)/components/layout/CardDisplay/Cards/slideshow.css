@@ -56,7 +56,7 @@
   position: fixed;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 40rem; height: 48rem; max-height: 85vh;
+  width: 48rem; height: 48rem; max-height: 85vh;
   background-color: var(--slideshow-bg);
   color: var(--slideshow-text);
   border: 1px solid var(--slideshow-blue-light);
@@ -205,6 +205,10 @@
   transform: translateY(-50%) scale(1.1);
 }
 
+.slideshow-body .prose {
+  max-width: none;
+  width: 100%;
+}
 /* ────────────────────────────────────────────────────────────────────────── */
 /*                      ASK ASSISTANT CAPSULE BUTTON                        */
 /* ────────────────────────────────────────────────────────────────────────── */

@@ -1,0 +1,176 @@
+/**
+ * @file warm-map-theme.css
+ * @description
+ * This CSS file defines the warm, bulletin-board–inspired concept-map theme
+ * for our Bloom Maps canvas viewer. It provides all styling for the static
+ * placeholder nodes (root, primary, and secondary) used during this iterative
+ * theming phase. It covers layout containers (.concept-map, .concept-branch,
+ * .concept-group), node styles (.main-concept, .primary-concept,
+ * .secondary-concept), interactive indicators (.expand-indicator), and
+ * connection lines (.connection-line, .main-to-primary,
+ * .primary-to-secondary). The color palette uses warm almond and brown
+ * gradients, subtle shadows for depth, smooth hover transitions for
+ * feedback, and responsive adjustments for narrower viewports. This file is
+ * solely responsible for concept-map visuals and can be refined over time
+ * without affecting the core canvas layout or toolbar.
+ */
+
+/* 1. Wrapper for entire map */
+.concept-map {
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  padding: 40px 20px;
+}
+
+/* 2. Uniform node sizing */
+.main-concept,
+.primary-concept,
+.secondary-concept {
+  width: 200px;           /* fixed width for all nodes */
+  box-sizing: border-box; /* include padding in width */
+}
+
+/* 3. Root node styling */
+.main-concept {
+  background: linear-gradient(135deg, #d4b896 0%, #c9ad8c 100%);
+  border: 2px solid #b39878;
+  border-radius: 16px;
+  padding: 24px 0;        /* remove horizontal padding, center text */
+  text-align: center;
+  margin: 0 auto 60px;
+  box-shadow: 0 8px 24px rgba(139, 121, 94, 0.15);
+  position: relative;
+}
+.main-concept h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #2c2420;
+  line-height: 1.3;
+  letter-spacing: -0.5px;
+}
+
+/* 4. First and second level branch containers */
+.concept-branch {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 40px;
+  gap: 24px;
+}
+.concept-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+/* 5. Primary node styling */
+.primary-concept {
+  background: linear-gradient(135deg, #e8dcc6 0%, #ddd0b8 100%);
+  border: 1.5px solid #c9ad8c;
+  border-radius: 12px;
+  padding: 16px 0;        /* unify vertical padding */
+  margin-bottom: 24px;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(139, 121, 94, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.primary-concept:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(139, 121, 94, 0.2);
+  border-color: #b39878;
+}
+.primary-concept h2 {
+  font-size: 18px;
+  font-weight: 500;
+  color: #2c2420;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* 6. Secondary node styling */
+.secondary-concept {
+  background: linear-gradient(135deg, #f2f0eb 0%, #ebe7e0 100%);
+  border: 1px solid #d4c7b8;
+  border-radius: 10px;
+  padding: 12px 0;        /* unify vertical padding */
+  margin-bottom: 16px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(139, 121, 94, 0.08);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.secondary-concept:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 121, 94, 0.15);
+  border-color: #c9ad8c;
+}
+.secondary-concept h3 {
+  font-size: 15px;
+  font-weight: 400;
+  color: #3d352e;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* 7. Connection lines */
+.connection-line {
+  position: absolute;
+  border-radius: 1px;
+  opacity: 0.7;
+}
+.main-to-primary {
+  /* horizontal line from root to each primary */
+  top: 0;               /* aligned with bottom of root via Canvas.tsx markup */
+  left: 50%;
+  width: 100px;
+  height: 2px;
+  transform: translate(-50%, -100%);
+  background: linear-gradient(90deg, #c9ad8c 0%, #b39878 100%);
+}
+.primary-to-secondary {
+  /* vertical line from primary to secondary group */
+  top: 100%;
+  left: 50%;
+  width: 2px;
+  height: 24px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, #c9ad8c 0%, #b39878 100%);
+}
+
+/* 8. Expand (“+”) indicator */
+.expand-indicator {
+  position: absolute;
+  bottom: -12px;
+  right: calc(50% - 12px);
+  background: #c9ad8c;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.expand-indicator:hover {
+  background: #b39878;
+  transform: scale(1.1);
+}
+
+/* 9. Responsive adjustments */
+@media (max-width: 768px) {
+  .concept-branch {
+    flex-direction: column;
+    align-items: center;
+  }
+  .concept-group {
+    margin-bottom: 40px;
+  }
+}

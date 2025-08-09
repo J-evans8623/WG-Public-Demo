@@ -24,7 +24,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import AIService from "../services/aiServiceV2";
 import { lessonPrompt, predefinedPrompts, buildSubtreePromptV2, buildSubtreePrompt } from "../config/predefined-prompts";
-//import OpenAIClient from "../config/openai";
 import { lessonSchema, subtreeSchemaV3, topicSchema, subtreeSchemaV4, EnrichedPrimary, Citation } from "../schemas/lessonSchema";
 import { MatchingQuizSchema, MultipleChoiceSchema, FillInBlankSchema, TrueFalseSchema } from "../schemas/quizSchema";
 import { LessonModule } from "../services/TextPreprocessing/LessonModuleServiceV2";
@@ -407,12 +406,13 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
     const aiService = this.getAIService();
 
     let syllabus: string = '';
+
     roots.forEach(root => {
       const primary: PrimaryForPrompt = {
     title: root.title!,
     Learning_Objectives: root.Learning_Objectives!,
     LessonOutline: root.LessonOutline!,
-    ChronologicalOrder: root.ChronologicalOrder,
+    ChronologicalOrder: root.lessonOrder,
     secondary_topics: (root.depth2_subtopics || []).map((s: any) => ({
       title: s.title,
       Learning_Objectives: s.Learning_Objectives,
@@ -432,17 +432,29 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
 
 
     // Perform the structured call
-    const response = await aiService.generateStructuredOutput(
+    const response = (await aiService.generateStructuredOutput(
       { name: subtreeSchemaV3.name, schema: subtreeSchemaV3.schema, strict: subtreeSchemaV3.strict },
       LessonText,
       systemPrompt
-    );
+    ) ) as any;
+
+    const {
+      primary_subtopic: rawPrimary,
+      lesson_citation: citations = null
+    } = response
 
 
-    const payload = (response as any).primary_subtopics as EnrichedPrimary[];
-
-    
-    return {primary_subtopics :payload}
+      // 5️⃣ Translate into your EnrichedPrimary shape
+  const enriched: EnrichedPrimary = {
+    ChronologicalOrder: roots[0]?.lessonOrder ?? 0,
+    title:              rawPrimary.title,
+    lesson:             rawPrimary.lesson,
+    secondary_subtopic: rawPrimary.secondary_subtopic,
+    quiz:               rawPrimary.quiz,
+    lesson_citation:    citations
+  };
+   
+    return {primary_subtopics:[enriched]}
   }
 
 }
