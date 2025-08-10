@@ -18,6 +18,7 @@ import { createPortal } from 'react-dom';
 import TopicGeneratorModal from './TopicGeneratorModal';
 import '@/app/studygraph/customTooltip.css'
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
+import '@/app/studygraph/(studygraph)/canvas/Map/NodeGraph.css'
 
 const GENERAL_SELECTED_COLOR = '#3B82F6';
 const CARET_COLOR = '#FF6500';
@@ -241,7 +242,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   else if (isTargetNode) ringColor = TARGET_COLOR;
   else if (isSelected(node.id) || node.id === targetNodeId) ringColor = GENERAL_SELECTED_COLOR;
   const nodeColor = depth === 1 ? primaryColor : backgroundColor;
-
+  
   return (
     <>
       <div

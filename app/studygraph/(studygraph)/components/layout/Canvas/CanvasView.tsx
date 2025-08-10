@@ -80,7 +80,6 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
   const { activeView, selectedPdfUrl, resetPdfState } = useViewSwitch();
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
   const { multiSelectEnabled, toggleMultiSelectEnabled } = useNodeSelection();
-  const { open: openSearchModal } = useSearchContext();
   const { openCustom } = useSlideShow();
   const preorder = usePreorderTraversal();
   const { getReviewNode, getNodeTitle } = useNodesContext();
