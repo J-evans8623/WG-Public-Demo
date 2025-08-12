@@ -30,8 +30,6 @@ import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { useUndoRedo } from '@/app/studygraph/(studygraph)/components/Context/UndoRedoContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import { useSearchContext } from '@/app/Library/Context/SearchContext';
-import TopToolbar from './toolbar/TopToolbar';
 import BottomToolbar from './toolbar/BottomToolbar';
 import QuizGeneratorModal from './QuizGeneratorModal';
 import ShareModal from '../share/ShareModal';
@@ -54,6 +52,8 @@ import BookmarkModal from './Bookmarks/BookmarkModal';
 import CanvasHeader from './bottomUtilityBar/CanvasHeader';
 import CardDisplay from '../CardDisplay/v2/CardDisplay';
 import AiTutorChatButton from './AiTutorChatButton';
+
+
 
 interface CanvasViewProps {
   /** Indicates whether we are in the process of autosaving or have just saved */
@@ -202,7 +202,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
   /* ───────────────────────────── Render ──────────────────────────────── */
   return (
     <div
-      className="flex-1 flex flex-col map-canvas map-border rounded-md relative"
+      className={`flex-1 flex flex-col map-canvas map-border rounded-md relative ${colorTheme}`}
       data-testid="canvas-viewer"
     >
       {/* Step 1: Render integrated header in conceptMap view */}

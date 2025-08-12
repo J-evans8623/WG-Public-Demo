@@ -1,3 +1,19 @@
+/**
+ * @file theme-warm-board.css
+ * @description
+ * The warm-board palette and scope rules. This file defines theme-level custom properties and
+ * component-targeting rules under a single canonical scope selector using :is() so it applies when
+ * the theme scope is expressed as `.theme-warm-board`, `[data-theme="warm-board"]`, or the legacy
+ * `.warm-board`. Component CSS should avoid hard-coded colors; instead, rely on these tokens and
+ * semantic utilities. Hover/active states for header buttons are provided here to keep the look
+ * consistent with the brand across themes.
+ *
+ * Responsibilities:
+ *   1) Provide warm-board variables (surface/ink/accents/dividers).
+ *   2) Scope header and button states so token styles win over utilities.
+ *   3) Allow the dotted map background to remain unchanged.
+ */
+
 /* Dotted pattern background for map area (unchanged) */
 .map-background-pattern {
   position: absolute; inset: 0;
@@ -5,4 +21,55 @@
   background-image: radial-gradient(circle, #D4C4B0 1px, transparent 1px);
   background-size: 20px 20px;
   pointer-events: none;
+}
+
+/* canonical theme scope */
+:is(.theme-warm-board, [data-theme="warm-board"], .warm-board) {
+  --header-tint: #FAFAFA;
+  --left-pane-bg: #FAF8F5;
+  --bg-selected: #F7F3EE;
+  --divider-color: #E8E4DE;
+
+  /* accents */
+  --accent-1: var(--brand-green);
+  --accent-2: var(--brand-blue);
+}
+
+/* Canvas header surface + edge */
+:is(.theme-warm-board, [data-theme="warm-board"], .warm-board) .canvas-header {
+  background: var(--surface) !important;
+  border-bottom-color: var(--edge) !important;
+}
+
+/* Title container hover */
+:is(.theme-warm-board, [data-theme="warm-board"], .warm-board) .canvas-header__titlewrap:hover {
+  background: var(--bg-app);
+}
+
+/* Right-side button palette: use semantic utilities */
+:is(.theme-warm-board, [data-theme="warm-board"], .warm-board) .canvas-header .btn--border {
+  background: var(--surface);
+  border-color: var(--edge);
+  color: var(--muted);
+}
+:is(.theme-warm-board, [data-theme="warm-board"], .warm-board) .canvas-header .btn--border:hover {
+  background: var(--bg-app);
+  color: var(--ink);
+  border-color: var(--edge-2);
+}
+
+/* Primary/Success actions */
+:is(.theme-warm-board, [data-theme="warm-board"], .warm-board) .canvas-header .btn--primary {
+  background: var(--brand-blue);
+  color: #fff;
+}
+:is(.theme-warm-board, [data-theme="warm-board"], .warm-board) .canvas-header .btn--primary:hover {
+  background: #5A7CAE; /* hover tint aligned to existing brand contrast */
+}
+:is(.theme-warm-board, [data-theme="warm-board"], .warm-board) .canvas-header .btn--success {
+  background: var(--brand-green);
+  color: #fff;
+}
+:is(.theme-warm-board, [data-theme="warm-board"], .warm-board) .canvas-header .btn--success:hover {
+  background: var(--brand-green-2);
 }

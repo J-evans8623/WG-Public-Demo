@@ -92,29 +92,22 @@ const CardDisplay: React.FC<CardDisplayProps> = ({mode, setMode}) => {
     setMode(tab === 'chat' ? 'chat' : 'note');
   };
 
-  return (
-    <div
-      className="panel"
-      style={{ '--card-display-width': `380px` } as React.CSSProperties}
-    >
-      {/* UnifiedHeader still manages “Notes / Chat” toggling */}
+  return(
+    <div className="panel panel--md">
+      {/* Header: tokenized rail surface */}
       <UnifiedHeader
         activeTab={mode === 'chat' ? 'chat' : 'notes'}
         onTabChange={handleTabChange}
         width={380}
         onTopicChange={() => {
-          // If the user clicks the topic itself, trigger a new “note” draft
           editTabRef.current?.createDraft('note');
           setMode('edit');
         }}
       />
 
-      {/*
-        Restore the original “absolute inset-0” content wrapper, with conditional bottom padding.
-        When mode === 'chat', we omit pb-16 to prevent extra blank space under chat.
-      */}
+      {/* Content body (absolute inset wrapper preserved) */}
       <div className="flex-1 min-h-0 relative">
-        <div className={`absolute inset-0 ${mode !== 'chat' ? 'pb-16' : ''}`}>
+        <div className={`card-body absolute inset-0 ${mode !== 'chat' ? 'has-footer' : ''}`}>
           {mode === 'chat' && <ChatTab />}
 
           {mode === 'note' && (
@@ -131,7 +124,6 @@ const CardDisplay: React.FC<CardDisplayProps> = ({mode, setMode}) => {
             width={380}
             inputData={inputData}
             onInputDataChange={setInputData}
-            // New: forward the validation callback so ResourceDisplay can notify us
             onValidate={setIsFormValid}
           />
         </div>
@@ -142,11 +134,11 @@ const CardDisplay: React.FC<CardDisplayProps> = ({mode, setMode}) => {
           editing={mode === 'edit'}
           onAddResource={handleAddResource}
           onSave={() => {
-            // Only actually save if ResourceDisplay has validated the form
             if (isFormValid) {
               handleSave();
+            } else {
+              console.log('[CardDisplay.tsx][5201] Save blocked — form invalid (topic/title/content)');
             }
-            // If invalid, ResourceDisplay’s inline errors are already shown.
           }}
           onCancel={handleCancel}
           isSaveDisabled={!isFormValid}

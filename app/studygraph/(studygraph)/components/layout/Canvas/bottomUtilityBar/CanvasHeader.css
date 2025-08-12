@@ -1,0 +1,152 @@
+/**
+ * @file CanvasHeader.css
+ * @description
+ * Dedicated, semantic stylesheet for the Canvas header. It replaces Tailwind color utilities and any ad-hoc
+ * palettes with token-driven styles that adapt to the active theme scope. This ensures the header always renders
+ * with the intended brand palette regardless of selector clashes or load order. The header houses the menu toggle,
+ * the lesson title/editor, saving indicator, and the primary/secondary action buttons. Focus visibility and hover
+ * states rely on tokens to preserve contrast and theme compatibility. The CSS keeps layout simple and lets
+ * Tailwind’s layout utilities (flex/gap) remain in use where appropriate.
+ *
+ * Responsibilities:
+ *   1) Style the .canvas-header container and bottom border via tokens.
+ *   2) Style the title wrapper/editor affordances and lock/saving indicators.
+ *   3) Keep interactions accessible (focus-visible) with tokenized rings.
+ */
+
+.canvas-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--surface, #FFFFFF);
+  border-bottom: 1px solid var(--edge, #E8E4DE);
+  padding: 0.5rem 0.75rem;
+}
+
+/* left cluster */
+.canvas-header__menu {
+  border-radius: var(--radius-6, 6px);
+}
+
+/* title wrapper */
+.canvas-header__titlewrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--surface, #FFFFFF);
+  border-radius: var(--radius-8, 8px);
+  border: 1px solid var(--edge, #E8E4DE);
+  min-width: 0;
+  max-width: 40ch;
+  color: var(--ink, #2C3E50);
+}
+.canvas-header__titlewrap:hover {
+  background: var(--bg-app, #F7F3EE);
+  border-color: var(--edge-2, #D4C4B0);
+}
+.canvas-header__title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvas-header__lock {
+  color: var(--muted, #6C757D);
+}
+
+/* inline editor overlay */
+.canvas-header__editbox {
+  width: 20rem;
+  height: 3rem;
+  border: 1px solid var(--edge, #E8E4DE);
+  border-radius: var(--radius-8, 8px);
+  padding: 0.5rem;
+  background: var(--surface, #FFFFFF);
+  resize: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+.canvas-header__editbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(108, 142, 191, 0.35);
+}
+
+/* saving indicator */
+.canvas-header__saving {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--brand-blue, #6C8EBF);
+  margin-left: 0.5rem;
+}
+
+
+/* Keep Lessons / Uploads side-by-side */
+.canvas-header .ch-nav{
+  display:flex;
+  gap:0.5rem;
+  flex-wrap:nowrap;            /* keep side-by-side */
+  align-items:center;
+}
+
+.canvas-header .ch-nav__item{ flex:0 0 auto; position:relative; }
+
+
+.canvas-header .ch-nav__trigger{
+  -webkit-appearance:none; appearance:none;
+  border:none; background:transparent; cursor:pointer;
+  display:inline-flex; align-items:center; gap:.3rem;
+  padding:.5rem 1rem;
+  border-radius:6px;
+  font-family:'Inter', sans-serif;
+  font-size:.9rem; font-weight:500;
+  color:#6C757D;                /* muted */
+  line-height:1;
+  white-space:nowrap;
+}
+
+
+.canvas-header .ch-nav__trigger:hover{
+  background:#F7F3EE;          /* var(--bg-app) */
+  color:#2C3E50;               /* ink */
+}
+
+
+.canvas-header .ch-nav__trigger::after{
+  content:'▼';
+  font-size:.7rem;
+  opacity:.5;
+  margin-left:.3rem;
+  transition:transform .15s ease;
+}
+
+.canvas-header .ch-nav__trigger[aria-expanded="true"]::after{
+  transform:rotate(180deg);
+}
+.canvas-header .ch-nav__chevron{ display:none !important; } /* belt & suspenders */
+
+/* dropdown panel (kept in brand palette) */
+.canvas-header .ch-menu{
+  position:absolute; top:calc(100% + 6px); left:0;
+  min-width:180px;
+  background:#FFFFFF;
+  border:1px solid #E8E4DE;
+  border-radius:8px;
+  box-shadow:0 8px 24px rgba(0,0,0,.08);
+  padding:.25rem;
+  z-index:50;
+}
+.canvas-header .ch-menu__item{
+  width:100%;
+  text-align:left;
+  border:none; background:transparent;
+  padding:.5rem .75rem;
+  border-radius:6px;
+  font-size:.9rem; font-weight:500;
+  color:#6C757D;
+  cursor:pointer;
+}
+.canvas-header .ch-menu__item:hover{
+  background:#F7F3EE;
+  color:#2C3E50;
+}

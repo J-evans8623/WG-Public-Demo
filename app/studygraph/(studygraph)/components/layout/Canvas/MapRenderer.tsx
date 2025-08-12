@@ -130,17 +130,22 @@ const MapRenderer: React.FC = () => {
     <div
       ref={containerRef}
       data-testid="map-renderer-container"
-      className="absolute inset-0 overflow-auto bg-white hidden-scrollbar"
+      className="absolute inset-0 overflow-auto hidden-scrollbar"
+      style={{ background: 'var(--surface)' }}
     >
+      {/* Warm dotted board background (non-interactive) */}
+   
       <div
         style={{
           position: 'relative',
-          margin:   '150px auto 0',
+          margin:   'auto 0',
+          paddingTop: '150px',
           width:    `${mapWidth}px`,
           height:   `${mapHeight}px`,
         }}
         data-testid="map-renderer-container-2"
       >
+         <div className="map-background-pattern" />
         <div
         data-testid="map-renderer-container-3"
           style={{
@@ -175,6 +180,7 @@ const MapRenderer: React.FC = () => {
           )}
         </div>
       </div>
+      
     </div>
   );
 };

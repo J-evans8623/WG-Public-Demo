@@ -1,15 +1,86 @@
-.reply-item {
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-.reply-meta {
-  font-size: 0.85rem;
-  color: #64748b;
+/**
+ * @file ForumPostDetail.css
+ * @description
+ *   Tokenized thread layout for the forum detail view. The original post sits in its own surface
+ *   with a thin divider; replies follow in a clean vertical list. The composer normally used a
+ *   sticky-in-scroller approach; for this phase we portal the composer into a bottom overlay owned
+ *   by the modal to guarantee it fully covers content and gutters. We preserve the original sticky
+ *   composer styles for reuse elsewhere and add a small overlay modifier that removes border/shadow
+ *   duplication when the composer is inside the overlay. All colors and borders remain tokenized.
+ */
+
+.forum-detail {
+  position: relative;
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0;
 }
-.reply-body {
-  margin-top: 0.25rem;
-  color: #1e293b;
+
+.forum-detail__close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 4;
 }
+
+.forum-detail__op {
+  padding: 1rem;
+  border-bottom: 1px solid var(--edge, #E8E4DE);
+  background: var(--surface, #FFFFFF);
+}
+
+.forum-detail__op-title { font-weight: 600; color: var(--ink, #2C3E50); margin-bottom: 0.5rem; }
+.forum-detail__op-body { color: var(--ink, #2C3E50); line-height: 1.6; font-size: 0.95rem; }
+
+.forum-detail__meta {
+  display: flex; align-items: center; gap: 0.75rem; margin-top: 0.75rem;
+  color: var(--muted, #6C757D); font-size: 0.85rem;
+}
+
+.forum-detail__replies { padding: 1rem; background: var(--surface, #FFFFFF); }
+
+.reply {
+  border: 1px solid var(--edge, #E8E4DE);
+  border-radius: var(--radius-8, 8px);
+  padding: 0.9rem 1rem; margin-bottom: 0.75rem; background: var(--surface, #FFFFFF);
+}
+.reply:hover { border-color: var(--edge-2, #D4C4B0); box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+.reply__header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+.reply__avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--edge-2, #D4C4B0); color: #fff; font-weight: 700; font-size: .9rem;
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px;
+}
+.reply__metastack { display: flex; flex-direction: column; line-height: 1.15; }
+.reply__name { color: var(--ink, #2C3E50); font-weight: 600; font-size: .95rem; }
+.reply__time { color: var(--muted, #6C757D); font-size: .82rem; }
+
+/* Sticky composer (preserved for other contexts) */
+.forum-detail__composer {
+  position: sticky; bottom: 0;
+  background: var(--surface, #FFFFFF);
+  border-top: 1px solid var(--edge, #E8E4DE);
+  padding: 0.9rem 1rem;
+  box-shadow: 0 -6px 16px rgba(0,0,0,.05);
+  z-index: 3;
+}
+
+/* Overlay modifier: remove duplicate border/shadow when inside overlay mount */
+.forum-detail__composer--overlay {
+  position: static; /* overlay handles positioning */
+  padding: 0;       /* overlay provides its own padding */
+  border: 0;        /* overlay already has a top border */
+  box-shadow: none; /* overlay already has a shadow */
+  background: transparent;
+}
+
+.forum-detail__textarea { width: 100%; min-height: 90px; resize: vertical; }
+
+.forum-detail__actions {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; margin-top: 0.6rem;
+}
+.forum-detail__actions .hint { font-size: 0.85rem; color: var(--muted, #6C757D); }
+
+.forum-detail__buttons { display: inline-flex; gap: .5rem; }

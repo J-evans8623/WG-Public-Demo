@@ -1,0 +1,36 @@
+# Dockerfile.yjs-v1
+# ──────────────────────────────────────────────────────────────────────────────
+# Purpose (100+ words):
+# This Dockerfile builds a dedicated image for the new Yjs server binary
+# (yjs-serverv1.js) without altering or replacing your original Yjs image. It
+# installs only runtime dependencies from package.json, copies the server source,
+# drops privileges to a non-root user, and exposes port 1234 (the in-container
+# port). A health check hits /healthz so Docker can restart the container if it
+# becomes unresponsive. We run "node yjs-serverv1.js" directly instead of
+# relying on package.json scripts to avoid any ambiguity with your original
+# server entrypoint. Use a new image tag, e.g., bloommaps/yjs-server-v1:latest,
+# to keep it completely separate from the current image.
+
+# Dockerfile.yjs-v1
+FROM node:18-alpine
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# copy only what we need (yjs server + keys dir if you want)
+COPY yjs-serverv1.js ./yjs-serverv1.js
+
+# if you prefer to bake the pubkey instead of a bind-mount, also:
+# COPY keys/jwt_2025.pub /app/keys/jwt_2025.pub
+
+# drop privileges
+RUN addgroup -g 1001 -S nodejs && adduser -S yjs -u 1001 && chown -R yjs:nodejs /app
+USER yjs
+
+EXPOSE 1234
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget -qO- http://localhost:1234/healthz || exit 1
+
+# IMPORTANT: run v1 explicitly
+CMD ["node", "/app/yjs-serverv1.js"]

@@ -1,0 +1,29 @@
+/**
+ * @file theme-scopes.css
+ * @description
+ * This stylesheet defines the canonical theme scope selectors and the attribute→class bridge for the
+ * application’s branded themes. Its single responsibility is to standardize the selector you can rely on
+ * when writing theme palettes or component styling that depends on a theme. We guarantee that a single,
+ * predictable scope is present for the active theme (warm-board in Phase 1), and we support three equivalent
+ * ways of identifying that scope: (1) the canonical class `.theme-warm-board`, (2) the attribute
+ * `[data-theme="warm-board"]`, and (3) a legacy class `.warm-board` emitted by older code paths. We do not
+ * duplicate palettes here; instead, theme palettes should target `:is(.theme-warm-board,[data-theme="warm-board"],.warm-board)`
+ * to ensure styles apply regardless of how the scope is attached. This file should be imported after tokens
+ * and before theme palettes to establish a stable cascade and predictable specificity without using !important.
+ *
+ * Responsibilities:
+ *   1) Provide stable, zero/low-specificity scope selectors for theme-aware CSS.
+ *   2) Act as the attribute bridge so component code can rely on a single, canonical scope selector.
+ *   3) Avoid duplicating theme variables – palettes belong in dedicated theme CSS files.
+ */
+
+/* Sentinel so devtools quickly confirm the active theme scope. */
+:is(.theme-warm-board, [data-theme="warm-board"], .warm-board) {
+  --_theme-scope-active: warm-board;
+  color-scheme: light;
+}
+
+/* Optional guard class if you want to mark a subtree as a theme boundary in the future. */
+.theme-scope {
+  /* intentionally empty – used only as a semantic marker */
+}

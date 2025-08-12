@@ -1,48 +1,158 @@
-/* notesTab.css
- *
- * Controls custom scrollbar behavior:
- *   • By default, scrollbar is hidden.
- *   • When .scrollbar-visible is applied, show a thin dark thumb.
+/**
+ * @file notesTab.css
+ * @description
+ * This stylesheet defines the visual presentation and scrolling behavior for the NotesTab component within the
+ * right-hand resource panel. It manages the dynamic scrollbar visibility system that responds to user hover
+ * interactions, ensuring a clean interface that only displays scrollbars when needed. The styles ensure proper
+ * layout constraints for the scrollable container while maintaining visual consistency with the overall application
+ * theme. Special attention is given to the scrollbar styling to match the brand colors and provide smooth
+ * transitions between visibility states. The CSS also handles proper spacing and overflow behavior to prevent
+ * layout issues with the action footer and ensure all resource cards are fully visible and accessible.
+ * 
+ * RESPONSIBILITIES:
+ * - Define scrollable container layout with proper flex constraints
+ * - Implement conditional scrollbar visibility based on hover states
+ * - Style custom scrollbars to match application theme
+ * - Ensure proper spacing and overflow handling
+ * - Prevent layout conflicts with adjacent components
  */
 
+/* Step 1: Base container styles with proper flex layout */
 .notes-tab-container {
-  position: relative;
-  height: 100%;
+  /* Ensure the container fills available space */
+  flex: 1;
+  display: flex;
   flex-direction: column;
-  padding: 1rem;      /* 16px top/right/left, 16px bottom */
+  
+  /* Enable vertical scrolling with hidden horizontal overflow */
   overflow-y: auto;
-  scroll-behavior: smooth;
+  overflow-x: hidden;
+  
+  /* Critical for flex sizing to work properly */
+  min-height: 0;
+  
+  /* Consistent padding around content */
+  padding: 1rem;
+  
+  /* Smooth transitions for scrollbar appearance */
+  transition: scrollbar-color 0.2s ease;
+  
+  /* Ensure proper stacking context */
+  position: relative;
+  z-index: 1;
 }
 
-/* Hide scrollbar by default (all browsers) */
-.notes-tab-container {
-  scrollbar-width: none; /* Firefox */
+/* Step 2: Content wrapper for proper spacing */
+.notes-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  
+  /* Prevent content from shrinking below its minimum size */
+  flex-shrink: 0;
+  
+  /* Ensure full width utilization */
+  width: 100%;
 }
-.notes-tab-container::-webkit-scrollbar {
+
+/* Step 3: Hidden scrollbar state - completely invisible */
+.notes-tab-container.scrollbar-hidden {
+  /* Firefox scrollbar hiding */
+  scrollbar-width: none;
+  
+  /* Webkit browsers scrollbar hiding */
+  -ms-overflow-style: none;
+}
+
+.notes-tab-container.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
   width: 0;
-  background: transparent; /* Chrome/Safari */
+  height: 0;
 }
 
-/* Show scrollbar only when hovered (and no card hovered) */
+/* Step 4: Visible scrollbar state - styled to match theme */
 .notes-tab-container.scrollbar-visible {
+  /* Firefox thin scrollbar */
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  scrollbar-color: var(--edge-2, #D4C4B0) transparent;
 }
+
+/* Step 5: Webkit scrollbar styling for visible state */
 .notes-tab-container.scrollbar-visible::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
-.notes-tab-container.scrollbar-visible::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-}
+
 .notes-tab-container.scrollbar-visible::-webkit-scrollbar-track {
   background: transparent;
+  border-radius: 3px;
 }
 
-/* Also allow cards to reveal their own internal hover states */
-.notes-tab-container.scrollbar-hidden {
-  scrollbar-width: none;
+.notes-tab-container.scrollbar-visible::-webkit-scrollbar-thumb {
+  background-color: var(--edge-2, #D4C4B0);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
 }
-.notes-tab-container.scrollbar-hidden::-webkit-scrollbar {
-  width: 0;
+
+.notes-tab-container.scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background-color: var(--brand-green, #5B8C5A);
+}
+
+/* Step 6: Ensure proper spacing when container is empty */
+.notes-tab-container:empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+/* Step 7: Prevent margin collapse with child elements */
+.notes-tab-container > * {
+  margin-top: 0;
+}
+
+.notes-tab-container > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Step 8: Responsive adjustments for smaller viewports */
+@media (max-height: 600px) {
+  .notes-tab-container {
+    padding: 0.75rem;
+  }
+  
+  .notes-content-wrapper {
+    gap: 0.75rem;
+  }
+}
+
+/* Step 9: High contrast mode support for accessibility */
+@media (prefers-contrast: high) {
+  .notes-tab-container.scrollbar-visible::-webkit-scrollbar-thumb {
+    background-color: var(--ink, #2C3E50);
+  }
+  
+  .notes-tab-container.scrollbar-visible::-webkit-scrollbar-track {
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--edge, #E8E4DE);
+  }
+}
+
+/* Step 10: Ensure smooth scrolling behavior */
+.notes-tab-container {
+  scroll-behavior: smooth;
+  
+  /* Prevent scroll anchoring issues */
+  overflow-anchor: none;
+}
+
+/* Step 11: Fix for Safari overflow issues */
+.notes-tab-container {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Step 12: Ensure resource cards don't collapse */
+.notes-tab-container .resource-display {
+  flex-shrink: 0;
+  min-height: auto;
 }

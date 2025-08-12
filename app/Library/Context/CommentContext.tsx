@@ -30,7 +30,6 @@ import React, {
 import * as Y from 'yjs';
 import { v4 as uuidv4 } from 'uuid';
 import { useYDoc } from './YDocContext';
-import { ApiContext } from '@/app/src/context/ApiContext';
 import { useSession } from "next-auth/react";
 
 ///////////////////////

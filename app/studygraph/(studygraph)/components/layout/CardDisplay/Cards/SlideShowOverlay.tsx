@@ -28,7 +28,6 @@ import MentionBadge from '../../forum/MentionBadge';
 import DiscussButton from '../../forum/DiscussButton';
 import CommentInputModal from '../../forum/CommentInputModal';
 import ReactDOM from 'react-dom';
-import BookmarkModal from '../../Canvas/Bookmarks/BookmarkModal';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 

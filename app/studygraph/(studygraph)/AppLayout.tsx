@@ -59,7 +59,11 @@ import { SearchProvider } from '@/app/Library/Context/SearchContext';
 import { Menu, ChevronsLeft } from 'lucide-react';
 import SearchModal from './components/layout/SearchModal';
 import 'katex/dist/katex.min.css'
-
+import '@/app/studygraph/styles/tokens.css'
+import '@/app/studygraph/styles/brand/theme-scopes.css'      // NEW – attribute↔class bridge
+import '@/app/studygraph/styles/theme-warm-board.css'
+import '@/app/studygraph/styles/brand/brand-utilities.css'   // NEW – tokenized btn primitives
+import '@/app/studygraph/(studygraph)/canvas/Map/NodeGraphOriginal.css'
 
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
@@ -326,7 +330,11 @@ const shareMode = (searchParams?.get('shareMode') as 'copy' | 'collab') ?? null;
   };
 
   return (
-    <div className="h-screen w-full flex bg-white">
+    <div
+  className="h-screen w-full flex bg-white theme-warm-board theme-scope"
+  data-theme="warm-board"
+>
+
       {/* Display AuthPromptModal if the user is not authenticated */}
 
       {/* Navigation Panel */}

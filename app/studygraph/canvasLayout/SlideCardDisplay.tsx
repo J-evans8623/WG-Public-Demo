@@ -60,7 +60,7 @@ export default function SlideCardDisplay({ slides }: { slides: Slide[] }) {
       <div className="scd-header">
         <div />
         <div className="scd-search-container">
-          <Search size={16} className="scd-search-icon" />
+         
           <input
             type="text"
             className="scd-search-input"

@@ -1,33 +1,32 @@
 /***************************************************************************************
  * @file UnifiedHeader.tsx
  * @description
- *   Header bar for the notes / chat pane.
- *   ▸ Deprecates the Font-size button (design decision – removed import & logic).
- *   ▸ Changes the active-tab highlight so it contrasts with the pane colour:
- *       – inactive / hover  : var(--left-pane-bg)  (very light)
- *       – active            : var(--header-bg)     (a step darker)
- *   ▸ Retains the floating-tabs look, internal 1 px divider and Topics dropdown.
+ *   Right-rail header for Notes/Chat. Phase 2 replaces color utilities and ad-hoc rgba/hex
+ *   with semantic classes powered by tokens and brand utilities. The surface now uses the
+ *   tokenized .rail-header container, the internal rule is .divider, and the Topics menu
+ *   adopts shared chip/field/menu primitives (no inline colors). Keyboard/ARIA behaviors
+ *   are preserved; layout utilities remain allowed. We also add purposeful logging for
+ *   search clicks and chip interactions while avoiding verbosity.
+ *
+ *   Updated to include "Start slideshow" and "Search" buttons for notes tab view.
  *
  *   Responsibilities
- *     1. Render and switch “Notes / Chat” tabs.
- *     2. Show TopicsDropdown in PDF view (Notes tab only).
- *     3. Provide internal bottom divider (not flush to map edge).
+ *     1. Render and switch "Notes / Chat" tabs.
+ *     2. Show Topics dropdown in PDF view (Notes tab only) using tokenized menu styles.
+ *     3. Show slideshow and search buttons in Notes tab view (non-PDF view).
+ *     4. Provide internal bottom divider via .divider and scoped header styling.
  ***************************************************************************************/
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
-import '@/app/studygraph/(studygraph)/components/layout/mapTheme.css';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
 import SearchButton from '../SearchButton';
 import BackButton from '../BackButton';
-
-/* -------------------------------------------------------------------------- */
-/* Types                                                                      */
-/* -------------------------------------------------------------------------- */
+import '@/app/studygraph/styles/brand/brand-utilities.css';
+import './CardDisplay.css';
 
 interface UnifiedHeaderProps {
   activeTab: 'notes' | 'chat';
@@ -36,27 +35,22 @@ interface UnifiedHeaderProps {
   onTopicChange: (topic: string) => void;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Topics dropdown (PDF mode only)                                            */
-/* -------------------------------------------------------------------------- */
-
-const TopicsDropdown: React.FC<{
-  onTopicChange: (t: string) => void;
-}> = ({ onTopicChange }) => {
+/* Topics dropdown (PDF mode only) */
+const TopicsDropdown: React.FC<{ onTopicChange: (t: string) => void }> = ({ onTopicChange }) => {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  /* lesson context ------------------------------------------------------ */
+  // 1) lesson context for label
   const { activeConceptMapId, getLessonModule } = useLessonModule();
   const lesson = getLessonModule().conceptMaps.find(c => c.id === activeConceptMapId);
   const lessonTitle = lesson ? lesson.title : 'Untitled Lesson';
 
-  /* nodes for list ------------------------------------------------------- */
+  // 2) nodes and selection helpers
   const { nodes } = useNodesContext();
   const { isSelected, multiSelect, deselectNode } = useNodeSelection();
   const nodeArr = Array.from(nodes.values());
 
-  /* close dropdown on outside click ------------------------------------- */
+  // 3) click-outside to close
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (open && wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
@@ -67,15 +61,13 @@ const TopicsDropdown: React.FC<{
     return () => document.removeEventListener('mousedown', handle);
   }, [open]);
 
-  /* render --------------------------------------------------------------- */
   return (
-    <div className="relative" ref={wrapperRef}>
+    <div className="rail-topics" ref={wrapperRef}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="
-          flex items-center gap-1 px-4 py-1.5 rounded-md text-sm
-          bg-[var(--left-pane-bg)] hover:bg-[var(--bg-selected)]
-        "
+        className="chip chip--action"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         <span>Topics</span>
         <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24">
@@ -84,31 +76,28 @@ const TopicsDropdown: React.FC<{
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg z-10">
-          <div className="px-4 py-1 text-xs text-slate-600">{lessonTitle}</div>
-          <div className="border-t border-slate-200 mx-2" />
+        <div role="menu" className="rail-menu rail-topics__menu">
+          <div className="rail-menu__section">{lessonTitle}</div>
+          <div className="divider" />
 
-          <div className="p-2 overflow-y-auto max-h-24 custom-scrollbar">
+          <div className="p-2 max-h-48 overflow-y-auto scrollbar--thin">
             {nodeArr.length === 0 ? (
-              <div className="p-2 text-sm text-gray-500">No topics available.</div>
+              <div className="p-2 text-xs" style={{ color: 'var(--muted)' }}>No topics available.</div>
             ) : (
-              nodeArr.map(node => {
-                const checked = isSelected(node.id);
+              nodeArr.map(n => {
+                const checked = isSelected(n.id);
                 return (
-                  <label
-                    key={node.id}
-                    className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer"
-                  >
+                  <label key={n.id} className="rail-menu__item flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      className="w-3 h-3 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                      className="rail-check"
                       checked={checked}
                       onChange={e => {
-                        if (e.target.checked) multiSelect(node.id, true);
-                        else deselectNode(node.id);
+                        if (e.target.checked) multiSelect(n.id, true);
+                        else deselectNode(n.id);
                       }}
                     />
-                    <span className="ml-2 text-xs text-slate-800">{node.title}</span>
+                    <span className="text-xs" style={{ color: 'var(--ink)' }}>{n.title}</span>
                   </label>
                 );
               })
@@ -120,10 +109,6 @@ const TopicsDropdown: React.FC<{
   );
 };
 
-/* -------------------------------------------------------------------------- */
-/* UnifiedHeader component                                                    */
-/* -------------------------------------------------------------------------- */
-
 const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   activeTab,
   onTabChange,
@@ -133,42 +118,123 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   const { activeView } = useViewSwitch();
   const { open: openSearchModal } = useSearchContext();
 
+  const handleStartSlideshow = () => {
+    console.log('[UnifiedHeader.tsx][6102] Start slideshow clicked');
+    // TODO: Implement slideshow functionality
+    // This could dispatch an action to open slideshow view or modal
+  };
+
+  const handleSearchClick = () => {
+    console.log('[UnifiedHeader.tsx][6101] SearchButton clicked');
+    openSearchModal();
+  };
+
   return (
-    <header
-      className="
-        relative
-        bg-[var(--header-tint)]
-        px-4 pt-3 pb-2    /* ↑ 4 px extra top padding */
-        flex justify-between items-center
-      "
-    >
-      {/* Contextual controls (FontSizeButton removed) --------------------- */}
-     {/* Left side: BackButton (chat) or placeholder (notes) */}
-      <div className="flex items-center">
-        {activeTab === 'chat' ? (
-          <BackButton onClick={() => onTabChange('notes')} />
-        ) : (
-          <div style={{ width: '64px' }} /> /* reserve space */
-        )}
+    <header className="rail-header relative px-4 pt-3 pb-2">
+      <div className="flex justify-between items-center mb-3">
+        {/* Left spacer for BackButton parity */}
+        <div className="flex items-center">
+          {activeTab === 'chat' ? (
+            <BackButton onClick={() => onTabChange('notes')} />
+          ) : (
+            <div className="rail-header__spacer" />
+          )}
+        </div>
+
+        {/* Right cluster: conditional buttons based on view and tab */}
+        <div className="flex items-center gap-2">
+          {activeTab === 'notes' && activeView !== 'pdf' && (
+            <>
+              {/* Start slideshow button - minimal with brown outline */}
+              <button
+                onClick={handleStartSlideshow}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: '#8B7355',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  border: '1px solid #D4C4B0',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#FAF8F5';
+                  e.currentTarget.style.borderColor = '#8B7355';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = '#D4C4B0';
+                }}
+                title="Start slideshow"
+                aria-label="Start slideshow"
+              >
+                <span>Slideshow</span>
+                <svg 
+                  viewBox="0 0 24 24" 
+                  fill="currentColor"
+                  className="w-4 h-4"
+                  style={{ color: '#8B7355' }}
+                >
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </button>
+
+              {/* Search button - minimal with brown outline */}
+              <button
+                onClick={handleSearchClick}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: '#8B7355',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  border: '1px solid #D4C4B0',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#FAF8F5';
+                  e.currentTarget.style.borderColor = '#8B7355';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = '#D4C4B0';
+                }}
+                title="Search"
+                aria-label="Search"
+              >
+                <span>Search</span>
+                <svg 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2"
+                  className="w-4 h-4"
+                  style={{ color: '#8B7355' }}
+                >
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <path d="m21 21-4.35-4.35"></path>
+                </svg>
+              </button>
+            </>
+          )}
+
+          {/* PDF view - keep existing SearchButton and Topics */}
+          {activeTab === 'notes' && activeView === 'pdf' && (
+            <>
+              <SearchButton
+                onClick={() => {
+                  console.log('[UnifiedHeader.tsx][6101] SearchButton clicked');
+                  openSearchModal();
+                }}
+              />
+              <TopicsDropdown onTopicChange={onTopicChange} />
+            </>
+          )}
+        </div>
       </div>
 
-      
-      
-      {/* Contextual controls (FontSizeButton removed) --------------------- */}
-      <div className="flex items-center gap-2">
-         {activeTab === 'notes' && (
-          <SearchButton onClick={() => {
-            console.log('[UnifiedHeader.tsx][6001] › SearchButton clicked');
-            openSearchModal();
-          }} />
-        )}
-        {activeTab === 'notes' && activeView === 'pdf' && (
-          <TopicsDropdown onTopicChange={onTopicChange} />
-        )}
-      </div>
-
-      {/* Internal divider -------------------------------------------------- */}
-      <div className="absolute bottom-0 left-0 w-full h-px bg-[var(--divider-color)]" />
+      {/* Bottom divider, tokenized - now properly positioned below buttons */}
+      <div className="rail-header__divider divider" />
     </header>
   );
 };

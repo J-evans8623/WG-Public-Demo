@@ -39,7 +39,7 @@ import JSZip from 'jszip';
 import { useCollabProvider } from '@/app/studygraph/collab/useCollabProvider';
 import { getUploadUrl, getDownloadUrl } from '@/app/studygraph/(studygraph)/components/utils/storageUrls';
 import { takeMapSnapshot as _takeMapSnapshot } from '@/app/studygraph/(studygraph)/components/versionHistory/versionHistory';
-import { makeCommentMap, mapToComment, Comment, Reply } from '@/app/studygraph/(studygraph)/components/layout/forum/comment/CommentDefinitions';
+
 
 interface ChatMessage {
   id: number;

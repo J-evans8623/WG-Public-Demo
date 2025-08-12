@@ -1,0 +1,212 @@
+/**
+ * @file styles/brand/brand-utilities.css
+ * @description
+ * This file provides a thin, brand-aware semantic utility layer used across the canvas and right rail.
+ * It centralizes color, borders, focus rings, and small surface primitives so we can avoid Tailwind
+ * color utilities and raw hex/hsl values inside components. The utilities are intentionally narrow
+ * in scope: buttons, fields, chips, dividers, and panel sizing. All palette references are resolved
+ * through tokens (e.g., --surface, --ink, --edge, --brand-blue) and inherit the active theme scope.
+ * This design allows us to add or swap themes without touching component code, while also preserving
+ * accessibility via consistent focus-visible outlines and hover/disabled states. New utilities added
+ * in Phase 2: .panel/.panel--md, .divider, .field, and .chip for unified right-rail styling and
+ * inputs; scrollbar helpers remain minimal and tokenized for thumb/track consistency.
+ *
+ * Responsibilities:
+ *   1) Provide button primitives and tokenized variants (.btn, .btn--primary, .btn--success, .btn--border, .btn--icon).
+ *   2) Provide .panel sizing (with width variable), .divider line, .field inputs, and .chip badges/toggles.
+ *   3) Ensure focus and hover states rely on tokens; never encode raw color literals here.
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   1) Buttons (existing from Phase 1, retained and expanded)
+   ─────────────────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  line-height: 1;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-6, 6px);
+  border: 1px solid transparent;
+  background: var(--surface, #FFFFFF);
+  color: var(--ink, #2C3E50);
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 120ms ease;
+  user-select: none;
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(108, 142, 191, 0.35); /* brand-blue focus ring */
+}
+
+.btn[disabled],
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn--icon {
+  padding: 0.4rem;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-6, 6px);
+}
+
+.btn--border {
+  background: var(--surface, #FFFFFF);
+  color: var(--muted, #6C757D);
+  border-color: var(--edge, #E8E4DE);
+}
+.btn--border:hover {
+  background: var(--bg-app, #F7F3EE);
+  color: var(--ink, #2C3E50);
+  border-color: var(--edge-2, #D4C4B0);
+}
+
+.btn--primary {
+  background: var(--brand-blue, #6C8EBF);
+  color: #fff;
+}
+.btn--primary:hover { filter: brightness(0.95); transform: translateY(-1px); }
+
+.btn--success {
+  background: var(--brand-green, #5B8C5A);
+  color: #fff;
+}
+.btn--success:hover { filter: brightness(0.95); transform: translateY(-1px); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   2) Panels (right rail width moved from inline to CSS)
+   ─────────────────────────────────────────────────────────────────────────── */
+.panel {
+  /* 1) Allow width to be controlled by a custom property.                   */
+  /* 2) Maintain shrink behavior so it stays fixed-width in grid column.     */
+  flex-shrink: 0;
+  width: var(--panel-width, 380px);
+  background: var(--surface, #FFFFFF);
+  border-left: 1px solid var(--edge, #E8E4DE);
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* allow internal scrollers to work properly */
+   position: relative;
+}
+
+.panel--md {
+  /* Default right-rail width that used to be inline on CardDisplay */
+  --panel-width: 380px;
+  width: var(--panel-width);
+}
+
+
+.panel.panel--md {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Prevent panel overflow */
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   3) Divider (thin 1px rules mapped to tokens)
+   ─────────────────────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  width: 100%;
+  background: var(--divider-color, var(--edge, #E8E4DE));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   4) Field (inputs/textareas/selects share a consistent baseline)
+   ─────────────────────────────────────────────────────────────────────────── */
+.field {
+  width: 100%;
+  background: var(--surface, #FFFFFF);
+  color: var(--ink, #2C3E50);
+  border: 1px solid var(--edge, #E8E4DE);
+  border-radius: var(--radius-8, 8px);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.2;
+}
+
+.field::placeholder { color: var(--muted, #6C757D); }
+
+.field:focus {
+  outline: none;
+  border-color: var(--edge-2, #D4C4B0);
+  box-shadow: 0 0 0 3px rgba(108, 142, 191, 0.25);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   5) Chip (small, rounded filter/control pill)
+   ─────────────────────────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  background: var(--surface, #FFFFFF);
+  border: 1px solid var(--edge, #E8E4DE);
+  color: var(--muted, #6C757D);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+.chip:hover { background: var(--bg-app, #F7F3EE); color: var(--ink, #2C3E50); border-color: var(--edge-2, #D4C4B0); }
+.chip--active { background: var(--brand-green, #5B8C5A); color: #fff; border-color: var(--brand-green, #5B8C5A); }
+.chip--action { background: var(--left-pane-bg, #FAF8F5); }
+.chip--action:hover { background: var(--bg-selected, #F7F3EE); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   6) Lightweight menu surface for right-rail dropdowns
+   ─────────────────────────────────────────────────────────────────────────── */
+.rail-menu {
+  position: absolute;
+  inset: auto 0 auto auto;
+  margin-top: 0.5rem;
+  min-width: 12rem;
+  background: var(--surface, #FFFFFF);
+  border: 1px solid var(--edge, #E8E4DE);
+  border-radius: var(--radius-8, 8px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  z-index: 10;
+  overflow: hidden;
+}
+.rail-menu__section { padding: 0.25rem 0.5rem; color: var(--muted, #6C757D); font-size: 0.75rem; }
+.rail-menu__item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--ink, #2C3E50);
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+.rail-menu__item:hover { background: var(--bg-app, #F7F3EE); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   7) Checkboxes in menus (accent color via tokens)
+   ─────────────────────────────────────────────────────────────────────────── */
+input[type="checkbox"].rail-check {
+  accent-color: var(--brand-blue, #6C8EBF);
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--edge, #E8E4DE);
+  border-radius: 2px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   8) Thin scrollbar helpers (tokenized)
+   ─────────────────────────────────────────────────────────────────────────── */
+.scrollbar--thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--edge-2, #D4C4B0) transparent;
+}
+.scrollbar--thin::-webkit-scrollbar { width: 5px; }
+.scrollbar--thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar--thin::-webkit-scrollbar-thumb { background: var(--edge-2, #D4C4B0); border-radius: 3px; }
+.scrollbar--thin::-webkit-scrollbar-thumb:hover { background: var(--brand-green, #5B8C5A); }

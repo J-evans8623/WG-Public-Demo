@@ -492,57 +492,61 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   return (
     <>
       <BaseResourceCard
-        className={`slide resource-display ${!isEditing ? 'fixed-height' : ''}`}
+        className={`resource-display preview-slide ${!isEditing ? 'fixed-height' : ''}`}
         tabIndex={isEditing ? 0 : -1}
       >
-        {/* ─────────────────────────────── */}
-        {/* Top‐Right Buttons (View‐Only)   */}
-        {/* ─────────────────────────────── */}
-        {!isEditing && (
-          <div className="actions-wrapper">
-            <ResourceMenu
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onAskAI={onAskAI}
-              onImageCaption={onImageCaption}
-              resourceType={type}
-            />
-            <button
-              onClick={() =>
-                type === 'quiz' ? setQuizOverlayOpen(true) : open(id)
-              }
-              className="action-btn"
-              title="Full screen"
-            >
-              <Maximize2 className="h-3 w-3" />
-            </button>
-            {onDismiss && (
-              <button
-                onClick={onDismiss}
-                className="action-btn"
-                title="Dismiss"
-              >
-                <CloseIcon className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+        {!isEditing ? (
+          <>
+            {/* Header */}
+            <div className="preview-slide-header">
+              <div className="preview-slide-title">{title}</div>
+              <div className="preview-slide-actions">
+                <ResourceMenu
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onAskAI={onAskAI}
+                  onImageCaption={onImageCaption}
+                  resourceType={type}
+                />
+                <button
+                  onClick={() => {
+                    console.log('[ResourceDisplay.tsx][9105] Fullscreen action clicked:', { id, type });
+                    type === 'quiz' ? setQuizOverlayOpen(true) : open(id);
+                  }}
+                  className="slide-action-btn"
+                  title="Full screen"
+                >
+                  <Maximize2 />
+                </button>
+                {onDismiss && (
+                  <button
+                    onClick={() => {
+                      console.log('[ResourceDisplay.tsx][9106] Dismiss action clicked:', { id });
+                      onDismiss();
+                    }}
+                    className="slide-action-btn"
+                    title="Dismiss"
+                  >
+                    <CloseIcon />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="preview-slide-body">
+              <div className="preview-slide-content">{renderViewBody()}</div>
+            </div>
+
+            {/* Footer */}
+            <div className="preview-slide-footer">
+              <span className="concept-node-label">{ConceptNodeTitle}</span>
+              <span className="slide-number" />
+            </div>
+          </>
+        ) : (
+          <div className="slide-content">{renderEditBody()}</div>
         )}
-
-        {/* ─────────────────────────── */}
-        {/* Main Body (Slide Content)   */}
-        {/* ─────────────────────────── */}
-        <div
-          className={`slide-content ${
-            !isEditing && type === 'cuecard' ? 'cuecard-content' : ''
-          }`}
-        >
-          {isEditing ? renderEditBody() : renderViewBody()}
-        </div>
-
-        {/* ────────────────────────────────── */}
-        {/* Footer (View‐Only)                  */}
-        {/* ────────────────────────────────── */}
-        {!isEditing && <div className="slide-footer">{ConceptNodeTitle}</div>}
       </BaseResourceCard>
 
       {/* ───────────────────────────────────────── */}

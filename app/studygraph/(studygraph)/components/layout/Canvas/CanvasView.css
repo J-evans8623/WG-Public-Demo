@@ -12,6 +12,7 @@
  .view-panel {
     position: absolute;
     top: 0; bottom: 0; left: 0; right: 0;
+    z-index: 0; 
   }
   .view-panel.hidden {
     display: none;
@@ -36,9 +37,24 @@
 .canvas-panels {
   display: grid;
   grid-template-columns: 1fr auto;
-  height: 100%;
   /* critical: allow flex‐parent to constrain height properly */
   min-height: 0;
+  overflow: hidden;
+}
+
+
+.map-canvas {
+height: 100dvh;            /* or 100vh */
+overflow: hidden;
+display: flex;
+flex-direction: column;
+}
+
+
+.map-canvas > header {
+position: sticky;
+top: 0;
+z-index: 40;
 }
 
 .map-column {
@@ -53,11 +69,16 @@
 /* 2. Ensure the left grid cell still establishes the relative positioning */
 .map-cell {
   position: relative;
+  flex: 1 1 auto;
   overflow: hidden; /* same as your old .map-panel wrapper */
 }
 
 .resource-cell {
-  overflow-y: auto;
+  overflow: hidden; /* Changed from overflow-y: auto */
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .bottom-controls {
@@ -88,3 +109,5 @@
 .chat-btn:hover {
   transform: scale(1.05);
 }
+
+

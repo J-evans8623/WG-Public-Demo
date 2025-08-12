@@ -1,215 +1,162 @@
-/* ==========================================================================
-   resourceDisplay.css
+/**
+ * @file resourceDisplay.css
+ * @description
+ * This stylesheet provides the complete, branded skin for the right-rail Resource cards in both
+ * read-only (view mode) and editable (edit mode) states. View mode adopts the “preview slide” look
+ * from the HTML reference by introducing a header (title + inline actions), a scrollable body, and
+ * a footer with the concept node label. Edit mode retains the existing layout with a tokenized
+ * content area, consistent thin scrollbars, and a cue-card centering helper. The file includes a
+ * short-term compatibility layer so legacy markup that uses `.slide` continues to render correctly
+ * while teams migrate to `.preview-slide`. All colors and borders are fully tokenized to align with
+ * the warm-board theme and brand utilities. Shadow, spacing, and radii are tuned for parity with
+ * the reference slides, while keeping fixed-height behavior for steady scrolling within the rail.
+ * Deprecated overlay actions are suppressed in favor of the new inline header actions, which mirror
+ * the reference’s hover/active behavior. Remove the shim selectors once the JSX migration is done.
+ */
 
-   1) Force the custom scrollbar style for `.slide-content` to remain stable,
-      even when hovering over the card.
-   2) (Optional) You can hide the scrollbar entirely here if you prefer, but
-      in this example we'll keep the thin custom scroll thumb visible.
-   ========================================================================== */
+/* 0) Base normalization */
+.edit-form-tall { height: 100%; }
+.resource-display * { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* 1) RESET MARGINS/PADDING & BOX-SIZING FOR THIS MODULE ONLY                  */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
-
-.edit-form-tall {
-  height: 100%;
-}
-
-.resource-display * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* 2) SLIDE (CARD) CONTAINER                                                    */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
-.slide {
-  position: relative;                              /* for the top‐right buttons */
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid rgba(102, 126, 234, 0.2);      /* slightly stronger periwinkle */
-  box-shadow: 0 2px 12px rgba(102, 126, 234, 0.08);
+/* 1) View mode – Branded preview slide container (parity with HTML reference)
+   -------------------------------------------------------------------------- */
+/* New class (preferred) + legacy shim so existing "slide resource-display" keeps working */
+.resource-display.preview-slide,
+.resource-display.slide {
+  position: relative;
+  background: var(--left-pane-bg, #FAF8F5);
+  border: 1px solid var(--edge, #E8E4DE);
+  border-radius: var(--radius-8, 8px); /* brand uses 8px corners */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
   display: flex;
   flex-direction: column;
-  overflow: hidden;                                /* clip children to the fixed size */
+  overflow: hidden;
   margin-bottom: 16px;
-  padding: 0;                                      /* inner padding handled by .slide-content */
+  padding: 0;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.resource-display.preview-slide:hover,
+.resource-display.slide:hover {
+  border-color: var(--brand-green, #5B8C5A);
+  transform: translateX(-2px);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.10);
 }
 
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* 3) FIXED HEIGHT FOR VIEW‐ONLY SLIDES (24rem = 384px)                         */
-/* ──────────────────────────────────────────────────────────────────────────── */
+/* 1a) Header: title + inline actions */
+.preview-slide-header {
+  padding: 0.9rem 1.2rem 0.6rem;
+  border-bottom: 1px solid var(--edge, #E8E4DE);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+  background: transparent;
+}
+.preview-slide-title {
+  font-family: var(--brand-serif, 'Crimson Text', serif);
+  font-size: 1.1rem;
+  color: var(--ink, #2C3E50);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.preview-slide-actions { display: flex; gap: 0.25rem; }
 
-.fixed-height {
-  height: 24rem; /* 384px */
+/* Inline action buttons (alias includes legacy .action-btn for drop-in compatibility) */
+.slide-action-btn,
+.action-btn {
+  width: 28px; height: 28px;
+  background: transparent;
+  border: none; border-radius: 4px;
+  color: #9B8E7E;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all .2s ease;
+}
+.slide-action-btn svg,
+.action-btn svg { width: 14px; height: 14px; }
+.slide-action-btn:hover,
+.action-btn:hover {
+  background: var(--surface, #FFFFFF);
+  color: var(--ink, #2C3E50);
+  box-shadow: inset 0 0 0 1px var(--edge, #E8E4DE);
 }
 
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* 4) SLIDE‐CONTENT (BODY AREA)                                                  */
-/*    - Always use the custom scrollbar rules below (never revert to default).   */
-/*    - For non‐cuecard slides: 24px padding.                                     */
-/*    - For cuecard slides: 0 padding (so centering is exact).                    */
-/* ──────────────────────────────────────────────────────────────────────────── */
+/* 1b) Body: scrollable content area */
+.preview-slide-body {
+  padding: 0.9rem 1.2rem 0.6rem;
+  flex: 1 1 auto;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.preview-slide-content {
+  font-size: 0.95rem;
+  color: #5A6B7D;
+  line-height: 1.6;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-bottom: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--edge-2, #D4C4B0) transparent;
+}
+.preview-slide-content::-webkit-scrollbar { width: 5px; }
+.preview-slide-content::-webkit-scrollbar-track { background: #F7F3EE; border-radius: 3px; }
+.preview-slide-content::-webkit-scrollbar-thumb { background: var(--edge-2, #D4C4B0); border-radius: 3px; }
+.preview-slide-content::-webkit-scrollbar-thumb:hover { background: var(--brand-green, #5B8C5A); }
 
+/* 1c) Footer: concept label (and optional right slot) */
+.preview-slide-footer,
+.slide-footer { /* legacy shim retained */
+  padding: 0.6rem 1.2rem;
+  background: rgba(255,255,255,0.8);
+  border-top: 1px solid var(--edge, #E8E4DE);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: #9B8E7E;
+  font-weight: 500;
+}
+.preview-slide-footer .concept-node-label { font-size: 0.8rem; color: #9B8E7E; font-weight: 500; }
+
+/* 2) Fixed height for view-only slides (preserved) */
+.fixed-height { height: 24rem; /* 384px */ }
+
+/* 3) Edit mode content area (preserved)
+   ------------------------------------- */
 .slide-content {
-  flex: 1;                     /* fill the vertical area */
-  overflow-y: auto;            /* scroll when content overflows */
+  flex: 1;
+  overflow-y: auto;
   position: relative;
-  color: #333;
+  color: var(--ink, #2C3E50);
   font-size: 14px;
   line-height: 1.6;
-  scrollbar-width: thin;                                      /* Firefox: always thin */
-  scrollbar-color: rgba(102, 126, 234, 0.2) transparent;      /* Firefox: custom thumb & transparent track */
+  scrollbar-width: thin;
+  scrollbar-color: var(--edge-2, #D4C4B0) transparent;
 }
+/* Default padding in edit mode */
+.slide-content:not(.cuecard-content) { padding: 24px; }
+.slide-content.cuecard-content { padding: 0; }
 
-/* 4a) Default padding for all non‐cuecard slides */
-.slide-content:not(.cuecard-content) {
-  padding: 24px;
-}
+/* WebKit/Blink scrollbars for edit mode */
+.slide-content::-webkit-scrollbar { width: 4px; background: transparent; }
+.slide-content::-webkit-scrollbar-track { background: transparent; }
+.slide-content::-webkit-scrollbar-thumb { background-color: var(--edge-2, #D4C4B0); border-radius: 2px; }
+.slide-content::-webkit-scrollbar-thumb:hover { background-color: var(--brand-green, #5B8C5A); }
 
-/* 4b) No padding for cuecard, to allow true centering */
-.slide-content.cuecard-content {
-  padding: 0;
-}
-
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* 5) CUSTOM SCROLLBAR FOR .slide-content (WebKit / Blink)                       */
-/*    The use of `!important` ensures that even on hover or focus the browser   */
-/*    never “reverts” to a native scrollbar.                                     */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
-.slide-content::-webkit-scrollbar {
-  width: 4px !important;                   /* always 4px, never bigger */
-  background: transparent !important;      /* no visible track */
-}
-
-.slide-content::-webkit-scrollbar-track {
-  background: transparent !important;      /* keep track invisible */
-}
-
-.slide-content::-webkit-scrollbar-thumb {
-  background-color: rgba(102, 126, 234, 0.2) !important; /* custom periwinkle at 20% */
-  border-radius: 2px !important;
-}
-
-.slide-content::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(102, 126, 234, 0.3) !important; /* slightly darker on hover */
-}
-
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* 6) TOP‐RIGHT ACTIONS (ResourceMenu, Full‐Screen, Dismiss)                    */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
-.actions-wrapper {
-  position: absolute;
-  top: 24px;
-  right: 24px;
-  display: flex;
-  gap: 8px;
-  z-index: 20;
-}
-
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* 7) ICON BUTTONS (⋯, ⤢, ✕)                                                      */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
-.action-btn {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  border: none;
-  background: #f5f5f5;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  color: #666;
-  transition: all 0.2s ease;
-}
-
-.action-btn:hover {
-  background: #e9ecef;
-  color: #333;
-}
-
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* 8) SLIDE‐CONTENT ELEMENTS (HEADINGS, PARAGRAPHS, LISTS, ETC.)                 */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
-.slide-content p {
-  margin-bottom: 12px;
-}
-
+/* Basic content typography (edit mode) */
+.slide-content p { margin-bottom: 12px; }
 .slide-content h3 {
-  color: #667eea;
+  color: var(--brand-blue, #6C8EBF);
   font-size: 16px;
   margin: 16px 0 8px 0;
 }
+.slide-content ul { margin: 12px 0; padding-left: 16px; }
+.slide-content li { margin-bottom: 6px; }
 
-.slide-content ul {
-  margin: 12px 0;
-  padding-left: 16px;
-}
-
-.slide-content li {
-  margin-bottom: 6px;
-}
-
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* 9) SLIDE FOOTER (BOTTOM LINE + META TEXT)                                     */
-/*    - Larger font & darker color for legibility                                 */
-/*    - No overlay/fade should cover it                                          */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
-.slide-footer {
-  margin-top: 16px;
-  padding-top: 12px;
-  padding-left: 12px;            /* a bit of left padding so text never hugs the edge */
-  border-top: 1px solid #f0f0f0;
-  font-size: 14px;
-  color: #333;
-  text-align: left;
-  background: transparent;
-  z-index: 15;
-}
-
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* 10) VERTICAL & HORIZONTAL CENTERING FOR CUECARD SLIDE                          */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
+/* 4) Cuecard centering helper (preserved) */
 .cuecard-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
 }
 
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* 11) OPTIONAL: “Add Card” BUTTON (If used)                                     */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
-.add-btn {
-  background: rgba(51, 51, 51, 0.8);
-  color: white;
-  border: none;
-  padding: 12px 18px;
-  border-radius: 16px;
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  backdrop-filter: blur(10px);
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.add-btn:hover {
-  background: rgba(51, 51, 51, 0.9);
-  transform: translateY(-1px);
-}
+/* 5) Deprecation shim: hide legacy absolute overlay actions inside ResourceDisplay.
+      These were replaced by inline header actions to match the reference. */
+.resource-display .actions-wrapper { display: none !important; }

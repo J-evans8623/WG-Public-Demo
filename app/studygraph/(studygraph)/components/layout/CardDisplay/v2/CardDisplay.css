@@ -1,203 +1,121 @@
-/* CardDisplay.css
- *
- * 1) OUTER PANEL – percentage‐based width (fallback to 325px), flat gradient
- * 2) OVERRIDES FOR UnifiedHeader – pill‐style “Notes / Chat” tabs
- * 3) (Removed the former .content‐based flex styling, because we’ve gone back to the absolute wrapper)
- * 4) OVERRIDES FOR ActionFooter – pill‐style save/cancel or add‐resource buttons
- *
- * Responsibilities:
- *   - Ensure `.panel` fills 100% height of its parent and uses CSS variable for width.
- *   - Style header tabs as pills.
- *   - The “absolute inset‐0” wrapper is created in JSX, not CSS.
- *   - Keep all existing gradient, shadow, and footer pill styles unchanged.
+/**
+ * @file CardDisplay.css (Updated Section)
+ * @description
+ * This update specifically addresses the layout issues causing blank space next to the action footer.
+ * Add these styles to your existing CardDisplay.css file to fix the structural problems.
  */
 
-/* ========================================================================== */
-/* 1) OUTER PANEL – percentage‐based width (fallback to 325px), flat gradient  */
-/* ========================================================================== */
-
-.panel {
-  /* allow percentage-based resizing; fallback to var when not set */
-  width: var(--card-display-width, 200px);
-  max-width: none;
-  height: 100%;
-
-  /* Keep the same background gradient */
-  background: linear-gradient(
-    180deg,
-    #f8f9ff 0%,
-    #ffffff 15%,
-    #ffffff 85%,
-    #f0f8ff 100%
-  );
-
-  /* Only round the right side corners; keep left side straight */
-  border-radius: 0 12px 12px 0;
-
-  /* Remove the old solid border */
-  /* border-left: 1px solid var(--divider-color); */
-
-  /* Clip any overflow like before */
-  overflow: hidden;
-
-  /* Make this a vertical flex container so we can anchor header, absolute content, footer */
+/* Step 1: Fix the card-body container to properly handle content and footer */
+.card-body {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  position: relative;
+  overflow: hidden; /* Prevent overflow at this level */
 }
 
-/* -------------------------------------------------------------------------- */
-/* Add a decorative “divider shadow” on the left edge via a pseudo-element     */
-/* -------------------------------------------------------------------------- */
+/* Step 2: Ensure proper spacing when footer is present */
+.card-body.has-footer {
+  /* Account for footer height without creating gaps */
+  padding-bottom: 56px; /* Match footer height exactly */
+}
 
-.panel::before {
-  content: '';
+/* Step 3: Fix the action footer positioning to eliminate gaps */
+.action-footer {
+  --action-footer-height: 56px;
   position: absolute;
-  top: 0;
   left: 0;
+  right: 0;
   bottom: 0;
-  width: 2px;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.06) 20%,
-    rgba(0, 0, 0, 0.06) 80%,
-    rgba(0, 0, 0, 0) 100%
-  );
-  box-shadow: 1px 0 3px rgba(0, 0, 0, 0.03);
-  pointer-events: none;
-}
-
-/* ========================================================================== */
-/* 2) OVERRIDES FOR UnifiedHeader – PILL‐STYLE “Notes / Chat” TABS             */
-/* ========================================================================== */
-
-/* The header sits on top of the gradient, so leave transparency */
-.panel > header {
-  background: transparent;
-  padding: 16px 20px 12px 20px;
-  position: relative;
-  z-index: 10;
-}
-
-/* Hide the internal bottom divider line that UnifiedHeader places */
-.panel > header > .absolute.bottom-0 {
-  display: none !important;
-}
-
-/* Make the TabsList use custom spacing */
-.panel > header .tabs-list {
+  height: var(--action-footer-height);
   display: flex;
-  gap: 12px;
-  background: transparent !important;
-}
-
-/* Style each TabsTrigger as a pill */
-.panel > header .tabs-trigger {
-  padding: 6px 14px !important;
-  border-radius: 12px !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  background: transparent !important;
-  color: #666 !important;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-.panel > header .tabs-trigger:hover {
-  background: rgba(102, 126, 234, 0.05) !important;
-}
-.panel > header .tabs-trigger[data-state='active'] {
-  background: rgba(102, 126, 234, 0.1) !important;
-  color: #667eea !important;
-}
-
-/* ========================================================================== */
-/* 3) REMOVED “.content” FLEX STYLING – we now use absolute/inset‐0 instead    */
-/* ========================================================================== */
-
-/* (No content‐specific CSS needed here because the absolute wrapper is done in JSX) */
-
-/* ========================================================================== */
-/* 4) OVERRIDES FOR ActionFooter – place “+ Add card” or Save/Cancel at bottom */
-/* ========================================================================== */
-
-/* Make the footer transparent and align items at the start (left) */
-.panel > footer {
-  background: transparent !important;
-  border: none !important;
-  padding: 12px 20px 16px 20px !important;
-  display: flex;
-  justify-content: flex-start;    /* bottom-left, not centered */
   align-items: center;
-  z-index: 10;
+  justify-content: flex-start;
+  padding: 0.5rem 1rem;
+  background: var(--header-tint, var(--surface, #FFFFFF));
+  border-top: 1px solid var(--edge, #E8E4DE);
+  z-index: 30;
+  
+  /* Prevent any overflow or gaps */
+  overflow: hidden;
+  margin: 0;
+  box-sizing: border-box;
 }
 
-/* STYLE FOR “+ Add card” when not editing (light gray pill) */
-.panel > footer .add-resource-dropdown-button {
-  background: #f0f9ff !important;   /* subtle light background */
-  color: #333 !important;           /* dark text */
-  border: none !important;
-  padding: 10px 16px !important;
-  border-radius: 16px !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-}
-.panel > footer .add-resource-dropdown-button:hover {
-  background: #e0ecff !important;   /* slightly darker on hover */
-}
-
-/* STYLE FOR Save / Cancel when in editing mode */
-/* Make them side-by-side, each taking half the width */
-.panel > footer .flex.justify-end.space-x-2 {
+/* Step 4: Ensure footer doesn't create layout shifts */
+.action-footer.footer-transition {
+  /* Remove any conflicting position properties */
+  top: unset;
+  
+  /* Ensure it stays at the bottom */
+  position: absolute;
+  bottom: 0;
+  
+  /* Full width without gaps */
   width: 100%;
-  gap: 12px !important;
-  justify-content: flex-start !important;  /* left-aligned in edit, too */
+  left: 0;
+  right: 0;
 }
 
-/* “Cancel” ghost button */
-.panel > footer button[variant='ghost'] {
+/* Step 5: Fix flex container that holds the content */
+.panel.panel--md > .flex-1 {
   flex: 1;
-  background: #e9ecef !important;
-  color: #333 !important;
-  border: none !important;
-  padding: 10px 0 !important;
-  border-radius: 12px !important;
-  font-size: 14px !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-}
-.panel > footer button[variant='ghost']:hover {
-  background: #dcdfe2 !important;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  
+  /* Ensure no margin/padding creates gaps */
+  margin: 0;
+  padding: 0;
 }
 
-/* “Save” primary button */
-.panel > footer button:not([variant='ghost']) {
+/* Step 6: Ensure the resource cell doesn't create overflow */
+.resource-cell {
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  
+  /* No margins that could cause gaps */
+  margin: 0;
+}
+
+/* Step 7: Panel should fill its container without gaps */
+.panel.panel--md {
   flex: 1;
-  background: #667eea !important;
-  color: white !important;
-  border: none !important;
-  padding: 10px 0 !important;
-  border-radius: 12px !important;
-  font-size: 14px !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-}
-.panel > footer button:not([variant='ghost']):hover {
-  background: #5a6cd8 !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  
+  /* Ensure full height usage */
+  height: 100%;
+  
+  /* No margins or padding that create gaps */
+  margin: 0;
 }
 
-/* Any dropdown‐menu inside the footer that uses the “bottom-full” class */
-/* should be pure white, with dark text, overriding the inherited blue tint. */
-.panel > footer .bottom-full > button {
-  background-color: #ffffff !important;
-  color: #333333 !important;
+/* Step 8: Fix any button alignment issues in footer */
+.action-footer .edit-actions-container,
+.action-footer .add-resource-container {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
-/* A slightly darker hover for readability */
-.panel > footer .bottom-full > button:hover {
-  background-color: #f9fafb !important;
+/* Step 9: Ensure dropdown button doesn't create extra space */
+.action-footer .inline-block {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  margin: 0;
 }
 
-
+/* Step 10: Override any conflicting button styles */
+.action-footer button[data-role="add-card"],
+.action-footer > * > button {
+  margin: 0;
+  vertical-align: middle;
+}

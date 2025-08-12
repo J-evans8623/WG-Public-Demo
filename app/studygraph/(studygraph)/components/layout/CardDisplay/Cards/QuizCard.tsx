@@ -73,9 +73,6 @@ setSelectedQuestions(sample);
             >
               {label}
             </Badge>
-            <h3 className="mt-3 text-lg font-semibold text-gray-800 text-center">
-              {title}
-            </h3>
           </>
         )}
         <button
