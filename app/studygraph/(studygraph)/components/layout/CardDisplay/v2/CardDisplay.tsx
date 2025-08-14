@@ -93,7 +93,7 @@ const CardDisplay: React.FC<CardDisplayProps> = ({mode, setMode}) => {
   };
 
   return(
-    <div className="panel panel--md">
+    <div className="panel panel--md theme-scope" data-theme="warm-board">
       {/* Header: tokenized rail surface */}
       <UnifiedHeader
         activeTab={mode === 'chat' ? 'chat' : 'notes'}

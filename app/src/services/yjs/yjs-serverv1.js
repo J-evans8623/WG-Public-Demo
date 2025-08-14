@@ -34,6 +34,7 @@ const Y = require('yjs');
 const { setupWSConnection } = require('y-websocket/bin/utils');
 const { createClient } = require('redis');
 const url = require('url');
+const { secureSetupWSConnection, initMetrics } = require('./yws/secureSetupWSConnection');
 
 // ────────────────────────────────────────────────────────────────────────────
 // ENV

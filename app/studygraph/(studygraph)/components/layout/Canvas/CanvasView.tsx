@@ -229,10 +229,10 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
     {/** 3.1: Viewport wrapper (overflow‑hidden) **/}
     <div className="map-cell flex-1 relative overflow-hidden">
       {activeView === 'conceptMap' && (
-        <div className="view-panel map-panel">
+        
           <div className={colorTheme}>
             <MapRenderer />
-          </div>
+          
         </div>
       )}
       {activeView === 'pdf' && (

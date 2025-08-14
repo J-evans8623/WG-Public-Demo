@@ -35,7 +35,7 @@ import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { QuizType, IQuizQuestion } from '@/app/Library/Definitions/Definitions';
 import type { ResourceFormInput } from '../types/resourceForm';
-import './resourceDisplay.css';
+import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/resourceDisplay.css';
 
 export type ResourceType = 'cuecard' | 'note' | 'image' | 'quiz';
 

@@ -135,7 +135,7 @@ export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children 
       openCustom,
       resetToSelection,
     }),
-    [slides, isOpen, currentIndex, currentSlide]
+    [slides, isOpen, currentIndex, currentSlide, open, close, gotoNext]
   );
 
   return (

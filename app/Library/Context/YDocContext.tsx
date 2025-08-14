@@ -37,9 +37,9 @@ import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 import JSZip from 'jszip';
 import { useCollabProvider } from '@/app/studygraph/collab/useCollabProvider';
-import { getUploadUrl, getDownloadUrl } from '@/app/studygraph/(studygraph)/components/utils/storageUrls';
+import { getUploadUrl, getDownloadUrl, initialUpload } from '@/app/studygraph/(studygraph)/components/utils/storageUrls';
 import { takeMapSnapshot as _takeMapSnapshot } from '@/app/studygraph/(studygraph)/components/versionHistory/versionHistory';
-
+import { useAccessLayer } from '@/app/Library/Context/AccessLayerContext';
 
 interface ChatMessage {
   id: number;
@@ -65,7 +65,6 @@ export interface YDocContextType {
   ) => Promise<void>;
   applyUpdate: (update: Uint8Array) => void;
   getState: () => Uint8Array;
-  /*forkDoc: () => Promise<string>;*/
   updateFileName: (name: string) => void;
   persistDoc: () => Uint8Array;
   getLessonModuleJSON: () => string;
@@ -75,6 +74,8 @@ export interface YDocContextType {
   getVisibility: () => 'private' | 'public';
   updateVisibility: (v: 'private' | 'public') => void;
   takeMapSnapshot: (mapId: string) => Promise<string>
+   getPersistableBytes: () => Promise<Uint8Array> | Uint8Array; // NEW (Phase 5)
+  isSnapshotActive: () => boolean;   
 }
 
 const YDocContext = createContext<YDocContextType | undefined>(undefined);
@@ -91,6 +92,8 @@ interface YDocProviderProps {
   children: ReactNode;
 }
 
+
+
 export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   // Initialize state for Y.Doc, fileName, driveFileId (Firebase path), internal docFileID, and initialization flag.
   const [ydoc, setYDoc] = useState<Y.Doc>(() => new Y.Doc()); // live Y doc
@@ -106,16 +109,10 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   const v = ydoc.getMap('metadata').get('visibility');
   return v === 'public' ? 'public' : 'private';
 });
+  const access = useAccessLayer();
 
-const { status } = useCollabProvider(ydoc, docFileID, visibility);
+  //const { status } = useCollabProvider(ydoc, docFileID, visibility);
 
-    // Notify on connection
-  useEffect(() => {
-    if (status === 'connected') {
-      console.log('111- Ydoc Connected to live collaboration');
-    }
-  }, [status]);
-  
   /**
    * Applies a given Yjs update to the current Y.Doc.
    * @param update - The Yjs update as a Uint8Array.
@@ -267,8 +264,72 @@ const updateVisibility = useCallback((v: 'private' | 'public') => {
       setDocFileID(newDocId);
       setYDoc(newYDoc);
       setSnapshotYDoc(null);
+
+
+      // ── [2] Encode bytes & request initial upload URLs (doc + chat) ─────────────────
+    const stateBytes = Y.encodeStateAsUpdate(newYDoc);
+    const fileSize = stateBytes.byteLength;
+
+    console.log('[YDocContext.tsx][9703] requesting initialUpload URLs', { docId: newDocId, fileSize });
+    const { doc, chat, access: accessEnv } = await initialUpload(newDocId);
+
+    if (accessEnv) {
+      // Reconcile with server-provided envelope (source: 'upload')
+      access.applySignal(accessEnv);
+      console.log('[YDocContext.tsx][9704] applied access envelope from initialUpload', accessEnv);
+    }
+
+    // ── [3] PUT document & initialized chat to Storage ──────────────────────────────
+    // 3a) document bytes
+    const putDoc = await fetch(doc.uploadUrl, {
+      method: 'PUT',
+      body: stateBytes,
+      headers: { 'Content-Type': 'application/octet-stream' },
+    });
+    if (!putDoc.ok) {
+      console.error('[YDocContext.tsx][9791] doc PUT failed', { status: putDoc.status, statusText: putDoc.statusText });
+      throw new Error(`Doc upload failed: ${putDoc.status} ${putDoc.statusText}`);
+    }
+    console.log('[YDocContext.tsx][9705] doc PUT complete', { path: doc.fileStoragePath });
+
+    // 3b) initialized chat (empty array for new docs)
+    const putChat = await fetch(chat.uploadUrl, {
+      method: 'PUT',
+      body: JSON.stringify([]),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!putChat.ok) {
+      console.error('[YDocContext.tsx][9792] chat PUT failed', { status: putChat.status, statusText: putChat.statusText });
+      throw new Error(`Chat upload failed: ${putChat.status} ${putChat.statusText}`);
+    }
+    console.log('[YDocContext.tsx][9706] chat PUT complete', { path: chat.fileStoragePath });
+
+    // ── [4] Sync Firestore metadata via /api/document/save ──────────────────────────
+    const saveResp = await fetch('/api/document/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        fileName: 'Untitled Document',
+        docFileID: newDocId,
+        fileStoragePath: doc.fileStoragePath,
+        chatPath: chat.fileStoragePath,
+        fileSize,
+      }),
+    });
+    if (!saveResp.ok) {
+      console.error('[YDocContext.tsx][9793] metadata sync failed', { status: saveResp.status, statusText: saveResp.statusText });
+      throw new Error(`Metadata sync failed: ${saveResp.status} ${saveResp.statusText}`);
+    }
+    console.log('[YDocContext.tsx][9707] metadata sync complete via save.ts', { docId: newDocId });
+
+
+
       setIsInitialized(true);
       toast.success('New document created');
+      access.selectDoc(newDocId, { assumeOwner: true });
+console.log('[YDocContext.tsx][9601] selectDoc (assumeOwner) seeded', { docId: newDocId });
+      
 
       return newDocId
     } catch (error) {
@@ -276,7 +337,7 @@ const updateVisibility = useCallback((v: 'private' | 'public') => {
       toast.error('Failed to create new document');
       throw error;
     }
-  }, []);
+  }, [access]);
 
   /**
    * Loads a Y.Doc state (provided as a Uint8Array) into a new Y.Doc instance.
@@ -390,13 +451,12 @@ const updateVisibility = useCallback((v: 'private' | 'public') => {
       // -- upload doc state --
       const state = persistDoc();
       const fileSize = state.byteLength;
-      const base64 = Buffer.from(state).toString('base64');
       const { uploadUrl: docUrl, fileStoragePath: docPath } = await getUploadUrl(docFileID, 'doc');
 
 
       await fetch(docUrl, {
         method: 'PUT',
-        body: new Uint8Array(Buffer.from(base64, 'base64')),
+        body: state,
         headers: { 'Content-Type': 'application/octet-stream' },
       });
       console.log('YDocContext.tsx 0107 › doc PUT complete', docPath);
@@ -441,10 +501,12 @@ const updateVisibility = useCallback((v: 'private' | 'public') => {
 const loadFromFirebase = useCallback(
   async (fileStorageId: string): Promise<ChatMessage[]> => {
     console.log(`[loadFromFirebase] START: fileStorageId=${fileStorageId}`);
+    const idFromPath =
+  fileStorageId.match(/^documents\/(.+)\.bloomdocx$/)?.[1] ?? fileStorageId;
 
     // 1. Get doc download URL
     console.log(`[loadFromFirebase] ▶️ Requesting doc URL for ${fileStorageId}`);
-    const { downloadUrl: dUrl } = await getDownloadUrl(fileStorageId, 'doc');
+    const { downloadUrl: dUrl } = await getDownloadUrl(idFromPath, 'doc');
     console.log(`[loadFromFirebase] ✔️ Received doc URL: ${dUrl}`);
 
     try {
@@ -458,7 +520,7 @@ const loadFromFirebase = useCallback(
 
       // 3. Get chat download URL
       console.log(`[loadFromFirebase] ▶️ Requesting chat URL for ${fileStorageId}`);
-      const { downloadUrl: cUrl } = await getDownloadUrl(fileStorageId, 'chat');
+      const { downloadUrl: cUrl } = await getDownloadUrl(idFromPath, 'chat');
       console.log(`[loadFromFirebase] ✔️ Received chat URL: ${cUrl}`);
 
       // 4. Attempt to fetch the chat JSON, swallow 404 (no credentials)
@@ -517,6 +579,29 @@ const loadFromFirebase = useCallback(
     },
     [ydoc, docFileID]
   );
+
+
+    /**
+   * @function getPersistableBytes
+   * @description
+   *   Returns the current Y.Doc bytes in the exact format the server persists.
+   *   This is used by DocAutoSave to PUT the document to Storage through a
+   *   signed URL. The function is intentionally synchronous-friendly.
+   */
+  const getPersistableBytes = useCallback((): Uint8Array => {
+    return persistDoc();
+  }, [persistDoc]);
+
+  /**
+   * @function isSnapshotActive
+   * @description
+   *   Indicates whether a read-only snapshot (from version history) is mounted.
+   *   DocAutoSave uses this to avoid producing writes while a snapshot is active.
+   */
+  const isSnapshotActive = useCallback((): boolean => {
+    return snapshotYDoc !== null;
+  }, [snapshotYDoc]);
+
 
  /* 
  // Needs to be reviewed, fundamental flaw, changing the docId doesn't not "truly"
@@ -594,8 +679,10 @@ to the same file, if any number of these person decide to make the document publ
     //forkDoc,
     getVisibility,
     updateVisibility,
-     takeMapSnapshot: takeMapSnapshotCallback
-  }), [ydoc, snapshotYDoc, isReadOnly, fileName, docFileID, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, loadData, persistDoc, getLessonModuleJSON, getFileName, saveToFirebase, loadFromFirebase, getVisibility, updateVisibility, takeMapSnapshotCallback]);
+     takeMapSnapshot: takeMapSnapshotCallback,
+     getPersistableBytes,         // NEW
+    isSnapshotActive, 
+  }), [ydoc, snapshotYDoc, isReadOnly, fileName, docFileID, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, loadData, persistDoc, getLessonModuleJSON, getFileName, saveToFirebase, loadFromFirebase, getVisibility, updateVisibility, takeMapSnapshotCallback, getPersistableBytes, isSnapshotActive]);
 
   return (
     <YDocContext.Provider value={value}>

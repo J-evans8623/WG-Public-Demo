@@ -1,0 +1,187 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Crimson+Text:wght@400;600&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+.sharemodal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', sans-serif;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(44, 62, 80, 0.5);
+  padding: 40px;
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #E8E8E8;
+  position: relative;
+  background: #fff;
+}
+
+.modal-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #2C3E50;
+  margin: 0;
+}
+
+.close-btn {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #8795A1;
+  font-size: 20px;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+  line-height: 1;
+}
+.close-btn:hover { background: #F5F5F5; color: #2C3E50; }
+
+.modal-body { padding: 24px; background: #FAFBFC; }
+
+.section { margin-bottom: 24px; }
+.section:last-child { margin-bottom: 0; }
+
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8795A1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+/* Link Input */
+.link-input-container { display: flex; gap: 8px; margin-bottom: 16px; }
+.link-input {
+  flex: 1; padding: 10px 12px; border: 1px solid #D4C4B0; border-radius: 6px;
+  font-size: 13px; color: #2C3E50; background: #fff; font-family: 'Inter', sans-serif;
+}
+.link-input:focus {
+  outline: none; border-color: #6C8EBF; box-shadow: 0 0 0 3px rgba(108,142,191,0.1);
+}
+
+/* Buttons */
+.action-buttons { display: flex; gap: 8px; }
+.btn {
+  flex: 1; padding: 10px 16px; border-radius: 6px; font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-copy { background: #5B8C5A; color: #fff; border: none; }
+.btn-copy:hover { background: #4A7349; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(91,140,90,0.2); }
+.btn-copy.copied { background: #4A7349; }
+
+.btn-qr { background: #fff; color: #2C3E50; border: 1px solid #D4C4B0; }
+.btn-qr:hover {
+  background: #FAF8F5; border-color: #6C8EBF; transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* Select */
+.access-select {
+  width: 100%; padding: 10px 12px; padding-right: 36px; border: 1px solid #D4C4B0; border-radius: 6px;
+  background: #fff; color: #2C3E50; font-size: 14px; font-family: 'Inter', sans-serif; cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%238795A1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; transition: all 0.2s;
+}
+.access-select:focus {
+  outline: none; border-color: #6C8EBF; box-shadow: 0 0 0 3px rgba(108,142,191,0.1);
+}
+.access-select:hover { border-color: #6C8EBF; }
+
+/* Editors area */
+.email-input-section {
+  margin-top: 12px; padding: 12px; background: #fff; border: 1px solid #E8E8E8; border-radius: 6px;
+  display: none; animation: slideDown 0.3s ease-out;
+}
+.email-input-section.visible { display: block; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.email-input-label { font-size: 12px; font-weight: 500; color: #2C3E50; margin-bottom: 8px; }
+.email-textarea {
+  width: 100%; min-height: 60px; padding: 8px 10px; border: 1px solid #D4C4B0; border-radius: 4px;
+  font-size: 13px; font-family: 'Inter', sans-serif; resize: vertical; background: #FAFBFC;
+}
+.email-textarea:focus {
+  outline: none; border-color: #6C8EBF; background: #fff; box-shadow: 0 0 0 3px rgba(108,142,191,0.1);
+}
+.email-helper { font-size: 11px; color: #8795A1; margin-top: 6px; }
+
+.email-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.email-tag {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px;
+  background: #F0F4F8; border: 1px solid #D4C4B0; border-radius: 4px; font-size: 12px; color: #2C3E50;
+}
+.email-tag .remove { cursor: pointer; color: #8795A1; font-size: 14px; line-height: 1; transition: color 0.2s; }
+.email-tag .remove:hover { color: #E74C3C; }
+
+/* Accumulated */
+.accumulated-emails {
+  margin-top: 12px; padding: 10px 12px; background: #F8FBF8; border: 1px solid #D4C4B0; border-radius: 6px;
+  min-height: 36px; display: none;
+}
+.accumulated-emails.has-emails { display: block; }
+.accumulated-emails-label {
+  font-size: 11px; font-weight: 600; color: #8795A1; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.accumulated-emails-list { font-size: 13px; color: #2C3E50; line-height: 1.5; word-break: break-word; }
+.accumulated-emails-list.empty { color: #8795A1; font-style: italic; }
+
+/* Footer */
+.modal-footer {
+  padding: 16px 24px; background: #fff; border-top: 1px solid #E8E8E8; display: flex; justify-content: flex-end; gap: 12px;
+}
+.btn-footer {
+  padding: 8px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+}
+.btn-cancel { background: #fff; color: #2C3E50; border: 1px solid #D4C4B0; }
+.btn-cancel:hover { background: #F5F5F5; border-color: #8795A1; }
+.btn-apply { background: #5B8C5A; color: #fff; border: none; }
+.btn-apply:hover { background: #4A7349; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(91, 140, 90, 0.2); }
+
+.icon { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; }
+
+@media (max-width: 480px) {
+  .modal { margin: 0 10px; }
+  .action-buttons { flex-direction: column; }
+  .btn { width: 100%; }
+}

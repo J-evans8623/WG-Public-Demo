@@ -1,0 +1,81 @@
+# Dockerfile.yjs-v2
+# -----------------------------------------------------------------------------
+# Builds a lean v2 Yjs server image:
+# - Compiles TS helper from /app/src → /app/yws (separate outDir)
+# - Adds ambient .d.ts for lib0/decoding and y-websocket/bin/utils
+# - Bakes jwt_2025.pub
+# - Non-root runtime, healthcheck on /healthz
+
+########################
+# 1) Builder (compile) #
+########################
+FROM node:18-alpine AS builder
+WORKDIR /app
+
+# Copy dependency manifests and install runtime deps (needed for module resolution)
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Install TS toolchain for build only
+RUN npm install --no-save typescript @types/node
+
+# ---- Source layout for build ----
+RUN mkdir -p src/yws src/types
+# Your TS source -> under src
+COPY secureSetupWSConnection.ts ./src/yws/secureSetupWSConnection.ts
+
+# Minimal ambient typings for modules without .d.ts
+# These cover exactly what secureSetupWSConnection.ts uses.
+RUN printf "declare module 'lib0/decoding' {\n\
+  export type Decoder = { pos: number };\n\
+  export function createDecoder(buf: Uint8Array): Decoder;\n\
+  export function readVarUint(dec: Decoder): number;\n\
+  export function readVarUint8Array(dec: Decoder): Uint8Array;\n\
+}\n\
+declare module 'y-websocket/bin/utils' {\n\
+  export const setupWSConnection: (conn: any, req: any, opts: any) => void;\n\
+}\n" > src/types/ambient.d.ts
+
+# Generate a minimal tsconfig: include src/**, emit JS to /app/yws
+RUN node -e "require('fs').writeFileSync('tsconfig.json', JSON.stringify({\
+  compilerOptions:{\
+    target:'ES2019', module:'commonjs', outDir:'yws', esModuleInterop:true,\
+    strict:false, skipLibCheck:true, moduleResolution:'node', lib:['ES2019']\
+  },\
+  include:['src/**/*.ts']\
+}, null, 2))"
+
+# Compile TS -> JS (outputs into /app/yws)
+RUN npx tsc
+
+######################
+# 2) Runtime (lean)  #
+######################
+FROM node:18-alpine
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=1234
+ENV JWT_PUBLIC_PATH=/app/keys/jwt_2025.pub
+
+# Copy runtime deps and install production packages
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Bring in compiled helper and the server entry
+COPY --from=builder /app/yws /app/yws
+COPY yjs-serverv2.js ./yjs-serverv2.js
+
+# Bake the public key (can still be overridden by volume + JWT_PUBLIC_PATH)
+COPY keys/jwt_2025.pub /app/keys/jwt_2025.pub
+
+# Run as non-root
+RUN addgroup -g 1001 -S nodejs && adduser -S yjs -u 1001 && chown -R yjs:nodejs /app
+USER yjs
+
+EXPOSE 1234
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget -qO- http://localhost:1234/healthz || exit 1
+
+CMD ["node", "/app/yjs-serverv2.js"]

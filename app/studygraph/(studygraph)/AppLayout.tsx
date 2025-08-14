@@ -61,12 +61,27 @@ import SearchModal from './components/layout/SearchModal';
 import 'katex/dist/katex.min.css'
 import '@/app/studygraph/styles/tokens.css'
 import '@/app/studygraph/styles/brand/theme-scopes.css'      // NEW – attribute↔class bridge
-import '@/app/studygraph/styles/theme-warm-board.css'
 import '@/app/studygraph/styles/brand/brand-utilities.css'   // NEW – tokenized btn primitives
+import '@/app/studygraph/styles/theme-warm-board.css'
 import '@/app/studygraph/(studygraph)/canvas/Map/NodeGraphOriginal.css'
 
+import { AccessLayerProvider, useAccessLayer } from '@/app/Library/Context/AccessLayerContext'; // NEW
+import { Role } from './types/access';
+import { useCanvasController } from './components/hooks/access/useCanvasController';
+import { RefreshModal } from './components/access/RefreshModal';
+import ROCanvasView from './components/layout/Canvas/ReadOnly/CanvasView';
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+
+type PickerArg =
+  | string
+  | {
+      docId: string;
+      fileStorageId?: string;
+      fileName?: string;
+      role?: Role;
+      updatedAt?: string; // prefer ISO; AccessLayer uses Date.parse
+    };
 
 /**
  * @function AppLayoutContent
@@ -105,6 +120,7 @@ const AppLayoutContent: React.FC = () => {
   const { messages, setMessages, clearMessages, addMessage, chatDirty, resetDirty } = useChatHistory();
   const { clearHistory } = useUndoRedo();  
   const {clearSelection} = useNodeSelection();
+  const access = useAccessLayer();
   
 
    // Reset function from ViewSwitchContext:
@@ -120,6 +136,22 @@ const AppLayoutContent: React.FC = () => {
 
   // Lesson module mapping hook.
   useLessonModuleMapper();
+
+  const { canEdit, showRefreshModal, refreshModalProps } = useCanvasController({
+    autosaveStatus: saveStatus,
+    onPauseAutosave: () => {
+      if (autoSaveManagerRef.current) {
+        autoSaveManagerRef.current.destroy();
+        autoSaveManagerRef.current = null;
+      }
+    },
+    onResumeAutosave: () => {
+      // Autosave will be recreated by the existing useEffect
+    },
+    onReconnectCollab: () => {
+      // Add your reconnect logic here if needed
+    },
+  });
 
     // ── Share‐link landing: read ?doc & ?shareMode once, load, switch to map, clean URL ──
   useEffect(() => {
@@ -215,14 +247,35 @@ const shareMode = (searchParams?.get('shareMode') as 'copy' | 'collab') ?? null;
    *
    * @param {string} fileStorageId - The Firebase Storage identifier for the file.
    */
-  const handleFileSelect = async (fileStorageId: string) => {
+  const handleFileSelect = async (arg: PickerArg) => {
+
+    const meta =
+      typeof arg === 'string'
+        ? { docId: arg, fileStorageId: arg, fileName: 'Document', role: undefined, updatedAt: new Date().toISOString() }
+        : arg;
+        console.log('AppLayout.tsx 8201 › handleFileSelect start', meta);
+
     try {
       clearHistory(); 
       clearSelection();
       resetPdfState();
+
+      access.selectDoc(meta.docId, meta.role ? { role: meta.role } : undefined);
+      if (meta.role) {
+        access.applySignal({
+          docId: meta.docId,
+          role: meta.role,
+          signal: meta.role === 'Viewer' ? null : 'GRANT_EDIT',
+          source: 'bootstrap',
+          at: meta.updatedAt ?? new Date().toISOString(),
+        });
+      }
+      console.log('AppLayout.tsx 8202 › access seeded (doc + role)', { docId: meta.docId, role: meta.role });
+
+
       // Load the document state from Firebase Storage using loadFromFirebase.
-      const chatData = await loadFromFirebase(fileStorageId);
-      LoadUserData(fileStorageId)
+      const chatData = await loadFromFirebase(meta.fileStorageId!);
+      LoadUserData(meta.docId)
       clearMessages();
       if (chatData.length) {
         chatData.forEach(m => addMessage(m));
@@ -375,7 +428,13 @@ const shareMode = (searchParams?.get('shareMode') as 'copy' | 'collab') ?? null;
                 <ROcanvasViewer/>
                 <ROcardDisplay/>
               </> ) : (<>
-                <CanvasView isResourcePanelVisible autosaveStatus={saveStatus} />
+
+              <CanvasView autosaveStatus={saveStatus} />
+                 {/*canEdit ? (
+                  <CanvasView autosaveStatus={saveStatus} />
+                ) : (
+                  <ROCanvasView />
+                ) */}
                 
               </>) }
         </div>
@@ -386,6 +445,12 @@ const shareMode = (searchParams?.get('shareMode') as 'copy' | 'collab') ?? null;
           <UserInfoPanel onClose={() => setCurrentView('map')} />
         </div>
       )}
+
+      <RefreshModal
+        isOpen={showRefreshModal}
+        onDismiss={refreshModalProps.onDismiss}
+        onRefresh={refreshModalProps.onRefresh}
+      />
     </div>
   );
 };
@@ -402,6 +467,7 @@ export const AppLayout: React.FC = () => {
   return (
     <GoogleOAuthProvider clientId={clientId}>
       <ApiProvider>
+        <AccessLayerProvider>
         <YDocProvider>
           <ViewSwitchProvider>
             <LessonModuleProvider>
@@ -445,6 +511,7 @@ export const AppLayout: React.FC = () => {
             </LessonModuleProvider>
           </ViewSwitchProvider>
         </YDocProvider>
+        </AccessLayerProvider>
       </ApiProvider>
     </GoogleOAuthProvider>
   );

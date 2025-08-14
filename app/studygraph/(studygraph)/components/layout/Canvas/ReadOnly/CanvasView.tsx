@@ -2,7 +2,7 @@
  * @file ROCanvasView.tsx
  * @description
  * Read-Only Canvas View (ROCanvasView) composes the read-only concept-map workspace with the read-only
- * resource pane into a single screen that mirrors the interactive Canvas View’s DOM structure, class
+ * resource pane into a single screen that mirrors the interactive Canvas View's DOM structure, class
  * names, and CSS hooks. This file intentionally reuses the shared header (CanvasHeader), grid layout
  * (.canvas-panels), and panel classes (.map-column, .map-cell, .view-panel, .map-panel, .resource-cell)
  * so that spacing, borders, and theme tokens remain pixel-aligned with the original. All mutating
@@ -10,7 +10,7 @@
  * BottomToolbar and slideshow viewing via unit-order—remain available. To support future debugging,
  * purposeful console logs (tagged with file name + unique 4-digit codes) cover mount and primary user
  * intents (zoom, slideshow). This implementation also corrects a prior Rules-of-Hooks violation by
- * lifting `usePreorderTraversal()` to the component’s top level and eliminating unnecessary type casts.
+ * lifting `usePreorderTraversal()` to the component's top level and eliminating unnecessary type casts.
  *
  * Responsibilities:
  *   1) Render the header visually identical to Canvas View while preventing inline title edits.
@@ -20,7 +20,7 @@
  *   5) Emit focused logs for mount and major user actions to aid observability.
  */
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import MapRenderer from '../MapRenderer';
 import BottomToolbar from '../toolbar/BottomToolbar';
@@ -37,8 +37,12 @@ import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { useLessonUnitOrder } from '../../../hooks/useLessonUnitOrder';
 import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import { useComments } from '@/app/Library/Context/CommentContext';
+import { useSelectionAttachment } from '@/app/Library/Context/SelectionAttachmentContext';
+import { useSearchContext } from '@/app/Library/Context/SearchContext';
 
-import './CanvasView.css';
+import '@/app/studygraph/canvasLayout/canvas.css';
+
+type Mode = 'note' | 'edit' | 'chat';
 
 /**
  * @function ROCanvasView
@@ -62,18 +66,34 @@ const ROCanvasView: React.FC = () => {
   const { openForum } = useComments();
 
   // 2) Pre-compute traversal at top level (Rules of Hooks compliant)
-  //    NOTE: Even if not used by header today, keeping top-level traversal available is cheap and safe.
-  const preorder = usePreorderTraversal(); // string[]
+  const preorder = usePreorderTraversal();
 
   // For parity we keep a concept-map-only view in read-only mode
   const activeView: 'conceptMap' = 'conceptMap';
 
-  // 3) Mount log
+  // 3) CardDisplay mode state (matching CanvasView)
+  const [CardDisplaymode, setCardDisplayMode] = useState<Mode>('note');
+  
+  // 4) Handle attachment context for CardDisplay
+  const { isAskOpen, isExploreOpen, isQuizOpen } = useSelectionAttachment();
+  const { selectedResultIds } = useSearchContext();
+
+  // Auto-switch CardDisplay mode based on context (matching CanvasView behavior)
+  useEffect(() => {
+    if (isAskOpen) setCardDisplayMode('chat');
+    else if (isExploreOpen || isQuizOpen) setCardDisplayMode('note');
+  }, [isAskOpen, isExploreOpen, isQuizOpen]);
+
+  useEffect(() => {
+    if (selectedResultIds.length > 0) setCardDisplayMode('note');
+  }, [selectedResultIds]);
+
+  // 5) Mount log
   useEffect(() => {
     console.log('[ROCanvasView.tsx][5201] mounted: read-only canvas view initialized');
   }, []);
 
-  // 4) Header handlers (read-only safe)
+  // 6) Header handlers (read-only safe)
   const handleMenuToggle = useCallback(() => {
     console.log('[ROCanvasView.tsx][5202] header menu toggle requested (no-op in read-only)');
   }, []);
@@ -105,30 +125,7 @@ const ROCanvasView: React.FC = () => {
     console.log('[ROCanvasView.tsx][5208] calendar button pressed (no-op placeholder in read-only)');
   }, []);
 
-  // 5) Optional viewer helper: build cue-card slideshow from traversal (non-mutating)
-  const openTraversalCueCards = useCallback(() => {
-    console.log('[ROCanvasView.tsx][5209] building flashcard slideshow from preorder traversal; nodes:', preorder.length);
-    const reviewInfo = getReviewNode();
-    const reviewId = reviewInfo.exist ? reviewInfo.id : null;
-
-    // Step 1: Compose final order (append review node last if present)
-    const mainOrder = preorder.filter((id) => id !== reviewId);
-    const ordered = reviewId ? [...mainOrder, reviewId] : mainOrder;
-
-    // Step 2: Collect cue-card slides in display order
-    const cueSlides: any[] = [];
-    ordered.forEach((nodeId) => {
-      const title = getNodeTitle(nodeId) || 'Untitled';
-      selectCueCards(nodeId).forEach((raw) =>
-        cueSlides.push({ ...raw, conceptNodeTitle: title })
-      );
-    });
-
-    console.log('[ROCanvasView.tsx][5210] opening traversal slideshow; slideCount:', cueSlides.length);
-    openCustom(cueSlides);
-  }, [preorder, getReviewNode, getNodeTitle, selectCueCards, openCustom]);
-
-  // 6) Zoom handlers (read-only)
+  // 7) Zoom handlers (read-only)
   const handleZoomIn = useCallback(() => {
     console.log('[ROCanvasView.tsx][5211] zoom in requested; preZoom:', zoomLevel);
     zoomDispatch({ type: ZoomActionType.ZOOM_IN });
@@ -139,10 +136,19 @@ const ROCanvasView: React.FC = () => {
     zoomDispatch({ type: ZoomActionType.ZOOM_OUT });
   }, [zoomDispatch, zoomLevel]);
 
-  // 7) Render
+  // 8) CardDisplay tab change handlers (matching CanvasView)
+  const handleCardDisplayTabChange = (mode: Mode) => {
+    setCardDisplayMode(mode);
+  };
+
+  const handleCardDisplayTabChangeChat = () => {
+    setCardDisplayMode('chat');
+  };
+
+  // 9) Render - Match CanvasView structure exactly
   return (
     <div
-      className={`flex-1 flex flex-col map-canvas map-border rounded-md relative ${colorTheme} ro-canvas-view`}
+      className={`flex-1 flex flex-col map-canvas map-border rounded-md relative ${colorTheme}`}
       data-testid="ro-canvas-viewer"
     >
       {/* Step A: Header identical to interactive view, but editing disabled by scoped CSS below */}
@@ -158,7 +164,7 @@ const ROCanvasView: React.FC = () => {
         onOpenCalendar={handleOpenCalendar}
       />
 
-      {/* Step B: Two-column layout matching CanvasView */}
+      {/* Step B: Two-column layout matching CanvasView with canvas-panels class */}
       <div className="canvas-panels flex-1">
         {/* Left column: read-only map viewport */}
         <div className="map-column flex flex-col relative">
@@ -168,6 +174,15 @@ const ROCanvasView: React.FC = () => {
                 <MapRenderer />
               </div>
             </div>
+
+            {/* AI Tutor Chat Button (read-only, but functional for switching to chat) */}
+            <button
+              className="chat-btn absolute bottom-5 right-5 z-10 w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors shadow-lg"
+              onClick={handleCardDisplayTabChangeChat}
+              title="Open AI Tutor Chat"
+            >
+              💬
+            </button>
           </div>
 
           {/* Bottom Toolbar: zoom only */}
@@ -176,12 +191,17 @@ const ROCanvasView: React.FC = () => {
             zoomLevel={zoomLevel}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
+            // Read-only: no undo/redo
+            canUndo={false}
+            canRedo={false}
+            onUndo={() => console.log('[ROCanvasView.tsx][5213] undo disabled in read-only')}
+            onRedo={() => console.log('[ROCanvasView.tsx][5214] redo disabled in read-only')}
           />
         </div>
 
-        {/* Right column: read-only card display */}
+        {/* Right column: CardDisplay (matching CanvasView) */}
         <div className="resource-cell">
-          <ROCardDisplay />
+          <ROCardDisplay/>
         </div>
       </div>
 

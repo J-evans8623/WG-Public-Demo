@@ -1,0 +1,6 @@
+node_modules
+npm-debug.log
+Dockerfile.yjs-v1
+docker-compose.yjs-v1.yml
+yjs-serverv1.js
+**/.DS_Store

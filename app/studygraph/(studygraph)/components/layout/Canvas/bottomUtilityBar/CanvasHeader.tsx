@@ -35,6 +35,7 @@ import {
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import './CanvasHeader.css';
+import ShareAccessModal from '../../../share/ShareAccessModal';
 
 export interface CanvasHeaderProps {
   onMenuToggle: () => void;
@@ -86,6 +87,8 @@ const HeaderMenu: React.FC<{
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   useClickOutside(wrapRef, () => setOpen(false));
+  const [isShareOpen, setShareOpen] = useState(false);
+const shareLink = typeof window !== 'undefined' ? window.location.href : '';
 
   return (
     <div className="ch-nav__item" ref={wrapRef}>

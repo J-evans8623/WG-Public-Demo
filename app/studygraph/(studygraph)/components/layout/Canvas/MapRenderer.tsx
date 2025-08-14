@@ -28,7 +28,6 @@ import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
 import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
 import ConceptNode from './ConceptNode';
 import Subtree from './Subtree';
-import '@/app/studygraph/(studygraph)/components/layout/mapTheme.css';
 import '@/app/studygraph/(studygraph)/components/layout/hiddenScrollbar.css';
 
 
@@ -138,8 +137,7 @@ const MapRenderer: React.FC = () => {
       <div
         style={{
           position: 'relative',
-          margin:   'auto 0',
-          paddingTop: '150px',
+          margin:   '150px auto 0',
           width:    `${mapWidth}px`,
           height:   `${mapHeight}px`,
         }}

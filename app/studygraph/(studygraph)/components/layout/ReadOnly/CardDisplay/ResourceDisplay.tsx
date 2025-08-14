@@ -1,26 +1,23 @@
 /**
- * @file ResourceDisplay.tsx (read only)
+ * @file ROResourceDisplay.tsx (Read Only)
  * @description
- *   Re-usable resource card (read-only in NotesTab, editable in EditTab).
- *   This update adds UI-level validation to prevent empty “Topic,” “Title,” or
- *   “Content/Description” fields when editing. Specifically:
- *     • Introduces three boolean error flags (topicError, titleError, contentError).
- *     • Computes a plain-text `contentString` and an `isFormValid` boolean.
- *     • Implements `handleSaveClick()` to reset errors, validate each field,
- *       set error flags, and only call `onSave()` when the form is valid.
- *     • Renders inline amber-text `<p>` warnings beneath each empty field.
- *     • Exposes `onValidate` callback to notify parent when form validity changes.
- *     • All existing styling and non-validation logic is preserved.
+ *   Read-only version of ResourceDisplay that maintains identical branded styling
+ *   and structure to the main ResourceDisplay component while disabling all mutating
+ *   operations. The component renders resource cards with the same preview slide
+ *   layout, header actions, and footer styling, but replaces edit/delete actions
+ *   with restore functionality for version history context. All visual elements
+ *   including hover states, shadows, and tokenized colors remain consistent with
+ *   the main component to ensure seamless user experience across read-only and
+ *   editable modes.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Maximize2,
   X as CloseIcon,
   RotateCcw,
 } from 'lucide-react';
 import BaseResourceCard from '../../CardDisplay/v2/BaseResourceCard';
-import ResourceMenu from '../../CardDisplay/ResourceMenu';
 import CueCard from '../../CardDisplay/Cards/CueCard';
 import NoteCard from '../../CardDisplay/Cards/NoteCard';
 import ImageCard from '../../CardDisplay/Cards/ImageCard';
@@ -29,13 +26,11 @@ import QuizOverlay from '../../../utils/quiz/QuizOverlay';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import { QuizType, IQuizQuestion, ResourceCard } from '@/app/Library/Definitions/Definitions';
-
-
-import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/resourceDisplay.css';
+import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/resourceDisplay.css'; // Use same CSS as main ResourceDisplay
 
 export type ResourceType = 'cuecard' | 'note' | 'image' | 'quiz';
 
-export interface ResourceDisplayProps {
+export interface ROResourceDisplayProps {
   /* identity */
   id: string;
   nodeId?: string;
@@ -47,12 +42,10 @@ export interface ResourceDisplayProps {
   content: string | object;
   imageUrl?: string;
 
-  /* flags */
-  isEditing: boolean;
-  /** `true` when EditTab is displaying a brand-new draft (enables topic picker) */
-  isNewCard?: boolean;
+  /* read-only flags */
+  isEditing: false; // Always false in read-only mode
 
-  /* callbacks */
+  /* no-op callbacks for interface compatibility */
   onTitleChange: (t: string) => void;
   onContentChange: (c: string) => void;
   onCancel: () => void;
@@ -62,15 +55,9 @@ export interface ResourceDisplayProps {
   onAskAI: () => void;
   onImageCaption: () => void;
   onDismiss?: () => void;
-
-  /** 
-   * Called whenever the validity of the form changes. 
-   * Parent can use this to enable/disable external Save button.
-   */
-  onValidate?: (isValid: boolean) => void;
 }
 
-const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
+const ROResourceDisplay: React.FC<ROResourceDisplayProps> = ({
   /* identity & display */
   id,
   nodeId,
@@ -79,29 +66,23 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   title,
   content,
   imageUrl,
-  isNewCard = false,
-  onDelete,
-  onAskAI,
-  onImageCaption,
+  
+  /* read-only no-op handlers */
   onDismiss,
-
-  /* validation notification */
-  onValidate,
 }) => {
   /* ──────────────────────────────────────────────────────────────────────────── */
-  /* 1) CONTEXT + LOCAL UI STATE                                                  */
+  /* 1) CONTEXT + LOCAL UI STATE (same as main ResourceDisplay)                   */
   /* ──────────────────────────────────────────────────────────────────────────── */
   const { open } = useSlideShow();
-    const { isHistoryOpen, restoreResource } = useVersionHistory();
+  const { isHistoryOpen, restoreResource } = useVersionHistory();
   const [quizOverlayOpen, setQuizOverlayOpen] = useState(false);
   const [cueFlipped, setCueFlipped] = useState(false);
 
-
-
-
-
+  /* ──────────────────────────────────────────────────────────────────────────── */
+  /* 2) HELPER FUNCTIONS (same as main ResourceDisplay)                            */
+  /* ──────────────────────────────────────────────────────────────────────────── */
   
-     // Map this component’s ResourceType to the ResourceCard.type discriminator
+  // Map this component's ResourceType to the ResourceCard.type discriminator
   const mapToCardType = (): ResourceCard['type'] => {
     switch (type) {
       case 'cuecard':
@@ -115,7 +96,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
     }
   };
 
-    const makeRestoreCard = (): ResourceCard => ({
+  const makeRestoreCard = (): ResourceCard => ({
     id,
     nodeId: nodeId!,
     type: mapToCardType(),
@@ -123,8 +104,9 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
     content: typeof content === 'string' ? content : JSON.stringify(content),
     ...(type === 'image' && imageUrl ? { imageUrl } : {}),
   } as ResourceCard);
+
   /* ──────────────────────────────────────────────────────────────────────────── */
-  /* 6) RENDER VIEW BODY (INCLUDES CUECARD CENTERING)                              */
+  /* 3) RENDER VIEW BODY (same as main ResourceDisplay)                           */
   /* ──────────────────────────────────────────────────────────────────────────── */
   const commonViewProps = { ConceptNodeTitle, title };
 
@@ -157,9 +139,8 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
         }
         return (
           <QuizCard
-            {...commonViewProps}
-            content={{ quizType, quizContent: quizData }}
-          />
+          parentQuizId={''} mapId={''} {...commonViewProps}
+          content={{ quizType, quizContent: quizData }}          />
         );
       }
 
@@ -181,79 +162,74 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
     }
   };
 
-
   /* ──────────────────────────────────────────────────────────────────────────── */
-  /* 9) FINAL JSX                                                                 */
-  /*                                                                                 */
-  /*    - “slide” + “resource-display” ALWAYS applied                              */
-  /*    - When view‐only (!isEditing), also apply “fixed-height”                    */
-  /*    - Top‐right icons wrapped in .actions-wrapper                               */
-  /*    - CueCard uses .cuecard-container & .slide-content.cuecard-content for true centering */
-  /*    - NOTE: “Save” is triggered by parent via `onSave`; this component’s internal `handleSaveClick()` will guard validity. */
-  /*                                                                                 */
+  /* 4) FINAL JSX (same structure as main ResourceDisplay but read-only actions)  */
   /* ──────────────────────────────────────────────────────────────────────────── */
   return (
     <>
       <BaseResourceCard
-        className={`slide resource-display ${'fixed-height' }`}
-        tabIndex={ -1}
+        className="resource-display preview-slide fixed-height"
+        tabIndex={-1}
       >
-        {/* ─────────────────────────────── */}
-        {/* Top‐Right Buttons (View‐Only)   */}
-        {/* ─────────────────────────────── */}
-        {(
-          <div className="actions-wrapper">
-          <button
-              className="action-btn"
-              title="Restore resource"
-              onClick={() => {
-                console.log('ResourceDisplay.tsx 7028 › Restore button clicked', id);
-                restoreResource(makeRestoreCard());
-              }}
-            >
-              <RotateCcw className="h-4 w-4" />
-            </button>
+        {/* Header: Same structure as main but with read-only actions */}
+        <div className="preview-slide-header">
+          <div className="preview-slide-title">{title}</div>
+          <div className="preview-slide-actions">
+            {/* Restore button for version history context */}
+            {isHistoryOpen && (
+              <button
+                className="slide-action-btn"
+                title="Restore resource"
+                onClick={() => {
+                  console.log('[ROResourceDisplay.tsx][8001] Restore button clicked:', id);
+                  restoreResource(makeRestoreCard());
+                }}
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
+            )}
+            
+            {/* Fullscreen action (read-only safe) */}
             <button
-              onClick={() =>
-                type === 'quiz' ? setQuizOverlayOpen(true) : open(id)
-              }
-              className="action-btn"
+              onClick={() => {
+                console.log('[ROResourceDisplay.tsx][8002] Fullscreen action clicked (read-only):', { id, type });
+                type === 'quiz' ? setQuizOverlayOpen(true) : open(id);
+              }}
+              className="slide-action-btn"
               title="Full screen"
             >
               <Maximize2 className="h-3 w-3" />
             </button>
+            
+            {/* Dismiss action (if provided) */}
             {onDismiss && (
               <button
-                onClick={onDismiss}
-                className="action-btn"
+                onClick={() => {
+                  console.log('[ROResourceDisplay.tsx][8003] Dismiss action clicked (read-only):', id);
+                  onDismiss();
+                }}
+                className="slide-action-btn"
                 title="Dismiss"
               >
                 <CloseIcon className="h-4 w-4" />
               </button>
             )}
           </div>
-        )}
-
-        {/* ─────────────────────────── */}
-        {/* Main Body (Slide Content)   */}
-        {/* ─────────────────────────── */}
-        <div
-          className={`slide-content ${
-          type === 'cuecard' ? 'cuecard-content' : ''
-          }`}
-        >
-          {renderViewBody()}
         </div>
 
-        {/* ────────────────────────────────── */}
-        {/* Footer (View‐Only)                  */}
-        {/* ────────────────────────────────── */}
-        {<div className="slide-footer">{ConceptNodeTitle}</div>}
+        {/* Body: Same structure as main ResourceDisplay */}
+        <div className="preview-slide-body">
+          <div className="preview-slide-content">{renderViewBody()}</div>
+        </div>
+
+        {/* Footer: Same as main ResourceDisplay */}
+        <div className="preview-slide-footer">
+          <span className="concept-node-label">{ConceptNodeTitle}</span>
+          <span className="slide-number" />
+        </div>
       </BaseResourceCard>
 
-      {/* ───────────────────────────────────────── */}
-      {/* QuizOverlay (unchanged)                   */}
-      {/* ───────────────────────────────────────── */}
+      {/* QuizOverlay: Same as main ResourceDisplay */}
       {type === 'quiz' && (
         <QuizOverlay
           isOpen={quizOverlayOpen}
@@ -275,4 +251,4 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   );
 };
 
-export default ResourceDisplay;
+export default ROResourceDisplay;

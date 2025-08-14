@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   loadDocumentFile,
-  getUserChat,
+  //getUserChat,
   ChatMessage,
 } from '@/app/src/services/firebase';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';

@@ -1,0 +1,79 @@
+/* MapRenderer.tsx - Update the main container */
+.map-renderer-container {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  
+  /* NEW: Create a large scrollable area */
+  width: 100%;
+  height: 100%;
+  
+  /* Center the content initially */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* Ensure smooth scrolling */
+  scroll-behavior: smooth;
+}
+
+/* NEW: Inner content wrapper with fixed dimensions */
+.map-content-wrapper {
+  position: relative;
+  
+  /* Large fixed canvas - adjust as needed */
+  width: 8000px;
+  height: 6000px;
+  
+  /* Center the root node in this canvas */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Root node anchor point */
+.root-node-anchor {
+  position: absolute;
+  
+  /* Fixed center point in the canvas */
+  left: 4000px;  /* Half of canvas width */
+  top: 3000px;   /* Half of canvas height */
+  
+  /* Transform to truly center the node */
+  transform: translate(-50%, -50%);
+  
+  /* Ensure it stays on top */
+  z-index: 10;
+}
+
+
+/* Node Positioning system */
+
+
+/* All nodes position relative to the root anchor */
+.concept-node {
+  position: absolute;
+  
+  /* Smooth transitions for layout changes */
+  transition: transform 0.3s ease-out;
+  
+  /* Prevent layout shifts */
+  will-change: transform;
+}
+
+/* Root node specific styling */
+.concept-node.root {
+  /* Fixed at the anchor point */
+  position: relative;
+  left: 0;
+  top: 0;
+  
+  /* No transitions for root to prevent jumping */
+  transition: none;
+}
+
+/* Child nodes position relative to root */
+.concept-node.child {
+  /* Use transform instead of left/top for performance */
+  transform: translate(var(--node-x, 0), var(--node-y, 0));
+}

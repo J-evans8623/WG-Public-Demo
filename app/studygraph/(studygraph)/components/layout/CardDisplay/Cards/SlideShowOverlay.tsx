@@ -1,26 +1,14 @@
-// File: app/studygraph/(studygraph)/components/layout/CardDisplay/Cards/SlideShowOverlay.tsx
-
-/**
- * SlideShowOverlay
- * Responsibilities:
- * - Dim the rest of the app with a full-screen backdrop
- * - Render a centered slide dialog with header, body, and controls
- * - Support Prev/Next navigation via buttons and left/right arrow keys
- * - Allow flipping of cue cards via spacebar
- * - Provide Ask Assistant panel toggle and spinner overlay
- * - Expose slide count with editable input for direct jumps
- * - Log critical user interactions and state changes for debugging
- */
+// SlideShowOverlay.tsx - Enhanced with Jump to Slide Feature
 
 import React, { useEffect, useState, useRef } from 'react';
-import { X, ChevronsLeft, ChevronsRight, BookmarkIcon } from 'lucide-react';
+import { X, ChevronsLeft, ChevronsRight, BookmarkIcon, MessageSquare, Brain } from 'lucide-react';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import NoteCard from './NoteCard';
 import ImageCard from './ImageCard';
 import CueCard from './CueCard';
 import QuizCard from './QuizCard';
 import AskAssistantPanel from './AskAssistantPanel';
-import './slideshow.css';
+import './SlideShowv2.css';
 
 // —— NEW ——
 import { useComments } from '@/app/Library/Context/CommentContext';
@@ -30,7 +18,6 @@ import CommentInputModal from '../../forum/CommentInputModal';
 import ReactDOM from 'react-dom';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
-
 
 const SlideShowOverlay: React.FC = () => {
   const {
@@ -49,18 +36,14 @@ const SlideShowOverlay: React.FC = () => {
   const [askLoading, setAskLoading] = useState(false);
   const prevAskLoading = useRef(false);
   const [jumpTo, setJumpTo] = useState((currentIndex + 1).toString());
+  const [isEditingSlideNumber, setIsEditingSlideNumber] = useState(false);
+  const [tempSlideNumber, setTempSlideNumber] = useState('');
+  const slideInputRef = useRef<HTMLInputElement>(null);
   const [isComposerOpen, setComposerOpen] = useState(false);
   const { toggleBookmark, isBookmarked } = useUserData();
   const { getGlobalNode } = useNodesContext();
 
-  
-
-  
-
-  const { getCommentCount,
-    openForum,
-    addPost,
-   } = useComments();
+  const { getCommentCount, openForum, addPost } = useComments();
 
   const openInputModal = () => {
     setComposerOpen(true);
@@ -76,6 +59,7 @@ const SlideShowOverlay: React.FC = () => {
     setJumpTo((currentIndex + 1).toString());
     setAskOpen(false);
     setCueFlipped(false);
+    setIsEditingSlideNumber(false); // Reset editing state when slide changes
   }, [currentIndex]);
 
   // Auto-advance when AI finishes
@@ -87,10 +71,18 @@ const SlideShowOverlay: React.FC = () => {
     prevAskLoading.current = askLoading;
   }, [askLoading, askOpen, gotoNext]);
 
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditingSlideNumber && slideInputRef.current) {
+      slideInputRef.current.focus();
+      slideInputRef.current.select();
+    }
+  }, [isEditingSlideNumber]);
+
   // Keyboard navigation & accessibility shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (askOpen || askLoading) return;
+      if (askOpen || askLoading || isEditingSlideNumber) return;
 
       console.log('[SlideShowOverlay.tsx][1003] Key pressed:', e.key);
 
@@ -127,6 +119,7 @@ const SlideShowOverlay: React.FC = () => {
   }, [
     askOpen,
     askLoading,
+    isEditingSlideNumber,
     gotoNext,
     gotoPrev,
     close,
@@ -135,19 +128,59 @@ const SlideShowOverlay: React.FC = () => {
     cueFlipped,
   ]);
 
+  // Handle slide number click to start editing
+  const handleSlideNumberClick = () => {
+    if (askOpen || askLoading) return;
+    setTempSlideNumber((currentIndex + 1).toString());
+    setIsEditingSlideNumber(true);
+  };
+
+  // Handle slide number input changes
+  const handleSlideNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow numeric input
+    if (/^\d*$/.test(value)) {
+      setTempSlideNumber(value);
+    }
+  };
+
+  // Handle slide number input submission
+  const handleSlideNumberSubmit = () => {
+    const slideNumber = parseInt(tempSlideNumber, 10);
+    if (!isNaN(slideNumber) && slideNumber >= 1 && slideNumber <= slides.length) {
+      const targetIndex = slideNumber - 1;
+      console.log('[SlideShowOverlay.tsx][1009] Jumping to slide number', slideNumber);
+      const target = slides[targetIndex];
+      open(target.id, false);
+    }
+    setIsEditingSlideNumber(false);
+  };
+
+  // Handle slide number input key events
+  const handleSlideNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSlideNumberSubmit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsEditingSlideNumber(false);
+    }
+  };
+
+  // Handle slide number input blur
+  const handleSlideNumberBlur = () => {
+    handleSlideNumberSubmit();
+  };
 
   if (!isOpen || !currentSlide) return null;
 
-
-
   const nodetitle = getGlobalNode(currentSlide.mapId, currentSlide.nodeId)?.title;
-
   const slideId = currentSlide.id;
   const bookmarked = isBookmarked(slideId);
   const prevTitle = slides[currentIndex - 1]?.title || 'Start of deck';
   const nextTitle = slides[currentIndex + 1]?.title || 'End of deck';
 
-    function handleToggleBookmark() {
+  function handleToggleBookmark() {
     console.log('[SlideShowOverlay.tsx][3004] › Toggling bookmark for', slideId);
     toggleBookmark({
       resourceId: slideId,
@@ -158,37 +191,32 @@ const SlideShowOverlay: React.FC = () => {
     });
   }
 
-if (isComposerOpen) {
-  console.log('[SlideShowOverlay.tsx][2001] › displaying CommentInputModal for slide', currentSlide.id);
-  return ReactDOM.createPortal(
-    <>
-      <div className="slideshow-backdrop" onClick={closeInputModal} />
-      <div className="slideshow-dialog" role="dialog" aria-modal="true">
-        <CommentInputModal
-          slideId={currentSlide.id}
-          onPost={(_slideId, heading ,body) => {
-            console.log('[SlideShowOverlay.tsx][2002] › creating new post:', body);
-            // Always create a new top‐level post when invoked from the slide
-            addPost({
-              lessonTitle: 'test',        // TODO: inject real slide metadata
-              lessonTitleId: 'test',
-              subtopicTitle: 'test',
-              resourceId: currentSlide.id,
-              body,
-            });
-            closeInputModal();
-          }}
-          onClose={closeInputModal}
-        />
-      </div>
-    </>,
-    document.getElementById('modal-root')!
-  );
-}
-
-
-
-
+  if (isComposerOpen) {
+    console.log('[SlideShowOverlay.tsx][2001] › displaying CommentInputModal for slide', currentSlide.id);
+    return ReactDOM.createPortal(
+      <>
+        <div className="slideshow-backdrop" onClick={closeInputModal} />
+        <div className="slideshow-dialog" role="dialog" aria-modal="true">
+          <CommentInputModal
+            slideId={currentSlide.id}
+            onPost={(_slideId, heading, body) => {
+              console.log('[SlideShowOverlay.tsx][2002] › creating new post:', body);
+              addPost({
+                lessonTitle: 'test',
+                lessonTitleId: 'test',
+                subtopicTitle: 'test',
+                resourceId: currentSlide.id,
+                body,
+              });
+              closeInputModal();
+            }}
+            onClose={closeInputModal}
+          />
+        </div>
+      </>,
+      document.getElementById('modal-root')!
+    );
+  }
 
   const renderSlide = () => {
     switch (currentSlide.type) {
@@ -236,30 +264,47 @@ if (isComposerOpen) {
       }
     : undefined;
 
-  const maybeJump = () => {
-    const num = parseInt(jumpTo.trim(), 10);
-    if (!isNaN(num) && num >= 1 && num <= slides.length) {
-      console.log('[SlideShowOverlay.tsx][1009] Jumping to slide number', num);
-      const target = slides[num - 1];
-      open(target.id, false);
-    } else {
-      console.log('[SlideShowOverlay.tsx][1010] Invalid jump input, reverting to', currentIndex + 1);
-      setJumpTo((currentIndex + 1).toString());
-    }
-  };
-
   return (
     <>
       <div className="slideshow-backdrop" onClick={close} />
 
       <div className="slideshow-dialog" role="dialog" aria-modal="true">
         <header className="slideshow-header">
-          <h2 className="slideshow-title">
-            {nodetitle || currentSlide.title}
-          </h2>
-          <button className="slideshow-close" onClick={close} aria-label="Close">
-            <X size={20} />
-          </button>
+          <div className="slideshow-header-left">
+            <h2 className="slideshow-title" title={currentSlide.title}>
+              {currentSlide.title}
+            </h2>
+          </div>
+          <div className="slideshow-header-actions">
+            <button 
+              className="slideshow-header-btn ai-btn"
+              onClick={() => { 
+                console.log('[SlideShowOverlay.tsx][1013] Ask Assistant opened'); 
+                setAskOpen(true); 
+              }}
+              disabled={askLoading}
+            >
+              <Brain size={14} />
+              Ask AI
+            </button>
+            <button 
+              className="slideshow-header-btn discussion-btn"
+              onClick={openInputModal}
+            >
+              <MessageSquare size={14} />
+              Discuss
+            </button>
+            <button
+              className="slideshow-bookmark-btn"
+              title={bookmarked ? 'Remove Bookmark' : 'Add Bookmark'}
+              onClick={handleToggleBookmark}
+            >
+              <BookmarkIcon size={16} className={bookmarked ? 'bookmarked' : ''} />
+            </button>
+            <button className="slideshow-close" onClick={close} aria-label="Close">
+              <X size={16} />
+            </button>
+          </div>
         </header>
 
         <main
@@ -276,79 +321,65 @@ if (isComposerOpen) {
           )}
         </main>
 
-        {/* Bookmark Button (NEW) */}
-        <button
-          title={bookmarked ? 'Remove Bookmark' : 'Add Bookmark'}
-          onClick={handleToggleBookmark}
-          className="absolute top-4 right-12 p-1"
-        >
-          <BookmarkIcon size={24} className={bookmarked ? 'text-yellow-500' : 'text-gray-400'} />
-        </button>
+        {/* Slide Footer */}
+        <div className="slideshow-footer">
+          <div className="slideshow-concept-info">
+            <span className="slideshow-concept-name">{nodetitle}</span>
+          </div>
+          <div className="slideshow-slide-nav">
+            <button 
+              className="slideshow-nav-btn" 
+              disabled={currentIndex === 0}
+              onClick={() => { console.log('[SlideShowOverlay.tsx][1011] Prev button clicked'); gotoPrev(); }}
+            >
+              Previous
+            </button>
+            
+            {/* Enhanced slide counter with jump functionality */}
+            <div className="slideshow-counter-container">
+              {isEditingSlideNumber ? (
+                <div className="slideshow-counter-input-container">
+                  <input
+  ref={slideInputRef}
+  type="text"
+  inputMode="numeric"
+  pattern="\d*"
+  value={tempSlideNumber}
+  onChange={handleSlideNumberChange}
+  onKeyDown={handleSlideNumberKeyDown}
+  onBlur={handleSlideNumberBlur}
+  className="slideshow-counter-input"
+  size={String(slides.length).length}
+  maxLength={String(slides.length).length}
+  aria-label="Jump to slide"
+/>
+<span className="slideshow-counter-separator"> of </span>
+<span className="slideshow-counter-total">{slides.length}</span>
 
-        {!askLoading && !askOpen && currentIndex > 0 && (
-          <button
-            className="slideshow-nav-arrow prev"
-            onClick={() => { console.log('[SlideShowOverlay.tsx][1011] Prev button clicked'); gotoPrev(); }}
-            title={`Previous: ${prevTitle}`}
-          >
-            <ChevronsLeft size={32} />
-          </button>
-        )}
-        {!askLoading && !askOpen && currentIndex < slides.length - 1 && (
-          <button
-            className="slideshow-nav-arrow next"
-            onClick={() => { console.log('[SlideShowOverlay.tsx][1012] Next button clicked'); gotoNext(); }}
-            title={`Next: ${nextTitle}`}
-          >
-            <ChevronsRight size={32} />
-          </button>
-        )}
-
-        <button
-          className="slideshow-ask-capsule"
-          onClick={() => { console.log('[SlideShowOverlay.tsx][1013] Ask Assistant opened'); setAskOpen(true); }}
-          disabled={askLoading}
-        >
-          Ask Assistant
-        </button>
-
-        <div className="slideshow-counter">
-          <input
-            className="slideshow-counter-input"
-            type="text"
-            value={jumpTo}
-            onChange={e => setJumpTo(e.target.value)}
-            onBlur={maybeJump}
-            onKeyDown={e => {
-              if (e.key === 'Enter') maybeJump();
-            }}
-          />
-          <span>of {slides.length}</span>
+                </div>
+              ) : (
+                <button
+                  className="slideshow-counter-clickable"
+                  onClick={handleSlideNumberClick}
+                  title="Click to jump to a specific slide"
+                  disabled={askOpen || askLoading}
+                >
+                  <span className="slideshow-counter-current">{currentIndex + 1}</span>
+                  <span className="slideshow-counter-separator"> of </span>
+                  <span className="slideshow-counter-total">{slides.length}</span>
+                </button>
+              )}
+            </div>
+            
+            <button 
+              className="slideshow-nav-btn slideshow-nav-btn-next"
+              disabled={currentIndex >= slides.length - 1}
+              onClick={() => { console.log('[SlideShowOverlay.tsx][1012] Next button clicked'); gotoNext(); }}
+            >
+              Next →
+            </button>
+          </div>
         </div>
-            {/* ── Discussion entry controls ── */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '1rem',
-            left: '1rem',
-            display: 'flex',
-            gap: '0.5rem',
-            zIndex: 10,
-          }}
-        >
-          <MentionBadge
-            count={getCommentCount(slideId)}
-            onClick={() => openForum()}
-          />
-          <DiscussButton
-            slideId={slideId}
-            onOpen={(id) => {
-              console.log('SlideShowOverlay.tsx [SSOV1012] › Discuss clicked', id);
-              openInputModal();
-            }}
-          />
-        </div>
-
       </div>
 
       {askOpen && (

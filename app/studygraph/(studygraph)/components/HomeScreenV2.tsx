@@ -16,9 +16,45 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { ApiContext, DriveFile } from '@/app/src/context/ApiContext';
 import { Plus, FileText, Clock, Star, Trash } from 'lucide-react';
 import './HomeScreen.css';
+import { Role } from '../types/access';
+
+
+/**
+ * @type PickerFileMeta
+ * @description
+ *   Payload emitted to the parent on tile click. The parent uses this to update
+ *   AccessLayer synchronously and then load the file’s bytes. `updatedAt` prefers
+ *   ISO strings to align with AccessLayer’s newest-wins logic.
+ */
+export type PickerFileMeta = {
+  docId: string;
+  fileStorageId?: string;
+  fileName: string;
+  role?: Role;
+  updatedAt?: string;
+};
+
+/**
+ * @function normalizeRole
+ * @description
+ *   Convert any provided backend role string into the shared Role union. This helper
+ *   is intentionally defensive: it accepts common case variants and maps them into
+ *   the authoritative Role literal types. If nothing is recognized, returns undefined,
+ *   in which case the parent can still seed Viewer posture and reconcile later.
+ */
+function normalizeRole(val: unknown): Role | undefined {
+  if (val === 'Owner' || val === 'Editor' || val === 'Viewer') return val;
+  if (typeof val === 'string') {
+    const s = val.trim().toLowerCase();
+    if (s === 'owner') return 'Owner';
+    if (s === 'editor') return 'Editor';
+    if (s === 'viewer') return 'Viewer';
+  }
+  return undefined;
+}
 
 interface HomeScreenProps {
-  onFileSelect: (fileStoragePath: string) => void;
+  onFileSelect: (payload: PickerFileMeta | string) => void;
   onCreateNewDocument: () => void;
 }
 
@@ -147,6 +183,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     ownedFiles.length
   );
 
+    /**
+   * @function buildPickerMeta
+   * @description
+   *   Assemble the PickerFileMeta object from a DriveFile. We normalize the role and
+   *   ensure updatedAt is ISO, aligning with the AccessLayer’s timestamp parsing.
+   */
+  const buildPickerMeta = (file: DriveFile): PickerFileMeta => {
+    const roleFromFile = normalizeRole((file as any).role ?? (file as any).accessRole);
+    //const updatedAtIso = file.timestamp ? new Date(file.timestamp).toISOString() : undefined;
+    const meta: PickerFileMeta = {
+      docId: file.fileId,
+      fileStorageId: file.fileStoragePath,
+      fileName: file.name,
+      role: roleFromFile,
+      updatedAt: undefined,
+    };
+    console.log('HomeScreenV2.tsx 1201 › buildPickerMeta', meta);
+    return meta;
+  };
+
   return (
     <div className="home-screen">
       <main className="main-content">
@@ -204,7 +260,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           <div
             key={file.fileId}
             className="file-card"
-            onClick={() => onFileSelect(file.fileId)}
+            onClick={() => {
+                      const meta = buildPickerMeta(file);
+                      console.log('HomeScreenV2.tsx 1202 › tile click select meta', meta);
+                      onFileSelect(meta);
+                    }}
           >
             <div className="file-header">
               <div className="file-icon generic-icon">
@@ -251,7 +311,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                 <div
                   key={f.fileId}
                   className="file-card"
-                  onClick={() => onFileSelect(f.fileId)}
+                  onClick={() => {
+                      const meta = buildPickerMeta(f);
+                      console.log('HomeScreenV2.tsx 1202 › tile click select meta', meta);
+                      onFileSelect(meta);
+                    }}
                 >
                   <div className="file-header">
                     <div className="file-icon generic-icon">
