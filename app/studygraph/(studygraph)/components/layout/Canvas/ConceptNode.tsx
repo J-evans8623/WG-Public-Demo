@@ -337,7 +337,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
               ref={menuRef}
               onMouseEnter={handleMenuEnter}
               onMouseLeave={handleMenuLeave}
-              className="fixed bg-white shadow-lg rounded-md border border-gray-200 py-1 w-36"
+              className="fixed z-50 bg-white shadow-lg rounded-md border border-gray-200 py-1 w-36"
               style={{ left: menuPosition.x, top: menuPosition.y }}
             >
               <button

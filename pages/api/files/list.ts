@@ -32,7 +32,7 @@ export default async function handler(
   console.log('list.ts 8001 › listing files for', userEmail);
 
   try {
-    const { ownedFiles, sharedFiles } = await listUserFiles(userEmail);
+    const { ownedFiles, sharedFiles } = await listUserFiles(userEmail!);
     console.log('list.ts 8002 › owned count:', ownedFiles.length, 'shared count:', sharedFiles.length);
     res.status(200).json({ ownedFiles, sharedFiles });
   } catch (err) {

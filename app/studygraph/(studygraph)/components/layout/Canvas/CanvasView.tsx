@@ -227,10 +227,10 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
   <div className="map-column flex flex-col relative">
 
     {/** 3.1: Viewport wrapper (overflow‑hidden) **/}
-    <div className="map-cell flex-1 relative overflow-hidden">
+    <div className="map-cell flex-1 relative overflow-hidden" >
       {activeView === 'conceptMap' && (
         
-          <div className={colorTheme}>
+          <div className={colorTheme}  >
             <MapRenderer />
           
         </div>
@@ -245,12 +245,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
           />
         </div>
       )}
-
-      <AiTutorChatButton
-      className='chat-btn' 
-        onClick={handleCardDisplayTabChangeChat}
-      />
-    </div>
+   </div>
 
 
     
@@ -278,7 +273,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
 
   {/** ─── Column 2: Static Resource Panel ─── **/}
     <div className="resource-cell">
-      <CardDisplay mode={CardDisplaymode} setMode={handleCardDisplayTabChange} />
+      <CardDisplay mode={CardDisplaymode} setMode={handleCardDisplayTabChange} askHandler={handleCardDisplayTabChangeChat} />
     </div>
   
 </div>

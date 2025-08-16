@@ -7,25 +7,27 @@ import React, {
   MouseEvent as ReactMouseEvent,
 } from 'react';
 import ReactDOM from 'react-dom';
-import { Plus, ChevronDown } from 'lucide-react';
+import { Plus, ChevronDown, Star } from 'lucide-react';
 import { FileText, NotepadText, Image as ImageIcon } from 'lucide-react';
+import './actionfooterbuttons.css';
 
 export type ResourceType = 'cuecard' | 'note' | 'image' | 'quiz';
 
 interface AddResourceDropdownProps {
   onSelectType: (type: ResourceType) => void;
   disabled?: boolean;
+  askHandler: ()=> void
 }
 
 /**
- * This component renders an “Add card” button and, when clicked,
- * opens a small white dropdown above it via a React portal.
- * The portal‐based menu is positioned using the button’s screen
- * coordinates and a very high z-index so it will float above everything.
+ * This component renders an "Ask AI Assistant" button and an "Add card" button with dropdown.
+ * When the Add card button is clicked, it opens a small white dropdown above it via a React portal.
+ * The portal‐based menu is positioned using the button's screen coordinates and a very high z-index.
  */
 const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
   onSelectType,
   disabled = false,
+  askHandler
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [coords, setCoords] = useState<{ left: number; bottom: number }>({
@@ -35,14 +37,14 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
   const anchorRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Measure the button’s position and store in `coords` whenever we open the menu
+  // Measure the button's position and store in `coords` whenever we open the menu
   useEffect(() => {
     if (isOpen && anchorRef.current) {
       const rect = anchorRef.current.getBoundingClientRect();
-      // Position the top of the menu about 4px above the button’s top:
+      // Position the top of the menu about 8px above the button's top:
       setCoords({
         left: rect.left,
-        bottom: window.innerHeight - rect.top + 4,
+        bottom: window.innerHeight - rect.top + 8,
       });
     }
   }, [isOpen]);
@@ -77,7 +79,7 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
         const rect = anchorRef.current.getBoundingClientRect();
         setCoords({
           left: rect.left,
-          bottom: window.innerHeight - rect.top + 4,
+          bottom: window.innerHeight - rect.top + 8,
         });
       }
     }
@@ -88,8 +90,8 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
     };
   }, [isOpen]);
 
-  // Toggle the dropdown when the user clicks the button
-  function handleButtonClick(e: ReactMouseEvent) {
+  // Toggle the dropdown when the user clicks the add card button
+  function handleAddCardClick(e: ReactMouseEvent) {
     e.stopPropagation();
     if (disabled) return;
     setIsOpen((prev) => !prev);
@@ -125,24 +127,29 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
   };
 
   return (
-    <div className="inline-block relative">
-      {/* Invisible hover‐bridge replaced by simple click geometry;  
-          no need to worry about hover here. */}
+    <div className="toolbar-container">
+      {/* Ask AI Assistant Button */}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={askHandler}
+        className="toolbar-button ask-ai-button"
+      >
+        <Star className="toolbar-icon" />
+        Ask AI Assistant
+      </button>
+
+      {/* Add Card Button with Dropdown */}
       <button
         ref={anchorRef}
         type="button"
         disabled={disabled}
-        onClick={handleButtonClick}
-        className={`
-          flex items-center gap-1.5 whitespace-nowrap font-medium
-          transition-colors bg-gray-800 text-white rounded-md
-          px-2.5 py-1.5 h-8 text-sm focus:outline-none
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#1D4ED8]'}
-        `}
+        onClick={handleAddCardClick}
+        className="toolbar-button add-card-button"
       >
-        <Plus className="h-4 w-4 stroke-[1.5]" />
-        Add card
-        <ChevronDown className="h-4 w-4 stroke-[1.5]" />
+        <Plus className="toolbar-icon" />
+        Add Card
+        <ChevronDown className="toolbar-icon" />
       </button>
 
       {/* When open, render the menu in a portal so it sits atop everything else */}
@@ -150,24 +157,22 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
         <Portal>
           <div
             ref={menuRef}
+            className="dropdown-menu"
             style={{
-              position: 'fixed',
               left: coords.left,
               bottom: coords.bottom,
-              zIndex: 9999,
-              backgroundColor: '#ffffff',
-              border: '1px solid rgba(0, 0, 0, 0.1)',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-              borderRadius: '0.375rem', // matches Tailwind’s “rounded-md”
               minWidth: anchorRef.current?.offsetWidth,
             }}
           >
             {(['cuecard', 'note', 'image'] as ResourceType[]).map((type) => {
               // Pick the right icon and label
               let Icon: JSX.Element;
-              if (type === 'cuecard') Icon = <FileText className="h-4 w-4 text-sky-600 stroke-[1.5]" />;
-              else if (type === 'note') Icon = <NotepadText className="h-4 w-4 text-teal-600 stroke-[1.5]" />;
-              else Icon = <ImageIcon className="h-4 w-4 text-indigo-600 stroke-[1.5]" />;
+              if (type === 'cuecard') 
+                Icon = <FileText className="dropdown-item-icon" style={{ color: '#0ea5e9' }} />;
+              else if (type === 'note') 
+                Icon = <NotepadText className="dropdown-item-icon" style={{ color: '#14b8a6' }} />;
+              else 
+                Icon = <ImageIcon className="dropdown-item-icon" style={{ color: '#6366f1' }} />;
 
               const label = type === 'cuecard' ? 'Cue Card' : type === 'note' ? 'Note' : 'Image';
 
@@ -176,13 +181,10 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
                   key={type}
                   type="button"
                   onClick={() => handleSelect(type)}
-                  className="
-                    w-full px-2.5 py-1.5 text-sm flex items-center gap-2.5
-                    bg-white text-gray-800 hover:bg-gray-50 transition-colors
-                  "
+                  className="dropdown-item"
                 >
                   {Icon}
-                  <span className="text-gray-800">{label}</span>
+                  <span>{label}</span>
                 </button>
               );
             })}

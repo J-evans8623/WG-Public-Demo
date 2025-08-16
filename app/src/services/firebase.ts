@@ -7,7 +7,7 @@
  *
  *   New functions added:
  *     - deleteDocumentFile: Deletes a document file from Firebase Storage.
- *     - deleteFileMetadata: Deletes the file metadata from Firestore.
+ *     - deleteUserFileMetadatadata: Deletes the file metadata from Firestore.
  *
  * Responsibilities:
  *   - Initialize Firebase Admin SDK.
@@ -20,7 +20,7 @@
  ***************************************************************************************/
 import admin from 'firebase-admin';
 import { publishRevokeAllNonOwner, publishRevokeUser } from '../utils/revocationBus';
-import FileMeta from '@/app/src/types/fileSchema';
+import { UserFileMetadata } from '../types/fileTypes';
 
 
 if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
@@ -238,7 +238,7 @@ export async function updateFileMetadata(params: {
   fileSize?: number;
   contentType?: string;
 }): Promise<void> {
-  console.log('firebase.ts 0009 › updateFileMetadata', params);
+  console.log('firebase.ts 0009 › updateUserFileMetadatadata', params);
   const updates: Record<string, any> = {};
   if (params.fileName)         updates.fileName       = params.fileName;
   if (params.fileStoragePath)  updates.fileStoragePath = params.fileStoragePath;
@@ -272,7 +272,7 @@ export async function addEditor(docId: string, userEmail: string): Promise<void>
     const snap = await tx.get(ufRef);
     if (!snap.exists) throw new Error(`userFiles/${docId} not found`);
 
-    const data = snap.data() as Partial<FileMeta>;
+    const data = snap.data() as Partial<UserFileMetadata>;
     const editors = new Set<string>((data?.editors ?? []).map(normEmail));
     const shared  = new Set<string>((data?.sharedWith ?? []).map(normEmail));
 
@@ -312,7 +312,7 @@ export async function removeEditor(
     const snap = await tx.get(ufRef);
     if (!snap.exists) return;
 
-    const data = snap.data() as Partial<FileMeta>;
+    const data = snap.data() as Partial<UserFileMetadata>;
     const owner = normEmail(data?.ownerId as string);
     if (email === owner) throw new Error('Cannot change owner editor status');
 
@@ -350,7 +350,7 @@ export async function removeEditor(
  */
 export async function listEditors(docId: string): Promise<{ owner: string; editors: string[] }> {
   const snap = await firestore.collection('userFiles').doc(docId).get();
-  const data = snap.data() as Partial<FileMeta> | undefined;
+  const data = snap.data() as Partial<UserFileMetadata> | undefined;
   const owner = normEmail(data?.ownerId as string);
   const editors = (data?.editors ?? []).map(normEmail);
   return { owner, editors };
@@ -368,7 +368,7 @@ export interface UserFilesList {
  */
 export async function listUserFiles(userEmail: string): Promise<UserFilesList> {
   console.log('firebase.ts 7001 › listUserFiles called for', userEmail);
-
+  const normalizedEmail = normEmail(userEmail);
   
   const ownedSnap = await firestore
     .collection('userFiles')
@@ -378,16 +378,65 @@ export async function listUserFiles(userEmail: string): Promise<UserFilesList> {
 
   const sharedSnap = await firestore
     .collection('userFiles')
-    .where('sharedWith', 'array-contains', userEmail)
+    .where('sharedWith', 'array-contains', normalizedEmail)
     .where('ownerId', '!=', userEmail)
     .orderBy('ownerId')
     .orderBy('timestamp', 'desc')
     .get();
+// Convert owned files with proper typing
+  const ownedFiles: UserFileMetadata[] = ownedSnap.docs.map(doc => {
+    const data = doc.data() as Partial<UserFileMetadata>;
+    return {
+      fileId: doc.id,
+      ownerId: data.ownerId || '',
+      fileName: data.fileName || 'Untitled',
+      fileStoragePath: data.fileStoragePath || '',
+      timestamp: data.timestamp || admin.firestore.Timestamp.now(),
+      fileSize: data.fileSize || 0,
+      contentType: data.contentType || 'application/octet-stream',
+      editors: data.editors || [],
+      sharedWith: data.sharedWith || [],
+      publicEdit: (data as any).publicEdit || false,
+      publicView: (data as any).publicView || false,
+      // Computed fields
+      role: 'Owner',
+      updatedAt: data.timestamp 
+        ? (data.timestamp as any).toDate?.() 
+          ? (data.timestamp as any).toDate().toISOString()
+          : new Date(data.timestamp as any).toISOString()
+        : new Date().toISOString()
+    };
+  });
 
-  const ownedFiles = ownedSnap.docs.map(d => d.data());
+  // Convert shared files with proper typing
+  const sharedFiles: UserFileMetadata[] = sharedSnap.docs.map(doc => {
+    const data = doc.data() as Partial<UserFileMetadata>;
+    const editors = (data.editors || []).map(e => normEmail(e));
+    const isEditor = editors.includes(normalizedEmail);
+    
+    return {
+      fileId: doc.id,
+      ownerId: data.ownerId || '',
+      fileName: data.fileName || 'Untitled',
+      fileStoragePath: data.fileStoragePath || '',
+      timestamp: data.timestamp || admin.firestore.Timestamp.now(),
+      fileSize: data.fileSize || 0,
+      contentType: data.contentType || 'application/octet-stream',
+      editors: data.editors || [],
+      sharedWith: data.sharedWith || [],
+      publicEdit: (data as any).publicEdit || false,
+      publicView: (data as any).publicView || false,
+      // Computed fields
+      role: isEditor ? 'Editor' : 'Viewer',
+      updatedAt: data.timestamp 
+        ? (data.timestamp as any).toDate?.() 
+          ? (data.timestamp as any).toDate().toISOString()
+          : new Date(data.timestamp as any).toISOString()
+        : new Date().toISOString()
+    };
+  });
+
   console.log('firebase.ts 7002 › ownedFiles count', ownedFiles.length);
-
-  const sharedFiles = sharedSnap.docs.map(d => d.data());
   console.log('firebase.ts 7003 › sharedFiles count', sharedFiles.length);
 
   return { ownedFiles, sharedFiles };
@@ -422,7 +471,15 @@ export async function deleteFileMetadata(fileId: string): Promise<void> {
   }
 }
 
-
+export async function addToSharedWith(docId: string, userEmail: string): Promise<void> {
+  const email = normEmail(userEmail);
+  const docRef = firestore.collection('userFiles').doc(docId);
+  
+  await docRef.update({
+    sharedWith: admin.firestore.FieldValue.arrayUnion(email),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
 
 /**
  * generateUploadUrl
@@ -571,7 +628,7 @@ export async function getAclSnapshot(docId: string): Promise<AclSnapshot> {
     };
   }
 
-  const data = snap.data() as Partial<FileMeta>;
+  const data = snap.data() as Partial<UserFileMetadata>;
   const ownerId    = normEmail(data?.ownerId as string);
   const editors    = (data?.editors ?? []).map(normEmail);
   const sharedWith = (data?.sharedWith ?? []).map(normEmail);

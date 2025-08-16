@@ -42,7 +42,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "app/**/*.d.ts",
-    "app/src/services/*.js", "app/src/services/yjs/yjs-server.js", "../archive-v1-bloom/ConceptNode.tsx", 
+    "app/src/services/*.js", "app/src/services/yjs/yjs-server.js", "../archive-v1-bloom/ConceptNode.tsx", "../archive-v1-bloom/shareToken.ts", "../archive-v1-bloom/invites.d.ts", 
   ],
   "exclude": [
     "node_modules",

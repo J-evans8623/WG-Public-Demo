@@ -13,11 +13,12 @@
  *   have been preserved without impacting other file sections or API logic.
  ***************************************************************************************/
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { ApiContext, DriveFile } from '@/app/src/context/ApiContext';
+import { ApiContext } from '@/app/src/context/ApiContext';
+import { UserFileMetadata } from '@/app/src/types/fileTypes';
 import { Plus, FileText, Clock, Star, Trash } from 'lucide-react';
 import './HomeScreen.css';
 import { Role } from '../types/access';
-
+import DocumentAccessManager from './hooks/access/DocumentAccessManager';
 
 /**
  * @type PickerFileMeta
@@ -63,8 +64,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onCreateNewDocument,
 }) => {
   const { listFiles, deleteFile } = useContext(ApiContext);
-  const [ownedFiles, setOwnedFiles] = useState<DriveFile[]>([]);
-  const [sharedFiles, setSharedFiles] = useState<DriveFile[]>([]);
+  const [ownedFiles, setOwnedFiles] = useState<UserFileMetadata[]>([]);
+  const [sharedFiles, setSharedFiles] = useState<UserFileMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [greeting, setGreeting] = useState('');
 
@@ -113,6 +114,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         'HomeScreenV2.tsx 1003 › fetched sharedFiles count:',
         sharedFiles.length
       );
+
+      // Step 1: Sync access records with DocumentAccessManager
+    const manager = DocumentAccessManager.getInstance();
+    manager.syncFileList([...ownedFiles, ...sharedFiles]);
+    console.log('HomeScreenV2.tsx 1004 › Access records synchronized');
+
+    
       setOwnedFiles(ownedFiles);
       setSharedFiles(sharedFiles);
     } catch (err) {
@@ -183,23 +191,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     ownedFiles.length
   );
 
-    /**
+/**
    * @function buildPickerMeta
    * @description
-   *   Assemble the PickerFileMeta object from a DriveFile. We normalize the role and
-   *   ensure updatedAt is ISO, aligning with the AccessLayer’s timestamp parsing.
+   *   Assemble the PickerFileMeta object from UserFileMetadata.
+   *   Now uses the proper interface with built-in role information.
    */
-  const buildPickerMeta = (file: DriveFile): PickerFileMeta => {
-    const roleFromFile = normalizeRole((file as any).role ?? (file as any).accessRole);
-    //const updatedAtIso = file.timestamp ? new Date(file.timestamp).toISOString() : undefined;
+  const buildPickerMeta = (file: UserFileMetadata): PickerFileMeta => {
     const meta: PickerFileMeta = {
       docId: file.fileId,
       fileStorageId: file.fileStoragePath,
-      fileName: file.name,
-      role: roleFromFile,
-      updatedAt: undefined,
+      fileName: file.fileName,
+      role: file.role, // Now directly available from the interface
+      updatedAt: file.updatedAt, // Already in ISO format
     };
-    console.log('HomeScreenV2.tsx 1201 › buildPickerMeta', meta);
+    
+    console.log('HomeScreenV2.tsx 1201 › buildPickerMeta with proper role', meta);
     return meta;
   };
 
@@ -271,11 +278,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                 <FileText />
               </div>
               <div className="file-info">
-                <div className="file-name">{file.name}</div>
+                <div className="file-name">{file.fileName}</div>
                 <div className="file-meta">
                   Modified:{' '}
                   {file.timestamp
-                    ? new Date(file.timestamp).toLocaleDateString()
+                    ? new Date(file.updatedAt|| '').toLocaleDateString()
                     : 'Unknown date'}
                 </div>
               </div>
@@ -322,11 +329,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                       <FileText />
                     </div>
                     <div className="file-info">
-                      <div className="file-name">{f.name}</div>
+                      <div className="file-name">{f.fileName}</div>
                       <div className="file-meta">
                         Modified:{' '}
                         {f.timestamp
-                          ? new Date(f.timestamp).toLocaleDateString()
+                          ? new Date(f.updatedAt || '').toLocaleDateString()
                           : 'Unknown date'}
                       </div>
                     </div>

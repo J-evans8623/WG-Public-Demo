@@ -27,6 +27,8 @@ import SearchButton from '../SearchButton';
 import BackButton from '../BackButton';
 import '@/app/studygraph/styles/brand/brand-utilities.css';
 import './CardDisplay.css';
+import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
+
 
 interface UnifiedHeaderProps {
   activeTab: 'notes' | 'chat';
@@ -39,6 +41,7 @@ interface UnifiedHeaderProps {
 const TopicsDropdown: React.FC<{ onTopicChange: (t: string) => void }> = ({ onTopicChange }) => {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  
 
   // 1) lesson context for label
   const { activeConceptMapId, getLessonModule } = useLessonModule();
@@ -117,11 +120,11 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
 }) => {
   const { activeView } = useViewSwitch();
   const { open: openSearchModal } = useSearchContext();
+  const {openSelectedSlides} = useSlideShow();
 
   const handleStartSlideshow = () => {
     console.log('[UnifiedHeader.tsx][6102] Start slideshow clicked');
-    // TODO: Implement slideshow functionality
-    // This could dispatch an action to open slideshow view or modal
+    openSelectedSlides()
   };
 
   const handleSearchClick = () => {

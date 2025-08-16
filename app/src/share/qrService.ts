@@ -1,20 +1,15 @@
 /**
- * @file server/qrService.ts
+ * @file share/qrService.ts
  * @responsibility
  *   • Generate QR codes as PNG buffers or SVG strings for arbitrary text/URLs.
  *   • Use high-error-correction, small margin, and configurable sizing defaults.
- *   • Provide two functions:
- *       – generateQrCodePng(text, size): Promise<Buffer>
- *       – generateQrCodeSvg(text): Promise<string>
+ *   • Provide both individual functions and a service object interface.
  */
 
 import QRCode from 'qrcode';
 
 /**
  * Generate a PNG Buffer of a QR code for the given text or URL.
- * @param text The text or URL to encode.
- * @param size Width (and height) in pixels of the generated QR code. Default 300.
- * @returns PNG image data as a Buffer.
  */
 export async function generateQrCodePng(
   text: string,
@@ -38,8 +33,6 @@ export async function generateQrCodePng(
 
 /**
  * Generate an SVG string of a QR code for the given text or URL.
- * @param text The text or URL to encode.
- * @returns SVG markup as a string.
  */
 export async function generateQrCodeSvg(text: string): Promise<string> {
   console.log('qrService.ts 3004 ○ generateQrCodeSvg called with text:', text);
@@ -56,3 +49,9 @@ export async function generateQrCodeSvg(text: string): Promise<string> {
     throw err;
   }
 }
+
+// Export service object for backward compatibility
+export const qrService = {
+  generatePngBuffer: generateQrCodePng,
+  generateSvgString: generateQrCodeSvg
+};

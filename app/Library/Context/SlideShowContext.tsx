@@ -19,7 +19,7 @@
  *     - Provide currentSlide, currentIndex, gotoNext, gotoPrev, isOpen, and slides list.
  */
 
-import React, { createContext, useContext, useMemo, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useMemo, useState, ReactNode, useCallback } from 'react';
 import type { ResourceCard } from '@/app/Library/Definitions/Definitions';
 import { useOrderedResources } from '@/app/studygraph/(studygraph)/components/hooks/useOrderedResources';
 import SlideShowOverlay from '@/app/studygraph/(studygraph)/components/layout/CardDisplay/Cards/SlideShowOverlay';
@@ -48,6 +48,8 @@ interface SlideShowContextValue {
   openCustom: (slidesToShow: ResourceCard[]) => void;
   // Clear any override, returning to default node-selection-driven mode
   resetToSelection: () => void;
+
+  openSelectedSlides : () => void;
 }
 
 const SlideShowContext = createContext<SlideShowContextValue | undefined>(undefined);
@@ -66,30 +68,46 @@ export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // === Default “selection-based” open ===
-  const open = (resourceId: string, nodeid:boolean=false) => {
-    // Find index within the (default) slides array
-    let idx;
-    if (nodeid) {
-      const resouceCards = selectResources(resourceId);
-      if (resouceCards.length == 0) return
-      else {
-      idx = slides.findIndex(r => r.id === resouceCards[0].id);
-      if (idx < 0){
-        slides = resouceCards.concat(slides);
-        idx = 0; //
+const open = useCallback(
+    (resourceId: string, nodeId: boolean = false) => {
+      let idx: number = -1;
+
+      if (nodeId) {
+        const resourceCards = selectResources(resourceId);
+        if (resourceCards.length === 0) return;
+
+        // Try to find the first resource from that node in current slides
+        idx = slides.findIndex((r) => r.id === resourceCards[0].id);
+
+        if (idx < 0) {
+          // Not present in current/default slides; switch to override mode so we can include it
+          // Prepend the node's resources, then the default selection-based list
+          const merged = [...resourceCards, ...defaultSlides];
+          setOverrideSlides(merged);
+          setCurrentIndex(0);
+          setIsOpen(true);
+          return;
+        }
+      } else {
+        // resourceId refers directly to a resource
+        idx = slides.findIndex((r) => r.id === resourceId);
       }
-    }
-    }
 
-    else {
-      idx = slides.findIndex(r => r.id === resourceId);
-    }    
-    if (idx >= 0) {
-      setCurrentIndex(idx);
-      setIsOpen(true);
-    }
-  };
+      if (idx >= 0) {
+        setCurrentIndex(idx);
+        setIsOpen(true);
+      }
+    },
+    [slides, defaultSlides, selectResources]
+  );
 
+
+  const openSelectedSlides = useCallback (() => {
+    if (slides.length > 0 ) {
+        setCurrentIndex(0);
+        setIsOpen(true);
+    }
+  }, [slides])
   // === Override methods ===
 
   const openCustom = (slidesToShow: ResourceCard[]) => {
@@ -107,13 +125,13 @@ export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   // === Close should clear override ===
-  const close = () => {
+  const close = useCallback(() => {
     setIsOpen(false);
     resetToSelection();
-  };
+  }, [])
 
   // === Navigation helpers ===
-  const gotoNext = () => setCurrentIndex(i => Math.min(i + 1, slides.length - 1));
+  const gotoNext = useCallback(() => setCurrentIndex(i => Math.min(i + 1, slides.length - 1)), [slides.length]);
   const gotoPrev = () => setCurrentIndex(i => Math.max(i - 1, 0));
 
   // Compute currentSlide once per relevant state change
@@ -134,8 +152,9 @@ export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children 
       gotoPrev,
       openCustom,
       resetToSelection,
+      openSelectedSlides
     }),
-    [slides, isOpen, currentIndex, currentSlide, open, close, gotoNext]
+    [slides, isOpen, openSelectedSlides, currentIndex, currentSlide, open, close, gotoNext]
   );
 
   return (

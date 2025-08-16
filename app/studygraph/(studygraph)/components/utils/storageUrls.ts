@@ -13,7 +13,7 @@ import type { AccessEnvelope } from '@/app/studygraph/(studygraph)/types/access'
 
 
 type UploadOk = { uploadUrl: string; fileStoragePath: string };
-type DownloadOk = { downloadUrl: string; fileStoragePath: string };
+type DownloadOk = { downloadUrl: string; fileStoragePath: string ; access:AccessEnvelope};
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.length > 0;
@@ -56,13 +56,13 @@ export async function getDownloadUrl(
   if (!res.ok) throw new Error(`Download URL error: ${res.statusText}`);
 
   const raw = (await res.json()) as DownloadOk;
-  const { downloadUrl, fileStoragePath } = raw;
+  const { downloadUrl, fileStoragePath, access } = raw;
 
   if (!isNonEmptyString(downloadUrl) || !isNonEmptyString(fileStoragePath)) {
     console.error('storageUrls.ts › malformed download-url payload', raw);
     throw new Error('Download URL error: malformed payload');
   }
-  return { downloadUrl, fileStoragePath };
+  return { downloadUrl, fileStoragePath, access };
 }
 
 export type InitialUploadResult = {

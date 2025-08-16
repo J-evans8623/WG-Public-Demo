@@ -60,16 +60,20 @@ import { Menu, ChevronsLeft } from 'lucide-react';
 import SearchModal from './components/layout/SearchModal';
 import 'katex/dist/katex.min.css'
 import '@/app/studygraph/styles/tokens.css'
-import '@/app/studygraph/styles/brand/theme-scopes.css'      // NEW – attribute↔class bridge
-import '@/app/studygraph/styles/brand/brand-utilities.css'   // NEW – tokenized btn primitives
+import '@/app/studygraph/styles/brand/theme-scopes.css'      
+import '@/app/studygraph/styles/brand/brand-utilities.css'  
 import '@/app/studygraph/styles/theme-warm-board.css'
 import '@/app/studygraph/(studygraph)/canvas/Map/NodeGraphOriginal.css'
-
+//import { useCollabProvider } from '@/app/studygraph/collab/useCollabProvider';
 import { AccessLayerProvider, useAccessLayer } from '@/app/Library/Context/AccessLayerContext'; // NEW
 import { Role } from './types/access';
 import { useCanvasController } from './components/hooks/access/useCanvasController';
 import { RefreshModal } from './components/access/RefreshModal';
 import ROCanvasView from './components/layout/Canvas/ReadOnly/CanvasView';
+import { useCollaborationManager } from '../collab/useCollaborationManager';
+import DocumentAccessManager from './components/hooks/access/DocumentAccessManager';
+import { LoadingAnimation } from './LoadingAnimation';
+
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
@@ -114,7 +118,7 @@ const AppLayoutContent: React.FC = () => {
     docFileID,
     saveToFirebase,
     loadFromFirebase,
-    ydoc, takeMapSnapshot
+    ydoc, takeMapSnapshot, getVisibility
   } = useYDoc();
   const {InitializeUserData, LoadUserData} = useUserData();
   const { messages, setMessages, clearMessages, addMessage, chatDirty, resetDirty } = useChatHistory();
@@ -127,7 +131,7 @@ const AppLayoutContent: React.FC = () => {
    const { resetPdfState, setActiveView } = useViewSwitch();
    const { setDefaultMap, activeConceptMapId } = useLessonModule();  
   // Refs.
-  const hasInitialized = useRef(false);
+  
   const viewportRef = useRef<HTMLDivElement>(null);
 
   // Autosave: using AutoSaveManager.
@@ -153,54 +157,127 @@ const AppLayoutContent: React.FC = () => {
     },
   });
 
+
+  // Use the singleton-based collaboration manager
+  const { 
+    status: collabStatus, 
+    connect: collabConnect, 
+    disconnect: collabDisconnect, 
+    isConnected: collabIsConnected,
+    currentDocId: collabCurrentDocId,
+    retryInfo,
+    resetRetryCounter,
+    resetAllRetryCounters
+  } = useCollaborationManager({
+    onRevoked: ({ docId }) => {
+      console.log('AppLayout › Collaboration access revoked for doc:', docId);
+      // TODO: Handle revocation - perhaps show modal or redirect to home
+      // You might want to call access.clearDoc() or redirect to home view
+    },
+    onInvalidToken: ({ docId, error }) => {
+      console.error('AppLayout › Collaboration token invalid for doc:', docId, error);
+      // TODO: Handle invalid token - perhaps refresh auth or show error
+    }
+  });
+
+
+ // Connect/disconnect collaboration based on document and view state
+  useEffect(() => {
+    if (docFileID && currentView === 'map' && ydoc) {
+      const visibility = getVisibility();
+      console.log('AppLayout › Connecting collaboration for doc:', docFileID, 'visibility:', visibility);
+      
+      collabConnect(docFileID, ydoc, visibility).catch(error => {
+        console.error('AppLayout › Failed to connect collaboration:', error);
+      });
+    } else if (currentView !== 'map') {
+      console.log('AppLayout › Disconnecting collaboration (not in map view)');
+      collabDisconnect();
+    }
+    
+    // Note: We don't disconnect when docFileID is null because that might be temporary during loading
+  }, [docFileID, currentView, ydoc, getVisibility, collabConnect, collabDisconnect]);
+
+
     // ── Share‐link landing: read ?doc & ?shareMode once, load, switch to map, clean URL ──
-  useEffect(() => {
-const docId = searchParams?.get('doc') ?? null;
-const shareMode = (searchParams?.get('shareMode') as 'copy' | 'collab') ?? null;
+// Updated section of AppLayout.tsx - removing deprecated share mode handling
 
-    if (docId && !hasLandedRef.current) {
-      hasLandedRef.current = true;
+// Replace this section in your existing AppLayout.tsx:
 
-      clearHistory();
-      clearSelection();
-      resetPdfState();
+/**
+ * Updated document landing logic that removes deprecated share mode handling.
+ * The new system uses direct document URLs without token redemption or share mode parameters.
+ * Access control is handled automatically through the resolveRole() system and public flags.
+ */
+// Replace the existing shared link landing useEffect in AppLayout.tsx
 
-      if (shareMode === 'copy'|| 'collab') {
-        loadFromFirebase(docId).catch(console.error);
-        LoadUserData(docId)
-      }
-      // collab auto‐connects via useCollabProvider
+/**
+ * Updated document landing logic that properly integrates with DocumentAccessManager
+ * to prevent loading animation from getting stuck during shared link redemption.
+ */
+useEffect(() => {
+  const docId = searchParams?.get('doc') ?? null;
+  
+  if (docId && !hasLandedRef.current) {
+    hasLandedRef.current = true;
 
-      setActiveView('conceptMap');
-      setCurrentView('map');
-      router.replace('/studygraph');
-    }
-  }, [searchParams, clearHistory, clearSelection, resetPdfState, loadFromFirebase, setActiveView, router, LoadUserData]);
+    console.log('AppLayout.tsx 7001 › Landing on shared document', { docId });
 
-  /**
-   * @function initializeAppOnMount
-   * @description Creates a new document on mount if none exists, then centers the map.
-   */
-  useEffect(() => {
-    async function initializeApp() {
+    // Step 1: Initialize DocumentAccessManager workflow - THIS WAS MISSING!
+    const manager = DocumentAccessManager.getInstance();
+    manager.selectDocument(docId); // Sets PENDING status and creates promise
+    console.log('AppLayout.tsx 7001.5 › DocumentAccessManager workflow initiated');
+
+    // Step 2: Clear existing state for clean document load
+    clearHistory();
+    clearSelection();
+    resetPdfState();
+
+    // Step 3: Load document with proper error handling and status management
+    const loadDocument = async () => {
       try {
-        await initializeNewDocument(createNewDocument, layoutDispatch, colorThemeDispatch, InitializeUserData);
-        if (viewportRef.current) {
-          const centerEvent = new CustomEvent('centerMap');
-          viewportRef.current.dispatchEvent(centerEvent);
-        }
-      } catch (error) {
-        console.error('Error initializing document on mount:', error);
-      }
-    }
+        console.log('AppLayout.tsx 7002 › Starting document load', { docId });
+        
+        // Load the document - this will call manager.interceptLoad() and manager.confirmDocumentReady()
+        await loadFromFirebase(docId);
+        
+        // Verify the document is ready (should be true after loadFromFirebase)
+        await manager.waitForDocumentReady(docId);
+        
+        console.log('AppLayout.tsx 7002.5 › Document loaded and ready', { docId });
+        
+        // Step 4: Load user data for the document
+        LoadUserData(docId);
 
-    if (!hasInitialized.current) {
-      hasInitialized.current = true;
-      if ( !hasLandedRef.current && !docFileID) {
-        initializeApp();
+        // Step 5: Navigate to map view
+        setActiveView('conceptMap');
+        setCurrentView('map');
+
+        console.log('AppLayout.tsx 7003 › Document landing completed successfully', { docId });
+        
+      } catch (error) {
+        console.error('AppLayout.tsx 7004 › Document load failed', { docId, error });
+        
+        // CRITICAL: Reset DocumentAccessManager state on error to prevent stuck loading
+        manager.confirmDocumentReady(docId); // This will resolve any waiting promises
+        
+        // Could also show an error message to user here
+        // toast.error('Failed to load shared document');
+        
+        // Optionally redirect back to home on error
+        // setCurrentView('home');
       }
-    }
-  }, [docFileID, createNewDocument, layoutDispatch, colorThemeDispatch, InitializeUserData]);
+    };
+
+    // Execute the load operation
+    loadDocument();
+
+    // Step 6: Clean URL by removing query parameters after processing
+    router.replace('/studygraph');
+
+  }
+}, [searchParams, clearHistory, clearSelection, resetPdfState, loadFromFirebase, setActiveView, router, LoadUserData]);
+
 
   /**
    * @function setupAutosave
@@ -238,6 +315,14 @@ const shareMode = (searchParams?.get('shareMode') as 'copy' | 'collab') ?? null;
     };
   }, [currentView, ydoc, saveToFirebase, messages, chatDirty, resetDirty, takeMapSnapshot, activeConceptMapId]);
 
+
+   const visibility = React.useMemo(() => {
+    return docFileID ? getVisibility() : 'private';
+  }, [docFileID, getVisibility]);
+
+
+
+
   /**
    * @function handleFileSelect
    * @description
@@ -256,6 +341,10 @@ const shareMode = (searchParams?.get('shareMode') as 'copy' | 'collab') ?? null;
         console.log('AppLayout.tsx 8201 › handleFileSelect start', meta);
 
     try {
+      // Step 1: Initialize access manager workflow
+    const manager = DocumentAccessManager.getInstance();
+    manager.selectDocument(meta.docId);
+    console.log('AppLayout.tsx 8202 › Access manager workflow initiated');
       clearHistory(); 
       clearSelection();
       resetPdfState();
@@ -275,6 +364,7 @@ const shareMode = (searchParams?.get('shareMode') as 'copy' | 'collab') ?? null;
 
       // Load the document state from Firebase Storage using loadFromFirebase.
       const chatData = await loadFromFirebase(meta.fileStorageId!);
+      await manager.waitForDocumentReady(meta.docId);
       LoadUserData(meta.docId)
       clearMessages();
       if (chatData.length) {
@@ -300,10 +390,12 @@ const shareMode = (searchParams?.get('shareMode') as 'copy' | 'collab') ?? null;
    */
   const handleCreateNewDocument = async () => {
     try {
+      const manager = DocumentAccessManager.getInstance();
       clearHistory();
       clearSelection();
       resetPdfState();
-      await createNewDocument();
+       const newDocId = await createNewDocument();
+      manager.recordNewDocument(newDocId, 'Owner');
       clearMessages();
       setDefaultMap();
       setActiveView('conceptMap');
@@ -427,16 +519,44 @@ const shareMode = (searchParams?.get('shareMode') as 'copy' | 'collab') ?? null;
               <>
                 <ROcanvasViewer/>
                 <ROcardDisplay/>
-              </> ) : (<>
-
+              </> ) : 
+              (
+              <>
+          
+                {(() => {
+            const manager = DocumentAccessManager.getInstance();
+            const currentDocId = manager.getCurrentDocId();
+            const status = manager.getStatus();
+            
+            // Step 1: Show loading while access is being resolved
+            if (status === 'PENDING' || !currentDocId) {
+              console.log('AppLayout.tsx 8209 › Showing loading animation', { status, currentDocId });
+              return (
+                <LoadingAnimation 
+                  title="Opening Notebook..." 
+                  subtitle="Resolving document access permissions"
+                  isOverlay={false}
+                  size="large"
+                />
+              );
+            }
+            
+            // Step 2: Determine canvas mode based on resolved access
+            const canEditDoc = manager.canEdit(currentDocId);
+            console.log('AppLayout.tsx 8210 › Canvas mode determined', { 
+              docId: currentDocId, 
+              canEdit: canEditDoc 
+            });
+            
+            return canEditDoc ? (
               <CanvasView autosaveStatus={saveStatus} />
-                 {/*canEdit ? (
-                  <CanvasView autosaveStatus={saveStatus} />
-                ) : (
-                  <ROCanvasView />
-                ) */}
+            ) : (
+              <ROCanvasView />
+            );
+          })()}
                 
-              </>) }
+              </>
+            ) }
         </div>
         </SlideShowProvider>
       )}

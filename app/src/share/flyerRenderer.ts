@@ -13,27 +13,30 @@
 import PDFDocument from 'pdfkit';
 import { generateQrCodePng } from './qrService';
 
-export interface InviteMeta {
+export interface DocumentMeta {
   id: string;
   resourceId: string;
   ownerId: string;
-  issuedAt: FirebaseFirestore.Timestamp;
-  expiresAt: FirebaseFirestore.Timestamp;
-  // other fields omitted
+  title?: string;
 }
 
 /**
- * Render a flyer PDF for the given invite.
- * @param invite Invite metadata from Firestore.
- * @param inviteUrl Full URL (e.g. https://app.example.com/s/<tokenId>).
+ * Render a flyer PDF for the given document metadata.
+ * @param documentMeta Document metadata for the flyer.
+ * @param documentUrl Direct URL to the document.
  * @returns PDF data as a Buffer.
  */
 export async function renderFlyerPdf(
-  invite: InviteMeta,
-  inviteUrl: string
+  documentMeta: {
+    id: string;
+    resourceId: string;
+    ownerId: string;
+    title?: string;
+  },
+  documentUrl: string
 ): Promise<Buffer> {
   // Generate QR code PNG for embedding
-  const qrBuffer = await generateQrCodePng(inviteUrl, 200);
+  const qrBuffer = await generateQrCodePng(documentUrl, 200);
 
   // PDF dimensions: A5 portrait (420×595 points)
   const doc = new PDFDocument({
@@ -54,46 +57,35 @@ export async function renderFlyerPdf(
   doc
     .font('Helvetica-Bold')
     .fontSize(18)
-    .text(`Study Group: ${invite.resourceId}`, { align: 'left' })
+    .text(`Document: ${documentMeta.title || documentMeta.resourceId}`, { align: 'left' })
     .moveDown(0.5);
 
   doc
     .font('Helvetica')
     .fontSize(14)
-    .text(`Owner: @${invite.ownerId}`, { align: 'left' });
+    .text(`Shared by: ${documentMeta.ownerId}`, { align: 'left' });
 
   // QR code, centered
   const qrX = (420 - 200) / 2;
   const qrY = 150;
   doc.image(qrBuffer, qrX, qrY, { width: 200, height: 200 });
 
-  // Caption under QR
+  // Caption under QR - simplified without expiry
   doc
     .font('Helvetica')
     .fontSize(12)
-    .text('Scan to join', qrX, qrY + 210, {
+    .text('Scan to access document', qrX, qrY + 210, {
       width: 200,
       align: 'center',
     });
 
-  // Expiry note
-  const joinUntil = invite.expiresAt.toDate().toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  // Remove expiry logic - add simple access note instead
   doc
     .moveDown(2)
-    .font('Helvetica-Bold')
-    .fontSize(12)
-    .text(`Join before: ${joinUntil}`, { align: 'center' })
-    .moveDown(0.5);
-
-  doc
     .font('Helvetica')
     .fontSize(10)
     .text(
-      'After that date, scanning still gives you your own copy of the map.',
+      'Access permissions are controlled by the document owner.',
       { align: 'center' }
     );
 

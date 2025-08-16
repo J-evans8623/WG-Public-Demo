@@ -16,10 +16,12 @@
  * - Provide edit, delete, and dismiss operations for each resource card
  * - Ensure proper layout constraints for scrollable content area
  * - Handle empty state messaging when no resources are available
+ * - Display default slide when no resources exist
  */
 
 import React, { useState, useRef, useEffect } from 'react';
 import ResourceDisplay from './ResourceDisplay';
+import BaseResourceCard from './BaseResourceCard';
 import { useOrderedResources } from '@/app/studygraph/(studygraph)/components/hooks/useOrderedResources';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import useCardCrudOperations from '@/app/studygraph/(studygraph)/components/hooks/useCardCrudOperations';
@@ -69,6 +71,45 @@ function getContentString(r: ResourceCard): string {
   }
   return (r as any).content;
 }
+
+/**
+ * Default slide component shown when no resources are available.
+ * Matches the styling of ResourceDisplay cards but shows onboarding content.
+ */
+const DefaultSlide: React.FC = () => {
+  return (
+    <BaseResourceCard className="resource-display preview-slide fixed-height">
+      {/* Header */}
+      <div className="preview-slide-header">
+        <div className="preview-slide-title">Adding your first card</div>
+        <div className="preview-slide-actions">
+          {/* Empty actions area to maintain layout consistency */}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="preview-slide-body">
+        <div className="preview-slide-content" style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          textAlign: 'center',
+          color: '#6b7280', // text-gray-500
+          fontSize: '0.875rem', // text-sm
+          padding: '2rem'
+        }}>
+          Select a concept node and click add card to get started...
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="preview-slide-footer">
+        <span className="concept-node-label">Getting Started</span>
+        <span className="slide-number" />
+      </div>
+    </BaseResourceCard>
+  );
+};
 
 interface NotesTabProps {
   onAddResource: (type: 'cuecard' | 'note' | 'image' | 'quiz') => void;
@@ -176,7 +217,7 @@ const NotesTab: React.FC<NotesTabProps> = ({
         padding: '1rem',
       }}
     >
-      {/* Step 9: Render resource cards or empty state */}
+      {/* Step 9: Render resource cards or default slide */}
       <div className="notes-content-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {ordered.length > 0 ? (
           ordered.map((r) => {
@@ -211,11 +252,13 @@ const NotesTab: React.FC<NotesTabProps> = ({
             );
           })
         ) : (
-          // Step 10: Render empty state message
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <p className="text-gray-600">
-              No notes available. Create one!
-            </p>
+          // Step 10: Render default slide when no resources exist
+          <div
+            onMouseEnter={handleCardMouseEnter}
+            onMouseLeave={handleCardMouseLeave}
+            style={{ flexShrink: 0 }}
+          >
+            <DefaultSlide />
           </div>
         )}
       </div>

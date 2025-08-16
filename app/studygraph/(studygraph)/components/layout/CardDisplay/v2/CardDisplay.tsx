@@ -24,11 +24,11 @@ import './CardDisplay.css'; // Existing styling overrides for panel, header, foo
 
 type Mode = 'note' | 'edit' | 'chat';
 
-export interface CardDisplayProps {mode: Mode, setMode: (tab:Mode)=> void}
+export interface CardDisplayProps {mode: Mode, setMode: (tab:Mode)=> void, askHandler: ()=> void}
 
 
 
-const CardDisplay: React.FC<CardDisplayProps> = ({mode, setMode}) => {
+const CardDisplay: React.FC<CardDisplayProps> = ({mode, setMode, askHandler}) => {
   // 1) Which panel are we in?
   
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
@@ -142,6 +142,7 @@ const CardDisplay: React.FC<CardDisplayProps> = ({mode, setMode}) => {
           }}
           onCancel={handleCancel}
           isSaveDisabled={!isFormValid}
+          askHandler={askHandler}
         />
       )}
     </div>

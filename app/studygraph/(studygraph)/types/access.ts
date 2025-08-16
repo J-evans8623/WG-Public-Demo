@@ -59,6 +59,8 @@ export interface AccessEnvelope {
   signal: AccessSignal;
   source: AccessSource;
   at: string; // Unix timestamp in milliseconds
+  publicView?: boolean,
+  publicEdit?: boolean,
 }
 
 /**

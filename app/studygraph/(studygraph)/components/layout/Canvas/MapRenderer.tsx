@@ -126,15 +126,28 @@ const MapRenderer: React.FC = () => {
   }, [didInitialSetup, mapWidth, mapHeight, zoomLevel, zoomDispatch]);
 
   return (
-    <div
+    
+    <div 
       ref={containerRef}
       data-testid="map-renderer-container"
-      className="absolute inset-0 overflow-auto hidden-scrollbar"
-      style={{ background: 'var(--surface)' }}
+      className="absolute inset-0 overflow-auto hidden-scrollbar  "
     >
+       <div 
+    className="map-background-pattern" 
+    aria-hidden="true"
+    style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: `${Math.max(mapWidth + 400, window.innerWidth)}px`, // Add padding
+      height: `${Math.max(mapHeight + 300, window.innerHeight)}px`, // Add padding
+      minWidth: '100%',
+      minHeight: '100%',
+    }}
+  />
       {/* Warm dotted board background (non-interactive) */}
    
-      <div
+      <div  
         style={{
           position: 'relative',
           margin:   '150px auto 0',
@@ -143,15 +156,16 @@ const MapRenderer: React.FC = () => {
         }}
         data-testid="map-renderer-container-2"
       >
-         <div className="map-background-pattern" />
+         
         <div
-        data-testid="map-renderer-container-3"
+        data-testid="map-renderer-container-3 "
           style={{
             position:        'absolute',
             transform:       `translate(${-minX}px, ${-minY}px) scale(${zoomLevel})`,
             transformOrigin: 'top left',
             width:           `${mapWidth}px`,
             height:          `${mapHeight}px`,
+            zIndex: 1,
           }}
         >
           {rootNode && <ConceptNode key={rootNode.id} node={rootNode} />}

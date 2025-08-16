@@ -22,6 +22,7 @@
  * @author 
  * @date 
  ***********************************************************************************************/
+import DocumentAccessManager from '@/app/studygraph/(studygraph)/components/hooks/access/DocumentAccessManager';
 import React, {
   createContext,
   useContext,
@@ -29,14 +30,14 @@ import React, {
   useState,
   useMemo,
   ReactNode,
-  useEffect
+  useEffect,
+  useRef
 } from 'react';
 import * as Y from 'yjs';
 import { toast } from 'react-toastify';
 import { ConceptNode } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 import JSZip from 'jszip';
-import { useCollabProvider } from '@/app/studygraph/collab/useCollabProvider';
 import { getUploadUrl, getDownloadUrl, initialUpload } from '@/app/studygraph/(studygraph)/components/utils/storageUrls';
 import { takeMapSnapshot as _takeMapSnapshot } from '@/app/studygraph/(studygraph)/components/versionHistory/versionHistory';
 import { useAccessLayer } from '@/app/Library/Context/AccessLayerContext';
@@ -111,7 +112,6 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
 });
   const access = useAccessLayer();
 
-  //const { status } = useCollabProvider(ydoc, docFileID, visibility);
 
   /**
    * Applies a given Yjs update to the current Y.Doc.
@@ -489,6 +489,15 @@ console.log('[YDocContext.tsx][9601] selectDoc (assumeOwner) seeded', { docId: n
         }),
       });
       if (!resp.ok) throw new Error(`Meta sync failed: ${resp.statusText}`);
+
+      // Step 1: Intercept save response access envelope
+    const saveResult = await resp.json();
+    if (saveResult.access) {
+      const manager = DocumentAccessManager.getInstance();
+      manager.interceptSave(docFileID, saveResult.access);
+      console.log('[YDocContext.tsx][0109] › Save access intercepted');
+    }
+    
       toast.success('Save complete');
     },
     [docFileID, fileName, persistDoc]
@@ -506,9 +515,17 @@ const loadFromFirebase = useCallback(
 
     // 1. Get doc download URL
     console.log(`[loadFromFirebase] ▶️ Requesting doc URL for ${fileStorageId}`);
-    const { downloadUrl: dUrl } = await getDownloadUrl(idFromPath, 'doc');
+    const { downloadUrl: dUrl, access:accessData } = await getDownloadUrl(idFromPath, 'doc');
     console.log(`[loadFromFirebase] ✔️ Received doc URL: ${dUrl}`);
 
+    // Step 1: Intercept access data with DocumentAccessManager
+    const manager = DocumentAccessManager.getInstance();
+    manager.interceptLoad(idFromPath, accessData);
+    console.log(`[loadFromFirebase] ✔️ Access data intercepted by manager`);
+
+    if (accessData.publicEdit){
+      access.setRole('Editor', accessData.source)
+    }
     try {
       // 2. Fetch the document bytes (no credentials)
       console.log(`[loadFromFirebase] ▶️ Fetching doc bytes`);
@@ -549,7 +566,7 @@ const loadFromFirebase = useCallback(
       console.log(`[loadFromFirebase] ▶️ Calling loadData() with fileName=${fileName}`);
       await loadData(fileName, fileStorageId, new Uint8Array(buffer));
       console.log(`[loadFromFirebase] ✔️ loadData() completed`);
-
+      manager.confirmDocumentReady(idFromPath);
       toast.success('Document loaded from Firebase Storage successfully');
       return Array.isArray(chatData) ? chatData : [];
     } catch (error) {
@@ -558,7 +575,7 @@ const loadFromFirebase = useCallback(
       return [];
     }
   },
-  [fileName, loadData]
+  [access, fileName, loadData]
 );
 
   /**
@@ -601,57 +618,6 @@ const loadFromFirebase = useCallback(
   const isSnapshotActive = useCallback((): boolean => {
     return snapshotYDoc !== null;
   }, [snapshotYDoc]);
-
-
- /* 
- // Needs to be reviewed, fundamental flaw, changing the docId doesn't not "truly"
-end a collaboration session, distributing a file this way could theoretically cause multiple people to have acces
-to the same file, if any number of these person decide to make the document public.
-
-
- const forkDoc = useCallback(async (): Promise<string> => {
-  if (!docFileID) throw new Error("No doc to fork")
-
-  const newId = uuidv4()
-  // 1) clone the Y.Doc
-  const update = Y.encodeStateAsUpdate(ydoc)
-  const copy = new Y.Doc()
-  Y.applyUpdate(copy, update)
-  
-
-  // 2) stamp on the new ID
-  copy.getMap('metadata').set('docFileID', newId)
-  const state = Y.encodeStateAsUpdate(copy);
-  const base64 = Buffer.from(state).toString('base64');
-
-  const { uploadUrl: docUrl, fileStoragePath: docPath } = await getUploadUrl(newId, 'doc');
-
-
-  await fetch(docUrl, {
-    method: 'PUT',
-    body: new Uint8Array(Buffer.from(base64, 'base64')),
-    headers: { 'Content-Type': 'application/octet-stream' },
-    });
-    console.log('YDocContext.tsx 0107 › doc PUT complete', docPath);
-
-  // 3) save only the copy once
- /** const payload = {
-    fileName: copy.getMap('metadata').get('fileName'),
-    docFileID: newId,
-    fileData: Buffer.from(Y.encodeStateAsUpdate(copy)).toString('base64'),
-  } **/ 
-  
-  /**const res = await fetch('/api/document/save',  {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(payload),
-    })
-  const { fileStorageId } = await res.json() 
-
-
-  return fileStorageId
-}, [ydoc, docFileID])  **/
 
 
   /**

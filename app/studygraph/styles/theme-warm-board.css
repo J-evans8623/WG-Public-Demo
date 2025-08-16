@@ -17,7 +17,7 @@
 /* Dotted pattern background for map area (unchanged) */
 .map-background-pattern {
   position: absolute; inset: 0;
-  opacity: 0.4;
+  opacity: 0.7;
   background-image: radial-gradient(circle, #D4C4B0 1px, transparent 1px);
   background-size: 20px 20px;
   pointer-events: none;

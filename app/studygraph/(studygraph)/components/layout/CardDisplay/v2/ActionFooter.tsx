@@ -29,6 +29,7 @@ export interface ActionFooterProps {
   onSave: () => void;
   onCancel: () => void;
   isSaveDisabled?: boolean;
+  askHandler: ()=> void
 }
 
 /**
@@ -47,6 +48,7 @@ const ActionFooter: React.FC<ActionFooterProps> = ({
   onSave,
   onCancel,
   isSaveDisabled = false,
+  askHandler
 }) => {
   // Step 1: Log current footer state for debugging
   console.log('[ActionFooter.tsx][8001] Rendering footer - Editing:', editing, 'SaveDisabled:', isSaveDisabled);
@@ -142,7 +144,8 @@ const ActionFooter: React.FC<ActionFooterProps> = ({
         >
           <AddResourceDropdown 
             disabled={editing} 
-            onSelectType={handleResourceSelect} 
+            onSelectType={handleResourceSelect}
+            askHandler={askHandler}
           />
         </div>
       )}
