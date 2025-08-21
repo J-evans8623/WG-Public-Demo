@@ -22,7 +22,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 
-import MapRenderer from '../MapRenderer';
+import MapRenderer from '@/app/studygraph/(studygraph)/components/layout/ReadOnly/map/MapRenderer';
 import BottomToolbar from '../toolbar/BottomToolbar';
 import CanvasHeader from '../bottomUtilityBar/CanvasHeader';
 import ROCardDisplay from '@/app/studygraph/(studygraph)/components/layout/ReadOnly/CardDisplay/ROcardDisplay';
@@ -40,7 +40,8 @@ import { useComments } from '@/app/Library/Context/CommentContext';
 import { useSelectionAttachment } from '@/app/Library/Context/SelectionAttachmentContext';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
 
-import '@/app/studygraph/canvasLayout/canvas.css';
+import '../CanvasView.css';
+
 
 type Mode = 'note' | 'edit' | 'chat';
 
@@ -174,15 +175,6 @@ const ROCanvasView: React.FC = () => {
                 <MapRenderer />
               </div>
             </div>
-
-            {/* AI Tutor Chat Button (read-only, but functional for switching to chat) */}
-            <button
-              className="chat-btn absolute bottom-5 right-5 z-10 w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors shadow-lg"
-              onClick={handleCardDisplayTabChangeChat}
-              title="Open AI Tutor Chat"
-            >
-              💬
-            </button>
           </div>
 
           {/* Bottom Toolbar: zoom only */}
@@ -201,21 +193,9 @@ const ROCanvasView: React.FC = () => {
 
         {/* Right column: CardDisplay (matching CanvasView) */}
         <div className="resource-cell">
-          <ROCardDisplay/>
+          <ROCardDisplay askHandler={handleCardDisplayTabChangeChat}/>
         </div>
       </div>
-
-      {/* Step C: Scoped style to disable the inline title editor while preserving header visuals */}
-      <style jsx global>{`
-        .ro-canvas-view .canvas-header__titlewrap {
-          pointer-events: none;
-        }
-        .ro-canvas-view .canvas-header button,
-        .ro-canvas-view .canvas-header .ch-nav__trigger,
-        .ro-canvas-view .canvas-header .ch-menu__item {
-          pointer-events: auto;
-        }
-      `}</style>
     </div>
   );
 };

@@ -35,7 +35,7 @@ import {
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import './CanvasHeader.css';
-import ShareAccessModal from '../../../share/ShareAccessModal';
+
 
 export interface CanvasHeaderProps {
   onMenuToggle: () => void;

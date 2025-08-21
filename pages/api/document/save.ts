@@ -29,6 +29,11 @@ interface SaveDocumentRequest {
   docFileID: string;
   fileStoragePath: string;
   fileSize: number;
+  lessonUnitsMeta?: {
+    units: any[];
+    lastUpdated: string;
+    totalUnits: number;
+  };
 }
 
 export default async function handler(
@@ -45,7 +50,7 @@ export default async function handler(
   if (!session) return;
 
   try {
-    const { fileName, docFileID, fileStoragePath, fileSize } =
+    const { fileName, docFileID, fileStoragePath, fileSize , lessonUnitsMeta} =
       req.body as SaveDocumentRequest;
 
     if (!fileName || !docFileID || !fileStoragePath || typeof fileSize !== 'number') {
@@ -61,7 +66,7 @@ export default async function handler(
     // ── First save: create metadata and assign ownership ───────────────────
     if (!metaSnap.exists) {
       console.log('[save.ts][4702] › first save detected; provisioning metadata');
-      await storeFileMetadata({
+      const metadataToStore: any = {
         fileId: docFileID,
         ownerId: session.user.email!,
         fileName,
@@ -71,7 +76,17 @@ export default async function handler(
         contentType: 'application/octet-stream',
         editors: [session.user.email!],
         sharedWith: [],
-      });
+      };
+
+      if (lessonUnitsMeta) {
+        metadataToStore.lessonUnitsMeta = {
+          ...lessonUnitsMeta,
+          lastUpdated: admin.firestore.Timestamp.fromDate(new Date(lessonUnitsMeta.lastUpdated)),
+        };
+        console.log('[save.ts][4703] › Including lesson units metadata:', lessonUnitsMeta.totalUnits, 'units');
+      }
+
+      await storeFileMetadata(metadataToStore);
       await addEditor(docFileID, session.user.email!); // no-op if already present
       res.setHeader('Cache-Control', 'no-store, private, max-age=0');
 
@@ -86,6 +101,27 @@ export default async function handler(
 
       return res.status(200).json({ fileStorageId: fileStoragePath, access });
     }
+
+    else {
+
+
+    const updateParams: any = {
+        fileId: docFileID,
+        fileName,
+        fileStoragePath,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        fileSize,
+        contentType: 'application/octet-stream'
+      };
+
+    if (lessonUnitsMeta) {
+        updateParams.lessonUnitsMeta = {
+          ...lessonUnitsMeta,
+          lastUpdated: admin.firestore.Timestamp.fromDate(new Date(lessonUnitsMeta.lastUpdated)),
+        };
+        console.log('[save.ts][4704] › Updating lesson units metadata:', lessonUnitsMeta.totalUnits, 'units');
+      }
+
 
     // ── Subsequent saves: enforce write ACL ────────────────────────────────
     const role = await resolveRole(docFileID, session.user.email!);
@@ -104,14 +140,7 @@ export default async function handler(
       return res.status(403).json({ error: 'ACL_DENIED_EDIT', access });
     }
 
-    await updateFileMetadata({
-      fileId:          docFileID,
-      fileName,
-      fileStoragePath,
-      timestamp:       admin.firestore.FieldValue.serverTimestamp(),
-      fileSize,
-      contentType:     'application/octet-stream'
-    });
+    await updateFileMetadata(updateParams);
 
     res.setHeader('Cache-Control', 'no-store, private, max-age=0');
     const access = {
@@ -123,6 +152,8 @@ export default async function handler(
     };
     console.log('[save.ts][4706] › metadata updated', { docId: docFileID });
     return res.status(200).json({ fileStorageId: fileStoragePath, access });
+
+    }
   } catch (err) {
     console.error('[save.ts][4799] › save error', err);
     res.setHeader('Cache-Control', 'no-store');

@@ -150,3 +150,40 @@
   background:#F7F3EE;
   color:#2C3E50;
 }
+
+
+/* Add these styles to maintain consistency with existing button patterns */
+
+/* Calendar button specific styles */
+.btn--icon.btn--border {
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* Ensure consistent spacing in action cluster */
+.canvas-header .flex.items-center.gap-2 > .btn--icon {
+  flex-shrink: 0;
+}
+
+/* Calendar button hover state */
+.btn--icon.btn--border:hover {
+  background-color: var(--bg-hover, #f3f4f6);
+  border-color: var(--border-hover, #d1d5db);
+}
+
+/* Calendar button focus state for accessibility */
+.btn--icon.btn--border:focus {
+  outline: 2px solid var(--focus-ring, #3b82f6);
+  outline-offset: 2px;
+}
+
+/* Calendar button disabled state */
+.btn--icon.btn--border:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}

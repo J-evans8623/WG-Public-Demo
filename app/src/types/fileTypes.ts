@@ -1,3 +1,4 @@
+import { LessonUnitsMeta } from '@/app/Library/Definitions/CalendarDefinitions';
 import { Timestamp } from 'firebase-admin/firestore';
 
 /**
@@ -23,6 +24,7 @@ export interface UserFileMetadata {
   // Computed fields (added by listUserFiles)
   role?: 'Owner' | 'Editor' | 'Viewer';
   updatedAt?: string;       // ISO string version of timestamp
+  lessonUnitsMeta?: LessonUnitsMeta;
 }
 
 /**

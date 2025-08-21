@@ -1,5 +1,5 @@
 /**
- * 
+ * Concept Node.tsx
  * 
  * Read only
  */
@@ -109,7 +109,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   else if (isTargetNode) ringColor = TARGET_COLOR;
   else if (isSelected(node.id) || node.id === targetNodeId) ringColor = GENERAL_SELECTED_COLOR;
   const nodeColor = depth === 1 ? primaryColor : backgroundColor;
-
+  const isDepthOne = depth === 1;
   return (
     <>
       <div
@@ -117,11 +117,12 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
         onClick={handleSelect}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`relative flex flex-col items-center cursor-pointer group rounded-md shadow-md transition-all duration-200 ${
-          isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id
-            ? 'bg-blue-50 shadow-lg'
-            : 'bg-white shadow-md'
-        }`}
+        className={`
+          node ${isDepthOne ? 'main' : ''} fixed
+          relative flex flex-col items-center cursor-pointer group
+          transition-all duration-200
+          ${isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id ? '' : ''}
+        `}
         style={{
           width: `${layoutConfig.nodewidth}px`,
           height: `${layoutConfig.nodeheight}px`,

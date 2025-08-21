@@ -35,24 +35,7 @@ export type PickerFileMeta = {
   updatedAt?: string;
 };
 
-/**
- * @function normalizeRole
- * @description
- *   Convert any provided backend role string into the shared Role union. This helper
- *   is intentionally defensive: it accepts common case variants and maps them into
- *   the authoritative Role literal types. If nothing is recognized, returns undefined,
- *   in which case the parent can still seed Viewer posture and reconcile later.
- */
-function normalizeRole(val: unknown): Role | undefined {
-  if (val === 'Owner' || val === 'Editor' || val === 'Viewer') return val;
-  if (typeof val === 'string') {
-    const s = val.trim().toLowerCase();
-    if (s === 'owner') return 'Owner';
-    if (s === 'editor') return 'Editor';
-    if (s === 'viewer') return 'Viewer';
-  }
-  return undefined;
-}
+
 
 interface HomeScreenProps {
   onFileSelect: (payload: PickerFileMeta | string) => void;

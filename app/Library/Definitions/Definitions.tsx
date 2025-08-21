@@ -13,12 +13,6 @@ export interface CueCard {
     content: string;
   }
 
-  // Interface for CueStackProps
-export interface CueStackProps {
-    nodeId: string;
-    colorTheme: string[];
-    onClick: (e: React.MouseEvent<HTMLDivElement>) => void;
-  }
 
 
   interface ConceptNodeProps {
@@ -44,6 +38,7 @@ export interface CueStackProps {
     isRoot?: boolean; // Flag to indicate if the node is a root node
     depth: number; // Depth level of the node
     subtreeID?: string;
+    lessonOrder?: string;
   }
   
 

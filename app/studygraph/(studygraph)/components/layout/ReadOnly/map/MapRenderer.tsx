@@ -28,7 +28,6 @@ import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
 import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
 import ConceptNode from './ConceptNode';
 import Subtree from './Subtree';
-import '@/app/studygraph/(studygraph)/components/layout/mapTheme.css';
 import '@/app/studygraph/(studygraph)/components/layout/hiddenScrollbar.css';
 
 
@@ -131,8 +130,24 @@ const MapRenderer: React.FC = () => {
     <div
       ref={containerRef}
       data-testid="map-renderer-container"
-      className="absolute inset-0 overflow-auto bg-white hidden-scrollbar"
+      className="absolute inset-0 overflow-auto hidden-scrollbar"
     >
+      {/* Warm dotted board background (non-interactive) - matching edit mode */}
+      <div 
+        className="map-background-pattern" 
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: `${Math.max(mapWidth + 400, window.innerWidth)}px`, // Add padding
+          height: `${Math.max(mapHeight + 300, window.innerHeight)}px`, // Add padding
+          minWidth: '100%',
+          minHeight: '100%',
+        }}
+      />
+
+      
       <div
         style={{
           position: 'relative',

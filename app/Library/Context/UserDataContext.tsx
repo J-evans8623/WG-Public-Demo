@@ -57,6 +57,7 @@ interface UserDataContextValue {
   toggleBookmark: (b: Bookmark) => void;
   isBookmarked: (resourceId: string) => boolean;
    getBookmarkSlidesForLesson: (lessonId: string) => ResourceCard[];
+  currentDocId:string | null;
 }
 
 const UserDataContext = createContext<UserDataContextValue | undefined>(
@@ -76,6 +77,7 @@ export const UserDataProvider: React.FC<{ children: ReactNode }> = ({
   // ───────────────────── Local State ────────────────────────
   const [userRevisionData, setuserRevisionData] = useState<RevisionMetaData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentDocId, setCurrentDocId] = useState<string | null>(null);
  
 
   // ─────────────────────── Helpers ────────────────────────
@@ -85,12 +87,14 @@ const SaveUserData = useCallback(
   async ( docId:string): Promise<void> => {
     if (!docFileID) return;
     const url = `/api/userData?docId=${encodeURIComponent(docId)}`;
-    await fetch(url, {
+    const status = await fetch(url, {
       method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userRevisionData),
     });
+
+    console.log(`${JSON.stringify(status)}`)
   },
   [docFileID, userRevisionData]
 );
@@ -234,31 +238,94 @@ const SaveUserData = useCallback(
 
 // 1) LOAD existing user data (GET)
 const LoadUserData = useCallback(
-  async (docId:string): Promise<RevisionMetaData | null> => {
+  async (docId: string): Promise<RevisionMetaData | null> => {
     if (!userId || !docId) return null;
-    const resp = await fetch(
-      `/api/userData?docId=${encodeURIComponent(docId)}`,
-      { credentials: 'include' }
-    );
-    if (resp.status === 404) {
-      return null;
+
+     console.log('[UserDataContext] Loading user data for doc:', docId);
+    setCurrentDocId(null);
+    setuserRevisionData(null);
+    setLoading(true);
+    try {
+      const resp = await fetch(
+        `/api/userData?docId=${encodeURIComponent(docId)}`,
+        { credentials: 'include' }
+      );
+
+      if (resp.status === 404) {
+        console.log('[UserDataContext] No user data found for doc:', docId);
+
+        setCurrentDocId(docId);
+          const initial: RevisionMetaData = {
+    userId: userId!,
+    quizStats: {},
+    flashCardStats: {},
+    priority: {
+      flashCards: { newItems: [], wrongItems: [] },
+      quizzes: {
+        matching: { newItems: [], wrongItems: [] },
+        multipleChoice: { newItems: [], wrongItems: [] },
+        'true-false': { newItems: [], wrongItems: [] },
+        FIB: { newItems: [], wrongItems: [] },
+      },
+    },
+    queues: {
+      config: {
+        flashCardQuotas: { newQuota: 0.3, wrongQuota: 0.4, seenQuota: 0.3 },
+        quizQuotas: {
+          matching:   { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 },
+          multipleChoice: { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 },
+          'true-false':   { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 },
+          FIB:            { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 },
+        },
+      },
+      current: {
+        flashCardQueue: [],
+        quizQueue: {
+          matching: [], multipleChoice: [], 'true-false': [], FIB: []
+        },
+      },
+    },
+    GlobalQuizAttempts:0,
+     bookmarks: [],
+  };
+
+
+        setuserRevisionData(initial);
+        setLoading(false);
+        return null;
+      }
+
+      if (!resp.ok) {
+        throw new Error(`LoadUserData GET failed: ${resp.status}`);
+      }
+
+      const data = (await resp.json()) as RevisionMetaData;
+      data.GlobalQuizAttempts = data.GlobalQuizAttempts ?? 0;
+      data.bookmarks = data.bookmarks ?? [];
+
+      // SET CONTEXT STATE HERE
+      setuserRevisionData(data);
+      setCurrentDocId(docId);  // ✅ Track which doc this data belongs to
+      setLoading(false);
+      console.log('[UserDataContext] User data loaded successfully for doc:', docId);
+      return data;
+    } finally {
+      // Always clear loading, even on early return or throw
+      setLoading(false);
     }
-    if (!resp.ok) {
-      throw new Error(`LoadUserData GET failed: ${resp.status}`);
-    }
-    const data = (await resp.json()) as RevisionMetaData;
-    data.GlobalQuizAttempts = data.GlobalQuizAttempts ?? 0;
-    // ←── SET CONTEXT STATE HERE
-    data.bookmarks = data.bookmarks ?? [];
-    setuserRevisionData(data);
-    setLoading(false);
-    return data;
   },
   [userId]
 );
 
+
 // 2) INITIALIZE brand‑new user data (bootstrap)
 async function InitializeUserData(documentID:string): Promise<RevisionMetaData> {
+
+
+  setLoading(true);
+
+  try {
+
   const initial: RevisionMetaData = {
     userId: userId!,
     quizStats: {},
@@ -302,9 +369,12 @@ async function InitializeUserData(documentID:string): Promise<RevisionMetaData> 
   });
 
   setuserRevisionData(initial);
-  setLoading(false);
+  setCurrentDocId(documentID);
 
   return initial;
+} finally {
+  setLoading(false)
+}
 }
 
 // Updates a single quiz stat
@@ -504,7 +574,8 @@ const recordQuizSession = useCallback(() => {
       removeBookmark,
       toggleBookmark,
       isBookmarked,
-      getBookmarkSlidesForLesson
+      getBookmarkSlidesForLesson,
+       currentDocId,
       }}
     >
       {children}

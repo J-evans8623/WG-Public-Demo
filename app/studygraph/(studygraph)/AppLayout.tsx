@@ -43,14 +43,13 @@ import SelectionAttachmentHandler from './components/layout/Canvas/SelectionAtta
 import HomeScreen from './components/HomeScreenV2';
 import NavigationPanel from '@/app/studygraph/(studygraph)/components/layout/Sidebar/NavigationPanel';
 import { CanvasView } from './components/layout/Canvas/CanvasView';
-import ROcanvasViewer from './components/layout/ReadOnly/map/ROcanvasView';
-import ROcardDisplay from './components/layout/ReadOnly/CardDisplay/ROcardDisplay';
+import ROcanvasViewer from './components/layout/ReadOnly/map/VHcanvasView';
+import ROcardDisplay from './components/layout/ReadOnly/CardDisplay/VHcardDisplay';
 import { UserInfoPanel } from '@/app/studygraph/(studygraph)/components/layout/UserInfoPanel';
 import { ChatHistoryProvider, useChatHistory } from '@/app/Library/Context/ChatHistoryContext';
 import { CommentsProvider } from '@/app/Library/Context/CommentContext';
 import { UserDataProvider, useUserData } from '@/app/Library/Context/UserDataContext';
 import './appLayout.css';
-import { initializeNewDocument } from '@/app/Library/utils/LoadDocumentUtils';
 import { LessonModuleProvider , useLessonModule} from '@/app/Library/Context/LessonModuleContext';
 import { AutoSaveManager } from '@/app/Library/utils/AutoSaveManager';
 import { useLessonModuleMapper } from '@/app/studygraph/(studygraph)/components/hooks/useLessonModuleMapper';
@@ -69,7 +68,7 @@ import { AccessLayerProvider, useAccessLayer } from '@/app/Library/Context/Acces
 import { Role } from './types/access';
 import { useCanvasController } from './components/hooks/access/useCanvasController';
 import { RefreshModal } from './components/access/RefreshModal';
-import ROCanvasView from './components/layout/Canvas/ReadOnly/CanvasView';
+import ROCanvasView from './components/layout/Canvas/ReadOnly/ROCanvasView';
 import { useCollaborationManager } from '../collab/useCollaborationManager';
 import DocumentAccessManager from './components/hooks/access/DocumentAccessManager';
 import { LoadingAnimation } from './LoadingAnimation';
@@ -120,7 +119,7 @@ const AppLayoutContent: React.FC = () => {
     loadFromFirebase,
     ydoc, takeMapSnapshot, getVisibility
   } = useYDoc();
-  const {InitializeUserData, LoadUserData} = useUserData();
+  const {InitializeUserData, LoadUserData, SaveUserData} = useUserData();
   const { messages, setMessages, clearMessages, addMessage, chatDirty, resetDirty } = useChatHistory();
   const { clearHistory } = useUndoRedo();  
   const {clearSelection} = useNodeSelection();
@@ -333,7 +332,9 @@ useEffect(() => {
    * @param {string} fileStorageId - The Firebase Storage identifier for the file.
    */
   const handleFileSelect = async (arg: PickerArg) => {
+    
 
+    // Incorrect meta data .... why is role undefined?
     const meta =
       typeof arg === 'string'
         ? { docId: arg, fileStorageId: arg, fileName: 'Document', role: undefined, updatedAt: new Date().toISOString() }
@@ -365,7 +366,7 @@ useEffect(() => {
       // Load the document state from Firebase Storage using loadFromFirebase.
       const chatData = await loadFromFirebase(meta.fileStorageId!);
       await manager.waitForDocumentReady(meta.docId);
-      LoadUserData(meta.docId)
+      const Udata = await LoadUserData(meta.docId)
       clearMessages();
       if (chatData.length) {
         chatData.forEach(m => addMessage(m));
@@ -384,6 +385,7 @@ useEffect(() => {
     }
   };
 
+
   /**
    * @function handleCreateNewDocument
    * @description Creates a new document using createNewDocument and navigates to the 'map' view.
@@ -396,6 +398,7 @@ useEffect(() => {
       resetPdfState();
        const newDocId = await createNewDocument();
       manager.recordNewDocument(newDocId, 'Owner');
+      InitializeUserData(newDocId);
       clearMessages();
       setDefaultMap();
       setActiveView('conceptMap');
@@ -549,7 +552,7 @@ useEffect(() => {
             });
             
             return canEditDoc ? (
-              <CanvasView autosaveStatus={saveStatus} />
+              <CanvasView autosaveStatus={saveStatus} handleFileSelect={handleFileSelect}/>
             ) : (
               <ROCanvasView />
             );

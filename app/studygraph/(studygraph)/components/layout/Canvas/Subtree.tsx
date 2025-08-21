@@ -1,4 +1,4 @@
-// components/layout/Canvas/Subtree.tsx
+// components/layout/Canvas/Subtree.tsx (edit mode)
 import React, { useMemo, useCallback } from 'react';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import ConceptNode from './ConceptNode';

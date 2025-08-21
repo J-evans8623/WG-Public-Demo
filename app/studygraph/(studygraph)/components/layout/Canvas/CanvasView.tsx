@@ -51,12 +51,13 @@ import { useUserData } from '@/app/Library/Context/UserDataContext';
 import BookmarkModal from './Bookmarks/BookmarkModal';
 import CanvasHeader from './bottomUtilityBar/CanvasHeader';
 import CardDisplay from '../CardDisplay/v2/CardDisplay';
-import AiTutorChatButton from './AiTutorChatButton';
-
+import CalendarModal from '../Calendar/CalendarModal';
+import { CalendarProvider } from '@/app/Library/Context/CalendarContext';
+import { PickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
 
 
 interface CanvasViewProps {
-  /** Indicates whether we are in the process of autosaving or have just saved */
+  handleFileSelect: (meta: PickerFileMeta) => void;
   autosaveStatus: 'saving' | 'saved';
 }
 
@@ -73,7 +74,7 @@ interface CanvasViewProps {
  *
  * @param {CanvasViewProps} props Only autosaveStatus is actively used in this component.
  */
-export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
+export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus , handleFileSelect }) => {
   /* ───────────────────────────── Context hooks ──────────────────────────── */
   const { dispatch: zoomDispatch, zoomLevel } = useZoomContext();
   const { activeConceptMapId, getLessonModule, updateConceptMapTitle } = useLessonModule();
@@ -186,6 +187,9 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
     updateConceptMapTitle(activeConceptMapId, newTitle);
   }, [activeConceptMapId, updateConceptMapTitle]);
 
+ /* ─────────────────────── Calendar modal state ──────────────────────────── */
+  const [isCalendarModalOpen, setCalendarModalOpen] = useState(false);
+
 
   /*-------------------------------- Card Display mode State ------*/
   type Mode = 'note' | 'edit' | 'chat';
@@ -215,6 +219,10 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
           onBookmark={() => setBookmarkModalOpen(true)}
           onShare={() => setShareOpen(true)}
           onVersionHistory={openHistory}
+          onOpenCalendar={() => {
+    console.log('[CanvasView.tsx][3040] › Opening calendar modal');
+    setCalendarModalOpen(true);
+  }}
         />
     
 
@@ -320,6 +328,22 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus }) => {
           <BookmarkModal isOpen onClose={() => setBookmarkModalOpen(false)} />,
           document.body
         )}
+
+
+        {isCalendarModalOpen &&
+  ReactDOM.createPortal(
+    <CalendarProvider>
+      <CalendarModal
+        isOpen={isCalendarModalOpen}
+        onClose={() => {
+          console.log('[CanvasView.tsx][3041] › Closing calendar modal');
+          setCalendarModalOpen(false);
+        }}
+        onFileSelect={handleFileSelect} // Pass AppLayout's file selection handler
+      />
+    </CalendarProvider>,
+    document.body
+  )}
     </div>
   );
 };

@@ -1,3 +1,4 @@
+// ConceptNode.tsx (edit mode)
 import React, {
   memo,
   useCallback,

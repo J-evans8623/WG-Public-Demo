@@ -41,6 +41,8 @@ import JSZip from 'jszip';
 import { getUploadUrl, getDownloadUrl, initialUpload } from '@/app/studygraph/(studygraph)/components/utils/storageUrls';
 import { takeMapSnapshot as _takeMapSnapshot } from '@/app/studygraph/(studygraph)/components/versionHistory/versionHistory';
 import { useAccessLayer } from '@/app/Library/Context/AccessLayerContext';
+import { createLessonUnitsMeta } from '../utils/calendar/lessoUnitExtractor';
+
 
 interface ChatMessage {
   id: number;
@@ -448,6 +450,17 @@ console.log('[YDocContext.tsx][9601] selectDoc (assumeOwner) seeded', { docId: n
     async (chatData?: ChatMessage[]): Promise<void> => {
       if (!docFileID) throw new Error('No docFileID');
 
+      // Step 1: Generate lesson unit metadata before saving
+    let lessonUnitsMeta;
+    try {
+      lessonUnitsMeta = createLessonUnitsMeta(ydoc);
+      console.log(' 96809 FULL METADATA:', lessonUnitsMeta);
+    } catch (error) {
+      console.error('[YDocContext.tsx][2003] › Error generating lesson units metadata:', error);
+      // Continue with save even if metadata generation fails
+    }
+    
+
       // -- upload doc state --
       const state = persistDoc();
       const fileSize = state.byteLength;
@@ -475,22 +488,34 @@ console.log('[YDocContext.tsx][9601] selectDoc (assumeOwner) seeded', { docId: n
         console.log('YDocContext.tsx 0108 › chat PUT complete', chatPath);
       }
 
+
+      // Step 4: Metadata sync with lesson units metadata
+    const savePayload: any = {
+      fileName,
+      docFileID,
+      fileStoragePath: docPath,
+      chatPath,
+      fileSize,
+    };
+
+    // Step 5: Include lesson units metadata if generation was successful
+    if (lessonUnitsMeta) {
+      savePayload.lessonUnitsMeta = lessonUnitsMeta;
+      console.log('[YDocContext.tsx][2006] › Including lesson units metadata in save payload');
+    }
+
       // -- metadata sync --
       const resp = await fetch('/api/document/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          fileName,
-          docFileID,
-          fileStoragePath:docPath,
-          chatPath,
-          fileSize,
-        }),
+        body: JSON.stringify(savePayload),
       });
       if (!resp.ok) throw new Error(`Meta sync failed: ${resp.statusText}`);
 
       // Step 1: Intercept save response access envelope
+
+      // How did we get the download url if there was no access? Why intercept here?
     const saveResult = await resp.json();
     if (saveResult.access) {
       const manager = DocumentAccessManager.getInstance();
@@ -500,7 +525,7 @@ console.log('[YDocContext.tsx][9601] selectDoc (assumeOwner) seeded', { docId: n
     
       toast.success('Save complete');
     },
-    [docFileID, fileName, persistDoc]
+    [docFileID, fileName, persistDoc, ydoc]
   );
 
   /**

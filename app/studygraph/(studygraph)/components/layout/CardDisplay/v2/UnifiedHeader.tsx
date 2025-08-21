@@ -34,7 +34,7 @@ interface UnifiedHeaderProps {
   activeTab: 'notes' | 'chat';
   onTabChange: (t: 'notes' | 'chat') => void;
   width: number;
-  onTopicChange: (topic: string) => void;
+  onTopicChange?: (topic: string) => void;
 }
 
 /* Topics dropdown (PDF mode only) */
@@ -230,7 +230,7 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                   openSearchModal();
                 }}
               />
-              <TopicsDropdown onTopicChange={onTopicChange} />
+              <TopicsDropdown onTopicChange={onTopicChange!} />
             </>
           )}
         </div>
