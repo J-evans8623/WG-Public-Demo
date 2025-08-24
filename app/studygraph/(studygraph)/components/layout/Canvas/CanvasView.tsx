@@ -80,7 +80,6 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus , handleF
   const { activeConceptMapId, getLessonModule, updateConceptMapTitle } = useLessonModule();
   const { activeView, selectedPdfUrl, resetPdfState } = useViewSwitch();
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
-  const { multiSelectEnabled, toggleMultiSelectEnabled } = useNodeSelection();
   const { openCustom } = useSlideShow();
   const preorder = usePreorderTraversal();
   const { getReviewNode, getNodeTitle } = useNodesContext();
@@ -101,13 +100,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus , handleF
   useEffect(() => {
     if (!isEditingTitle) setTitleDraft(lessonTitle);
   }, [lessonTitle, isEditingTitle]);
-  const commitTitleChange = useCallback(() => {
-    const trimmed = titleDraft.trim();
-    if (trimmed && trimmed !== lessonTitle) {
-      updateConceptMapTitle(activeConceptMapId, trimmed);
-    }
-    setIsEditingTitle(false);
-  }, [titleDraft, lessonTitle, updateConceptMapTitle, activeConceptMapId]);
+
 
   /* ───────────────────────── Share modal state ───────────────────────────── */
   const [isShareOpen, setShareOpen] = useState(false);

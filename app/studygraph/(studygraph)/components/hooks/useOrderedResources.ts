@@ -14,7 +14,7 @@ import type { ResourceCard } from '@/app/Library/Definitions/Definitions';
  *  2. All resources for selected nodes in preorder, excluding dismissed cards.
  */
 export function useOrderedResources(): ResourceCard[] {
-  const { selectedNodeIds, notes, pictures, cueCards, practiceSheets } = useResourceSync();
+  const { selectedNodeIds, notes, cueCards, practiceSheets } = useResourceSync();
   const preorder = usePreorderTraversal();
 
   const { selectedResultIds } = useSearchContext();
@@ -40,7 +40,6 @@ export function useOrderedResources(): ResourceCard[] {
       }, {});
 
     const byNote = group(notes);
-    const byImage = group(pictures);
     const byCue = group(cueCards);
     const byQuiz = group(practiceSheets);
 
@@ -50,7 +49,6 @@ export function useOrderedResources(): ResourceCard[] {
       .filter(id => selectedNodeIds.includes(id))
       .forEach(nodeId => {
         [...(byNote[nodeId] || []),
-         ...(byImage[nodeId] || []),
          ...(byCue[nodeId] || []),
          ...(byQuiz[nodeId] || [])]
         .forEach(r => {
@@ -66,13 +64,5 @@ export function useOrderedResources(): ResourceCard[] {
       ...historyCards,
       ...base.filter(r => !seen.has(r.id)),
     ];
-  }, [
-    selectedResultIds,
-    notes, pictures, cueCards, practiceSheets,
-    preorder,
-    selectedNodeIds,
-    getResourceCard,
-    getSelectedNodeIds,
-    isResourceDismissed,
-  ]);
+  }, [selectedResultIds, notes, cueCards, practiceSheets, preorder, selectedNodeIds, getResourceCard, getSelectedNodeIds, isResourceDismissed]);
 }

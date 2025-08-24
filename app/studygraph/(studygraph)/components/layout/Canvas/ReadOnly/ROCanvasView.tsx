@@ -24,12 +24,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 
 import MapRenderer from '@/app/studygraph/(studygraph)/components/layout/ReadOnly/map/MapRenderer';
 import BottomToolbar from '../toolbar/BottomToolbar';
-import CanvasHeader from '../bottomUtilityBar/CanvasHeader';
+import CanvasHeader from '../bottomUtilityBar/RoCanvasHeader';
 import ROCardDisplay from '@/app/studygraph/(studygraph)/components/layout/ReadOnly/CardDisplay/ROcardDisplay';
 
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
-import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
+import { useSlideShow } from '@/app/Library/Context/ROSlideShowContext';
 import { usePreorderTraversal } from '@/app/studygraph/(studygraph)/components/hooks/usePreorderTraversal';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';

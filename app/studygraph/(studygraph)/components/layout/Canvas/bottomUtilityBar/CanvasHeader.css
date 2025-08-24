@@ -36,7 +36,6 @@
   padding: 0.25rem 0.75rem;
   background: var(--surface, #FFFFFF);
   border-radius: var(--radius-8, 8px);
-  border: 1px solid var(--edge, #E8E4DE);
   min-width: 0;
   max-width: 40ch;
   color: var(--ink, #2C3E50);

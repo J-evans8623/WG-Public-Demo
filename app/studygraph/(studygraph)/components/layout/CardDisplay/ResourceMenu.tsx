@@ -30,8 +30,7 @@ export interface ResourceMenuProps {
   
   onDelete: () => void;
   onAskAI: () => void;
-  onImageCaption: () => void;
-  resourceType: 'cuecard' | 'note' | 'image' | 'quiz';
+  resourceType: 'cuecard' | 'note'| 'quiz';
   onEdit?: () => void;
 }
 
@@ -39,7 +38,6 @@ const ResourceMenu: React.FC<ResourceMenuProps> = ({
   onEdit,
   onDelete,
   onAskAI,
-  onImageCaption,
   resourceType,
 }) => {
   return (
@@ -80,12 +78,6 @@ const ResourceMenu: React.FC<ResourceMenuProps> = ({
         )}
 
         {/* Only show “Generate Caption” for image cards */}
-        {resourceType === 'image' && (
-          <DropdownMenuItem onClick={onImageCaption}>
-            <FileImage className="h-[0.75rem] w-[0.75rem] mr-[0.375rem]" />
-            Generate Caption
-          </DropdownMenuItem>
-        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

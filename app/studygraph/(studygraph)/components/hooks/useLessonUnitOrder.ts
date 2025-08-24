@@ -29,7 +29,6 @@ function traverseUnit(
   getNodeTitle: (id: string) => string | null,
   selectors: {
     selectNoteCards: (id: string) => ResourceCard[];
-    selectPictures: (id: string) => ResourceCard[];
     selectCueCards: (id: string) => ResourceCard[];
     selectPracticeSheets: (id: string) => ResourceCard[];
   },
@@ -45,14 +44,6 @@ function traverseUnit(
   }));
   console.log('[useLessonUnitOrder.ts:1003] Collected', notes.length, 'note slides for', nodeId);
   accumulator.push(...notes);
-
-  // 2. Picture slides
-  const pictures = selectors.selectPictures(nodeId).map(raw => ({
-    ...raw,
-    conceptNodeTitle: title
-  }));
-  console.log('[useLessonUnitOrder.ts:1004] Collected', pictures.length, 'picture slides for', nodeId);
-  accumulator.push(...pictures);
 
   // 3. Cue-card slides
   const cues = selectors.selectCueCards(nodeId).map(raw => ({
@@ -97,7 +88,6 @@ export function useLessonUnitOrder(): ResourceCard[] {
   const { nodes, getRootNode, getReviewNode, getNodeTitle } = useNodesContext();
   const {
     selectNoteCards,
-    selectPictures,
     selectCueCards,
     selectPracticeSheets
   } = useResourceContext();
@@ -110,7 +100,6 @@ export function useLessonUnitOrder(): ResourceCard[] {
     // Main DFS-based unit ordering
     traverseUnit(rootId, result, nodes, getNodeTitle, {
       selectNoteCards,
-      selectPictures,
       selectCueCards,
       selectPracticeSheets
     }, rootId);
@@ -125,10 +114,6 @@ export function useLessonUnitOrder(): ResourceCard[] {
       const revNotes = selectNoteCards(reviewId).map(raw => ({ ...raw, conceptNodeTitle: reviewTitle }));
       console.log('[useLessonUnitOrder.ts:1009] Collected', revNotes.length, 'review note slides');
       result.push(...revNotes);
-
-      const revPics = selectPictures(reviewId).map(raw => ({ ...raw, conceptNodeTitle: reviewTitle }));
-      console.log('[useLessonUnitOrder.ts:1010] Collected', revPics.length, 'review picture slides');
-      result.push(...revPics);
 
       const revCues = selectCueCards(reviewId).map(raw => ({ ...raw, conceptNodeTitle: reviewTitle }));
       console.log('[useLessonUnitOrder.ts:1011] Collected', revCues.length, 'review cue slides');
@@ -147,7 +132,6 @@ export function useLessonUnitOrder(): ResourceCard[] {
     getReviewNode,
     getNodeTitle,
     selectNoteCards,
-    selectPictures,
     selectCueCards,
     selectPracticeSheets
   ]);

@@ -8,10 +8,10 @@ import React, {
 } from 'react';
 import ReactDOM from 'react-dom';
 import { Plus, ChevronDown, Star } from 'lucide-react';
-import { FileText, NotepadText, Image as ImageIcon } from 'lucide-react';
+import { FileText, NotepadText} from 'lucide-react';
 import './actionfooterbuttons.css';
 
-export type ResourceType = 'cuecard' | 'note' | 'image' | 'quiz';
+export type ResourceType = 'cuecard' | 'note'| 'quiz';
 
 interface AddResourceDropdownProps {
   onSelectType: (type: ResourceType) => void;
@@ -164,17 +164,14 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
               minWidth: anchorRef.current?.offsetWidth,
             }}
           >
-            {(['cuecard', 'note', 'image'] as ResourceType[]).map((type) => {
+            {(['cuecard', 'note'] as ResourceType[]).map((type) => {
               // Pick the right icon and label
               let Icon: JSX.Element;
               if (type === 'cuecard') 
                 Icon = <FileText className="dropdown-item-icon" style={{ color: '#0ea5e9' }} />;
-              else if (type === 'note') 
+              else (type === 'note') 
                 Icon = <NotepadText className="dropdown-item-icon" style={{ color: '#14b8a6' }} />;
-              else 
-                Icon = <ImageIcon className="dropdown-item-icon" style={{ color: '#6366f1' }} />;
-
-              const label = type === 'cuecard' ? 'Cue Card' : type === 'note' ? 'Note' : 'Image';
+              const label = type === 'cuecard' ? 'Cue Card' : 'Note';
 
               return (
                 <button

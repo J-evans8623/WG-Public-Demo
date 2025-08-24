@@ -32,7 +32,6 @@ import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 
 import type {
   ResourceCard,
-  PictureResource,
   PracticeSheetResource,
 } from '@/app/Library/Definitions/Definitions';
 import type { ResourceFormInput } from '../types/resourceForm';
@@ -41,7 +40,7 @@ import type { ResourceFormInput } from '../types/resourceForm';
 import './EditTab.css';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 
-export type CardResourceType = 'cuecard' | 'note' | 'image' | 'quiz';
+export type CardResourceType = 'cuecard' | 'note' | 'quiz';
 
 interface PendingDraft {
   id: string;
@@ -125,8 +124,6 @@ function mapToDisplayType(res: ResourceCard): DisplayType {
       return 'cuecard';
     case 'note':
       return 'note';
-    case 'picture':
-      return 'image';
     case 'practiceSheet':
       return 'quiz';
   }
@@ -187,34 +184,36 @@ const EditTab = forwardRef<EditTabRef, EditTabProps>((props, ref) => {
    *   • Called by CardDisplay when “Edit” is clicked on an existing card.
    *   • We load that resource’s fields into local state, clear draft, and switch to edit mode.
    */
-  const startEdit = useCallback(
-    (id: string) => {
-      const res = ordered.find((r) => r.id === id);
-      if (!res) return;
-      setDraft(null);
+// In EditTab.tsx, replace the startEdit callback (around line 130-145)
 
-      let contentStr: string;
-      if (res.type === 'picture') {
-        const pic = res as PictureResource;
-        contentStr = pic.description ? JSON.stringify(pic.description) : '';
-      } else if (res.type === 'practiceSheet') {
-        const quiz = res as PracticeSheetResource;
-        contentStr = JSON.stringify(quiz.content);
-      } else {
-        contentStr = (res as any).content;
-      }
+const startEdit = useCallback(
+  (id: string) => {
+    const res = ordered.find((r) => r.id === id);
+    if (!res) return;
+    setDraft(null);
 
-      setEditingFields({ title: res.title, content: contentStr });
-      onInputDataChange({
-        selectedTopicId: '',
-        createNode: false,
-        nodeTitle: '',
-        file: undefined,
-      });
-      setEditingResourceId(id);
-    },
-    [ordered, onInputDataChange, setEditingResourceId]
-  );
+    let contentStr: string;
+    if (res.type === 'practiceSheet') {
+      const quiz = res as PracticeSheetResource;
+      contentStr = JSON.stringify(quiz.content);
+    } else {
+      contentStr = (res as any).content;
+    }
+
+    setEditingFields({ title: res.title, content: contentStr });
+    
+    // ✅ FIX: For existing cards, preserve the nodeId as selectedTopicId
+    // This ensures the validation logic recognizes the topic as valid
+    onInputDataChange({
+      selectedTopicId: res.nodeId, // ✅ Set to existing card's nodeId instead of empty string
+      createNode: false,
+      nodeTitle: '',
+      file: undefined,
+    });
+    setEditingResourceId(id);
+  },
+  [ordered, onInputDataChange, setEditingResourceId]
+);
 
   /**
    * saveEdit():
@@ -351,11 +350,6 @@ const EditTab = forwardRef<EditTabRef, EditTabProps>((props, ref) => {
                 }
                 title={editingFields.title}
                 content={editingFields.content}
-                imageUrl={
-                  !isDraft && existing?.type === 'picture'
-                    ? (existing as PictureResource).imageUrl
-                    : undefined
-                }
                 isEditing={true}
                 isNewCard={isDraft}
                 /** Pass the centralized metadata (topic/file) down */
@@ -376,7 +370,6 @@ const EditTab = forwardRef<EditTabRef, EditTabProps>((props, ref) => {
                 onEdit={() => {}}
                 onDelete={() => {}}
                 onAskAI={() => {}}
-                onImageCaption={() => {}}
               />
             </div>
           </div>

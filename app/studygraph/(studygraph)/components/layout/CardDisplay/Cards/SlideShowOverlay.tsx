@@ -1,20 +1,19 @@
-// SlideShowOverlay.tsx - Enhanced with Jump to Slide Feature
+// SlideShowOverlay.tsx - Enhanced with Jump to Slide Feature and Full-Screen Inline Editing
 
 import React, { useEffect, useState, useRef } from 'react';
-import { X, ChevronsLeft, ChevronsRight, BookmarkIcon, MessageSquare, Brain } from 'lucide-react';
+import { X, BookmarkIcon, MessageSquare, Brain, Edit2 } from 'lucide-react';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import NoteCard from './NoteCard';
-import ImageCard from './ImageCard';
 import CueCard from './CueCard';
 import QuizCard from './QuizCard';
 import AskAssistantPanel from './AskAssistantPanel';
+import SlideShowEditForm from './SlideShowEditForm';
 import './SlideShowv2.css';
 
 // —— NEW ——
 import { useComments } from '@/app/Library/Context/CommentContext';
 import MentionBadge from '../../forum/MentionBadge';
-import DiscussButton from '../../forum/DiscussButton';
-import CommentInputModal from '../../forum/CommentInputModal';
+import DiscussionFormInput from '../../forum/DiscussionFormInput';
 import ReactDOM from 'react-dom';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -34,6 +33,7 @@ const SlideShowOverlay: React.FC = () => {
   const [cueFlipped, setCueFlipped] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
   const [askLoading, setAskLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const prevAskLoading = useRef(false);
   const [jumpTo, setJumpTo] = useState((currentIndex + 1).toString());
   const [isEditingSlideNumber, setIsEditingSlideNumber] = useState(false);
@@ -41,9 +41,9 @@ const SlideShowOverlay: React.FC = () => {
   const slideInputRef = useRef<HTMLInputElement>(null);
   const [isComposerOpen, setComposerOpen] = useState(false);
   const { toggleBookmark, isBookmarked } = useUserData();
-  const { getGlobalNode } = useNodesContext();
+  const { getGlobalNode, getNodeTitle } = useNodesContext();
 
-  const { getCommentCount, openForum, addPost } = useComments();
+  const { getCommentCount, addPost } = useComments();
 
   const openInputModal = () => {
     setComposerOpen(true);
@@ -53,13 +53,60 @@ const SlideShowOverlay: React.FC = () => {
     setComposerOpen(false);
   }
 
+  /**
+   * canEditSlide
+   * Determines if the current slide can be edited based on its type.
+   * Quiz editing is not supported in slideshow mode.
+   * @param slideType The type of the current slide
+   * @returns Boolean indicating if the slide can be edited
+   */
+  const canEditSlide = (slideType: string): boolean => {
+    return ['note', 'cueCard', 'picture'].includes(slideType);
+  };
+
+  /**
+   * handleEditStart
+   * Initiates edit mode for the current slide.
+   * Validates that the slide type supports editing.
+   */
+  const handleEditStart = () => {
+    if (!currentSlide || !canEditSlide(currentSlide.type)) {
+      console.log('[SlideShowOverlay.tsx][5001] Edit not supported for slide type:', currentSlide?.type);
+      return;
+    }
+    
+    console.log('[SlideShowOverlay.tsx][5002] Starting edit mode for slide:', currentSlide.id);
+    setIsEditing(true);
+  };
+
+  /**
+   * handleEditSave
+   * Handles successful save operation from the edit form.
+   * Returns to view mode while preserving slide position.
+   */
+  const handleEditSave = () => {
+    console.log('[SlideShowOverlay.tsx][5003] Edit save completed, returning to view mode');
+    setIsEditing(false);
+  };
+
+  /**
+   * handleEditCancel
+   * Handles edit cancellation and returns to view mode.
+   * Discards any unsaved changes.
+   */
+  const handleEditCancel = () => {
+    console.log('[SlideShowOverlay.tsx][5004] Edit cancelled, returning to view mode');
+    setIsEditing(false);
+  };
+
   // Sync jumpTo, reset panels, and reset flip on slide change
   useEffect(() => {
     console.log('[SlideShowOverlay.tsx][1001] Slide changed to index', currentIndex);
     setJumpTo((currentIndex + 1).toString());
     setAskOpen(false);
     setCueFlipped(false);
-    setIsEditingSlideNumber(false); // Reset editing state when slide changes
+    setIsEditingSlideNumber(false);
+    setIsEditing(false);
   }, [currentIndex]);
 
   // Auto-advance when AI finishes
@@ -82,7 +129,8 @@ const SlideShowOverlay: React.FC = () => {
   // Keyboard navigation & accessibility shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (askOpen || askLoading || isEditingSlideNumber) return;
+      // Block navigation during edit mode, slide number editing, or AI interaction
+      if (askOpen || askLoading || isEditingSlideNumber || isEditing) return;
 
       console.log('[SlideShowOverlay.tsx][1003] Key pressed:', e.key);
 
@@ -120,6 +168,7 @@ const SlideShowOverlay: React.FC = () => {
     askOpen,
     askLoading,
     isEditingSlideNumber,
+    isEditing,
     gotoNext,
     gotoPrev,
     close,
@@ -130,7 +179,7 @@ const SlideShowOverlay: React.FC = () => {
 
   // Handle slide number click to start editing
   const handleSlideNumberClick = () => {
-    if (askOpen || askLoading) return;
+    if (askOpen || askLoading || isEditing) return;
     setTempSlideNumber((currentIndex + 1).toString());
     setIsEditingSlideNumber(true);
   };
@@ -138,7 +187,6 @@ const SlideShowOverlay: React.FC = () => {
   // Handle slide number input changes
   const handleSlideNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Only allow numeric input
     if (/^\d*$/.test(value)) {
       setTempSlideNumber(value);
     }
@@ -191,30 +239,51 @@ const SlideShowOverlay: React.FC = () => {
     });
   }
 
-  if (isComposerOpen) {
-    console.log('[SlideShowOverlay.tsx][2001] › displaying CommentInputModal for slide', currentSlide.id);
-    return ReactDOM.createPortal(
+  // Handle comment modal
+if (isComposerOpen) {
+  console.log('[SlideShowOverlay.tsx][2001] › displaying DiscussionFormInput for slide', currentSlide.id);
+  return ReactDOM.createPortal(
+    <>
+      <div className="slideshow-backdrop" onClick={closeInputModal} />
+      <div className="slideshow-dialog slideshow-discussion-form" role="dialog" aria-modal="true">
+        <DiscussionFormInput
+          onSubmit={(title: string, content: string) => {
+            console.log('[SlideShowOverlay.tsx][2002] › creating new post with title:', title, 'content:', content);
+            addPost({
+              lessonTitle: nodetitle || 'Current Lesson',
+              lessonTitleId: currentSlide.nodeId || 'node',
+              subtopicTitle: currentSlide.title || 'Current Slide',
+              resourceId: currentSlide.id,
+              body: `${title}\n\n${content}`, // Combine title and content for body
+            });
+            closeInputModal();
+          }}
+          onCancel={closeInputModal}
+          contextInfo={{
+            lessonTitle: nodetitle || 'Current Lesson',
+            slideTitle: currentSlide.title || 'Current Slide'
+          }}
+        />
+      </div>
+    </>,
+    document.getElementById('modal-root')!
+  );
+}
+
+  // Handle full-screen edit mode
+  if (isEditing) {
+    console.log('[SlideShowOverlay.tsx][5005] Rendering full-screen edit form');
+    return (
       <>
-        <div className="slideshow-backdrop" onClick={closeInputModal} />
-        <div className="slideshow-dialog" role="dialog" aria-modal="true">
-          <CommentInputModal
-            slideId={currentSlide.id}
-            onPost={(_slideId, heading, body) => {
-              console.log('[SlideShowOverlay.tsx][2002] › creating new post:', body);
-              addPost({
-                lessonTitle: 'test',
-                lessonTitleId: 'test',
-                subtopicTitle: 'test',
-                resourceId: currentSlide.id,
-                body,
-              });
-              closeInputModal();
-            }}
-            onClose={closeInputModal}
+        <div className="slideshow-backdrop" />
+        <div className="slideshow-dialog slideshow-edit-mode" role="dialog" aria-modal="true">
+          <SlideShowEditForm
+            slide={currentSlide}
+            onSave={handleEditSave}
+            onCancel={handleEditCancel}
           />
         </div>
-      </>,
-      document.getElementById('modal-root')!
+      </>
     );
   }
 
@@ -222,15 +291,6 @@ const SlideShowOverlay: React.FC = () => {
     switch (currentSlide.type) {
       case 'note':
         return <NoteCard title={currentSlide.title} content={String(currentSlide.content)} />;
-      case 'picture':
-        return (
-          <ImageCard
-            title={currentSlide.title}
-            content={String((currentSlide as any).description)}
-            imageUrl={(currentSlide as any).imageUrl || ''}
-            interactive
-          />
-        );
       case 'cueCard':
         return (
           <div className="cuecard-container">
@@ -257,7 +317,7 @@ const SlideShowOverlay: React.FC = () => {
     }
   };
 
-  const handleMainClick = currentSlide.type === 'cueCard'
+  const handleMainClick = currentSlide.type === 'cueCard' && !isEditing
     ? () => {
         console.log('[SlideShowOverlay.tsx][1008] Main click flip cue card');
         setCueFlipped(f => !f);
@@ -276,6 +336,20 @@ const SlideShowOverlay: React.FC = () => {
             </h2>
           </div>
           <div className="slideshow-header-actions">
+            {/* Edit Button */}
+            {canEditSlide(currentSlide.type) && (
+              <button 
+                className="slideshow-header-btn edit-btn"
+                onClick={handleEditStart}
+                disabled={askLoading}
+                title="Edit this slide"
+              >
+                <Edit2 size={14} />
+                Edit
+              </button>
+            )}
+            
+            {/* AI Button */}
             <button 
               className="slideshow-header-btn ai-btn"
               onClick={() => { 
@@ -287,6 +361,8 @@ const SlideShowOverlay: React.FC = () => {
               <Brain size={14} />
               Ask AI
             </button>
+            
+            {/* Discussion Button */}
             <button 
               className="slideshow-header-btn discussion-btn"
               onClick={openInputModal}
@@ -294,6 +370,8 @@ const SlideShowOverlay: React.FC = () => {
               <MessageSquare size={14} />
               Discuss
             </button>
+            
+            {/* Bookmark Button */}
             <button
               className="slideshow-bookmark-btn"
               title={bookmarked ? 'Remove Bookmark' : 'Add Bookmark'}
@@ -301,6 +379,8 @@ const SlideShowOverlay: React.FC = () => {
             >
               <BookmarkIcon size={16} className={bookmarked ? 'bookmarked' : ''} />
             </button>
+            
+            {/* Close Button */}
             <button className="slideshow-close" onClick={close} aria-label="Close">
               <X size={16} />
             </button>
@@ -340,22 +420,21 @@ const SlideShowOverlay: React.FC = () => {
               {isEditingSlideNumber ? (
                 <div className="slideshow-counter-input-container">
                   <input
-  ref={slideInputRef}
-  type="text"
-  inputMode="numeric"
-  pattern="\d*"
-  value={tempSlideNumber}
-  onChange={handleSlideNumberChange}
-  onKeyDown={handleSlideNumberKeyDown}
-  onBlur={handleSlideNumberBlur}
-  className="slideshow-counter-input"
-  size={String(slides.length).length}
-  maxLength={String(slides.length).length}
-  aria-label="Jump to slide"
-/>
-<span className="slideshow-counter-separator"> of </span>
-<span className="slideshow-counter-total">{slides.length}</span>
-
+                    ref={slideInputRef}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d*"
+                    value={tempSlideNumber}
+                    onChange={handleSlideNumberChange}
+                    onKeyDown={handleSlideNumberKeyDown}
+                    onBlur={handleSlideNumberBlur}
+                    className="slideshow-counter-input"
+                    size={String(slides.length).length}
+                    maxLength={String(slides.length).length}
+                    aria-label="Jump to slide"
+                  />
+                  <span className="slideshow-counter-separator"> of </span>
+                  <span className="slideshow-counter-total">{slides.length}</span>
                 </div>
               ) : (
                 <button

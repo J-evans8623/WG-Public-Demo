@@ -23,7 +23,6 @@ interface UseCollaborationManagerReturn {
   disconnect: () => void;
   isConnected: boolean;
   currentDocId: string | null;
-  // DEBUGGING: Retry information
   retryInfo: { docId: string; attempts: number; maxAttempts: number }[];
   resetRetryCounter: (docId: string) => void;
   resetAllRetryCounters: () => void;

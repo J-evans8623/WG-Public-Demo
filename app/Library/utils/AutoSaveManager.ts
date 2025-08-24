@@ -55,9 +55,10 @@ export class AutoSaveManager {
     this.afterTxHandler = (tx) => {
       const origin = (tx as any).origin;
       if (
-         origin === 'autosave' ||
+         origin === 'autosave' || origin === 'WebsocketProvider' ||
         (origin && typeof origin === 'object' && origin.type === 'system')
       ) {
+        // Don't trigger autosave for WebSocket sync/awareness updates
         return;
       }
       console.log('AutoSaveManager.ts 1002 › afterTransaction triggered', {

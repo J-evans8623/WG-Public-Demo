@@ -54,6 +54,7 @@ import { LessonModuleProvider , useLessonModule} from '@/app/Library/Context/Les
 import { AutoSaveManager } from '@/app/Library/utils/AutoSaveManager';
 import { useLessonModuleMapper } from '@/app/studygraph/(studygraph)/components/hooks/useLessonModuleMapper';
 import { SlideShowProvider } from '@/app/Library/Context/SlideShowContext';
+import { SlideShowProvider as ROSlideShowProvider } from '@/app/Library/Context/ROSlideShowContext';
 import { SearchProvider } from '@/app/Library/Context/SearchContext';
 import { Menu, ChevronsLeft } from 'lucide-react';
 import SearchModal from './components/layout/SearchModal';
@@ -63,7 +64,7 @@ import '@/app/studygraph/styles/brand/theme-scopes.css'
 import '@/app/studygraph/styles/brand/brand-utilities.css'  
 import '@/app/studygraph/styles/theme-warm-board.css'
 import '@/app/studygraph/(studygraph)/canvas/Map/NodeGraphOriginal.css'
-//import { useCollabProvider } from '@/app/studygraph/collab/useCollabProvider';
+import '@/app/studygraph/(studygraph)/components/layout/forum/ForumModal.css'
 import { AccessLayerProvider, useAccessLayer } from '@/app/Library/Context/AccessLayerContext'; // NEW
 import { Role } from './types/access';
 import { useCanvasController } from './components/hooks/access/useCanvasController';
@@ -514,6 +515,7 @@ useEffect(() => {
       )}
       {currentView === 'map' && (
         <SlideShowProvider>
+          <ROSlideShowProvider>
         <div className="flex-1 flex">
           {/* Version History Panel (when open) */}
             {isHistoryOpen && <VersionHistoryPanel />}
@@ -561,6 +563,7 @@ useEffect(() => {
               </>
             ) }
         </div>
+        </ROSlideShowProvider>
         </SlideShowProvider>
       )}
       {currentView === 'user' && (

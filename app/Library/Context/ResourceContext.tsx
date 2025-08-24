@@ -26,7 +26,7 @@ import { Delta } from '@/app/Library/Definitions/deltaTypes';
 import { useUndoRedo } from '@/app/studygraph/(studygraph)/components/Context/UndoRedoContext';
 import {
   ResourceCard,
-  PictureResource,
+  //PictureResource,
   PracticeSheetResource,
   CueCardResource,
   NoteResource,
@@ -49,17 +49,17 @@ export interface ResourceContextType {
   ): Promise<void>;
   removeResourcev1(nodeId: string, resourceId: string): void;
   editResourcev1(resource: ResourceCard): Promise<void>;
-  addPictureResourcev1(
+  /**addPictureResourcev1(
     params: { nodeId: string; title: string; description?: any },
     image: File,
     mapID?: string
-  ): Promise<void>;
+  ): Promise<void>; */
   restoreResource: (card: ResourceCard) => void;
-  editPictureResourcev1(
+  /**editPictureResourcev1(
     resource: PictureResource,
     newImage: boolean,
     image?: File
-  ): Promise<void>;
+  ): Promise<void>; */
   transferResource(
     sourceNodeId: string,
     targetNodeId: string,
@@ -69,7 +69,7 @@ export interface ResourceContextType {
   selectResources(nodeId: string): ResourceCard[];
   selectNoteCards(nodeId: string): NoteResource[]
   selectCueCards(nodeId: string): CueCardResource[];
-  selectPictures(nodeId: string): PictureResource[];
+  //selectPictures(nodeId: string): PictureResource[];
   selectPracticeSheets(nodeId: string): PracticeSheetResource[];
   setResources(newResources: Map<string, ResourceCard[]>): void;
   resetResources(): void;
@@ -411,7 +411,7 @@ const restoreResource = useCallback(
     [resources, ydoc, yResourcesMap, isReadOnly]
   );
 
-const addPictureResourcev1 = useCallback(
+/**const addPictureResourcev1 = useCallback(
   async (
     params: { nodeId: string; title: string; description?: any },
     image: File,
@@ -500,9 +500,9 @@ const addPictureResourcev1 = useCallback(
     }
   },
   [ydoc, activeConceptMapId, isReadOnly]
-);
+);  */
 
-const editPictureResourcev1 = useCallback(
+/**const editPictureResourcev1 = useCallback(
   async (resource: PictureResource, newImage: boolean, image?: File) => {
       if (isReadOnly) {
         console.warn('ResourceContext.tsx 3008 › Read-only mode: addPictureResourcev1 blocked');
@@ -590,7 +590,7 @@ const editPictureResourcev1 = useCallback(
     });
   },
   [ydoc, activeConceptMapId, isReadOnly]
-);
+);  */
 
   const transferResource = useCallback(
     (
@@ -706,9 +706,9 @@ const selectResourcesFn = useCallback(
     // Sort order: 0-Note, 1-Picture, 2-CueCard, 3-PracticeSheet
     const order: Record<ResourceCard['type'], number> = {
       note: 0,
-      picture: 1,
-      cueCard: 2,
-      practiceSheet: 3,
+      //picture: 1,
+      cueCard: 1,
+      practiceSheet: 2,
     };
 
     // Return a new array ordered by the mapping above
@@ -724,13 +724,13 @@ const selectResourcesFn = useCallback(
       (resources.get(nodeId) || []).filter((r): r is CueCardResource => r.type === 'cueCard'),
     [resources]
   );
-  const selectPictures = useCallback(
+ /**  const selectPictures = useCallback(
     (nodeId: string) =>
       (resources.get(nodeId) || []).filter(
         (r): r is PictureResource => r.type === 'picture' && Boolean(r.imageUrl)
       ),
     [resources]
-  );
+  );*/
   const selectPracticeSheets = useCallback(
     (nodeId: string) =>
       (resources.get(nodeId) || []).filter(
@@ -829,13 +829,13 @@ const selectResourcesFn = useCallback(
       addResourcev1,
       removeResourcev1,
       editResourcev1,
-      addPictureResourcev1,
-      editPictureResourcev1,
+      //addPictureResourcev1,
+      //editPictureResourcev1,
       transferResource,
       selectResources: selectResourcesFn,
       selectNoteCards,
       selectCueCards,
-      selectPictures,
+      //selectPictures,
       selectPracticeSheets,
       setResources: setResourcesFn,
       resetResources,
@@ -847,7 +847,7 @@ const selectResourcesFn = useCallback(
       updatedRivisonCard,
       setupdatedRivisionCard,
     }),
-    [resources, addResourcev1, removeResourcev1, editResourcev1, addPictureResourcev1, editPictureResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, selectPictures, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard]
+    [resources, addResourcev1, removeResourcev1, editResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard]
   );
 
   return (

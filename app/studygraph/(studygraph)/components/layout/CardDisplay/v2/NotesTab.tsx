@@ -27,7 +27,6 @@ import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import useCardCrudOperations from '@/app/studygraph/(studygraph)/components/hooks/useCardCrudOperations';
 import type {
   ResourceCard,
-  PictureResource,
   PracticeSheetResource,
 } from '@/app/Library/Definitions/Definitions';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -40,14 +39,12 @@ import './notesTab.css';
  * @param r - ResourceCard object from Firestore
  * @returns Mapped display type string for ResourceDisplay component
  */
-function mapToDisplayType(r: ResourceCard): 'cuecard' | 'note' | 'image' | 'quiz' {
+function mapToDisplayType(r: ResourceCard): 'cuecard' | 'note'| 'quiz' {
   switch (r.type) {
     case 'cueCard':
       return 'cuecard';
     case 'note':
       return 'note';
-    case 'picture':
-      return 'image';
     case 'practiceSheet':
       return 'quiz';
   }
@@ -61,10 +58,6 @@ function mapToDisplayType(r: ResourceCard): 'cuecard' | 'note' | 'image' | 'quiz
  * @returns String representation of the resource content for display
  */
 function getContentString(r: ResourceCard): string {
-  if (r.type === 'picture') {
-    const pic = r as PictureResource;
-    return pic.description ? pic.description : '';
-  }
   if (r.type === 'practiceSheet') {
     const quiz = r as PracticeSheetResource;
     return JSON.stringify(quiz.content);
@@ -236,7 +229,6 @@ const NotesTab: React.FC<NotesTabProps> = ({
                   ConceptNodeTitle={getNodeTitle(r.nodeId) ?? 'Untitled'}
                   title={r.title}
                   content={getContentString(r)}
-                  imageUrl={r.type === 'picture' ? (r as PictureResource).imageUrl : undefined}
                   isEditing={false}
                   onTitleChange={() => {}}
                   onContentChange={() => {}}
@@ -245,7 +237,6 @@ const NotesTab: React.FC<NotesTabProps> = ({
                   onEdit={mapToDisplayType(r) === 'quiz' ? () => {} : () => handleEditResourceWithLogging(r.id)}
                   onDelete={() => handleDeleteResourceWithLogging(r.nodeId, r.id)}
                   onAskAI={() => {}}
-                  onImageCaption={() => {}}
                   onDismiss={() => handleDismissResourceWithLogging(r.nodeId, r.id)}
                 />
               </div>

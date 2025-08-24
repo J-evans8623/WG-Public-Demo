@@ -5,7 +5,6 @@ import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import {
   CueCardResource,
-  PictureResource,
   PracticeSheetResource,
   NoteResource,
 } from '@/app/Library/Definitions/Definitions';
@@ -22,7 +21,7 @@ export const useResourceSync = () => {
   const selectedNodeIds = getSelectedNodeIds(); // e.g., ['node1', 'node2', ...]
 
   // Get resource selection functions.
-  const { selectCueCards, selectPictures, selectPracticeSheets, selectResources } = useResourceContext();
+  const { selectCueCards, selectPracticeSheets, selectResources } = useResourceContext();
 
   // Get node metadata.
   const { nodes } = useNodesContext();
@@ -31,17 +30,12 @@ export const useResourceSync = () => {
   const aggregatedResources = useMemo(() => {
     // Initialize aggregated arrays.
     const aggregatedCueCards: CueCardResource[] = [];
-    const aggregatedPictures: PictureResource[] = [];
     const aggregatedPracticeSheets: PracticeSheetResource[] = [];
     const aggregatedNotes: NoteResource[] = [];
 
     selectedNodeIds.forEach((nodeId) => {
       const nodeTitle = nodes.get(nodeId)?.title || 'Untitled';
       const cueCards = selectCueCards(nodeId).map((resource) => ({
-        ...resource,
-        conceptNodeTitle: nodeTitle,
-      }));
-      const pictures = selectPictures(nodeId).map((resource) => ({
         ...resource,
         conceptNodeTitle: nodeTitle,
       }));
@@ -59,18 +53,16 @@ export const useResourceSync = () => {
       }));
 
       aggregatedCueCards.push(...cueCards);
-      aggregatedPictures.push(...pictures);
       aggregatedPracticeSheets.push(...practiceSheets);
       aggregatedNotes.push(...notes);
     });
 
     return {
       notes: aggregatedNotes,
-      pictures: aggregatedPictures,
       cueCards: aggregatedCueCards,
       practiceSheets: aggregatedPracticeSheets,
     };
-  }, [selectedNodeIds, selectCueCards, selectPictures, selectPracticeSheets, selectResources, nodes]);
+  }, [selectedNodeIds, selectCueCards,  selectPracticeSheets, selectResources, nodes]);
 
   return {
     selectedNodeIds,

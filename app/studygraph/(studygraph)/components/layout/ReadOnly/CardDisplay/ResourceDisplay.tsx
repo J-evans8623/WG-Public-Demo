@@ -20,15 +20,14 @@ import {
 import BaseResourceCard from '../../CardDisplay/v2/BaseResourceCard';
 import CueCard from '../../CardDisplay/Cards/CueCard';
 import NoteCard from '../../CardDisplay/Cards/NoteCard';
-import ImageCard from '../../CardDisplay/Cards/ImageCard';
 import QuizCard from '../../CardDisplay/Cards/QuizCard';
 import QuizOverlay from '../../../utils/quiz/QuizOverlay';
-import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
+import { useSlideShow } from '@/app/Library/Context/ROSlideShowContext';
 import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import { QuizType, IQuizQuestion, ResourceCard } from '@/app/Library/Definitions/Definitions';
 import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/resourceDisplay.css'; // Use same CSS as main ResourceDisplay
 
-export type ResourceType = 'cuecard' | 'note' | 'image' | 'quiz';
+export type ResourceType = 'cuecard' | 'note' | 'quiz';
 
 export interface ROResourceDisplayProps {
   /* identity */
@@ -40,7 +39,6 @@ export interface ROResourceDisplayProps {
   ConceptNodeTitle: string;
   title: string;
   content: string | object;
-  imageUrl?: string;
 
   /* read-only flags */
   isEditing: false; // Always false in read-only mode
@@ -53,7 +51,6 @@ export interface ROResourceDisplayProps {
   onEdit: () => void;
   onDelete: () => void;
   onAskAI: () => void;
-  onImageCaption: () => void;
   onDismiss?: () => void;
 }
 
@@ -65,7 +62,6 @@ const ROResourceDisplay: React.FC<ROResourceDisplayProps> = ({
   ConceptNodeTitle,
   title,
   content,
-  imageUrl,
   
   /* read-only no-op handlers */
   onDismiss,
@@ -89,12 +85,10 @@ const ROResourceDisplay: React.FC<ROResourceDisplayProps> = ({
         return 'cueCard';
       case 'note':
         return 'note';
-      case 'image':
-        return 'picture';
       case 'quiz':
         return 'practiceSheet';
-    }
-  };
+      
+    }   };
 
   const makeRestoreCard = (): ResourceCard => ({
     id,
@@ -102,7 +96,6 @@ const ROResourceDisplay: React.FC<ROResourceDisplayProps> = ({
     type: mapToCardType(),
     title,
     content: typeof content === 'string' ? content : JSON.stringify(content),
-    ...(type === 'image' && imageUrl ? { imageUrl } : {}),
   } as ResourceCard);
 
   /* ──────────────────────────────────────────────────────────────────────────── */
@@ -114,15 +107,6 @@ const ROResourceDisplay: React.FC<ROResourceDisplayProps> = ({
     switch (type) {
       case 'note':
         return <NoteCard {...commonViewProps} content={String(content)} />;
-
-      case 'image':
-        return (
-          <ImageCard
-            {...commonViewProps}
-            content={String(content)}
-            imageUrl={imageUrl || ''}
-          />
-        );
 
       case 'quiz': {
         let quizType: QuizType = 'multipleChoice';

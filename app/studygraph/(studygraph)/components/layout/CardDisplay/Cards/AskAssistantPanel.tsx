@@ -32,9 +32,9 @@ const AskAssistantPanel: React.FC<AskAssistantPanelProps> = ({
 
   const [question, setQuestion] = useState('');
 
-  const setLoading = (v: boolean) => {
+  const setLoading = useCallback((v: boolean) => {
     onLoading(v);
-  };
+  }, [onLoading])
 
   const handleSend = useCallback(async () => {
     if (!question.trim() || !currentSlide) return;
@@ -47,12 +47,6 @@ const AskAssistantPanel: React.FC<AskAssistantPanelProps> = ({
       // derive slide context
       let slideContext = '';
       switch (currentSlide.type) {
-        case 'picture':
-          {
-            const desc = (currentSlide as any).description;
-            slideContext = typeof desc === 'string' ? desc : '';
-          }
-          break;
         case 'note':
         case 'cueCard':
           slideContext = (currentSlide as any).content;
@@ -84,7 +78,7 @@ const AskAssistantPanel: React.FC<AskAssistantPanelProps> = ({
       // stop spinner; SlideShowOverlay’s effect will advance to new slide
       setLoading(false);
     }
-  }, [question, currentSlide, createResource, docFileID, onClose]);
+  }, [question, currentSlide, setLoading, onClose, docFileID, createResource]);
 
   return (
     <div className="ask-backdrop" onClick={onClose}>

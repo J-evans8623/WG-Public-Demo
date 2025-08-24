@@ -30,9 +30,7 @@ import BaseResourceCard from './Cards/BaseResourceCard';
 import ResourceMenu from './ResourceMenu';
 import CueCard from './Cards/CueCard';
 import NoteCard from './Cards/NoteCard';
-import ImageCard from './Cards/ImageCard';
 import QuizCard from './Cards/QuizCard';
-import ImageUploadCard from './Cards/ImageUploadCard';
 import QuizOverlay from '../../utils/quiz/QuizOverlay';
 import RichTextEditor from '@/components/RichTextEditor';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
@@ -42,7 +40,7 @@ import { QuizType, IQuizQuestion } from '@/app/Library/Definitions/Definitions';
 import type { ResourceFormInput } from './types/resourceForm';
 import './resourceDisplay.css';
 
-export type ResourceType = 'cuecard' | 'note' | 'image' | 'quiz';
+export type ResourceType = 'cuecard' | 'note' | 'quiz';
 
 export interface ResourceDisplayProps {
   /* identity */
@@ -54,8 +52,6 @@ export interface ResourceDisplayProps {
   ConceptNodeTitle: string;
   title: string;
   content: string | object;
-  imageUrl?: string;
-
   /* flags */
   isEditing: boolean;
   /** `true` when EditTab is displaying a brand-new draft (enables topic picker) */
@@ -73,7 +69,6 @@ export interface ResourceDisplayProps {
   onEdit: () => void;
   onDelete: () => void;
   onAskAI: () => void;
-  onImageCaption: () => void;
   onDismiss?: () => void;
 }
 
@@ -85,8 +80,6 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   ConceptNodeTitle,
   title,
   content,
-  imageUrl,
-
   /* flags + controlled state */
   isEditing,
   isNewCard = false,
@@ -101,7 +94,6 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   onEdit,
   onDelete,
   onAskAI,
-  onImageCaption,
   onDismiss,
 }) => {
   /* ——————————————————————————————————————————  context + ui-only state —————————————————————————————————————————— */
@@ -172,14 +164,6 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
     switch (type) {
       case 'note':
         return <NoteCard {...commonViewProps} content={String(content)} />;
-      case 'image':
-        return (
-          <ImageCard
-            {...commonViewProps}
-            content={String(content)}
-            imageUrl={imageUrl || ''}
-          />
-        );
       case 'quiz': {
         let quizType: QuizType = 'multipleChoice';
         let quizData: IQuizQuestion[] = [];
@@ -355,26 +339,12 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Content
         </label>
-        {type === 'image' ? (
-          <ImageUploadCard
-            content={typeof content === 'string' ? content : ''}
-            onContentChange={onContentChange}
-            onImageSelect={(file) =>
-              onInputDataChange?.({ ...inputData!, file })
-            }
-            previewUrl={
-              inputData?.file
-                ? URL.createObjectURL(inputData.file)
-                : imageUrl
-            }
-          />
-        ) : (
-          <RichTextEditor
+           <RichTextEditor
             content={typeof content === 'string' ? content : ''}
             onChange={onContentChange}
             className="min-h-[200px]"
           />
-        )}
+        
       </div>
     </>
   );
@@ -396,7 +366,6 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
               onEdit={onEdit}
               onDelete={onDelete}
               onAskAI={onAskAI}
-              onImageCaption={onImageCaption}
               resourceType={type}
             />
             <button

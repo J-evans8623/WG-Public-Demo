@@ -25,10 +25,7 @@ import BaseResourceCard from './BaseResourceCard';
 import ResourceMenu from '../ResourceMenu';
 import CueCard from '../Cards/CueCard';
 import NoteCard from '../Cards/NoteCard';
-import ImageCard from '../Cards/ImageCard';
 import QuizCard from '../Cards/QuizCard';
-import ImageUploadCard from '../Cards/ImageUploadCard';
-import QuizOverlay from '../../../utils/quiz/QuizOverlay';
 import RichTextEditor from '@/components/RichTextEditor';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -36,8 +33,9 @@ import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { QuizType, IQuizQuestion } from '@/app/Library/Definitions/Definitions';
 import type { ResourceFormInput } from '../types/resourceForm';
 import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/resourceDisplay.css';
+import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 
-export type ResourceType = 'cuecard' | 'note' | 'image' | 'quiz';
+export type ResourceType = 'cuecard' | 'note' | 'quiz';
 
 export interface ResourceDisplayProps {
   /* identity */
@@ -68,7 +66,6 @@ export interface ResourceDisplayProps {
   onEdit: () => void;
   onDelete: () => void;
   onAskAI: () => void;
-  onImageCaption: () => void;
   onDismiss?: () => void;
 
   /** 
@@ -102,7 +99,6 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   onEdit,
   onDelete,
   onAskAI,
-  onImageCaption,
   onDismiss,
 
   /* validation notification */
@@ -115,7 +111,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   const { nodes } = useNodesContext();
   const nodeArray = Array.from(nodes.values());
   const { getFocusNode } = useNodeSelection();
-
+  const {activeConceptMapId} = useLessonModule();
   const [quizOverlayOpen, setQuizOverlayOpen] = useState(false);
   const [isTopicDropdownOpen, setIsTopicDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -203,45 +199,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
     }
   }, [isFormValid, onValidate]);
 
-  // Called when the user clicks “Save” in edit mode
-  const handleSaveClick = () => {
-    // 1) Reset previous errors
-    setTopicError(false);
-    setTitleError(false);
-    setContentError(false);
 
-    // 2) Validate “Topic”
-    if (!inputData) {
-      // If inputData is undefined, user cannot have chosen a topic
-      setTopicError(true);
-      return;
-    }
-    const hasTopic = Boolean(
-      inputData.selectedTopicId?.trim() !== '' || inputData.createNode
-    );
-    if (!hasTopic) {
-      setTopicError(true);
-    }
-
-    // 3) Validate “Title”
-    if (title.trim() === '') {
-      setTitleError(true);
-    }
-
-    // 4) Validate “Content”
-    if (contentString.trim() === '') {
-      setContentError(true);
-    }
-
-    // 5) Only call onSave if all fields are valid
-    if (
-      hasTopic &&
-      title.trim() !== '' &&
-      contentString.trim() !== ''
-    ) {
-      onSave();
-    }
-  };
 
   /* ──────────────────────────────────────────────────────────────────────────── */
   /* 6) RENDER VIEW BODY (INCLUDES CUECARD CENTERING)                              */
@@ -252,16 +210,6 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
     switch (type) {
       case 'note':
         return <NoteCard {...commonViewProps} content={String(content)} />;
-
-      case 'image':
-        return (
-          <ImageCard
-            {...commonViewProps}
-            content={String(content)}
-            imageUrl={imageUrl || ''}
-          />
-        );
-
       case 'quiz': {
         let quizType: QuizType = 'multipleChoice';
         let quizData: IQuizQuestion[] = [];
@@ -276,10 +224,12 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
           /* ignore bad JSON */
         }
         return (
-          <QuizCard
-            {...commonViewProps}
-            content={{ quizType, quizContent: quizData }}
-          />
+           <QuizCard
+      {...commonViewProps}
+      content={{ quizType, quizContent: quizData }}
+      parentQuizId={id}  // ADD: Use the resource ID as parentQuizId
+      mapId={activeConceptMapId}     // ADD: Use nodeId as mapId (or you might need to pass actual mapId prop)
+    />
         );
       }
 
@@ -451,24 +401,12 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
           Content
         </label>
         <div className="h-[300px] overflow-y-auto border rounded">
-          {type === 'image' ? (
-            <ImageUploadCard
-              content={typeof content === 'string' ? content : ''}
-              onContentChange={onContentChange}
-              onImageSelect={(file) =>
-                onInputDataChange?.({ ...inputData!, file })
-              }
-              previewUrl={
-                inputData?.file ? URL.createObjectURL(inputData.file) : imageUrl
-              }
-            />
-          ) : (
             <RichTextEditor
               content={typeof content === 'string' ? content : ''}
               onChange={onContentChange}
               className="h-full w-full"
             />
-          )}
+    
         </div>
         {contentError && (
           <p className="text-amber-600 text-xs mt-1">
@@ -505,13 +443,12 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onAskAI={onAskAI}
-                  onImageCaption={onImageCaption}
                   resourceType={type}
                 />
                 <button
                   onClick={() => {
                     console.log('[ResourceDisplay.tsx][9105] Fullscreen action clicked:', { id, type });
-                    type === 'quiz' ? setQuizOverlayOpen(true) : open(id);
+                   open(id);
                   }}
                   className="slide-action-btn"
                   title="Full screen"
@@ -548,27 +485,6 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
           <div className="slide-content">{renderEditBody()}</div>
         )}
       </BaseResourceCard>
-
-      {/* ───────────────────────────────────────── */}
-      {/* QuizOverlay (unchanged)                   */}
-      {/* ───────────────────────────────────────── */}
-      {type === 'quiz' && (
-        <QuizOverlay
-          isOpen={quizOverlayOpen}
-          onClose={() => setQuizOverlayOpen(false)}
-          quizType={
-            typeof content === 'string'
-              ? (JSON.parse(content).quizType as QuizType) || 'multipleChoice'
-              : 'multipleChoice'
-          }
-          title={title}
-          quizData={
-            typeof content === 'string'
-              ? (JSON.parse(content).quizContent as IQuizQuestion[])
-              : []
-          }
-        />
-      )}
     </>
   );
 };

@@ -32,13 +32,12 @@ import useCardCrudOperations from '@/app/studygraph/(studygraph)/components/hook
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import type {
   ResourceCard,
-  PictureResource,
   PracticeSheetResource,
 } from '@/app/Library/Definitions/Definitions';
 import type { ResourceFormInput } from './types/resourceForm';
 import "@/app/studygraph/(studygraph)/components/layout/CardDisplay/notesTab.css";
 
-export type CardResourceType = 'cuecard' | 'note' | 'image' | 'quiz';
+export type CardResourceType = 'cuecard' | 'note'| 'quiz';
 
 interface PendingDraft {
   id: string;
@@ -81,7 +80,6 @@ function mapToDisplayType(res: ResourceCard): DisplayType {
   switch (res.type) {
     case 'cueCard':     return 'cuecard';
     case 'note':        return 'note';
-    case 'picture':     return 'image';
     case 'practiceSheet': return 'quiz';
   }
 }
@@ -143,10 +141,7 @@ const EditTab = forwardRef<EditTabRef, EditTabProps>(({
     setDraft(null);
 
     let contentStr: string;
-    if (res.type === 'picture') {
-      const pic = res as PictureResource;
-      contentStr = pic.description ? JSON.stringify(pic.description) : '';
-    } else if (res.type === 'practiceSheet') {
+    if (res.type === 'practiceSheet') {
       const quiz = res as PracticeSheetResource;
       contentStr = JSON.stringify(quiz.content);
     } else {
@@ -255,9 +250,6 @@ const EditTab = forwardRef<EditTabRef, EditTabProps>(({
           ConceptNodeTitle={currentTopicTitle}
           title={editingFields.title}
           content={editingFields.content}
-          imageUrl={!isDraft && existing?.type === 'picture'
-            ? (existing as PictureResource).imageUrl
-            : undefined}
           isEditing={true}
           isNewCard={isDraft}
           /** Pass controlled metadata into ResourceDisplay */
@@ -273,11 +265,10 @@ const EditTab = forwardRef<EditTabRef, EditTabProps>(({
           onEdit={() => {}}
           onDelete={() => {}}
           onAskAI={() => {}}
-          onImageCaption={() => {}}
-
+          
           /** New props to integrate validation workflow */
-          onValidityChange={setChildIsFormValid}
-          forceSaveAttempt={forceSaveFlag}
+          //onValidityChange={setChildIsFormValid}
+          //forceSaveAttempt={forceSaveFlag}
         />
       </div>
     </div>

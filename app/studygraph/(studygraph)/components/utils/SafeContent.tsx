@@ -24,8 +24,8 @@ const SafeContent: React.FC<SafeContentProps> = ({
 
     // 3443 SafeContent.tsx: running DOMPurify.setConfig on client
     DOMPurify.setConfig({
-      ADD_TAGS: ['sup', 'ul', 'li'],
-      ADD_ATTR: ['class', 'data-cite'],
+      ADD_TAGS: ['sup', 'ul', 'li', 'img'],
+      ADD_ATTR: ['class', 'data-cite','src', 'alt', 'title', 'width', 'height'], // Added ima
     });
   }, []);
 
@@ -67,6 +67,28 @@ const SafeContent: React.FC<SafeContentProps> = ({
       };
       el.addEventListener('click', handler);
       listeners.push(() => el.removeEventListener('click', handler));
+    });
+
+    const imageNodes = Array.from(containerRef.current.querySelectorAll<HTMLImageElement>('img'))
+
+    imageNodes.forEach(img => {
+      // 1. Add responsive styling classes
+      img.classList.add('max-w-full', 'h-auto', 'rounded', 'shadow-sm');
+      
+      // 2. Ensure accessibility
+      if (!img.alt) {
+        img.alt = 'Image';
+      }
+      
+      // 3. Add loading optimization
+      img.loading = 'lazy';
+      
+      // 4. Handle load errors gracefully
+      img.onerror = () => {
+        console.error('[SafeContent.tsx][3005] Failed to load image:', img.src);
+        img.alt = 'Failed to load image';
+        img.classList.add('opacity-50');
+      };
     });
 
     return () => listeners.forEach(fn => fn());

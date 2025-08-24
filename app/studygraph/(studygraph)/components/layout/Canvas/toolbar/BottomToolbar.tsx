@@ -20,6 +20,8 @@ import {
   RedoButton,
 } from './ToolBarButtons';
 import './CanvasToolbar.css';
+import { setGetLayout } from '@/app/Library/Context/LayoutActions';
+import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 
 export interface BottomToolbarProps {
   activeView: 'conceptMap' | 'pdf';
@@ -53,6 +55,7 @@ const BottomToolbar: React.FC<BottomToolbarProps> = ({
   onPdfGoToPage,
 }) => {
   const [inputPage, setInputPage] = useState<string>('');
+   const { dispatch: layoutDispatch } = useLayoutContext();
 
   const attemptJump = useCallback(() => {
     if (!onPdfGoToPage || !pdfPageInfo) return;
@@ -62,6 +65,16 @@ const BottomToolbar: React.FC<BottomToolbarProps> = ({
     }
     setInputPage('');
   }, [inputPage, onPdfGoToPage, pdfPageInfo]);
+
+  const handleUndo = useCallback(()=>{
+    onUndo!()
+     layoutDispatch(setGetLayout(true));
+  },[layoutDispatch, onUndo])
+
+  const handleRedo = useCallback(()=>{
+      onRedo!()
+       layoutDispatch(setGetLayout(true));
+  }, [layoutDispatch, onRedo])
 
   return (
     <div className="bottom-controls">
@@ -82,8 +95,8 @@ const BottomToolbar: React.FC<BottomToolbarProps> = ({
           <div className="w-px h-5 bg-gray-300 mx-1" />
 
           {/* Undo / Redo */}
-          <UndoButton onClick={onUndo!} disabled={!canUndo} />
-          <RedoButton onClick={onRedo!} disabled={!canRedo} />
+          <UndoButton onClick={handleUndo} disabled={!canUndo} />
+          <RedoButton onClick={handleRedo} disabled={!canRedo} />
         </>
       ) : (
         <>

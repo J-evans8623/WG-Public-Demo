@@ -256,11 +256,11 @@ export interface NoteResource extends BaseResource {
   content: string;  // HTML string
 }
 
-export interface PictureResource extends BaseResource {
+/**export interface PictureResource extends BaseResource {
   type: 'picture';
   imageUrl: string;
   description?: string; // TipTap JSON for rich text description
-}
+} */
 
 
 
@@ -311,7 +311,7 @@ export interface PracticeSheetResource extends BaseResource {
 /**
  * Discriminated union type for all resources.
  */
-export type ResourceCard = CueCardResource | NoteResource | PictureResource | PracticeSheetResource ; //| ImageMessage;
+export type ResourceCard = CueCardResource | NoteResource | PracticeSheetResource ; //| ImageMessage;
 
 
 

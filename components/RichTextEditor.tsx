@@ -26,6 +26,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { MathExtension } from '@/app/studygraph/(studygraph)/Library/tiptap/MathExtension';
 import { Citation } from './CitationExtension'; // <-- Correct export
+import { ImageExtension } from './ImageExtension';
 
 import { Toggle } from '@/components/ui/toggle';
 import {
@@ -35,6 +36,7 @@ import {
   ListOrdered,
   Sigma,
   Code,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface RichTextEditorProps {
@@ -45,6 +47,66 @@ interface RichTextEditorProps {
   /** Optional wrapper class names */
   className?: string;
 }
+
+
+
+/**
+ * handleImageUpload
+ * Handles the image upload process triggered by the toolbar button.
+ * Opens a file picker dialog and processes the selected image through the editor.
+ * @param editor The Tiptap editor instance to insert the image into
+ */
+const handleImageUpload = (editor: any) => {
+  console.log('[RichTextEditor.tsx][2001] Image upload button clicked');
+  
+  // 1. Create hidden file input element
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.multiple = false;
+  
+  // 2. Handle file selection
+  input.onchange = async (event) => {
+    const file = (event.target as HTMLInputElement)?.files?.[0];
+    if (!file) {
+      console.log('[RichTextEditor.tsx][2002] No file selected');
+      return;
+    }
+    
+    console.log('[RichTextEditor.tsx][2003] Processing selected file:', file.name);
+    
+    try {
+      // 3. Upload file to server
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const response = await fetch('/api/asset', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status}`);
+      }
+      
+      // 4. Get server URL and insert image
+      const { url: serverUrl } = await response.json();
+      console.log('[RichTextEditor.tsx][2004] Upload successful, inserting image:', serverUrl);
+      
+      editor.chain().focus().setImage({ 
+        src: serverUrl, 
+        alt: file.name 
+      }).run();
+      
+    } catch (error) {
+      console.error('[RichTextEditor.tsx][2005] Image upload failed:', error);
+    }
+  };
+  
+  // 5. Trigger file picker
+  input.click();
+};
 
 /**
  * MenuBar
@@ -122,6 +184,18 @@ const MenuBar: React.FC<{ editor: any }> = ({ editor }) => {
       >
         <Code className="h-4 w-4" />
       </Toggle>
+
+
+      {/* Image upload */}
+      <Toggle
+        size="sm"
+        pressed={false}
+        onPressedChange={() => handleImageUpload(editor)}
+        title="Insert Image (supports upload, drag & drop, and paste)"
+      >
+        <ImageIcon className="h-4 w-4" />
+      </Toggle>
+
     </div>
   );
 };
@@ -144,7 +218,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     extensions: [
       StarterKit,
       MathExtension,
-      Citation, // <-- Use the correct Citation mark
+      Citation, 
+       ImageExtension,
     ],
     content,
     onUpdate: ({ editor }) => {

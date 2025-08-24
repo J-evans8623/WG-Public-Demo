@@ -21,7 +21,6 @@ import ResourceDisplay from './ResourceDisplay';
 import { useOrderedResources } from '@/app/studygraph/(studygraph)/components/hooks/useOrderedResources';
 import type {
   ResourceCard,
-  PictureResource,
   PracticeSheetResource,
 } from '@/app/Library/Definitions/Definitions';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -31,14 +30,12 @@ import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/notesTab.
  * Map Firestore ResourceCard.type to ResourceDisplay "type" prop.
  * Same mapping function as main NotesTab for consistency.
  */
-function mapToDisplayType(r: ResourceCard): 'cuecard' | 'note' | 'image' | 'quiz' {
+function mapToDisplayType(r: ResourceCard): 'cuecard' | 'note'| 'quiz' {
   switch (r.type) {
     case 'cueCard':
       return 'cuecard';
     case 'note':
       return 'note';
-    case 'picture':
-      return 'image';
     case 'practiceSheet':
       return 'quiz';
   }
@@ -49,10 +46,6 @@ function mapToDisplayType(r: ResourceCard): 'cuecard' | 'note' | 'image' | 'quiz
  * Same extraction logic as main NotesTab for consistency.
  */
 function getContentString(r: ResourceCard): string {
-  if (r.type === 'picture') {
-    const pic = r as PictureResource;
-    return pic.description ? pic.description : '';
-  }
   if (r.type === 'practiceSheet') {
     const quiz = r as PracticeSheetResource;
     return JSON.stringify(quiz.content);
@@ -183,7 +176,6 @@ const RONotesTab: React.FC<RONotesTabProps> = () => {
                   ConceptNodeTitle={getNodeTitle(r.nodeId) ?? 'Untitled'}
                   title={r.title}
                   content={getContentString(r)}
-                  imageUrl={r.type === 'picture' ? (r as PictureResource).imageUrl : undefined}
                   isEditing={false} // Always false in read-only mode
                   onTitleChange={() => {}} // No-op
                   onContentChange={() => {}} // No-op
@@ -192,7 +184,6 @@ const RONotesTab: React.FC<RONotesTabProps> = () => {
                   onEdit={() => handleEditResourceReadOnly(r.id)} // No-op with logging
                   onDelete={() => handleDeleteResourceReadOnly(r.nodeId, r.id)} // No-op with logging
                   onAskAI={handleAskAIReadOnly} // No-op with logging
-                  onImageCaption={handleImageCaptionReadOnly} // No-op with logging
                   onDismiss={() => handleDismissResourceReadOnly(r.nodeId, r.id)} // No-op with logging
                 />
               </div>

@@ -19,7 +19,7 @@ import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
 import BottomToolbar from '../../Canvas/toolbar/BottomToolbar';
-import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
+import { useSlideShow } from '@/app/Library/Context/ROSlideShowContext';
 import { usePreorderTraversal } from '@/app/studygraph/(studygraph)/components/hooks/usePreorderTraversal';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
