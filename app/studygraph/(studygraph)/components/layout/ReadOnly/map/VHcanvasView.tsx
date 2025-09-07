@@ -27,11 +27,10 @@ import type { ResourceCard } from '@/app/Library/Definitions/Definitions';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import '@/app/studygraph/(studygraph)/components/layout/Canvas/CanvasView.css';
 import { useLessonUnitOrder } from '../../../hooks/useLessonUnitOrder';
-import TopToolbar from './TopToolbar';
 import './StatusBanner.css';
 import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 
-export const CanvasView: React.FC = ({
+export const VHCanvasView: React.FC = ({
 }) => {
   /* ───────────────────────────── Context hooks ──────────────────────────── */
  
@@ -107,14 +106,6 @@ export const CanvasView: React.FC = ({
       data-testid="canvas-viewer"
     >
 
-    <TopToolbar
-        onSearch={openSearchModal}
-        multiSelectEnabled={multiSelectEnabled}
-        toggleMultiSelectEnabled={toggleMultiSelectEnabled}
-        onViewAllSlides={handleViewAllSlides}
-        onViewFlashCards={handleViewFlashCards}
-      />
-
 {statusMessage && (
   <div className="simple-status-message">
     {statusMessage}
@@ -149,4 +140,4 @@ export const CanvasView: React.FC = ({
   );
 };
 
-export default CanvasView;
+export default VHCanvasView;

@@ -323,6 +323,10 @@ export interface TextFileMessage {
   uploadDate: Date;
   size: number;
   description?: string;
+  visibility?: 'public' | 'private';
+  ownerId?: string;
+  documentId?: string;
+  accountType: 'scholar' | 'educator'
 }
 
 export interface LayoutConfig {

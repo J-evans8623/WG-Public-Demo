@@ -1,8 +1,31 @@
-// app/Library/components/layout/Canvas/TopicGeneratorModal.tsx
+/**
+ * @file TopicGeneratorModal.tsx (Enhanced with Centralized API Integration)
+ * @description
+ * Enhanced topic generation modal that integrates with the centralized API service system for
+ * consistent subscription management and error handling across both map and PDF exploration
+ * pipelines. This updated implementation replaces direct legacy API calls with the centralized
+ * EnhancedApiService while maintaining the existing visual design and dual-mode functionality.
+ * The component supports both map-based topic expansion and PDF text exploration workflows
+ * while providing backend-driven subscription validation where freemium users are automatically
+ * prompted for upgrades when attempting to access premium topic exploration features. The enhanced
+ * implementation ensures seamless integration with the event-driven error handling system that
+ * triggers appropriate modals for subscription requirements and rate limiting scenarios without
+ * disrupting the core user experience. All topic generation operations are processed through
+ * the unified API service with comprehensive error handling and node management capabilities.
+ * 
+ * Responsibilities:
+ * - Provide dual-mode interface for topic exploration from map nodes or PDF text selections
+ * - Integrate with enhanced API service for consistent subscription management and error handling
+ * - Maintain existing visual design, accessibility, and dual-pipeline functionality
+ * - Handle subscription validation through backend-driven error handling and modal triggering
+ * - Process successful topic generation through existing node creation and management systems
+ * - Support comprehensive logging for debugging and user interaction tracking
+ * - Ensure seamless integration with centralized modal management for error scenarios
+ */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
-import { generateTopic } from '@/app/Library/utils/aiServiceApi';
+import { apiService } from '@/app/src/services/ApiService';
 import { parseTopicResponse } from '@/app/studygraph/(studygraph)/components/hooks/topicResponseParser';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
@@ -25,19 +48,24 @@ interface TopicGeneratorModalProps {
 
 /**
  * TopicGeneratorModal
- *
- * Opens when the user selects “Explore Topic” (PDF) or explicitly
- * invokes it from the map.  After generating new nodes it:
- *   1. Highlights them via groupSelect(...)
- *   2. Leaves the Explore flag set so CardDisplay can switch to Notes
- *   3. Finally calls onClose() to clear attachment & dismiss
+ * @description
+ * Enhanced topic generation modal component that integrates with the centralized API service
+ * system for consistent subscription management and error handling. The component maintains
+ * existing dual-mode functionality (map vs PDF exploration) while replacing legacy API calls
+ * with the unified service that automatically handles subscription validation, rate limiting,
+ * and error modal triggering. This ensures consistent user experience across all AI services
+ * while preserving the existing topic expansion and node generation workflows.
+ * @param isOpen Boolean indicating whether the modal should be displayed
+ * @param onClose Callback function executed when modal should be closed
+ * @param targetNodeId Node identifier for map-based topic expansion target
+ * @returns Enhanced topic generator modal with centralized API integration
  */
 const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
   isOpen,
   onClose,
   targetNodeId,
 }) => {
-  // —— Contexts —————————————————————————————————————————————————————
+  // Context hooks for existing functionality
   const { attachedText, clearAttachment } = useSelectionAttachment();
   const { nodes, updateNodeTitle, setNodes } = useNodesContext();
   const { subtrees, setSubtrees } = useSubTreeContext();
@@ -45,9 +73,9 @@ const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
   const exportStudyData = useExportStudyData();
   const { activeConceptMapId } = useLessonModule();
   const { docFileID } = useYDoc();
-  const { groupSelect } = useNodeSelection();     // NEW: select many at once
+  const { groupSelect } = useNodeSelection();
 
-  // —— Local state ——————————————————————————————————————————————————
+  // Local state management
   const [topicRequest, setTopicRequest] = useState('');
   const [mergeOption, setMergeOption] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -65,7 +93,7 @@ const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
     }
   }, [isOpen]);
 
-  // Wrap setNodes / setSubtrees into the parser API shape
+  // Wrapper functions for context setters to match parser API expectations
   const wrappedSetNodes = useCallback(
     (m: Map<string, any>, mapID?: string) => setNodes(m, undefined, mapID),
     [setNodes]
@@ -75,14 +103,19 @@ const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
     [setSubtrees]
   );
 
-  // Are we in the PDF “Explore” pipeline?
+  // Pipeline detection and node management
   const usingPdf = attachedText.trim().length > 0;
-  // Which node to attach new topics under?
   const rootNodeId = usingPdf ? selectedNodeId : targetNodeId;
-  // All nodes for dropdown in PDF mode
   const nodeArray = Array.from(nodes.values());
 
-  // Close handler: prevent mid-generate, then clear the attachment
+  /**
+   * handleClose
+   * @description
+   * Enhanced modal closure handler that manages PDF attachment cleanup and loading state
+   * validation while maintaining existing modal closure behavior and preventing accidental
+   * closure during active processing operations for optimal user experience and data integrity.
+   * @returns Promise resolving when modal closure processing is complete
+   */
   const handleClose = useCallback(() => {
     if (!isLoading) {
       onClose();
@@ -90,52 +123,91 @@ const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
     }
   }, [isLoading, onClose, usingPdf, clearAttachment]);
 
-  // When user clicks “Generate”
+  /**
+   * handleGenerate
+   * @description
+   * Enhanced topic generation handler that integrates with the centralized API service
+   * for consistent subscription management and error handling. This method replaces legacy
+   * API calls with the unified service that automatically handles subscription validation,
+   * rate limiting, and error modal triggering while maintaining existing topic processing
+   * and node creation workflows. The implementation ensures seamless user experience with
+   * automatic error handling through the event-driven architecture.
+   * @returns Promise resolving when topic generation is complete or error handling triggered
+   */
   const handleGenerate = async () => {
-    // basic validation
+    // Step 1: Validate input requirements
     if (!topicRequest.trim()) return;
     if (usingPdf && !rootNodeId) {
       setError('Please select a topic from the dropdown above.');
       return;
     }
 
+    console.log('[TopicGeneratorModal.tsx][4013] Topic generation initiated', {
+      usingPdf,
+      hasRequest: !!topicRequest.trim(),
+      rootNodeId,
+      mergeOption
+    });
+
     setIsLoading(true);
     setError(null);
 
     try {
-      // 1) export existing map state
+      // Step 2: Export existing map state for context
       const exportData = exportStudyData([rootNodeId]);
-      // 2) call the AI API
-      const aiResponse = await generateTopic(
+      
+      console.log('[TopicGeneratorModal.tsx][4014] Study data exported for topic generation', {
+        dataLength: exportData.length,
+        targetNode: rootNodeId
+      });
+
+      // Step 3: Call enhanced API service instead of legacy generateTopic
+      const response = await apiService.exploreTopic(
         topicRequest.trim(),
         exportData,
         docFileID || '',
         attachedText
       );
-      // 3) parse & insert nodes
-      const { createdNodeIds } = await parseTopicResponse(
-        aiResponse,
-        {
-          updateNodeTitle,
-          setNodes: wrappedSetNodes,
-          nodes,
-          createResource,
-          setSubtrees: wrappedSetSubtrees,
-          subtrees,
-          getRootNode: rootNodeId,
-        },
-        activeConceptMapId,
-        mergeOption
-      );
 
-      console.log(`[TopicGenerator Modal returned creatednodes : ${createdNodeIds}]`);
-      // 4) highlight all new nodes at once
-      groupSelect(createdNodeIds);
+      // Step 4: Process successful response
+      if (response.success && response.data) {
+        console.log('[TopicGeneratorModal.tsx][4015] Topic generation response received successfully');
 
-      // 5) dismiss
-      handleClose();
+        // Step 5: Parse and insert nodes using existing parser
+        const { createdNodeIds } = await parseTopicResponse(
+          response.data,
+          {
+            updateNodeTitle,
+            setNodes: wrappedSetNodes,
+            nodes,
+            createResource,
+            setSubtrees: wrappedSetSubtrees,
+            subtrees,
+            getRootNode: rootNodeId,
+          },
+          activeConceptMapId,
+          mergeOption
+        );
+
+        console.log('[TopicGeneratorModal.tsx][4016] Topic nodes created successfully', {
+          createdNodeCount: createdNodeIds.length
+        });
+
+        // Step 6: Highlight all new nodes and close modal
+        groupSelect(createdNodeIds);
+        handleClose();
+      } else {
+        // Step 7: Error handling is managed by the enhanced API service event system
+        console.log('[TopicGeneratorModal.tsx][4017] Topic generation failed, error handled by event system', {
+          success: response.success,
+          errorType: response.error?.type
+        });
+        setError('Failed to generate topic. Please try again later.');
+        setIsLoading(false);
+      }
     } catch (err) {
-      console.error('[TopicGeneratorModal] Error generating topic:', err);
+      // Step 8: Catch-all error handling for unexpected failures
+      console.error('[TopicGeneratorModal.tsx][4018] Unexpected error in topic generation:', err);
       setError('Failed to generate topic. Please try again later.');
       setIsLoading(false);
     }
@@ -167,7 +239,7 @@ const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
         <p className="text-sm text-gray-600 mb-4">
           {usingPdf
             ? 'Select where on the map to place the new topic.'
-            : 'Select a topic on the map, then describe what you’d like to explore:'}
+            : 'Select a topic on the map, then describe what you would like to explore:'}
         </p>
 
         {/* dropdown or title */}

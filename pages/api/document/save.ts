@@ -34,6 +34,7 @@ interface SaveDocumentRequest {
     lastUpdated: string;
     totalUnits: number;
   };
+  version: number
 }
 
 export default async function handler(
@@ -50,7 +51,7 @@ export default async function handler(
   if (!session) return;
 
   try {
-    const { fileName, docFileID, fileStoragePath, fileSize , lessonUnitsMeta} =
+    const { fileName, docFileID, fileStoragePath, fileSize , lessonUnitsMeta, version} =
       req.body as SaveDocumentRequest;
 
     if (!fileName || !docFileID || !fileStoragePath || typeof fileSize !== 'number') {
@@ -76,6 +77,7 @@ export default async function handler(
         contentType: 'application/octet-stream',
         editors: [session.user.email!],
         sharedWith: [],
+        version,
       };
 
       if (lessonUnitsMeta) {
@@ -113,6 +115,11 @@ export default async function handler(
         fileSize,
         contentType: 'application/octet-stream'
       };
+
+       // NEW: propagate version on subsequent saves when provided
+      if (typeof version === 'number' && Number.isFinite(version)) {
+        updateParams.version = version;
+      }
 
     if (lessonUnitsMeta) {
         updateParams.lessonUnitsMeta = {

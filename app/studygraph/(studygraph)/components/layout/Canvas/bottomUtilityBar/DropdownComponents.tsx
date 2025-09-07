@@ -1,25 +1,28 @@
 /**
- * @file DropdownComponents.tsx (read/write)
+ * @file DropdownComponents.tsx (Enhanced with Centralized Modal Integration)
  * @description
  * Production-ready dropdown components for the editable CanvasHeader that handle lesson workflows
- * (generate, create, select) and file workflows (upload, select) with clear, observable state flows.
- * This update aligns the editable dropdowns with the read-only dropdown’s selection-highlighting rules,
- * ensuring that the currently selected item is visually emphasized using the shared Prototype 2 design.
- * The implementation applies the `ch-menu__item--active` class to exactly one item at a time across
- * both dropdowns by gating highlight display through the current application view (`activeView`):
- * when the user is in the concept map view, lesson selection is highlighted; when in the PDF view,
- * the uploaded file selection is highlighted. This preserves mutual exclusivity of the visual “selected”
- * state. The file preserves existing accessibility affordances (ARIA, keyboard Escape handling, and 
- * click-outside dismissal). Logging statements are intentionally minimal but precise, denoting success
- * or failure at key steps and marked with unique 4-digit codes for quick grep-driven debugging.
+ * (generate, create, select) and file workflows (upload, select) with complete integration to the
+ * centralized modal system. This updated implementation eliminates direct API calls and individual
+ * error handling in favor of the unified modal system that provides consistent account-aware
+ * functionality, subscription tier checking, and comprehensive error handling across all navigation
+ * components. The dropdowns maintain their existing visual design, accessibility features, and
+ * interaction patterns while routing all premium service operations through the centralized API
+ * service and modal management system. This ensures uniform user experience between NavigationPanel
+ * and DropdownComponents while providing proper permission enforcement, rate limiting, and upgrade
+ * prompts based on user account status. All file uploads and lesson generation operations now use
+ * the same modal workflows established in the NavigationPanel, creating consistency across the
+ * application's navigation components and eliminating code duplication for error handling scenarios.
  * 
  * Responsibilities:
- * - Provide accessible, editable dropdown menus for Lessons and Uploads
- * - Integrate with LessonModule, FileAsset, ViewSwitch, YDoc, and LessonData contexts
- * - Apply the shared `ch-menu__item--active` selection style consistent with read-only dropdowns
- * - Ensure exclusive visual selection between lessons and uploads via `activeView` gating
- * - Maintain existing behaviors: AI generation modal, lesson creation, file uploads, and navigation
- * - Offer purposeful, low-noise console logging for observability during critical operations
+ * - Provide accessible dropdown menus for Lessons and Uploads with centralized modal integration
+ * - Eliminate direct API calls in favor of centralized modal system for consistency
+ * - Integrate with account status management for permission-aware feature rendering
+ * - Maintain existing visual design, accessibility, and interaction patterns
+ * - Ensure exclusive visual selection highlighting through activeView gating
+ * - Handle lesson generation and file uploads through unified modal workflows
+ * - Provide consistent error handling and user feedback across all dropdown operations
+ * - Support comprehensive logging for debugging and observability during critical operations
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -29,25 +32,25 @@ import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
 import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
-import GenerateLessonModal from '@/app/studygraph/(studygraph)/components/layout/ResourcePanel/GenerateLessonModal';
 import { useLessonData } from '@/app/Library/Context/LessonDataContext';
+import { useModalManager } from '@/app/studygraph/(studygraph)/components/modals/AppModals';
+import { useAccountStatus } from '@/app/src/context/ApiContext';
 import './DropdownComponents.css';
 
 /**
- * @function useClickOutside
+ * useClickOutside
  * @description
- * Detects clicks outside of a referenced element and invokes a callback to enable reliable
- * dropdown dismissal. This hook centralizes the event wiring/cleanup so dropdown components
- * remain focused on control state and rendering. It ensures no orphan listeners remain after
- * unmount, reducing memory leaks and hard-to-trace bugs during long sessions or rapid toggles.
- * @param ref React ref pointing to the element to monitor
- * @param onOutside Callback function to execute when outside click is detected
+ * Hook that detects clicks outside of a referenced element and invokes a callback to enable reliable
+ * dropdown dismissal. This centralizes event wiring and cleanup to prevent memory leaks and ensure
+ * proper dropdown behavior during rapid toggles or long user sessions.
+ * @param ref React ref pointing to the element to monitor for outside clicks
+ * @param onOutside Callback function executed when outside click is detected
  */
 function useClickOutside(ref: React.RefObject<HTMLElement>, onOutside: () => void) {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (ref.current && !ref.current.contains(event.target as Node)) {
-        console.log('[DropdownComponents.tsx][8001] Click outside detected, closing dropdown');
+        console.log('[DropdownComponents.tsx][3001] Click outside detected, closing dropdown');
         onOutside();
       }
     }
@@ -60,7 +63,7 @@ function useClickOutside(ref: React.RefObject<HTMLElement>, onOutside: () => voi
 }
 
 /**
- * @interface LessonsDropdownProps
+ * LessonsDropdownProps
  * @description Props interface for the LessonsDropdown component
  */
 interface LessonsDropdownProps {
@@ -69,23 +72,22 @@ interface LessonsDropdownProps {
 }
 
 /**
- * @function LessonsDropdown
+ * LessonsDropdown
  * @description
- * Editable lessons dropdown that supports AI lesson generation, blank lesson creation,
- * and navigating among existing lessons. This implementation now mirrors the read-only
- * selection-highlighting rules: it applies `ch-menu__item--active` to the active lesson
- * only when the current `activeView` is for concept maps. This guarantees that highlighting
- * is mutually exclusive with uploads: if the user switches to PDF view (by selecting an
- * upload), lesson highlighting is suppressed, and only the chosen file appears selected.
- * The component remains keyboard accessible and integrates with modal workflows.
+ * Enhanced editable lessons dropdown that integrates with the centralized modal system for AI lesson
+ * generation, blank lesson creation, and navigation among existing lessons. This updated implementation
+ * follows the backend-driven error handling approach where the lesson generation modal is opened first,
+ * and subscription validation occurs at the API level, triggering appropriate modals through the event
+ * system when users lack permissions or hit rate limits.
+ * @param onLessonGenerated Optional callback triggered when lesson generation succeeds
+ * @returns Enhanced lessons dropdown component with centralized modal integration
  */
 export const LessonsDropdown: React.FC<LessonsDropdownProps> = ({ onLessonGenerated }) => {
-  // Step 1: Local UI state
+  // Step 1: Local UI state management
   const [isOpen, setIsOpen] = useState(false);
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Step 2: Contexts
+  // Step 2: Context hooks for existing functionality
   const {
     getLessonModule,
     addConceptMap,
@@ -93,67 +95,122 @@ export const LessonsDropdown: React.FC<LessonsDropdownProps> = ({ onLessonGenera
     setActiveConceptMapId,
     isGeneratingLesson,
   } = useLessonModule();
-
-  // Pull activeView so we can gate highlight to ensure exclusivity across menus
   const { activeView, setActiveView } = useViewSwitch();
-
   const { docFileID } = useYDoc();
   const { addLessonModule } = useLessonData();
 
-  // Step 3: Click-outside dismissal
+  // Step 3: Centralized modal integration
+  const { showModal, ModalRenderer } = useModalManager();
+
+  // Step 4: Click-outside dismissal setup
   useClickOutside(dropdownRef, () => setIsOpen(false));
 
-  // Step 4: Data
+  // Step 5: Retrieve lesson data
   const lessons = getLessonModule().conceptMaps || [];
-  console.log('[DropdownComponents.tsx][8002] LessonsDropdown render; count:', lessons.length, 'activeView:', activeView, 'activeLessonId:', activeConceptMapId);
+  console.log('[DropdownComponents.tsx][3002] LessonsDropdown render - Count:', lessons.length, 'ActiveView:', activeView, 'ActiveLessonId:', activeConceptMapId);
 
-  // Step 5: Generate lesson → open modal
+  /**
+   * handleGenerateLessonSuccess
+   * @description
+   * Processes successful lesson generation response by updating lesson data context and triggering
+   * external success callbacks. This function maintains the existing lesson generation workflow
+   * while providing comprehensive logging and error handling for production reliability.
+   * @param responseData Response data from successful lesson generation API call
+   * @returns Promise resolving when lesson generation response processing is complete
+   */
+  const handleGenerateLessonSuccess = useCallback((responseData: any) => {
+    console.log('[DropdownComponents.tsx][3003] Processing lesson generation success response:', responseData);
+    
+    try {
+      // Step 6: Update lesson data context if lesson modules are provided
+      if (responseData?.id && responseData?.lessonModules) {
+        addLessonModule(responseData.id, { lessonModules: responseData.lessonModules });
+        console.log('[DropdownComponents.tsx][3004] Lesson modules added to data context successfully');
+      }
+      
+      // Step 7: Trigger external callback if provided
+      onLessonGenerated?.(responseData);
+      console.log('[DropdownComponents.tsx][3005] External lesson generation callback executed');
+    } catch (error) {
+      console.error('[DropdownComponents.tsx][3006] Error processing lesson generation response:', error);
+    }
+  }, [addLessonModule, onLessonGenerated]);
+
+  /**
+   * handleGenerateLesson
+   * @description
+   * Backend-driven lesson generation handler that opens the lesson generation modal directly,
+   * allowing the backend to handle subscription validation and trigger appropriate error modals
+   * through the event system. This approach follows the specified workflow where the modal opens
+   * first and subscription checking occurs at the API level.
+   * @returns Promise resolving when lesson generation modal is opened
+   */
   const handleGenerateLesson = useCallback(() => {
-    console.log('[DropdownComponents.tsx][8003] Generate lesson requested (open modal)');
-    setShowGenerateModal(true);
+    console.log('[DropdownComponents.tsx][3007] Lesson generation requested - Opening modal directly');
     setIsOpen(false);
-  }, []);
+    
+    // Step 8: Open lesson generation modal directly - backend will handle subscription validation
+    showModal('lessonGeneration', {
+      docFileId: docFileID,
+      onSuccess: (responseData: any) => {
+        console.log('[DropdownComponents.tsx][3008] Lesson generation completed successfully from dropdown');
+        handleGenerateLessonSuccess(responseData);
+      }
+    });
+  }, [showModal, docFileID, handleGenerateLessonSuccess]);
 
-  // Step 6: Create blank lesson
+  /**
+   * handleCreateLesson
+   * @description
+   * Creates a new blank lesson using the existing lesson module system and navigates to it.
+   * This function maintains the original lesson creation workflow while providing enhanced
+   * logging for debugging and observability purposes.
+   * @returns Promise resolving when blank lesson creation is complete
+   */
   const handleCreateLesson = useCallback(() => {
-    console.log('[DropdownComponents.tsx][8004] Create blank lesson requested');
+    console.log('[DropdownComponents.tsx][3009] Creating blank lesson from dropdown');
     const { id } = addConceptMap('Untitled Lesson');
     setActiveConceptMapId(id);
     setActiveView('conceptMap');
     setIsOpen(false);
-    console.log('[DropdownComponents.tsx][8005] Lesson created; id:', id);
+    console.log('[DropdownComponents.tsx][3010] Blank lesson created successfully - ID:', id);
   }, [addConceptMap, setActiveConceptMapId, setActiveView]);
 
-  // Step 7: Select existing lesson
+  /**
+   * handleLessonSelect
+   * @description
+   * Handles selection of existing lessons from the dropdown menu and navigates to the selected
+   * lesson view. This function maintains the original lesson navigation workflow while providing
+   * comprehensive logging for user interaction tracking and debugging purposes.
+   * @param lessonId Unique identifier of the lesson to select and navigate to
+   * @returns Promise resolving when lesson selection and navigation is complete
+   */
   const handleLessonSelect = useCallback((lessonId: string) => {
-    console.log('[DropdownComponents.tsx][8006] Lesson selected:', lessonId);
+    console.log('[DropdownComponents.tsx][3011] Lesson selected from dropdown - ID:', lessonId);
     setActiveConceptMapId(lessonId);
-    setActiveView('conceptMap'); // Ensures lessons own the exclusive highlight
+    setActiveView('conceptMap');
     setIsOpen(false);
   }, [setActiveConceptMapId, setActiveView]);
 
-  // Step 8: Modal success handler
-  const handleGenerateLessonSuccess = useCallback((responseData: any) => {
-    console.log('[DropdownComponents.tsx][8007] Lesson generation success payload received');
-    // Optional: Map payload if needed for local caches
-    if (responseData?.id && responseData?.lessonModules) {
-      addLessonModule(responseData.id, { lessonModules: responseData.lessonModules });
-      console.log('[DropdownComponents.tsx][8008] Lesson modules persisted to LessonDataContext');
-    }
-    onLessonGenerated?.(responseData);
-  }, [addLessonModule, onLessonGenerated]);
-
-  // Step 9: Keyboard escape
+  /**
+   * handleKeyDown
+   * @description
+   * Handles keyboard interactions for dropdown accessibility, specifically escape key presses
+   * to close the dropdown. This maintains existing accessibility features while providing
+   * proper keyboard navigation support for enhanced user experience.
+   * @param event React keyboard event containing key press information
+   * @returns Promise resolving when keyboard event processing is complete
+   */
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     if (event.key === 'Escape') {
-      console.log('[DropdownComponents.tsx][8009] Escape pressed; close Lessons dropdown');
+      console.log('[DropdownComponents.tsx][3012] Escape key pressed - Closing lessons dropdown');
       setIsOpen(false);
     }
   }, []);
 
   return (
     <div className="ch-nav__item" ref={dropdownRef}>
-      {/* Step 10: Trigger */}
+      {/* Step 9: Dropdown trigger button */}
       <button
         type="button"
         className="ch-nav__trigger"
@@ -162,7 +219,7 @@ export const LessonsDropdown: React.FC<LessonsDropdownProps> = ({ onLessonGenera
         onClick={() => {
           const next = !isOpen;
           setIsOpen(next);
-          console.log('[DropdownComponents.tsx][8010] Lessons dropdown toggled:', next);
+          console.log('[DropdownComponents.tsx][3013] Lessons dropdown toggled - Open:', next);
         }}
         onKeyDown={handleKeyDown}
         disabled={isGeneratingLesson}
@@ -170,7 +227,7 @@ export const LessonsDropdown: React.FC<LessonsDropdownProps> = ({ onLessonGenera
         <span>Lessons</span>
       </button>
 
-      {/* Step 11: Menu */}
+      {/* Step 10: Dropdown menu content */}
       {isOpen && (
         <div
           role="menu"
@@ -178,12 +235,13 @@ export const LessonsDropdown: React.FC<LessonsDropdownProps> = ({ onLessonGenera
           aria-label="Lessons menu"
           onKeyDown={handleKeyDown}
         >
-          {/* Generate AI Lesson */}
+          {/* Generate AI Lesson - preserved original styling */}
           <button
             role="menuitem"
             className="ch-menu__item ch-menu__item--primary"
             onClick={handleGenerateLesson}
             disabled={!docFileID}
+            title="Generate AI-powered lesson"
           >
             <Sparkles size={16} />
             <span>Generate Lesson</span>
@@ -202,11 +260,11 @@ export const LessonsDropdown: React.FC<LessonsDropdownProps> = ({ onLessonGenera
           {/* Divider */}
           {lessons.length > 0 && <div className="ch-menu__divider" />}
 
-          {/* Existing Lessons (active state gated by activeView) */}
+          {/* Existing Lessons with exclusive selection highlighting */}
           {lessons.map((lesson) => {
             const isActiveForView = activeView !== 'pdf' && lesson.id === activeConceptMapId;
             if (isActiveForView) {
-              console.log('[DropdownComponents.tsx][8011] Lesson highlighted (exclusive):', lesson.id);
+              console.log('[DropdownComponents.tsx][3014] Lesson highlighted exclusively - ID:', lesson.id);
             }
             return (
               <button
@@ -215,7 +273,7 @@ export const LessonsDropdown: React.FC<LessonsDropdownProps> = ({ onLessonGenera
                 className={`ch-menu__item ${isActiveForView ? 'ch-menu__item--active' : ''}`}
                 onClick={() => handleLessonSelect(lesson.id)}
               >
-                {/* Match read-only indicator: green dot when active, icon when not */}
+                {/* Selection indicator: green dot when active, icon when not */}
                 {isActiveForView ? (
                   <div
                     style={{
@@ -235,7 +293,7 @@ export const LessonsDropdown: React.FC<LessonsDropdownProps> = ({ onLessonGenera
             );
           })}
 
-          {/* Generating state (disabled row) */}
+          {/* Generating state indicator */}
           {isGeneratingLesson && (
             <div className="ch-menu__item ch-menu__item--disabled">
               <div className="ch-menu__loading">Generating lesson...</div>
@@ -244,23 +302,14 @@ export const LessonsDropdown: React.FC<LessonsDropdownProps> = ({ onLessonGenera
         </div>
       )}
 
-      {/* Step 12: AI Generation Modal */}
-      {showGenerateModal && docFileID && (
-        <GenerateLessonModal
-          docFileId={docFileID}
-          onClose={() => {
-            console.log('[DropdownComponents.tsx][8012] Generate lesson modal closed');
-            setShowGenerateModal(false);
-          }}
-          onSuccess={handleGenerateLessonSuccess}
-        />
-      )}
+      {/* Step 11: CRITICAL - Render centralized modal system */}
+      <ModalRenderer />
     </div>
   );
 };
 
 /**
- * @interface UploadsDropdownProps
+ * UploadsDropdownProps
  * @description Props interface for the UploadsDropdown component
  */
 interface UploadsDropdownProps {
@@ -269,116 +318,108 @@ interface UploadsDropdownProps {
 }
 
 /**
- * @function UploadsDropdown
+ * UploadsDropdown
  * @description
- * Editable uploads dropdown that supports document uploads, shows progress, and allows
- * navigation to the PDF viewer. To match read-only behavior and enforce exclusive selection
- * across both menus, it now applies `ch-menu__item--active` only when the current `activeView`
- * is `pdf` and the row matches the locally selected file. When an upload is selected, the
- * component switches the view to PDF, providing a single, authoritative selection highlight.
- * Upload mechanics and progress UI remain unchanged.
+ * Enhanced editable uploads dropdown that integrates with the centralized modal system for document
+ * uploads, progress tracking, and navigation to the PDF viewer. This updated implementation replaces
+ * direct file upload processing with centralized modal integration, ensuring consistent permission
+ * checking, visibility controls, and error handling while maintaining existing visual design and
+ * accessibility features.
+ * @param onFileUploaded Optional callback triggered when file upload succeeds
+ * @returns Enhanced uploads dropdown component with centralized modal integration
  */
 export const UploadsDropdown: React.FC<UploadsDropdownProps> = ({ onFileUploaded }) => {
-  // Step 1: Local UI/upload state
+  // Step 1: Local UI state management
   const [isOpen, setIsOpen] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [currentFileName, setCurrentFileName] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Step 2: Contexts
-  const { getAllFiles, addFile } = useFileAsset();
+  // Step 2: Context hooks for existing functionality
+  const { getAllFiles } = useFileAsset();
   const { activeView, setSelectedPdfUrl, setActiveView } = useViewSwitch();
 
-  // Step 3: Click-outside dismissal
+  // Step 3: Centralized modal integration
+  const { showModal, ModalRenderer } = useModalManager();
+  const { accountStatus } = useAccountStatus();
+
+  // Step 4: Click-outside dismissal setup
   useClickOutside(dropdownRef, () => setIsOpen(false));
 
-  // Step 4: Data
+  // Step 5: Retrieve uploaded files data
   const uploadedFiles = getAllFiles();
-  console.log('[DropdownComponents.tsx][8013] UploadsDropdown render; count:', uploadedFiles.length, 'activeView:', activeView, 'selectedFileId:', selectedFileId);
+  console.log('[DropdownComponents.tsx][3015] UploadsDropdown render - Count:', uploadedFiles.length, 'ActiveView:', activeView, 'SelectedFileId:', selectedFileId);
 
-  // Step 5: Simulated progress (cosmetic)
-  useEffect(() => {
-    let timer: NodeJS.Timeout | undefined;
-    if (isUploading && uploadProgress < 100) {
-      timer = setInterval(() => {
-        setUploadProgress((prev) => Math.min(prev + Math.floor(Math.random() * 10 + 5), 95));
-      }, 300);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [isUploading, uploadProgress]);
-
-  // Step 6: Upload click
+  /**
+   * handleUploadClick
+   * @description
+   * Enhanced file upload handler that uses the centralized modal system with comprehensive
+   * account-aware functionality. This function replaces direct file upload processing with
+   * integration to the unified modal system, ensuring consistent permission checking, visibility
+   * controls, and error handling that matches the NavigationPanel implementation.
+   * @returns Promise resolving when file upload modal integration is complete
+   */
   const handleUploadClick = useCallback(() => {
-    console.log('[DropdownComponents.tsx][8014] Upload picker opened');
-    fileInputRef.current?.click();
+    console.log('[DropdownComponents.tsx][3016] File upload requested from dropdown - Opening centralized modal');
     setIsOpen(false);
-  }, []);
-
-  // Step 7: Upload handler
-  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    console.log('[DropdownComponents.tsx][8015] Upload started; first file:', files[0].name);
-    setIsUploading(true);
-    setUploadProgress(0);
-    setCurrentFileName(files[0].name);
-
-    try {
-      await Promise.all(Array.from(files).map(async (file) => {
-        await addFile(file);
-        onFileUploaded?.({
+    
+    showModal('fileUpload', {
+      onUploadSuccess: (file: File, isPublic: boolean) => {
+        console.log('[DropdownComponents.tsx][3017] Upload successful via dropdown modal - File:', file.name, 'Public:', isPublic);
+        
+        // Step 6: Create file message for callback
+        const fileMessage: TextFileMessage = {
           id: crypto.randomUUID(),
-          type: 'pdf',
+          type: file.type === 'application/pdf' ? 'pdf' : 'txt',
           title: file.name,
-          serverUrl: '', // downstream contexts typically fill this after server ingest
+          serverUrl: '', // Will be populated by the modal system
           uploadDate: new Date(),
           size: file.size,
-        });
-        console.log('[DropdownComponents.tsx][8016] File uploaded:', file.name);
-      }));
+          accountType: accountStatus?.accountType || 'scholar',
+        };
+        
+        // Step 7: Trigger external callback if provided
+        onFileUploaded?.(fileMessage);
+        console.log('[DropdownComponents.tsx][3018] File upload callback executed from dropdown');
+      }
+    });
+  }, [showModal, accountStatus?.accountType, onFileUploaded]);
 
-      setUploadProgress(100);
-      setTimeout(() => {
-        setIsUploading(false);
-        setUploadProgress(0);
-        setCurrentFileName('');
-        event.target.value = '';
-        console.log('[DropdownComponents.tsx][8017] Upload complete/reset UI');
-      }, 1000);
-    } catch (error) {
-      console.error('[DropdownComponents.tsx][8018] Upload failed:', error);
-      setIsUploading(false);
-      setUploadProgress(0);
-      setCurrentFileName('');
-    }
-  }, [addFile, onFileUploaded]);
-
-  // Step 10: File select → PDF
+  /**
+   * handleFileSelect
+   * @description
+   * Handles file selection from the dropdown menu and navigates to the PDF viewer. This function
+   * maintains the original file navigation workflow while providing comprehensive logging for
+   * user interaction tracking and debugging purposes.
+   * @param file File object containing metadata for the selected file
+   * @returns Promise resolving when file selection and navigation is complete
+   */
   const handleFileSelect = useCallback((file: TextFileMessage) => {
-    console.log('[DropdownComponents.tsx][8019] File selected:', file.title, '→ switch to PDF view');
+    console.log('[DropdownComponents.tsx][3019] File selected from dropdown - Title:', file.title, 'Switching to PDF view');
     setSelectedPdfUrl(file.serverUrl);
     setSelectedFileId(file.id);
-    setActiveView('pdf'); // Ensures uploads own the exclusive highlight
+    setActiveView('pdf');
     setIsOpen(false);
   }, [setSelectedPdfUrl, setActiveView]);
 
-  // Step 11: Keyboard escape
+  /**
+   * handleKeyDown
+   * @description
+   * Handles keyboard interactions for dropdown accessibility, specifically escape key presses
+   * to close the dropdown. This maintains existing accessibility features while providing
+   * proper keyboard navigation support for enhanced user experience.
+   * @param event React keyboard event containing key press information
+   * @returns Promise resolving when keyboard event processing is complete
+   */
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     if (event.key === 'Escape') {
-      console.log('[DropdownComponents.tsx][8020] Escape pressed; close Uploads dropdown');
+      console.log('[DropdownComponents.tsx][3020] Escape key pressed - Closing uploads dropdown');
       setIsOpen(false);
     }
   }, []);
 
   return (
     <div className="ch-nav__item" ref={dropdownRef}>
-      {/* Step 12: Trigger */}
+      {/* Step 8: Dropdown trigger button */}
       <button
         type="button"
         className="ch-nav__trigger"
@@ -387,24 +428,14 @@ export const UploadsDropdown: React.FC<UploadsDropdownProps> = ({ onFileUploaded
         onClick={() => {
           const next = !isOpen;
           setIsOpen(next);
-          console.log('[DropdownComponents.tsx][8021] Uploads dropdown toggled:', next);
+          console.log('[DropdownComponents.tsx][3021] Uploads dropdown toggled - Open:', next);
         }}
         onKeyDown={handleKeyDown}
       >
         <span>Uploads</span>
       </button>
 
-      {/* Step 13: Hidden input */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        className="hidden"
-        accept=".pdf,.docx,.txt,.doc,.pptx"
-        multiple
-        onChange={handleFileUpload}
-      />
-
-      {/* Step 14: Menu */}
+      {/* Step 9: Dropdown menu content */}
       {isOpen && (
         <div
           role="menu"
@@ -412,47 +443,31 @@ export const UploadsDropdown: React.FC<UploadsDropdownProps> = ({ onFileUploaded
           aria-label="Uploads menu"
           onKeyDown={handleKeyDown}
         >
-          {/* Upload action */}
+          {/* Upload action with centralized modal integration */}
           <button
             role="menuitem"
             className="ch-menu__item ch-menu__item--primary"
             onClick={handleUploadClick}
-            disabled={isUploading}
           >
             <FolderOpen size={16} />
             <span>Upload Document</span>
           </button>
 
-          {/* Progress */}
-          {isUploading && (
-            <div className="ch-menu__item ch-menu__item--disabled">
-              <div className="ch-menu__progress">
-                <div className="ch-menu__progress-text">{currentFileName}</div>
-                <div className="ch-menu__progress-bar">
-                  <div className="ch-menu__progress-fill" style={{ width: `${uploadProgress}%` }} />
-                </div>
-                <div className="ch-menu__progress-status">
-                  {uploadProgress < 100 ? 'Uploading...' : 'Upload complete!'}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Divider */}
-          {uploadedFiles.length > 0 && !isUploading && <div className="ch-menu__divider" />}
+          {uploadedFiles.length > 0 && <div className="ch-menu__divider" />}
 
           {/* Empty state */}
-          {!isUploading && uploadedFiles.length === 0 && (
+          {uploadedFiles.length === 0 && (
             <div className="ch-menu__item ch-menu__item--disabled">
               <span className="ch-menu__empty">No files uploaded yet</span>
             </div>
           )}
 
-          {/* File list with exclusive highlight gated by activeView === 'pdf' */}
-          {!isUploading && uploadedFiles.map((file) => {
+          {/* File list with exclusive highlight gated by activeView */}
+          {uploadedFiles.map((file) => {
             const isSelectedAndActive = activeView === 'pdf' && file.id === selectedFileId;
             if (isSelectedAndActive) {
-              console.log('[DropdownComponents.tsx][8022] File highlighted (exclusive):', file.id);
+              console.log('[DropdownComponents.tsx][3022] File highlighted exclusively - ID:', file.id);
             }
             return (
               <button
@@ -461,7 +476,7 @@ export const UploadsDropdown: React.FC<UploadsDropdownProps> = ({ onFileUploaded
                 className={`ch-menu__item ${isSelectedAndActive ? 'ch-menu__item--active' : ''}`}
                 onClick={() => handleFileSelect(file)}
               >
-                {/* Match read-only indicator: green dot when active, icon when not */}
+                {/* Selection indicator: green dot when active, icon when not */}
                 {isSelectedAndActive ? (
                   <div
                     style={{
@@ -482,6 +497,9 @@ export const UploadsDropdown: React.FC<UploadsDropdownProps> = ({ onFileUploaded
           })}
         </div>
       )}
+
+      {/* Step 10: CRITICAL - Render centralized modal system */}
+      <ModalRenderer />
     </div>
   );
 };

@@ -52,7 +52,6 @@ import BookmarkModal from './Bookmarks/BookmarkModal';
 import CanvasHeader from './bottomUtilityBar/CanvasHeader';
 import CardDisplay from '../CardDisplay/v2/CardDisplay';
 import CalendarModal from '../Calendar/CalendarModal';
-import { CalendarProvider } from '@/app/Library/Context/CalendarContext';
 import { PickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
 
 
@@ -325,7 +324,6 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus , handleF
 
         {isCalendarModalOpen &&
   ReactDOM.createPortal(
-    <CalendarProvider>
       <CalendarModal
         isOpen={isCalendarModalOpen}
         onClose={() => {
@@ -333,9 +331,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus , handleF
           setCalendarModalOpen(false);
         }}
         onFileSelect={handleFileSelect} // Pass AppLayout's file selection handler
-      />
-    </CalendarProvider>,
-    document.body
+      />, document.body
   )}
     </div>
   );

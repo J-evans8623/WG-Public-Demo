@@ -142,7 +142,7 @@ const SaveUserData = useCallback(
    *   of CueCardResource and PracticeSheetResource, ready for consumption by UI components.
    *   Console logs at key checkpoints expose flow and missing lookups for debugging.
    */
-  const generateRevision = useCallback((): RevisionCards | null => {
+  const generateInterleavedRevision = useCallback((): RevisionCards | null => {
     console.log('[UserDataContext.tsx][2001] › generateRevision invoked');
     if (!userRevisionData) {
       console.log('[UserDataContext.tsx][2002] › No userData; returning null');
@@ -565,7 +565,7 @@ const recordQuizSession = useCallback(() => {
         userRevisionData,
         loading,
         recordQuizAttempt : updateQuizQuestionStat,
-        generateRevision,
+        generateRevision: generateInterleavedRevision,
         LoadUserData,
         InitializeUserData,
         SaveUserData,

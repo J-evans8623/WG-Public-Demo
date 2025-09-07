@@ -20,11 +20,11 @@
  *   5) Emit focused logs for mount and major user actions to aid observability.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import MapRenderer from '@/app/studygraph/(studygraph)/components/layout/ReadOnly/map/MapRenderer';
-import BottomToolbar from '../toolbar/BottomToolbar';
-import CanvasHeader from '../bottomUtilityBar/RoCanvasHeader';
+import BottomToolbar from '../Canvas/toolbar/BottomToolbar';
+import CanvasHeader from '../Canvas/bottomUtilityBar/RoCanvasHeader';
 import ROCardDisplay from '@/app/studygraph/(studygraph)/components/layout/ReadOnly/CardDisplay/ROcardDisplay';
 
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
@@ -34,13 +34,16 @@ import { usePreorderTraversal } from '@/app/studygraph/(studygraph)/components/h
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
-import { useLessonUnitOrder } from '../../../hooks/useLessonUnitOrder';
+import { useLessonUnitOrder } from '../../hooks/useLessonUnitOrder';
 import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import { useComments } from '@/app/Library/Context/CommentContext';
 import { useSelectionAttachment } from '@/app/Library/Context/SelectionAttachmentContext';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
+import PDFRenderer from '../Canvas/PDFRenderer';
+import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
+import { PdfViewerRefType } from '../Canvas/PdfViewer';
 
-import '../CanvasView.css';
+
 
 
 type Mode = 'note' | 'edit' | 'chat';
@@ -58,19 +61,34 @@ type Mode = 'note' | 'edit' | 'chat';
 const ROCanvasView: React.FC = () => {
   // 1) View-only contexts
   const { dispatch: zoomDispatch, zoomLevel } = useZoomContext();
+  
   const { openCustom } = useSlideShow();
-  const { getReviewNode, getNodeTitle } = useNodesContext();
-  const { selectCueCards } = useResourceContext();
   const { colorTheme } = useColorThemeContext();
   const unitOrderSlides = useLessonUnitOrder();
   const { openHistory } = useVersionHistory();
   const { openForum } = useComments();
 
+
+  /* ─────────────────────── PDF navigation helpers ───────────────────────── */
+    const pdfRef = useRef<PdfViewerRefType>(null);
+    const handlePdfPrev = () => pdfRef.current?.handlePrev();
+    const handlePdfNext = () => pdfRef.current?.handleNext();
+    const [pdfCurrentPage, setPdfCurrentPage] = useState(1);
+    const [pdfTotalPages, setPdfTotalPages] = useState(0);
+    const handlePageChange = useCallback((current: number, total: number) => {
+      setPdfCurrentPage(current);
+      setPdfTotalPages(total);
+    }, []);
+    const handlePdfGoToPage = (page: number) => pdfRef.current?.handleGoTo(page);
+
+  
+
+
   // 2) Pre-compute traversal at top level (Rules of Hooks compliant)
   const preorder = usePreorderTraversal();
 
   // For parity we keep a concept-map-only view in read-only mode
-  const activeView: 'conceptMap' = 'conceptMap';
+  const { activeView, selectedPdfUrl, resetPdfState } = useViewSwitch();
 
   // 3) CardDisplay mode state (matching CanvasView)
   const [CardDisplaymode, setCardDisplayMode] = useState<Mode>('note');
@@ -126,16 +144,16 @@ const ROCanvasView: React.FC = () => {
     console.log('[ROCanvasView.tsx][5208] calendar button pressed (no-op placeholder in read-only)');
   }, []);
 
-  // 7) Zoom handlers (read-only)
-  const handleZoomIn = useCallback(() => {
-    console.log('[ROCanvasView.tsx][5211] zoom in requested; preZoom:', zoomLevel);
-    zoomDispatch({ type: ZoomActionType.ZOOM_IN });
-  }, [zoomDispatch, zoomLevel]);
-
-  const handleZoomOut = useCallback(() => {
-    console.log('[ROCanvasView.tsx][5212] zoom out requested; preZoom:', zoomLevel);
-    zoomDispatch({ type: ZoomActionType.ZOOM_OUT });
-  }, [zoomDispatch, zoomLevel]);
+    /* ───────────────────────────── Zoom handlers ───────────────────────────── */
+    const [pdfScale, setPdfScale] = useState(1.0);
+    const handleZoomIn = useCallback(() => {
+      if (activeView === 'conceptMap') zoomDispatch({ type: ZoomActionType.ZOOM_IN });
+      else setPdfScale(s => s + 0.1);
+    }, [activeView, zoomDispatch]);
+    const handleZoomOut = useCallback(() => {
+      if (activeView === 'conceptMap') zoomDispatch({ type: ZoomActionType.ZOOM_OUT });
+      else setPdfScale(s => Math.max(0.1, s - 0.1));
+    }, [activeView, zoomDispatch]);
 
   // 8) CardDisplay tab change handlers (matching CanvasView)
   const handleCardDisplayTabChange = (mode: Mode) => {
@@ -169,13 +187,26 @@ const ROCanvasView: React.FC = () => {
       <div className="canvas-panels flex-1">
         {/* Left column: read-only map viewport */}
         <div className="map-column flex flex-col relative">
-          <div className="map-cell flex-1 relative overflow-hidden">
-            <div className={`view-panel map-panel ${activeView !== 'conceptMap' ? 'hidden' : ''}`}>
-              <div className={colorTheme}>
-                <MapRenderer />
-              </div>
-            </div>
-          </div>
+ {/** 3.1: Viewport wrapper (overflow‑hidden) **/}
+    <div className="map-cell flex-1 relative overflow-hidden" >
+      {activeView === 'conceptMap' && (
+        
+          <div className={colorTheme}  >
+            <MapRenderer />
+          
+        </div>
+      )}
+      {activeView === 'pdf' && (
+        <div className="view-panel pdf-panel">
+          <PDFRenderer
+            ref={pdfRef}
+            fileUrl={selectedPdfUrl}
+            scale={pdfScale}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      )}
+   </div>
 
           {/* Bottom Toolbar: zoom only */}
           <BottomToolbar

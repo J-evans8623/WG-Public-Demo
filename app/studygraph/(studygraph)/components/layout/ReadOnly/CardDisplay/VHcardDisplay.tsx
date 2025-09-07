@@ -1,19 +1,22 @@
+// VHcardDisplay.tsx
+
 /**
- * @file ROcardDisplay.tsx
+ * @file VHcardDisplay.tsx
  * @description
- *   Top‐level right‐hand pane: renders UnifiedHeader, NotesTab/ChatTab/EditTab, and ActionFooter.
- *   This update wires up ResourceDisplay’s validation state so that:
- *     • We maintain a local `isFormValid` flag in CardDisplay.
- *     • Pass `onValidate={setIsFormValid}` into ResourceDisplay so it notifies us when the form is valid.
- *     • Modify the external “Save” button in ActionFooter to be disabled unless `isFormValid === true`.
- *     • When the “Save” button is clicked, we only call `handleSave()` (EditTab.save) if the form is valid.
- *   All other behavior and styling remain unchanged.
+ *   Version-History CardDisplay (read-only) with vertical scrolling enabled.
+ *   Minimal changes:
+ *     1) Import panel/card CSS to match RO layout hooks.
+ *     2) Fix broken className (stray quote) and add `card-body` hook used by CSS.
+ *     3) Ensure the panel is a flex column so height contracts resolve, enabling Y-axis scroll.
  */
 
 import React, { useState, useEffect } from 'react';
-import NotesTab from './NotesTab';
+import NotesTab from './VHnotesTab';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
-import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/CardDisplay.css'; // Existing styling overrides for panel, header, footer
+import VHunifiedHeader from './VHunifiedHeader';
+
+// ✅ Match RO layout styles for .panel, header/rail, and body hooks
+import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/CardDisplay.css';
 
 export interface CardDisplayProps {}
 
@@ -28,18 +31,21 @@ const CardDisplay: React.FC<CardDisplayProps> = () => {
     if (selectedResultIds) setMode('read');
   }, [selectedResultIds]);
 
-
   return (
     <div
-      className="panel"
+      className="panel panel--md theme-scope flex flex-col"
       style={{ '--card-display-width': `380px` } as React.CSSProperties}
     >
+      <VHunifiedHeader
+        activeTab={'notes'}
+        onTabChange={() => {}}
+        width={380}
+      />
+
       <div className="flex-1 min-h-0 relative">
-        <div className="absolute inset-0 'pb-16">
-          {mode === 'read' && (
-            <NotesTab
-            />
-          )}
+        {/* ✅ fixed: removed stray quote and added `card-body` hook for CSS parity */}
+        <div className="card-body absolute inset-0 pb-16">
+          {mode === 'read' && <NotesTab />}
         </div>
       </div>
     </div>

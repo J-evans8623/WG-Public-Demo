@@ -1,6 +1,30 @@
+/**
+ * @file AskTab.tsx (Enhanced with Centralized API Integration)
+ * @description
+ * Enhanced chat interface component that integrates with the centralized API service system
+ * for consistent subscription management and error handling. This updated implementation
+ * replaces direct legacy API calls with the centralized EnhancedApiService while maintaining
+ * the existing visual design and chat interaction patterns. The component provides seamless
+ * integration with the event-driven error handling system that automatically triggers
+ * subscription upgrade modals for freemium users and rate limit modals for premium users
+ * without disrupting the core chat experience. All API interactions are processed through
+ * the unified service with comprehensive error handling and user feedback mechanisms that
+ * ensure consistent behavior across all AI services while preserving the specialized chat
+ * interface functionality and markdown rendering capabilities for optimal user experience.
+ * 
+ * Responsibilities:
+ * - Provide chat interface for AI assistant interactions with enhanced API integration
+ * - Integrate with enhanced API service for consistent subscription management and error handling
+ * - Maintain existing visual design, chat flow, and markdown rendering functionality
+ * - Handle subscription validation through backend-driven error handling and modal triggering
+ * - Process chat messages and responses through existing message management systems
+ * - Support comprehensive logging for debugging and user interaction tracking
+ * - Ensure seamless integration with centralized modal management for error scenarios
+ */
+
 import React from 'react';
 import markdownIt from 'markdown-it';
-import { askQuestionAPI } from '@/app/Library/utils/aiServiceApi';
+import { apiService } from '@/app/src/services/ApiService';
 import SafeContent from '@/app/studygraph/(studygraph)/components/utils/SafeContent';
 import { Paperclip } from 'lucide-react';
 import type { ChatMessage } from '@/app/Library/Context/ChatHistoryContext';
@@ -8,21 +32,22 @@ import type { ChatMessage } from '@/app/Library/Context/ChatHistoryContext';
 const mdParser = new markdownIt();
 
 /**
- * @file AskTab.tsx
- * @description
- *   Presentation + submission logic for the Ask tab, now wired to accept
- *   a messaging callback instead of calling hooks internally.
- *
- * Responsibilities:
- *   - Renders messages of all types (assistant, user, system, attachment).
- *   - On submit, immediately adds the user’s message then appends the model’s response.
- *   - Forwards `textSelection` along with the question.
+ * AskTabUIProps
+ * @description Props interface for the AskTabUI component
  */
-
 export interface AskTabUIProps {
   messages: ChatMessage[];
 }
 
+/**
+ * AskTabUI
+ * @description
+ * Chat interface UI component that renders different message types including assistant responses,
+ * user queries, system messages, and PDF attachments while maintaining existing visual design
+ * and accessibility patterns for optimal user experience and message comprehension.
+ * @param messages Array of chat messages to render in the interface
+ * @returns Enhanced chat UI component with consistent message rendering
+ */
 export const AskTabUI: React.FC<AskTabUIProps> = ({ messages }) => (
   <>
     {messages.map(msg => {
@@ -68,6 +93,10 @@ export const AskTabUI: React.FC<AskTabUIProps> = ({ messages }) => (
   </>
 );
 
+/**
+ * AskSubmitParams
+ * @description Interface for ask submission parameters
+ */
 export interface AskSubmitParams {
   input: string;
   textSelection: string;
@@ -77,9 +106,19 @@ export interface AskSubmitParams {
 }
 
 /**
+ * handleAskSubmit
  * @description
- *   Sends question + PDF selection to the backend.
- *   Immediately shows user message & model reply via the injected callback.
+ * Enhanced question submission handler that integrates with the centralized API service
+ * for consistent subscription management and error handling. This function replaces legacy
+ * API calls with the unified service that automatically handles subscription validation,
+ * rate limiting, and error modal triggering while maintaining existing chat message flow
+ * and markdown processing. The implementation ensures seamless user experience with
+ * automatic error handling through the event-driven architecture.
+ * @param input User's question input for AI processing
+ * @param textSelection Selected text from PDF for context
+ * @param docFileID Document identifier for context processing
+ * @param addMessage Callback function for adding messages to chat interface
+ * @returns Promise resolving when question processing is complete or error handling triggered
  */
 export async function handleAskSubmit({
   input,
@@ -90,10 +129,16 @@ export async function handleAskSubmit({
   const question = input.trim();
   if (!question) return;
 
-  // 1) Show user message
+  console.log('[AskTab.tsx][4019] Question submission initiated in chat interface', {
+    hasQuestion: !!question,
+    hasSelection: !!textSelection,
+    docFileID
+  });
+
+  // Step 1: Show user message immediately
   addMessage({ id: Date.now(), type: 'user', content: question });
 
-  // 2) Validate
+  // Step 2: Validate document context
   if (!docFileID) {
     addMessage({
       id: Date.now() + 1,
@@ -104,17 +149,39 @@ export async function handleAskSubmit({
   }
 
   try {
-    // 3) API call
-    const response = await askQuestionAPI(question, textSelection, docFileID);
-    const raw = response.question_response ?? 'No response received.';
-    const html = mdParser.render(raw);
+    // Step 3: Call enhanced API service instead of legacy askQuestionAPI
+    const response = await apiService.askAssistant(question, textSelection, docFileID);
 
-    // 4) Show assistant reply
-    addMessage({ id: Date.now() + 2, type: 'assistant', content: html });
+    // Step 4: Process successful response
+    if (response.success && response.data) {
+      const raw = response.data.question_response ?? 'No response received.';
+      const html = mdParser.render(raw);
+
+      console.log('[AskTab.tsx][4020] Question response processed successfully in chat', {
+        hasResponse: !!raw
+      });
+
+      // Step 5: Show assistant reply
+      addMessage({ id: Date.now() + 2, type: 'assistant', content: html });
+    } else {
+      // Step 6: Error handling is managed by the enhanced API service event system
+      console.log('[AskTab.tsx][4021] Question failed in chat, error handled by event system', {
+        success: response.success,
+        errorType: response.error?.type
+      });
+
+      // Step 7: Show generic error message in chat
+      addMessage({
+        id: Date.now() + 3,
+        type: 'assistant',
+        content: 'Failed to get an answer. Please try again later.',
+      });
+    }
   } catch (err) {
-    console.error('[AskTab] askQuestionAPI error', err);
+    // Step 8: Catch-all error handling for unexpected failures
+    console.error('[AskTab.tsx][4022] Unexpected error in chat question submission:', err);
     addMessage({
-      id: Date.now() + 3,
+      id: Date.now() + 4,
       type: 'assistant',
       content: 'Failed to get an answer. Please try again later.',
     });

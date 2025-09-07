@@ -13,7 +13,7 @@
  *   have been preserved without impacting other file sections or API logic.
  ***************************************************************************************/
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { ApiContext } from '@/app/src/context/ApiContext';
+import { useApiContext } from '@/app/src/context/ApiContext';
 import { UserFileMetadata } from '@/app/src/types/fileTypes';
 import { Plus, FileText, Clock, Star, Trash } from 'lucide-react';
 import './HomeScreen.css';
@@ -46,7 +46,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onFileSelect,
   onCreateNewDocument,
 }) => {
-  const { listFiles, deleteFile } = useContext(ApiContext);
+  const { listFiles, deleteFile } = useApiContext();
   const [ownedFiles, setOwnedFiles] = useState<UserFileMetadata[]>([]);
   const [sharedFiles, setSharedFiles] = useState<UserFileMetadata[]>([]);
   const [loading, setLoading] = useState(true);

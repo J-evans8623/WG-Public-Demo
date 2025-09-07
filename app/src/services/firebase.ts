@@ -137,7 +137,7 @@ export interface ChatMessage {
 export async function storeDocumentFile(
   fileId: string,
   content: Buffer,
-  metadata: { fileName: string; docFileID: string }
+  metadata: { fileName: string; docFileID: string; version:number }
 ): Promise<string> {
   const destination = `documents/${fileId}.bloomdocx`;
   try {
@@ -148,6 +148,7 @@ export async function storeDocumentFile(
         metadata: {
           fileName: metadata.fileName,
           docFileID: metadata.docFileID,
+           ...(metadata.version !== undefined ? { version: String(metadata.version) } : {}),
         },
       },
     });
@@ -193,6 +194,7 @@ export async function storeFileMetadata(metadata: {
     lastUpdated: admin.firestore.Timestamp;
     totalUnits: number;
   };
+  version:number;
 }): Promise<void> {
   try {
     console.log(`[firebase.ts] Storing metadata for file ${metadata.fileId}`);
@@ -227,6 +229,7 @@ export async function updateFileMetadata(params: {
     lastUpdated: admin.firestore.Timestamp;
     totalUnits: number;
   };
+  version:number;
 }): Promise<void> {
   console.log('firebase.ts 0009 › updateFileMetadata', params);
   
@@ -242,6 +245,12 @@ export async function updateFileMetadata(params: {
     updates.lessonUnitsMeta = params.lessonUnitsMeta;
     console.log('firebase.ts › Including lesson units metadata update with', params.lessonUnitsMeta.totalUnits, 'units');
   }
+
+  if (typeof params.version === 'number' && Number.isFinite(params.version)) {
+    updates.version = params.version;
+    console.log('firebase.ts › Including version update:', params.version);
+  }
+  
 
   await firestore
     .collection('userFiles')

@@ -104,7 +104,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   // Step 1: Initialize context hooks for lesson and document management
   const { activeConceptMapId, getLessonModule, updateConceptMapTitle } = useLessonModule();
   const { getVisibility } = useYDoc();
-  const { addGeneratedLessonFile } = useFileAsset();
+  
   
   // Step 2: Determine document privacy state for UI indicators
   const isPrivate = getVisibility() === 'private';
@@ -138,29 +138,6 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
     setIsEditing(false);
   }, [titleDraft, currentTitle, updateConceptMapTitle, activeConceptMapId]);
 
-  // Step 7: Handle successful lesson generation with file asset integration
-  const handleLessonGenerated = useCallback((responseData: any) => {
-    console.log('[CanvasHeader.tsx][9004] Lesson generation completed, processing response:', responseData);
-    
-    try {
-      // Convert backend response to TextFileMessage format for file asset context
-      const generatedFileMessage: TextFileMessage = {
-        id: responseData.id,
-        type: 'pdf',
-        title: responseData.title,
-        serverUrl: responseData.url,
-        uploadDate: new Date(),
-        size: responseData.size,
-      };
-      
-      // Update file asset context with generated lesson file
-      addGeneratedLessonFile(generatedFileMessage);
-      console.log('[CanvasHeader.tsx][9005] Generated lesson file added to asset context');
-      
-    } catch (error) {
-      console.error('[CanvasHeader.tsx][9006] Error processing lesson generation response:', error);
-    }
-  }, [addGeneratedLessonFile]);
 
   // Step 8: Handle successful file uploads with logging
   const handleFileUploaded = useCallback((file: TextFileMessage) => {
@@ -173,20 +150,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
     <header className="canvas-header flex items-center justify-between">
       {/* ───────────────────────── Left cluster: menu, title, nav dropdowns ───────────────────────── */}
       <div className="flex items-center gap-3">
-        {/* Menu toggle button */}
-        <button
-          onClick={() => {
-            console.log('[CanvasHeader.tsx][9008] Menu toggle requested');
-            onMenuToggle();
-          }}
-          className="btn btn--icon canvas-header__menu"
-          title="Toggle menu"
-          aria-label="Toggle menu"
-        >
-          <Menu size={20} />
-        </button>
-
-        {/* Document title display and editing */}
+              {/* Document title display and editing */}
         <div
           className="canvas-header__titlewrap"
           onClick={() => {

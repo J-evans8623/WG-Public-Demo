@@ -1,13 +1,15 @@
 // UserInfoPanel.tsx
+
+// Depreciate this.... or update it
 import React, { useContext } from 'react';
-import { ApiContext } from '@/app/src/context/ApiContext';
+import { useApiContext } from '@/app/src/context/ApiContext';
 
 interface UserInfoPanelProps {
   onClose: () => void;
 }
 
 export const UserInfoPanel: React.FC<UserInfoPanelProps> = ({ onClose }) => {
-  const { isAuthenticated, user, signIn, signOut } = useContext(ApiContext);
+  const { isAuthenticated, user, signIn, signOut } = useApiContext();
 
   const handleSignIn = async () => {
     try {

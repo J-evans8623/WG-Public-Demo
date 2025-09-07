@@ -287,16 +287,20 @@ export const LessonModuleProvider: React.FC<{ children: React.ReactNode }> = ({ 
    * Pick the first lesson from the *React* state array and activate it.
    * This now exactly matches what your navigation panel sees.
    */
-  const setDefaultMap = useCallback(() => {
-    const ids = lessonModuleState.conceptMaps.map((m) => m.id);
-    console.log('[LessonModule] setDefaultMap – maps seen in state →', ids);
-    if (ids.length) {
-      console.log('[LessonModule] setDefaultMap – activating →', ids[0]);
-      setActiveConceptMapId(ids[0]);
-    } else {
-      console.log('[LessonModule] setDefaultMap – no maps to activate');
-    }
-  }, [lessonModuleState]);
+const setDefaultMap = useCallback(() => {
+  // Read directly from Y.Doc instead of React state
+  const conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any>;
+  const maps = conceptMapsYArray ? conceptMapsYArray.toArray() : [];
+  const ids = maps.map((m: ConceptMap) => m.id);
+  
+  console.log('[LessonModule] setDefaultMap – maps from Y.Doc →', ids);
+  if (ids.length > 0) {
+    console.log('[LessonModule] setDefaultMap – activating →', ids[0]);
+    setActiveConceptMapId(ids[0]);
+  } else {
+    console.log('[LessonModule] setDefaultMap – no maps found in Y.Doc');
+  }
+}, [lessonModuleYMap]);
 
   return (
     <LessonModuleContext.Provider

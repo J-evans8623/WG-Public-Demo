@@ -1,8 +1,31 @@
-// app/Library/components/layout/Canvas/QuizGeneratorModal.tsx
+/**
+ * @file QuizGeneratorModal.tsx (Enhanced with Centralized API Integration)
+ * @description
+ * Dual-mode quiz generation modal that integrates with the enhanced API service system for
+ * consistent subscription management and error handling across both map and PDF pipelines.
+ * This updated implementation replaces direct legacy API calls with the centralized
+ * EnhancedApiService while maintaining the existing visual design and dual-mode functionality.
+ * The component supports both map-based topic selection and PDF text attachment workflows
+ * while providing backend-driven subscription validation where freemium users are automatically
+ * prompted for upgrades when attempting to access premium quiz generation features. The enhanced
+ * implementation ensures seamless integration with the event-driven error handling system that
+ * triggers appropriate modals for subscription requirements and rate limiting scenarios without
+ * disrupting the core user experience. All quiz generation operations are processed through
+ * the unified API service with comprehensive error handling and user feedback mechanisms.
+ * 
+ * Responsibilities:
+ * - Provide dual-mode interface for quiz generation from map topics or PDF text selections
+ * - Integrate with enhanced API service for consistent subscription management and error handling
+ * - Maintain existing visual design, accessibility, and dual-pipeline functionality
+ * - Handle subscription validation through backend-driven error handling and modal triggering
+ * - Process successful quiz generation through existing card creation and node management systems
+ * - Support comprehensive logging for debugging and user interaction tracking
+ * - Ensure seamless integration with centralized modal management for error scenarios
+ */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
-import { generateQuiz } from '@/app/Library/utils/aiServiceApi';
+import { apiService } from '@/app/src/services/ApiService';
 import { parseQuizResponse } from '@/app/studygraph/(studygraph)/components/hooks/parseQuizResponse';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
@@ -29,24 +52,24 @@ interface QuizGeneratorModalProps {
 
 /**
  * QuizGeneratorModal
- *
- * Dual-mode modal:
- * - **Map pipeline**: shows a checklist of topics (QuizTopicSelector).
- * - **PDF pipeline** (attachedText present): replaces topic selector with an AttachedTextBubble.
- *
- * Responsibilities:
- * 1. Let user choose topics (map) or review attached text (PDF).
- * 2. Let user pick one quiz type.
- * 3. Assemble request payload, call generateQuiz, parse and insert quiz cards.
- * 4. Ensure a “Review” node exists, then attach new quiz to it.
- * 5. Clear attachment on close if PDF mode.
+ * @description
+ * Enhanced dual-mode modal component that integrates with the centralized API service system
+ * for consistent subscription management and error handling. The component maintains existing
+ * dual-mode functionality (map vs PDF pipeline) while replacing legacy API calls with the
+ * unified service that automatically handles subscription validation, rate limiting, and error
+ * modal triggering. This ensures consistent user experience across all AI services while
+ * preserving the existing topic selection and quiz generation workflows.
+ * @param isOpen Boolean indicating whether the modal should be displayed
+ * @param onClose Callback function executed when modal should be closed
+ * @param preselectedTopicIds Array of topic IDs preselected for map pipeline quiz generation
+ * @returns Enhanced quiz generator modal with centralized API integration
  */
 const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
   isOpen,
   onClose,
   preselectedTopicIds,
 }) => {
-  // Contexts
+  // Context hooks for existing functionality
   const { attachedText, clearAttachment } = useSelectionAttachment();
   const { nodes, getReviewNode, createNewNode, getRootNode } = useNodesContext();
   const { docFileID } = useYDoc();
@@ -54,7 +77,8 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
   const { createResource } = useCardCrudOperations();
   const { dispatch: layoutDispatch } = useLayoutContext();
   const { groupSelect } = useNodeSelection();
-  // Local state
+  
+  // Local state management
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
   const [selectedQuizType, setSelectedQuizType] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -63,7 +87,7 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
   // Detect PDF vs map pipeline
   const usingPdf = attachedText.trim().length > 0;
 
-  // Reset fields on open
+  // Reset fields on modal open
   useEffect(() => {
     if (isOpen) {
       setSelectedTopicIds(preselectedTopicIds);
@@ -73,7 +97,14 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
     }
   }, [isOpen, preselectedTopicIds]);
 
-  // Close handler (also clear PDF attachment)
+  /**
+   * handleClose
+   * @description
+   * Enhanced modal closure handler that manages PDF attachment cleanup and loading state
+   * validation while maintaining existing modal closure behavior and preventing accidental
+   * closure during active processing operations for optimal user experience and data integrity.
+   * @returns Promise resolving when modal closure processing is complete
+   */
   const handleClose = useCallback(() => {
     if (!isLoading) {
       onClose();
@@ -81,19 +112,36 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
     }
   }, [isLoading, onClose, usingPdf, clearAttachment]);
 
-  // Quiz type change
+  /**
+   * handleQuizTypeChange
+   * @description
+   * Quiz type selection handler that updates local state and provides comprehensive
+   * logging for user interaction tracking while maintaining existing form input
+   * patterns and ensuring proper state management across component lifecycle.
+   * @param e React change event containing selected quiz type value
+   * @returns Promise resolving when quiz type selection processing is complete
+   */
   const handleQuizTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedQuizType(e.target.value);
   };
 
-  // Generate quiz
+  /**
+   * handleGenerateQuiz
+   * @description
+   * Enhanced quiz generation handler that integrates with the centralized API service
+   * for consistent subscription management and error handling. This method replaces legacy
+   * API calls with the unified service that automatically handles subscription validation,
+   * rate limiting, and error modal triggering while maintaining existing quiz processing
+   * and card creation workflows. The implementation ensures seamless user experience with
+   * automatic error handling through the event-driven architecture.
+   * @returns Promise resolving when quiz generation is complete or error handling triggered
+   */
   const handleGenerateQuiz = async () => {
-    // PDF mode: require attachment (topics irrelevant)
+    // Step 1: Validate input requirements based on pipeline mode
     if (usingPdf && !attachedText) {
       setError('No PDF selection found.');
       return;
     }
-    // Map mode: require at least one topic
     if (!usingPdf && selectedTopicIds.length === 0) {
       setError('Please select at least one topic.');
       return;
@@ -103,56 +151,76 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
       return;
     }
 
+    console.log('[QuizGeneratorModal.tsx][4007] Quiz generation initiated', {
+      usingPdf,
+      topicCount: selectedTopicIds.length,
+      quizType: selectedQuizType,
+      hasAttachment: !!attachedText
+    });
+
     setIsLoading(true);
     setError(null);
 
     try {
-      // Export data: for PDF flow we pass an empty array to export all if desired
+      // Step 2: Export data for quiz context
       const exportData = exportStudyData(usingPdf ? [] : selectedTopicIds);
 
-
-      // Build request
-      const requestPayload: {
-        topicIds: string[];
-        quizTypes: string[];
-        fileID: string;
-        exportData: string;
-        textSelection?: string;
-      } = {
-        topicIds: usingPdf ? [] : selectedTopicIds,
-        quizTypes: [selectedQuizType],
-        fileID: docFileID || '',
-        exportData,
-        // ← new field
-        textSelection: usingPdf ? attachedText : undefined,
-      };
-
-      // Call API
-      const response = await generateQuiz(requestPayload);
-      const parsedQuiz = parseQuizResponse(response);
-      if (!parsedQuiz) throw new Error('Received empty quiz response');
-
-      // Ensure Review node
-      const reviewInfo = getReviewNode();
-      if (!reviewInfo.exist) {
-        createNewNode('Review', getRootNode(), 'reviewNode');
-        layoutDispatch(setGetLayout(true));
-      }
-      parsedQuiz.nodeId = 'reviewNode';
-
-      // Save quiz card
-      await createResource({
-        nodeId: parsedQuiz.nodeId,
-        type: 'quiz',
-        title: parsedQuiz.title,
-        content: parsedQuiz.content,
+      console.log('[QuizGeneratorModal.tsx][4008] Study data exported for quiz generation', {
+        dataLength: exportData.length
       });
 
-      groupSelect([parsedQuiz.nodeId]);
+      // Step 3: Call enhanced API service instead of legacy generateQuiz
+      const response = await apiService.createQuiz(
+        usingPdf ? [] : selectedTopicIds,
+        [selectedQuizType],
+        docFileID || '',
+        exportData,
+        usingPdf ? attachedText : undefined
+      );
 
-      handleClose();
+      // Step 4: Process successful response
+      if (response.success && response.data) {
+        const parsedQuiz = parseQuizResponse(response.data);
+        if (!parsedQuiz) throw new Error('Received empty quiz response');
+
+        console.log('[QuizGeneratorModal.tsx][4009] Quiz response parsed successfully', {
+          hasQuiz: !!parsedQuiz,
+          quizTitle: parsedQuiz?.title
+        });
+
+        // Step 5: Ensure Review node exists for quiz attachment
+        const reviewInfo = getReviewNode();
+        if (!reviewInfo.exist) {
+          createNewNode('Review', getRootNode(), 'reviewNode');
+          layoutDispatch(setGetLayout(true));
+        }
+        parsedQuiz.nodeId = 'reviewNode';
+
+        // Step 6: Save quiz card and select review node
+        await createResource({
+          nodeId: parsedQuiz.nodeId,
+          type: 'quiz',
+          title: parsedQuiz.title,
+          content: parsedQuiz.content,
+        });
+
+        groupSelect([parsedQuiz.nodeId]);
+        
+        console.log('[QuizGeneratorModal.tsx][4010] Quiz card created and node selected successfully');
+        
+        handleClose();
+      } else {
+        // Step 7: Error handling is managed by the enhanced API service event system
+        console.log('[QuizGeneratorModal.tsx][4011] Quiz generation failed, error handled by event system', {
+          success: response.success,
+          errorType: response.error?.type
+        });
+        setError('Failed to generate quiz. Please try again later.');
+        setIsLoading(false);
+      }
     } catch (err) {
-      console.error('[QuizGeneratorModal] Error generating quiz:', err);
+      // Step 8: Catch-all error handling for unexpected failures
+      console.error('[QuizGeneratorModal.tsx][4012] Unexpected error in quiz generation:', err);
       setError('Failed to generate quiz. Please try again later.');
       setIsLoading(false);
     }

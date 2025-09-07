@@ -1,6 +1,6 @@
 // File: src/app/Library/Context/SlideShowContext.tsx
 /**
- * @file SlideShowContext.tsx
+ * @file ROSlideShowContext.tsx  (read only)
  * @description
  *   Provides a context for managing the slideshow overlay. In addition to
  *   the existing “selection-based” behavior (where slides come from 

@@ -15,7 +15,7 @@ import NotesTab from './NotesTab';
 import ChatTab from '../../CardDisplay/v2/ChatTab';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
 import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/CardDisplay.css'; // Existing styling overrides for panel, header, footer
-import UnifiedHeader from '../../CardDisplay/v2/UnifiedHeader';
+import UnifiedHeader from './ROunifiedHeader';
 import ActionFooter from '../../CardDisplay/v2/ROactionFooter';
 
 export interface CardDisplayProps {askHandler: ()=> void}

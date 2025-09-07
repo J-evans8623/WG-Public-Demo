@@ -26,6 +26,7 @@ import ResourceMenu from '../ResourceMenu';
 import CueCard from '../Cards/CueCard';
 import NoteCard from '../Cards/NoteCard';
 import QuizCard from '../Cards/QuizCard';
+import QuizOverlay from '../../../utils/quiz/QuizOverlay';
 import RichTextEditor from '@/components/RichTextEditor';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -447,9 +448,9 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
                 />
                 <button
                   onClick={() => {
-                    console.log('[ResourceDisplay.tsx][9105] Fullscreen action clicked:', { id, type });
-                   open(id);
-                  }}
+                console.log('[ROResourceDisplay.tsx][8002] Fullscreen action clicked (read-only):', { id, type });
+                type === 'quiz' ? setQuizOverlayOpen(true) : open(id);
+              }}
                   className="slide-action-btn"
                   title="Full screen"
                 >
@@ -485,6 +486,25 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
           <div className="slide-content">{renderEditBody()}</div>
         )}
       </BaseResourceCard>
+
+          {/* QuizOverlay: Same as main ResourceDisplay */}
+      {type === 'quiz' && (
+        <QuizOverlay
+          isOpen={quizOverlayOpen}
+          onClose={() => setQuizOverlayOpen(false)}
+          quizType={
+            typeof content === 'string'
+              ? (JSON.parse(content).quizType as QuizType) || 'multipleChoice'
+              : 'multipleChoice'
+          }
+          title={title}
+          quizData={
+            typeof content === 'string'
+              ? (JSON.parse(content).quizContent as IQuizQuestion[])
+              : []
+          }
+        />
+      )}  
     </>
   );
 };

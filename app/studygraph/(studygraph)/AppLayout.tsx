@@ -23,7 +23,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { ApiProvider, ApiContext } from '@/app/src/context/ApiContext';
+import { ApiProvider} from '@/app/src/context/ApiContext';
 import { NodeSelectionProvider, useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { SubTreeProvider } from '@/app/Library/Context/SubTreeProvider';
 import { NodesProvider } from '@/app/Library/Context/NodesProvider';
@@ -41,9 +41,9 @@ import { VersionHistoryProvider, useVersionHistory } from '@/app/Library/Context
 import VersionHistoryPanel from './components/versionHistory/ui/VersionHistoryPanel';
 import SelectionAttachmentHandler from './components/layout/Canvas/SelectionAttachmentHandler';
 import HomeScreen from './components/HomeScreenV2';
-import NavigationPanel from '@/app/studygraph/(studygraph)/components/layout/Sidebar/NavigationPanel';
+import NavigationController from './NavigationController';
 import { CanvasView } from './components/layout/Canvas/CanvasView';
-import ROcanvasViewer from './components/layout/ReadOnly/map/VHcanvasView';
+import VHcanvasView from './components/layout/ReadOnly/map/VHcanvasView';
 import ROcardDisplay from './components/layout/ReadOnly/CardDisplay/VHcardDisplay';
 import { UserInfoPanel } from '@/app/studygraph/(studygraph)/components/layout/UserInfoPanel';
 import { ChatHistoryProvider, useChatHistory } from '@/app/Library/Context/ChatHistoryContext';
@@ -65,15 +65,15 @@ import '@/app/studygraph/styles/brand/brand-utilities.css'
 import '@/app/studygraph/styles/theme-warm-board.css'
 import '@/app/studygraph/(studygraph)/canvas/Map/NodeGraphOriginal.css'
 import '@/app/studygraph/(studygraph)/components/layout/forum/ForumModal.css'
+import '@/app/studygraph/(studygraph)/components/layout/Canvas/CanvasView.css'
 import { AccessLayerProvider, useAccessLayer } from '@/app/Library/Context/AccessLayerContext'; // NEW
 import { Role } from './types/access';
-import { useCanvasController } from './components/hooks/access/useCanvasController';
 import { RefreshModal } from './components/access/RefreshModal';
-import ROCanvasView from './components/layout/Canvas/ReadOnly/ROCanvasView';
+import ROCanvasView from './components/layout/ReadOnly/ROCanvasView';
 import { useCollaborationManager } from '../collab/useCollaborationManager';
 import DocumentAccessManager from './components/hooks/access/DocumentAccessManager';
 import { LoadingAnimation } from './LoadingAnimation';
-
+import { CalendarProvider } from '@/app/Library/Context/CalendarContext';
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
@@ -140,23 +140,6 @@ const AppLayoutContent: React.FC = () => {
 
   // Lesson module mapping hook.
   useLessonModuleMapper();
-
-  const { canEdit, showRefreshModal, refreshModalProps } = useCanvasController({
-    autosaveStatus: saveStatus,
-    onPauseAutosave: () => {
-      if (autoSaveManagerRef.current) {
-        autoSaveManagerRef.current.destroy();
-        autoSaveManagerRef.current = null;
-      }
-    },
-    onResumeAutosave: () => {
-      // Autosave will be recreated by the existing useEffect
-    },
-    onReconnectCollab: () => {
-      // Add your reconnect logic here if needed
-    },
-  });
-
 
   // Use the singleton-based collaboration manager
   const { 
@@ -367,7 +350,7 @@ useEffect(() => {
       // Load the document state from Firebase Storage using loadFromFirebase.
       const chatData = await loadFromFirebase(meta.fileStorageId!);
       await manager.waitForDocumentReady(meta.docId);
-      const Udata = await LoadUserData(meta.docId)
+      await LoadUserData(meta.docId)
       clearMessages();
       if (chatData.length) {
         chatData.forEach(m => addMessage(m));
@@ -488,7 +471,7 @@ useEffect(() => {
 
       {/* Navigation Panel */}
       <div className="z-50">
-        <NavigationPanel
+        <NavigationController
           isManuallyOpen={isPanelManuallyOpen}
           currentView={currentView}
           onSetView={setCurrentView}
@@ -522,8 +505,13 @@ useEffect(() => {
                         {/* Canvas & Cards: historical preview or live editing */}
             {isHistoryOpen ? (
               <>
-                <ROcanvasViewer/>
+              <div className="canvas-panels flex-1">
+                <VHcanvasView/>
+
+                <div className="resource-cell">
                 <ROcardDisplay/>
+                </div>
+                </div>
               </> ) : 
               (
               <>
@@ -573,9 +561,30 @@ useEffect(() => {
       )}
 
       <RefreshModal
-        isOpen={showRefreshModal}
-        onDismiss={refreshModalProps.onDismiss}
-        onRefresh={refreshModalProps.onRefresh}
+        onRefresh={() => {
+          console.log('[AppLayout.tsx][5001] › Refresh modal triggered collaboration restart');
+          
+          // Step 1: Force collaboration reconnection if needed
+          if (collabIsConnected && docFileID) {
+            console.log('[AppLayout.tsx][5002] › Disconnecting collaboration for refresh');
+            collabDisconnect();
+            
+            // Step 2: Reconnect after brief delay to allow cleanup
+            setTimeout(() => {
+              if (docFileID && ydoc) {
+                const visibility = getVisibility();
+                console.log('[AppLayout.tsx][5003] › Reconnecting collaboration after refresh');
+                collabConnect(docFileID, ydoc, visibility).catch(error => {
+                  console.error('[AppLayout.tsx][5004] › Collaboration reconnect failed:', error);
+                });
+              }
+            }, 1000);
+          }
+
+          // Step 3: Trigger any additional refresh logic you need
+          // For example, you might want to reload document state or reset UI components
+          console.log('[AppLayout.tsx][5005] › Modal refresh completed');
+        }}
       />
     </div>
   );
@@ -595,6 +604,7 @@ export const AppLayout: React.FC = () => {
       <ApiProvider>
         <AccessLayerProvider>
         <YDocProvider>
+          <CalendarProvider>
           <ViewSwitchProvider>
             <LessonModuleProvider>
               <FileAssetProvider>
@@ -636,6 +646,7 @@ export const AppLayout: React.FC = () => {
               </FileAssetProvider>
             </LessonModuleProvider>
           </ViewSwitchProvider>
+          </CalendarProvider>
         </YDocProvider>
         </AccessLayerProvider>
       </ApiProvider>

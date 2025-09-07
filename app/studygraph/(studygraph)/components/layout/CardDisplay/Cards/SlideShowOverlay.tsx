@@ -1,7 +1,25 @@
-// SlideShowOverlay.tsx - Enhanced with Jump to Slide Feature and Full-Screen Inline Editing
+/**
+ * SlideShowOverlay.tsx - Enhanced Slideshow Component with Repositioned Layout
+ * 
+ * This component manages the complete slideshow experience with modal overlay functionality.
+ * Key responsibilities include:
+ * 
+ * 1. Slide Display Management: Renders different slide types (note, cueCard, practiceSheet) in a modal dialog
+ * 2. Navigation Controls: Provides previous/next navigation with keyboard shortcuts and jump-to-slide functionality
+ * 3. Interactive Features: Supports AI assistance panel, discussion creation, bookmarking, and inline editing
+ * 4. Layout Management: Implements repositioned header layout with concept map title at top and action buttons at bottom
+ * 5. Accessibility: Full keyboard navigation support, proper ARIA labels, and screen reader compatibility
+ * 6. State Management: Handles edit mode, AI loading states, discussion modals, and slide transitions
+ * 7. Error Handling: Graceful handling of slide rendering errors and validation for jump navigation
+ * 8. Responsive Design: Adaptive layout for mobile and desktop viewports with touch-friendly controls
+ * 
+ * The component integrates with multiple context providers for user data, comments, nodes, and slideshow state.
+ * It supports full-screen editing mode for compatible slide types and provides seamless transitions between
+ * view and edit states while preserving user position and context.
+ */
 
 import React, { useEffect, useState, useRef } from 'react';
-import { X, BookmarkIcon, MessageSquare, Brain, Edit2 } from 'lucide-react';
+import { X, BookmarkIcon, MessageSquare, Edit2 } from 'lucide-react';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import NoteCard from './NoteCard';
 import CueCard from './CueCard';
@@ -10,7 +28,7 @@ import AskAssistantPanel from './AskAssistantPanel';
 import SlideShowEditForm from './SlideShowEditForm';
 import './SlideShowv2.css';
 
-// —— NEW ——
+// Context imports for enhanced functionality
 import { useComments } from '@/app/Library/Context/CommentContext';
 import MentionBadge from '../../forum/MentionBadge';
 import DiscussionFormInput from '../../forum/DiscussionFormInput';
@@ -19,6 +37,7 @@ import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 
 const SlideShowOverlay: React.FC = () => {
+  // 1. Extract slideshow context and state management
   const {
     slides,
     isOpen,
@@ -30,6 +49,7 @@ const SlideShowOverlay: React.FC = () => {
     open,
   } = useSlideShow();
 
+  // 2. Initialize component state variables
   const [cueFlipped, setCueFlipped] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
   const [askLoading, setAskLoading] = useState(false);
@@ -40,34 +60,44 @@ const SlideShowOverlay: React.FC = () => {
   const [tempSlideNumber, setTempSlideNumber] = useState('');
   const slideInputRef = useRef<HTMLInputElement>(null);
   const [isComposerOpen, setComposerOpen] = useState(false);
+
+  // 3. Initialize additional context providers
   const { toggleBookmark, isBookmarked } = useUserData();
   const { getGlobalNode, getNodeTitle } = useNodesContext();
-
   const { getCommentCount, addPost } = useComments();
 
+  /**
+   * openInputModal - Opens the discussion composer modal
+   * Responsible for initiating the discussion creation flow for the current slide
+   */
   const openInputModal = () => {
+    console.log('[SlideShowOverlay.tsx][2003] Opening discussion composer modal');
     setComposerOpen(true);
   }
 
+  /**
+   * closeInputModal - Closes the discussion composer modal
+   * Responsible for dismissing the discussion creation interface and returning to slide view
+   */
   const closeInputModal = () => {
+    console.log('[SlideShowOverlay.tsx][2004] Closing discussion composer modal');
     setComposerOpen(false);
   }
 
   /**
-   * canEditSlide
-   * Determines if the current slide can be edited based on its type.
-   * Quiz editing is not supported in slideshow mode.
-   * @param slideType The type of the current slide
-   * @returns Boolean indicating if the slide can be edited
+   * canEditSlide - Determines slide editing capability
+   * Validates whether the current slide type supports inline editing functionality
+   * @param slideType The type of the current slide to check
+   * @returns Boolean indicating if the slide supports editing
    */
   const canEditSlide = (slideType: string): boolean => {
     return ['note', 'cueCard', 'picture'].includes(slideType);
   };
 
   /**
-   * handleEditStart
-   * Initiates edit mode for the current slide.
-   * Validates that the slide type supports editing.
+   * handleEditStart - Initiates slide editing mode
+   * Validates slide compatibility and transitions to full-screen edit interface
+   * Preserves current slide context while switching to edit state
    */
   const handleEditStart = () => {
     if (!currentSlide || !canEditSlide(currentSlide.type)) {
@@ -80,9 +110,9 @@ const SlideShowOverlay: React.FC = () => {
   };
 
   /**
-   * handleEditSave
-   * Handles successful save operation from the edit form.
-   * Returns to view mode while preserving slide position.
+   * handleEditSave - Processes successful edit completion
+   * Handles the save operation completion and returns user to view mode
+   * Maintains slide position and updates any cached slide data
    */
   const handleEditSave = () => {
     console.log('[SlideShowOverlay.tsx][5003] Edit save completed, returning to view mode');
@@ -90,16 +120,16 @@ const SlideShowOverlay: React.FC = () => {
   };
 
   /**
-   * handleEditCancel
-   * Handles edit cancellation and returns to view mode.
-   * Discards any unsaved changes.
+   * handleEditCancel - Handles edit operation cancellation
+   * Returns to view mode while discarding any unsaved changes
+   * Preserves original slide state and user position
    */
   const handleEditCancel = () => {
     console.log('[SlideShowOverlay.tsx][5004] Edit cancelled, returning to view mode');
     setIsEditing(false);
   };
 
-  // Sync jumpTo, reset panels, and reset flip on slide change
+  // 4. Effect: Sync navigation state and reset panels on slide change
   useEffect(() => {
     console.log('[SlideShowOverlay.tsx][1001] Slide changed to index', currentIndex);
     setJumpTo((currentIndex + 1).toString());
@@ -109,7 +139,7 @@ const SlideShowOverlay: React.FC = () => {
     setIsEditing(false);
   }, [currentIndex]);
 
-  // Auto-advance when AI finishes
+  // 5. Effect: Handle AI completion auto-advance
   useEffect(() => {
     if (prevAskLoading.current && !askLoading && !askOpen) {
       console.log('[SlideShowOverlay.tsx][1002] AI finished; advancing slide');
@@ -118,7 +148,7 @@ const SlideShowOverlay: React.FC = () => {
     prevAskLoading.current = askLoading;
   }, [askLoading, askOpen, gotoNext]);
 
-  // Focus input when editing starts
+  // 6. Effect: Focus management for slide number editing
   useEffect(() => {
     if (isEditingSlideNumber && slideInputRef.current) {
       slideInputRef.current.focus();
@@ -126,7 +156,7 @@ const SlideShowOverlay: React.FC = () => {
     }
   }, [isEditingSlideNumber]);
 
-  // Keyboard navigation & accessibility shortcuts
+  // 7. Effect: Keyboard navigation and accessibility shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // Block navigation during edit mode, slide number editing, or AI interaction
@@ -177,14 +207,14 @@ const SlideShowOverlay: React.FC = () => {
     cueFlipped,
   ]);
 
-  // Handle slide number click to start editing
+  // 8. Handle slide number click to start editing
   const handleSlideNumberClick = () => {
     if (askOpen || askLoading || isEditing) return;
     setTempSlideNumber((currentIndex + 1).toString());
     setIsEditingSlideNumber(true);
   };
 
-  // Handle slide number input changes
+  // 9. Handle slide number input changes
   const handleSlideNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (/^\d*$/.test(value)) {
@@ -192,7 +222,7 @@ const SlideShowOverlay: React.FC = () => {
     }
   };
 
-  // Handle slide number input submission
+  // 10. Handle slide number input submission
   const handleSlideNumberSubmit = () => {
     const slideNumber = parseInt(tempSlideNumber, 10);
     if (!isNaN(slideNumber) && slideNumber >= 1 && slideNumber <= slides.length) {
@@ -204,7 +234,7 @@ const SlideShowOverlay: React.FC = () => {
     setIsEditingSlideNumber(false);
   };
 
-  // Handle slide number input key events
+  // 11. Handle slide number input key events
   const handleSlideNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -215,19 +245,27 @@ const SlideShowOverlay: React.FC = () => {
     }
   };
 
-  // Handle slide number input blur
+  // 12. Handle slide number input blur
   const handleSlideNumberBlur = () => {
     handleSlideNumberSubmit();
   };
 
+  // 13. Early return if slideshow is not open
   if (!isOpen || !currentSlide) return null;
 
+  // 14. Extract current slide and navigation data
   const nodetitle = getGlobalNode(currentSlide.mapId, currentSlide.nodeId)?.title;
+  const secondaryTitle = currentSlide.title;
+
   const slideId = currentSlide.id;
   const bookmarked = isBookmarked(slideId);
   const prevTitle = slides[currentIndex - 1]?.title || 'Start of deck';
   const nextTitle = slides[currentIndex + 1]?.title || 'End of deck';
 
+  /**
+   * handleToggleBookmark - Manages bookmark state for current slide
+   * Toggles bookmark status and updates user preferences with slide metadata
+   */
   function handleToggleBookmark() {
     console.log('[SlideShowOverlay.tsx][3004] › Toggling bookmark for', slideId);
     toggleBookmark({
@@ -239,38 +277,38 @@ const SlideShowOverlay: React.FC = () => {
     });
   }
 
-  // Handle comment modal
-if (isComposerOpen) {
-  console.log('[SlideShowOverlay.tsx][2001] › displaying DiscussionFormInput for slide', currentSlide.id);
-  return ReactDOM.createPortal(
-    <>
-      <div className="slideshow-backdrop" onClick={closeInputModal} />
-      <div className="slideshow-dialog slideshow-discussion-form" role="dialog" aria-modal="true">
-        <DiscussionFormInput
-          onSubmit={(title: string, content: string) => {
-            console.log('[SlideShowOverlay.tsx][2002] › creating new post with title:', title, 'content:', content);
-            addPost({
+  // 15. Handle comment modal rendering
+  if (isComposerOpen) {
+    console.log('[SlideShowOverlay.tsx][2001] › displaying DiscussionFormInput for slide', currentSlide.id);
+    return ReactDOM.createPortal(
+      <>
+        <div className="slideshow-backdrop" onClick={closeInputModal} />
+        <div className="slideshow-dialog slideshow-discussion-form" role="dialog" aria-modal="true">
+          <DiscussionFormInput
+            onSubmit={(title: string, content: string) => {
+              console.log('[SlideShowOverlay.tsx][2002] › creating new post with title:', title, 'content:', content);
+              addPost({
+                lessonTitle: nodetitle || 'Current Lesson',
+                lessonTitleId: currentSlide.nodeId || 'node',
+                subtopicTitle: currentSlide.title || 'Current Slide',
+                resourceId: currentSlide.id,
+                body: `${title}\n\n${content}`, // Combine title and content for body
+              });
+              closeInputModal();
+            }}
+            onCancel={closeInputModal}
+            contextInfo={{
               lessonTitle: nodetitle || 'Current Lesson',
-              lessonTitleId: currentSlide.nodeId || 'node',
-              subtopicTitle: currentSlide.title || 'Current Slide',
-              resourceId: currentSlide.id,
-              body: `${title}\n\n${content}`, // Combine title and content for body
-            });
-            closeInputModal();
-          }}
-          onCancel={closeInputModal}
-          contextInfo={{
-            lessonTitle: nodetitle || 'Current Lesson',
-            slideTitle: currentSlide.title || 'Current Slide'
-          }}
-        />
-      </div>
-    </>,
-    document.getElementById('modal-root')!
-  );
-}
+              slideTitle: currentSlide.title || 'Current Slide'
+            }}
+          />
+        </div>
+      </>,
+      document.getElementById('modal-root')!
+    );
+  }
 
-  // Handle full-screen edit mode
+  // 16. Handle full-screen edit mode rendering
   if (isEditing) {
     console.log('[SlideShowOverlay.tsx][5005] Rendering full-screen edit form');
     return (
@@ -287,6 +325,11 @@ if (isComposerOpen) {
     );
   }
 
+  /**
+   * renderSlide - Renders the appropriate slide component based on type
+   * Handles different slide types with proper configuration and error handling
+   * @returns JSX element for the current slide or null for unsupported types
+   */
   const renderSlide = () => {
     switch (currentSlide.type) {
       case 'note':
@@ -310,13 +353,14 @@ if (isComposerOpen) {
             /* ignore JSON errors */
           }
         }
-        return <QuizCard title={currentSlide.title} content={quizData} parentQuizId={currentSlide.id} mapId={currentSlide.mapId}/>;
+        return <QuizCard title={nodetitle!} content={quizData} parentQuizId={currentSlide.id} mapId={currentSlide.mapId}/>;
       }
       default:
         return null;
     }
   };
 
+  // 17. Configure main click handler for cue card flipping
   const handleMainClick = currentSlide.type === 'cueCard' && !isEditing
     ? () => {
         console.log('[SlideShowOverlay.tsx][1008] Main click flip cue card');
@@ -324,16 +368,21 @@ if (isComposerOpen) {
       }
     : undefined;
 
+  // 18. Render main slideshow interface
   return (
     <>
       <div className="slideshow-backdrop" onClick={close} />
 
       <div className="slideshow-dialog" role="dialog" aria-modal="true">
+        {/* Updated Header with Concept Map Title and Edit/Bookmark Actions */}
         <header className="slideshow-header">
           <div className="slideshow-header-left">
-            <h2 className="slideshow-title" title={currentSlide.title}>
-              {currentSlide.title}
-            </h2>
+            <div className="slideshow-header-concept">
+              <h1 className="slideshow-concept-name">{nodetitle}</h1>
+              {secondaryTitle && (
+    <span className="slideshow-concept-secondary">{secondaryTitle}</span>
+  )}
+            </div>
           </div>
           <div className="slideshow-header-actions">
             {/* Edit Button */}
@@ -348,28 +397,6 @@ if (isComposerOpen) {
                 Edit
               </button>
             )}
-            
-            {/* AI Button */}
-            <button 
-              className="slideshow-header-btn ai-btn"
-              onClick={() => { 
-                console.log('[SlideShowOverlay.tsx][1013] Ask Assistant opened'); 
-                setAskOpen(true); 
-              }}
-              disabled={askLoading}
-            >
-              <Brain size={14} />
-              Ask AI
-            </button>
-            
-            {/* Discussion Button */}
-            <button 
-              className="slideshow-header-btn discussion-btn"
-              onClick={openInputModal}
-            >
-              <MessageSquare size={14} />
-              Discuss
-            </button>
             
             {/* Bookmark Button */}
             <button
@@ -401,11 +428,32 @@ if (isComposerOpen) {
           )}
         </main>
 
-        {/* Slide Footer */}
+        {/* Updated Footer with AI and Discussion Buttons Plus Navigation */}
         <div className="slideshow-footer">
-          <div className="slideshow-concept-info">
-            <span className="slideshow-concept-name">{nodetitle}</span>
+          <div className="slideshow-footer-actions">
+            {/* AI Button */}
+            <button 
+              className="slideshow-header-btn ai-btn"
+              onClick={() => { 
+                console.log('[SlideShowOverlay.tsx][1013] Ask Assistant opened'); 
+                setAskOpen(true); 
+              }}
+              disabled={askLoading}
+            >
+          
+              Ask AI
+            </button>
+            
+            {/* Discussion Button */}
+            <button 
+              className="slideshow-header-btn discussion-btn"
+              onClick={openInputModal}
+            >
+              <MessageSquare size={14} />
+              Discuss
+            </button>
           </div>
+          
           <div className="slideshow-slide-nav">
             <button 
               className="slideshow-nav-btn" 

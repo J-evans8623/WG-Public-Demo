@@ -1,0 +1,356 @@
+/**
+ * @file modalStyles.css
+ * @description
+ * Centralized CSS file containing all modal designs used by the application.
+ * This file provides consistent branded styling that aligns with the professional
+ * yet inviting design language established throughout the application. The styles
+ * implement a cohesive color palette featuring light almond backgrounds,
+ * professional dark blue-gray text, sage green primary actions, and blue secondary
+ * actions. All styles are designed to work seamlessly with the portal-based modal
+ * rendering system and provide consistent user experience across different modal types.
+ * 
+ * Color Palette:
+ * - Background: Light almond (#FAF8F5)
+ * - Text: Dark blue-gray (#2C3E50)
+ * - Primary Actions: Sage green (#5B8C5A)
+ * - Secondary Actions: Blue (#6C8EBF)
+ * - Borders: Light brown (#D4C4B0)
+ * - Error: Red (#DC2626)
+ * - Success: Green (#059669)
+ */
+
+/* Core Modal Structure */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-container {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  width: 400px;
+  max-width: 90vw;
+  padding: 32px;
+  position: relative;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Typography Styles */
+.modal-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2C3E50;
+  text-align: center;
+  margin: 0 0 32px 0;
+}
+
+.modal-text {
+  font-size: 16px;
+  color: #2C3E50;
+  line-height: 1.5;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.modal-subtext {
+  font-size: 14px;
+  color: #6B7280;
+  line-height: 1.4;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+/* Form Elements */
+.form-section {
+  margin-bottom: 24px;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2C3E50;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.file-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #D4C4B0;
+  border-radius: 6px;
+  background-color: #FAF8F5;
+  color: #2C3E50;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.file-input:hover {
+  border-color: #5B8C5A;
+}
+
+.file-input:focus {
+  border-color: #5B8C5A;
+  box-shadow: 0 0 0 2px rgba(91, 140, 90, 0.1);
+  outline: none;
+}
+
+.text-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #D4C4B0;
+  border-radius: 6px;
+  background-color: white;
+  color: #2C3E50;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.text-input:hover {
+  border-color: #5B8C5A;
+}
+
+.text-input:focus {
+  border-color: #5B8C5A;
+  box-shadow: 0 0 0 2px rgba(91, 140, 90, 0.1);
+  outline: none;
+}
+
+/* Radio Button Groups */
+.radio-group {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #D4C4B0;
+  background-color: white;
+  transition: all 0.2s ease;
+}
+
+.radio-option:hover {
+  border-color: #5B8C5A;
+  background-color: #FAF8F5;
+}
+
+.radio-option.selected {
+  border-color: #5B8C5A;
+  background-color: #F0F4F0;
+}
+
+.radio-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #F9F9F9;
+}
+
+.radio-option.disabled:hover {
+  border-color: #D4C4B0;
+  background-color: #F9F9F9;
+}
+
+.radio-input {
+  margin: 0;
+  accent-color: #5B8C5A;
+}
+
+.radio-label {
+  font-size: 14px;
+  color: #2C3E50;
+  font-weight: 500;
+  cursor: inherit;
+}
+
+/* Button Styles */
+.button-section {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 32px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  min-width: 80px;
+}
+
+.btn-cancel {
+  background-color: white;
+  color: #2C3E50;
+  border: 1px solid #D4C4B0;
+}
+
+.btn-cancel:hover {
+  background-color: #FAF8F5;
+  border-color: #5B8C5A;
+}
+
+.btn-primary {
+  background-color: #5B8C5A;
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: #4a7549;
+}
+
+.btn-secondary {
+  background-color: #6C8EBF;
+  color: white;
+  border: none;
+}
+
+.btn-secondary:hover {
+  background-color: #5a7ba8;
+}
+
+.btn-disabled {
+  background-color: #D4C4B0;
+  color: #9CA3AF;
+  cursor: not-allowed;
+  border: none;
+}
+
+.btn-disabled:hover {
+  background-color: #D4C4B0;
+  color: #9CA3AF;
+}
+
+/* Loading and Status Styles */
+.loading-section {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.loading-text {
+  font-size: 14px;
+  color: #6C8EBF;
+  font-weight: 500;
+}
+
+.error-message {
+  color: #DC2626;
+  font-size: 14px;
+  text-align: center;
+  margin-top: 12px;
+  padding: 8px;
+  background-color: #FEF2F2;
+  border-radius: 4px;
+  border: 1px solid #FECACA;
+}
+
+.success-message {
+  color: #059669;
+  font-size: 14px;
+  text-align: center;
+  margin-top: 12px;
+  padding: 8px;
+  background-color: #ECFDF5;
+  border-radius: 4px;
+  border: 1px solid #BBF7D0;
+}
+
+/* Loading Animations */
+.pulsing-dots {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  background-color: #6C8EBF;
+  border-radius: 50%;
+  animation: dotPulse 1.4s ease-in-out infinite both;
+}
+
+.dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0s;
+}
+
+/* Keyframe Animations */
+@keyframes dotPulse {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .modal-container {
+    width: 95vw;
+    padding: 24px;
+  }
+  
+  .modal-title {
+    font-size: 20px;
+    margin-bottom: 24px;
+  }
+  
+  .radio-group {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .button-section {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .btn {
+    width: 100%;
+  }
+}

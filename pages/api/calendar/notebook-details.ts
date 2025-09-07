@@ -1,173 +1,150 @@
 /**
  * @file pages/api/calendar/notebook-details.ts
  * @description
- *   API endpoint for retrieving detailed notebook metadata including lesson units for calendar
- *   planning. This endpoint handles POST requests with an array of file IDs and returns comprehensive
- *   notebook metadata required for schedule generation. The implementation fetches file metadata
- *   from Firestore, validates lesson unit data, and provides properly formatted responses for
- *   calendar service consumption. The endpoint includes authentication, input validation, and
- *   error handling while ensuring efficient data retrieval for multiple notebooks. This service
- *   enables the calendar system to load detailed metadata only when needed for schedule generation
- *   rather than loading all metadata upfront for selection interfaces. The response includes
- *   complete notebook metadata with lesson units organized for optimal calendar scheduling
- *   performance and user experience.
- *
- * Responsibilities:
- *   - Authenticate user requests through NextAuth session validation
- *   - Validate and process array of file IDs from request body
- *   - Fetch detailed file metadata including lesson unit information
- *   - Format and validate lesson unit data for calendar consumption
- *   - Provide proper error handling and response formatting
+ *   API endpoint for retrieving detailed notebook metadata including complete lesson unit arrays
+ *   required for calendar schedule generation. This endpoint handles POST requests containing arrays
+ *   of file IDs and returns comprehensive notebook information including lesson units, version data,
+ *   and file metadata necessary for the enhanced calendar system. The implementation integrates with
+ *   existing Firebase storage functions to load document files, extract lesson unit metadata using
+ *   the lessoUnitExtractor utility, and provide structured responses with proper error handling and
+ *   authentication. The endpoint supports the calendar service's requirement for detailed notebook
+ *   information while maintaining efficient data loading patterns and providing comprehensive validation
+ *   for notebook selection and schedule generation processes. All responses include proper timestamp
+ *   formatting and version information to support the dynamic calendar update mechanism that detects
+ *   when notebooks have been modified and require schedule regeneration.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
-import { firestore } from '@/app/src/services/firebase';
-import { NotebookMeta, LessonUnit, LessonUnitsMeta } from '@/app/Library/Definitions/CalendarDefinitions';
+import { loadDocumentFile, listUserFiles } from '@/app/src/services/firebase';
+import { generateLessonUnits } from '@/app/Library/utils/calendar/lessoUnitExtractor';
+import { LessonUnit, NotebookMeta } from '@/app/Library/Definitions/CalendarDefinitions';
+import * as Y from 'yjs';
 
 interface NotebookDetailsRequest {
   fileIds: string[];
 }
 
-/**
- * Type guard to validate LessonUnit structure from Firestore data.
- * Ensures data integrity when converting unknown Firestore objects
- * to typed LessonUnit structures for calendar processing.
- */
-function isValidLessonUnit(obj: any): obj is LessonUnit {
-  return (
-    obj &&
-    typeof obj === 'object' &&
-    typeof obj.conceptNodeTitle === 'string' &&
-    typeof obj.primaryConceptNodeID === 'string' &&
-    typeof obj.parentTitle === 'string' &&
-    typeof obj.mapID === 'string'
-  );
+interface NotebookDetailsResponse {
+  notebooks: NotebookMeta[];
 }
 
 /**
- * Safely extracts and validates lesson units from Firestore metadata.
- * Performs type checking and validation to ensure data integrity
- * while converting from unknown Firestore structure to typed arrays.
+ * Main API handler for notebook details retrieval supporting calendar schedule generation.
+ * Loads complete notebook metadata including lesson units for selected notebooks with
+ * comprehensive error handling and authentication validation.
  */
-function extractLessonUnits(lessonUnitsMeta: any): LessonUnit[] {
-  console.log('[notebook-details.ts][3011] › Extracting lesson units from metadata');
-  
-  if (!lessonUnitsMeta || !lessonUnitsMeta.units) {
-    console.warn('[notebook-details.ts][3012] › No units found in metadata');
-    return [];
-  }
-  
-  const allUnits: LessonUnit[] = [];
-  
-  // Step 1: Iterate through each map's units
-  Object.entries(lessonUnitsMeta.units).forEach(([mapId, units]) => {
-    console.log('[notebook-details.ts][3013] › Processing units for map:', mapId);
-    
-    if (!Array.isArray(units)) {
-      console.warn('[notebook-details.ts][3014] › Units for map', mapId, 'is not an array');
-      return;
-    }
-    
-    // Step 2: Validate and convert each unit
-    units.forEach((unit: any, index: number) => {
-      if (isValidLessonUnit(unit)) {
-        allUnits.push(unit);
-        console.log('[notebook-details.ts][3015] › Added valid unit:', unit.conceptNodeTitle);
-      } else {
-        console.warn('[notebook-details.ts][3016] › Invalid unit at index', index, 'in map', mapId, ':', unit);
-      }
-    });
-  });
-  
-  console.log('[notebook-details.ts][3017] › Extracted', allUnits.length, 'valid lesson units');
-  return allUnits;
-}
-
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<NotebookDetailsResponse | { error: string }>
 ) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
-  console.log('[notebook-details.ts][3001] › Processing notebook details request');
+  console.log('[notebook-details.ts][7001] › Notebook details request received');
 
   // Step 1: Authenticate user session
   const session = await authenticateRequest(req, res);
   if (!session) {
-    console.log('[notebook-details.ts][3002] › Authentication failed');
+    console.log('[notebook-details.ts][7002] › Authentication failed for notebook details request');
     return;
   }
 
+  if (req.method !== 'POST') {
+    console.log('[notebook-details.ts][7003] › Unsupported method:', req.method);
+    res.setHeader('Allow', ['POST']);
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  const userId = session.user.email!;
+  const { fileIds }: NotebookDetailsRequest = req.body;
+
+  // Step 2: Validate request data
+  if (!Array.isArray(fileIds) || fileIds.length === 0) {
+    console.log('[notebook-details.ts][7004] › Invalid fileIds provided');
+    return res.status(400).json({ error: 'Invalid fileIds array' });
+  }
+
   try {
-    const { fileIds } = req.body as NotebookDetailsRequest;
+    console.log('[notebook-details.ts][7005] › Loading details for', fileIds.length, 'notebooks');
 
-    // Step 2: Validate request body
-    if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
-      console.log('[notebook-details.ts][3003] › Invalid or empty file IDs array');
-      return res.status(400).json({ error: 'Valid fileIds array is required' });
-    }
-
-    console.log('[notebook-details.ts][3004] › Loading details for', fileIds.length, 'notebooks');
-
-    // Step 3: Fetch file metadata from Firestore
-    const notebooks: NotebookMeta[] = [];
+    // Step 3: Get user's file metadata to validate ownership and access
+    const { ownedFiles, sharedFiles } = await listUserFiles(userId);
+    const allAccessibleFiles = [...ownedFiles, ...sharedFiles];
     
-    for (const fileId of fileIds) {
+    // Step 4: Filter to only requested files user has access to
+    const accessibleFileIds = allAccessibleFiles
+      .filter(file => fileIds.includes(file.fileId))
+      .map(file => ({ 
+        fileId: file.fileId, 
+        fileName: file.fileName,
+        filePath: file.fileStoragePath,
+        lastUpdated: file.timestamp,
+        lessonUnitsMeta: (file as any).lessonUnitsMeta
+      }));
+
+    console.log('[notebook-details.ts][7006] › Found', accessibleFileIds.length, 'accessible files');
+
+    const notebooks: NotebookMeta[] = [];
+
+    // Step 5: Process each accessible file
+    for (const fileInfo of accessibleFileIds) {
       try {
-        const docSnapshot = await firestore.collection('userFiles').doc(fileId).get();
-        
-        if (!docSnapshot.exists) {
-          console.warn('[notebook-details.ts][3005] › File not found:', fileId);
-          continue;
+        // Step 6: Check if we have cached lesson units metadata
+        if (fileInfo.lessonUnitsMeta && fileInfo.lessonUnitsMeta.totalUnits > 0) {
+          console.log('[notebook-details.ts][7007] › Using cached lesson units for', fileInfo.fileName);
+          
+          // Step 7: Convert cached metadata to lesson units array
+          const lessonUnits: LessonUnit[] = Object
+  .values((fileInfo.lessonUnitsMeta?.unitsByMap ?? fileInfo.lessonUnitsMeta?.units ?? {}) as Record<string, LessonUnit[]>)
+  .flat();
+
+          
+          notebooks.push({
+            fileId: fileInfo.fileId,
+            filePath: fileInfo.filePath,
+            fileName: fileInfo.fileName,
+            lessonUnits: lessonUnits,
+            lastUpdated: new Date(fileInfo.lastUpdated.seconds ? fileInfo.lastUpdated.seconds * 1000 : fileInfo.lastUpdated),
+            version: `${fileInfo.lessonUnitsMeta.lastUpdated?.seconds || Date.now()}`,
+          });
+        } else {
+          console.log('[notebook-details.ts][7008] › Loading and extracting lesson units for', fileInfo.fileName);
+          
+          // Step 8: Load document file and extract lesson units
+          const fileBuffer = await loadDocumentFile(fileInfo.filePath);
+          const ydoc = new Y.Doc();
+          Y.applyUpdate(ydoc, fileBuffer);
+          
+          // Step 9: Extract lesson units from Y.Doc
+          const lessonUnits = generateLessonUnits(ydoc);
+          
+          if (lessonUnits.length > 0) {
+            notebooks.push({
+              fileId: fileInfo.fileId,
+              filePath: fileInfo.filePath,
+              fileName: fileInfo.fileName,
+              lessonUnits: lessonUnits,
+              lastUpdated: new Date(fileInfo.lastUpdated.seconds ? fileInfo.lastUpdated.seconds * 1000 : fileInfo.lastUpdated),
+              version: `${Date.now()}`, // Current timestamp as version
+            });
+            
+            console.log('[notebook-details.ts][7009] › Extracted', lessonUnits.length, 'lesson units from', fileInfo.fileName);
+          } else {
+            console.log('[notebook-details.ts][7010] › No lesson units found in', fileInfo.fileName);
+          }
         }
-        
-        const data = docSnapshot.data();
-        
-        // Step 4: Validate lesson unit metadata exists
-        if (!data?.lessonUnitsMeta) {
-          console.warn('[notebook-details.ts][3006] › No lesson units metadata for file:', fileId);
-          continue;
-        }
-        
-        // Step 5: Extract and validate lesson units with type safety
-        const lessonUnits = extractLessonUnits(data.lessonUnitsMeta);
-        
-        if (lessonUnits.length === 0) {
-          console.warn('[notebook-details.ts][3007] › No valid lesson units found for file:', fileId);
-          continue;
-        }
-        
-        // Step 6: Convert Firestore data to NotebookMeta format with proper typing
-        const notebookMeta: NotebookMeta = {
-          fileId: docSnapshot.id,
-          filePath: data.fileStoragePath || '',
-          fileName: data.fileName || 'Untitled',
-          lessonUnits: lessonUnits, // Now properly typed as LessonUnit[]
-          lastUpdated: data.lessonUnitsMeta.lastUpdated?.toDate() || new Date(),
-          version: data.lessonUnitsMeta.version || '1.0',
-          color: undefined,
-        };
-        
-        notebooks.push(notebookMeta);
-        console.log('[notebook-details.ts][3008] › Loaded notebook:', notebookMeta.fileName, 'with', notebookMeta.lessonUnits.length, 'units');
-        
       } catch (fileError) {
-        console.error('[notebook-details.ts][3009] › Error loading file:', fileId, fileError);
-        continue;
+        console.error('[notebook-details.ts][7011] › Error processing file', fileInfo.fileName, ':', fileError);
+        // Continue processing other files
       }
     }
 
-    console.log('[notebook-details.ts][3010] › Successfully loaded', notebooks.length, 'notebooks');
-
-    // Step 7: Return notebook details
+    console.log('[notebook-details.ts][7012] › Successfully processed', notebooks.length, 'notebooks with lesson units');
+    
     return res.status(200).json({ notebooks });
 
   } catch (error) {
-    console.error('[notebook-details.ts][3018] › Error processing notebook details request:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    console.error('[notebook-details.ts][7013] › Error loading notebook details:', error);
+    return res.status(500).json({ 
+      error: 'Failed to load notebook details',
+    });
   }
 }

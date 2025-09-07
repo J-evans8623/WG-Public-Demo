@@ -77,8 +77,10 @@ export interface YDocContextType {
   getVisibility: () => 'private' | 'public';
   updateVisibility: (v: 'private' | 'public') => void;
   takeMapSnapshot: (mapId: string) => Promise<string>
-   getPersistableBytes: () => Promise<Uint8Array> | Uint8Array; // NEW (Phase 5)
+  getPersistableBytes: () => Promise<Uint8Array> | Uint8Array; // NEW (Phase 5)
   isSnapshotActive: () => boolean;   
+  incrementVersion: () => void;
+  version:number
 }
 
 const YDocContext = createContext<YDocContextType | undefined>(undefined);
@@ -107,6 +109,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
 
   const [fileName, setFileName] = useState<string>('Untitled Document');
   const [docFileID, setDocFileID] = useState<string | null>(null);
+  const [version, setVersion] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState<boolean>(false); 
   const [visibility, setVisibility] = useState<'private'|'public'>(() => {
   const v = ydoc.getMap('metadata').get('visibility');
@@ -128,6 +131,14 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
     }
   }, [ydoc]);
 
+
+  /* --- helper: robust version reader (inline to avoid changing module surface) --- */
+const readVersionFromMetadata = (ydocInstance: Y.Doc): number => {
+  const raw = ydocInstance.getMap('metadata').get('version');
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (typeof raw === 'string' && raw.trim() !== '' && !Number.isNaN(Number(raw))) return Number(raw);
+  return 1; // sensible legacy/default fallback
+};
 
 
   useEffect(() => {
@@ -175,6 +186,38 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
     return Y.encodeStateAsUpdate(ydoc);
   }, [ydoc]);
 
+
+/**
+ * IncrementVersion
+ * updates version of notebook (robust type coercion + persists into Y.Doc)
+ */
+const incrementVersion = useCallback(() => {
+  const metadata = ydoc.getMap<any>('metadata');
+
+  // Read raw value (could be number, string, undefined, or legacy shape)
+  const raw = metadata.get('version');
+
+  // Coerce to a safe number with sensible default (1)
+  let publicVersion = 1;
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    publicVersion = raw;
+  } else if (typeof raw === 'string' && raw.trim() !== '' && !Number.isNaN(Number(raw))) {
+    publicVersion = Number(raw);
+  }
+
+  // Bump deterministically
+  const newVal = publicVersion + 1;
+
+  // NOTE: no ydoc.transact() here — caller must perform a ydoc.transact()
+  // if they need the version bump to be atomic with other Y.Doc changes.
+  metadata.set('version', newVal);
+
+  // Mirror into React state for UI
+  setVersion(newVal);
+}, [ydoc]);
+
+
+
   /**
    * Persists the current document state by encoding it to a Uint8Array.
    * @returns The encoded Y.Doc state.
@@ -204,6 +247,7 @@ const updateVisibility = useCallback((v: 'private' | 'public') => {
       setIsInitialized(false);
       const newYDoc = new Y.Doc();
       const newDocId = uuidv4();
+      const version = 1.0;
       const defaultConceptMapId = 'map-1';
 
       // Step 1: Initialize shared maps and arrays.
@@ -214,6 +258,7 @@ const updateVisibility = useCallback((v: 'private' | 'public') => {
         metadata.set('docFileID', newDocId);
         metadata.set('fileName', 'Untitled Document');
         metadata.set('visibility', 'private');
+        metadata.set('version', version);
         setVisibility('private')
 
         newYDoc.getMap('resources').clear();
@@ -264,6 +309,7 @@ const updateVisibility = useCallback((v: 'private' | 'public') => {
       // Step 2: Update local state with new metadata.
       setFileName('Untitled Document');
       setDocFileID(newDocId);
+      setVersion(version);
       setYDoc(newYDoc);
       setSnapshotYDoc(null);
 
@@ -317,6 +363,7 @@ const updateVisibility = useCallback((v: 'private' | 'public') => {
         fileStoragePath: doc.fileStoragePath,
         chatPath: chat.fileStoragePath,
         fileSize,
+        version
       }),
     });
     if (!saveResp.ok) {
@@ -395,7 +442,10 @@ console.log('[YDocContext.tsx][9601] selectDoc (assumeOwner) seeded', { docId: n
         console.log(`Loaded DocFiledID ${internalDocID}`)
       }
       
-
+    //  initialize local React 'version' from the Y.Doc metadata so UI and saves use authoritative value
+    const loadedVersion = readVersionFromMetadata(newYDoc);
+    setVersion(loadedVersion);
+    console.log(`Initialized local version state from Y.Doc metadata: ${loadedVersion}`);
       
 
       setYDoc(newYDoc);
@@ -450,6 +500,12 @@ console.log('[YDocContext.tsx][9601] selectDoc (assumeOwner) seeded', { docId: n
     async (chatData?: ChatMessage[]): Promise<void> => {
       if (!docFileID) throw new Error('No docFileID');
 
+    
+      // Ensure we use the version stored in the Y.Doc metadata (authoritative), not stale React state
+    const currentVersion = readVersionFromMetadata(ydoc);
+    // Sync local state so UI displays the same value we send to backend
+    setVersion(currentVersion);
+
       // Step 1: Generate lesson unit metadata before saving
     let lessonUnitsMeta;
     try {
@@ -496,6 +552,7 @@ console.log('[YDocContext.tsx][9601] selectDoc (assumeOwner) seeded', { docId: n
       fileStoragePath: docPath,
       chatPath,
       fileSize,
+      version: currentVersion,
     };
 
     // Step 5: Include lesson units metadata if generation was successful
@@ -672,8 +729,10 @@ const loadFromFirebase = useCallback(
     updateVisibility,
      takeMapSnapshot: takeMapSnapshotCallback,
      getPersistableBytes,         // NEW
-    isSnapshotActive, 
-  }), [ydoc, snapshotYDoc, isReadOnly, fileName, docFileID, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, loadData, persistDoc, getLessonModuleJSON, getFileName, saveToFirebase, loadFromFirebase, getVisibility, updateVisibility, takeMapSnapshotCallback, getPersistableBytes, isSnapshotActive]);
+    isSnapshotActive,
+    incrementVersion,
+    version
+  }), [ydoc, snapshotYDoc, isReadOnly, fileName, docFileID, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, loadData, persistDoc, getLessonModuleJSON, getFileName, saveToFirebase, loadFromFirebase, getVisibility, updateVisibility, takeMapSnapshotCallback, getPersistableBytes, isSnapshotActive, incrementVersion, version]);
 
   return (
     <YDocContext.Provider value={value}>

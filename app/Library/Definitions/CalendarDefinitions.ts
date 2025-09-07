@@ -167,10 +167,20 @@ export interface CalendarMonth {
   };
 }
 
+export interface NotebookVersionState {
+  notebookId: string;
+  trackedVersion: string;
+  currentVersion?: string;
+  needsUpdate: boolean;
+  lastChecked: Date;
+}
+
+
+
 /**
  * Context interface for calendar state management and operations.
  * Provides centralized API for notebook selection, schedule generation,
- * session launching, and calendar data caching with enhanced performance.
+ * session launching,  and calendar data caching with enhanced performance.
  */
 export interface CalendarContextType {
   // State
@@ -208,6 +218,8 @@ export interface CalendarContextType {
   getDailyPlan: (date: Date) => DailyStudyPlan | null;
   getSessionsForDay: (date: Date) => StudySession[];
   getTodaysPlan: () => DailyStudyPlan | null;
+  notebookVersions: Map<string, NotebookVersionState>
+
 }
 
 // Add the PickerFileMeta type from AppLayout
@@ -229,6 +241,10 @@ export interface LessonUnitsMeta {
   lastUpdated: Date;
   totalUnits: number;
 }
+
+
+
+
 
 /**
  * Enhanced calendar data structure for persistence with daily plans.

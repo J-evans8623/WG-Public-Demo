@@ -18,10 +18,9 @@ import mongoose from 'mongoose';
 import { GridFSBucket } from 'mongodb';
 import multer from 'multer';
 import connectDB from '@/app/src/config/db';
-import { processDocument, persistRawEmbeddings } from '@/app/src/services/TextPreprocessing/LessonModuleServiceV2';
+import { persistRawEmbeddings } from '@/app/src/services/TextPreprocessing/LessonModuleServiceV2';
 import { convertFileToPdf } from '@/doc-preprocessing-service/gotenberg-service-client';
 import { extractTextFromFileService } from '@/doc-preprocessing-service/text-extraction-client';
-// Import the authentication helper to secure incoming requests.
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 
 interface ProcessedFile {
@@ -230,7 +229,9 @@ async function handleUpload(req: NextApiRequest & { file?: Express.Multer.File }
         } else {
             const ext = req.file.originalname.split('.').pop()?.toLowerCase();
             const fileExtension = ext ? `.${ext}` : req.file.mimetype;
-            extractedText = await extractTextFromFileService(req.file.buffer, fileExtension);
+            const extractedArray = await extractTextFromFileService(req.file.buffer, fileExtension);
+            const extractedText = extractedArray.join(" "); 
+
         }
            
         if (extractedText.trim().length > 0) {

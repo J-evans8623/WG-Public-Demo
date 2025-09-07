@@ -31,9 +31,69 @@ const DEFAULT_FILE = 'Untitled Document';
 const DEFAULT_LESSON = 'Untitled Lesson';
 
 
+/**
+ * @function normalizeIncomingMap
+ * @description
+ *  Normalizes an incoming nodes Map before bulk commit:
+ *  - Ensures every primary node (depth === 1) has a string lessonOrder.
+ *  - Uses the order of root.childrenNodeIds in the incoming map to assign
+ *    lessonOrder if missing (1..N as strings).
+ */
+function normalizeIncomingMap(src: Map<string, ConceptNode>): Map<string, ConceptNode> {
+  // 1) Create a shallow clone so we never mutate the caller's Map
+  const out = new Map<string, ConceptNode>(src);
+
+  // 2) Find the root node in the incoming map (prefer isRoot, fallback to 'node-1')
+  let rootEntry: [string, ConceptNode] | undefined =
+    Array.from(out.entries()).find(([, n]) => n.isRoot) ??
+    (out.has('node-1') ? (['node-1', out.get('node-1')!] as [string, ConceptNode]) : undefined);
+
+  if (!rootEntry) return out; // No root → nothing to normalize safely
+
+  const [rootId, rootNode] = rootEntry;
+  const children = rootNode.childrenNodeIds ?? [];
+
+  // 3) Walk root's children in order; assign lessonOrder if missing
+  let order = 1;
+  for (const childId of children) {
+    const child = out.get(childId);
+    if (!child) continue;
+
+    const isPrimary = (child.depth ?? 0) === 1 && child.parentNodeId === rootId;
+    const missingOrder = child.lessonOrder == null || child.lessonOrder === '';
+
+    if (isPrimary && missingOrder) {
+      out.set(childId, { ...child, lessonOrder: String(order) });
+    }
+    order += 1;
+  }
+
+  return out;
+}
+
+/**
+ * @function computeNextPrimaryOrder
+ * @description
+ *  Computes the next lessonOrder string for a new/moved primary by using the
+ *  current length of the root's children list in the live Y.Map.
+ */
+function computeNextPrimaryOrder(yMap: Y.Map<ConceptNode>, rootId: string): string {
+  const root = yMap.get(rootId);
+  const count = (root?.childrenNodeIds ?? []).length;
+  return String(count + 1);
+}
+
+
+
 interface NodesContextValue {
   nodes: Map<string, ConceptNode>;
   setNodes(
+    nodes: Map<string, ConceptNode>,
+    options?: { origin?: { type: 'system'; action: SystemActionType } },
+    mapId?: string,
+    restore?:boolean,
+  ): void;
+  setGeneratedNodes(
     nodes: Map<string, ConceptNode>,
     options?: { origin?: { type: 'system'; action: SystemActionType } },
     mapId?: string,
@@ -63,7 +123,7 @@ export const useNodesContext = (): NodesContextValue => {
 };
 
 export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { ydoc, updateFileName, getFileName, isReadOnly, snapshotYDoc  }  = useYDoc();
+  const { ydoc, updateFileName, getFileName, isReadOnly, snapshotYDoc, incrementVersion  }  = useYDoc();
   const { activeConceptMapId ,  getLessonModule, updateConceptMapTitle} = useLessonModule();
   const mapKey = `nodes:${activeConceptMapId}`;
    const activeDoc = snapshotYDoc ?? ydoc;
@@ -110,33 +170,104 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   
 
-  // 1) setNodes (bulk replace)
-  const setNodes = useCallback(
-    (
-      newMap: Map<string, ConceptNode>,
-      options?: { origin?: { type: 'system'; action: SystemActionType } },
-      mapID?: string,
-      restore?:boolean
-    ) => {
-
-      if (isReadOnly && !restore) {
-      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+/**
+ * @function setNodes
+ * @responsibilities
+ *  - Bulk replace the nodes map for a given concept map.
+ *  - Normalize primary nodes so each has a string lessonOrder.
+ *  - Perform the write in a single Yjs transaction.
+ *
+ * @workflow
+ *  1) Guard read-only (unless restore).
+ *  2) Select target Y.Map for the active or provided mapID.
+ *  3) Normalize incoming Map so primaries have lessonOrder based on root order.
+ *  4) Clear target Y.Map and write normalized entries.
+ *  5) Use provided system origin (if any).
+ */
+const setNodes = useCallback(
+  (
+    newMap: Map<string, ConceptNode>,
+    options?: { origin?: { type: 'system'; action: SystemActionType } },
+    mapID?: string,
+    restore?: boolean
+  ) => {
+    // 1) Guard read-only (unless restore)
+    if (isReadOnly && !restore) {
+      console.warn('NodesProvider.tsx 2003 › Read-only mode: setNodes blocked');
       return;
-      }
+    }
 
-      const usedMap = mapID || activeConceptMapId;
-      const targetKey = `nodes:${usedMap}`;
-      const yMap = ydoc.getMap<ConceptNode>(targetKey);
-      ydoc.transact(
-        () => {
-          yMap.clear();
-          newMap.forEach((node, id) => yMap.set(id, node));
-        },
-        options?.origin
-      );
-    },
-    [isReadOnly, activeConceptMapId, ydoc]
-  );
+    // 2) Select target Y.Map
+    const usedMap = mapID || activeConceptMapId;
+    const targetKey = `nodes:${usedMap}`;
+    const yMap = ydoc.getMap<ConceptNode>(targetKey);
+
+    // 3) Normalize incoming primary lessonOrder using root children order
+    const normalized = normalizeIncomingMap(newMap);
+
+    // 4) Apply in one transaction
+    ydoc.transact(
+      () => {
+        yMap.clear();
+        normalized.forEach((node, id) => yMap.set(id, node));
+      },
+      options?.origin
+    );
+  },
+  [isReadOnly, activeConceptMapId, ydoc]
+);
+
+
+
+
+/**
+ * @function setGeneratedNodes
+ * @responsibilities
+ *  - Bulk replace nodes specifically for AI-generated maps.
+ *  - Normalize primary nodes so each has a string lessonOrder.
+ *  - Bump version on write to reflect structural changes.
+ *
+ * @workflow
+ *  1) Guard read-only (unless restore).
+ *  2) Select target Y.Map for the active or provided mapID.
+ *  3) Normalize incoming Map so primaries have lessonOrder based on root order.
+ *  4) Clear target Y.Map, increment version, then write normalized entries.
+ *  5) Use provided system origin (if any).
+ */
+const setGeneratedNodes = useCallback(
+  (
+    newMap: Map<string, ConceptNode>,
+    options?: { origin?: { type: 'system'; action: SystemActionType } },
+    mapID?: string,
+    restore?: boolean
+  ) => {
+    // 1) Guard read-only (unless restore)
+    if (isReadOnly && !restore) {
+      console.warn('NodesProvider.tsx 2004 › Read-only mode: setGeneratedNodes blocked');
+      return;
+    }
+
+    // 2) Select target Y.Map
+    const usedMap = mapID || activeConceptMapId;
+    const targetKey = `nodes:${usedMap}`;
+    const yMap = ydoc.getMap<ConceptNode>(targetKey);
+
+    // 3) Normalize incoming primary lessonOrder
+    const normalized = normalizeIncomingMap(newMap);
+
+    // 4) Apply write + version bump in one transaction
+    ydoc.transact(
+      () => {
+        yMap.clear();
+        incrementVersion();
+        normalized.forEach((node, id) => yMap.set(id, node));
+      },
+      options?.origin
+    );
+  },
+  [isReadOnly, activeConceptMapId, ydoc, incrementVersion]
+);
+
 
   // 2) initNewDocument
   const initNewDocument = useCallback(() => {
@@ -165,18 +296,36 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [ydoc, yNodesMap, isReadOnly]);
 
 
-// 3) createNewNode (no undo/redo tracking)
+/**
+ * @function createNewNode
+ * @responsibilities
+ *  - Create a new node under a given parent.
+ *  - If the new node is primary (parent is root) and lessonOrder is missing,
+ *    seed lessonOrder := (root.children.length + 1) as a string.
+ *  - Update the parent’s children list atomically.
+ *
+ * @workflow
+ *  1) Guard read-only.
+ *  2) Resolve parent and compute new depth.
+ *  3) Build the new node (no pos, not root).
+ *  4) If depth === 1 (primary) and missing lessonOrder, assign via computeNextPrimaryOrder.
+ *  5) Transact: set new node, maybe bump version, update parent children.
+ */
 const createNewNode = useCallback(
   (title: string, parentId: string, newId: string) => {
-        if (isReadOnly) {
-      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+    // 1) Guard read-only
+    if (isReadOnly) {
+      console.warn('NodesProvider.tsx 2005 › Read-only mode: createNewNode blocked');
       return;
     }
+
+    // 2) Resolve parent and compute depth
     const parent = yNodesMap.get(parentId);
     if (!parent) return;
-
     const depth = (parent.depth || 0) + 1;
-    const newNode: ConceptNode = {
+
+    // 3) Build base node
+    let newNode: ConceptNode = {
       id: newId,
       title: title || `Untitled Concept ${yNodesMap.size + 1}`,
       parentNodeId: parentId,
@@ -187,74 +336,94 @@ const createNewNode = useCallback(
       depth,
     };
 
-    // Apply as a system-origin transaction so we don’t record it
+    // 4) If primary and missing lessonOrder, assign based on current root child count
+    const rootId = getRootNode();
+    const isPrimary = depth === 1 && parentId === rootId;
+    if (isPrimary && (newNode.lessonOrder == null || newNode.lessonOrder === '')) {
+      newNode = { ...newNode, lessonOrder: computeNextPrimaryOrder(yNodesMap, rootId) };
+    }
+
+    // 5) Transact the insert + parent update
     ydoc.transact(
       () => {
-        // 1) add the new node
         yNodesMap.set(newId, newNode);
 
-        // 2) update parent’s children list
+        if (isPrimary) {
+          // primary node is being created
+          incrementVersion();
+        }
+
         yNodesMap.set(parentId, {
           ...parent,
           childrenNodeIds: [...(parent.childrenNodeIds || []), newId],
         });
       },
-      {
-        origin: { 
-          type: 'system', 
-          action: 'createNewNode' as SystemActionType 
-        }
-      }
+      { origin: { type: 'system', action: 'createNewNode' as SystemActionType } }
     );
   },
-  [ydoc, yNodesMap, isReadOnly]
+  [isReadOnly, yNodesMap, ydoc, incrementVersion, getRootNode]
 );
 
 
+
 /**
-   * @function restoreNode
-   * @description
-   *   Reinstates a ConceptNode (with its original ID, title, depth, and children) into
-   *   the live Y.Doc under the specified parent. Skips any read-only check and wraps
-   *   both the node insertion and parent update in one atomic transaction for undo/redo.
-   *
-   *   - `node`: the exact snapshot node to restore.
-   *   - `parentId`: the live parent node ID under which to reattach.
-   *   - Logs start (8001), mid (8002), and completion (8003) events.
-   */
-  const restoreNode = useCallback(
-    (node: ConceptNode, parentId: string): void => {
-      console.log('NodesProvider.tsx 8001 › restoreNode start', node.id, 'parent:', parentId);
-      
-      // Compute depth based on parent
-      const parent = yNodesMap.get(parentId);
-      const depth = parent ? (parent.depth || 0) + 1 : 0;
-      const x = undefined;
-      const y= undefined;
-      const restored: ConceptNode = { ...node, parentNodeId: parentId, depth, x , y };
-      console.log(`takku restoreNode ${restored}`);
+ * @function restoreNode
+ * @responsibilities
+ *  - Reattach a snapshot node under a given parent with updated depth/pos.
+ *  - If restored node becomes primary and lacks lessonOrder, seed it.
+ *  - Update parent’s children atomically; bump version on primary restores.
+ *
+ * @workflow
+ *  1) Log start and resolve parent; compute new depth.
+ *  2) Build restored node with new parent/depth and cleared pos.
+ *  3) If depth === 1 and missing lessonOrder, assign via computeNextPrimaryOrder.
+ *  4) Transact: write node, update parent children, bump version if primary.
+ *  5) Log completion.
+ */
+const restoreNode = useCallback(
+  (node: ConceptNode, parentId: string): void => {
+    console.log('NodesProvider.tsx 8001 › restoreNode start', node.id, 'parent:', parentId);
 
-      ydoc.transact(
-        () => {
-          // 1) Insert the node
-          const liveMap = ydoc.getMap<ConceptNode>(`nodes:${activeConceptMapId}`);
-          liveMap.set(restored.id, restored);
-          console.log('NodesProvider.tsx 8002 › node set in map', restored.id);
+    // 1) Resolve parent and compute depth
+    const parent = yNodesMap.get(parentId);
+    const depth = parent ? (parent.depth || 0) + 1 : 0;
 
-          // 2) Update parent’s children array
-          if (parent) {
-            const updatedChildren = [...(parent.childrenNodeIds || []), restored.id];
-            yNodesMap.set(parentId, { ...parent, childrenNodeIds: updatedChildren });
-            console.log('NodesProvider.tsx 8002 › parent updated', parentId, 'children:', updatedChildren);
-          }
-        },
-        { type: 'system', action: 'restoreNode' }
-      );
+    // 2) Build restored node (clear position)
+    let restored: ConceptNode = { ...node, parentNodeId: parentId, depth, x: undefined, y: undefined };
 
-      console.log('NodesProvider.tsx 8003 › restoreNode complete', restored.id);
-    },
-    [yNodesMap, ydoc, activeConceptMapId]
-  );
+    // 3) If primary and missing lessonOrder, assign now
+    const rootId = getRootNode();
+    const isPrimary = depth === 1 && parentId === rootId;
+    if (isPrimary && (restored.lessonOrder == null || restored.lessonOrder === '')) {
+      restored = { ...restored, lessonOrder: computeNextPrimaryOrder(yNodesMap, rootId) };
+    }
+
+    // 4) Transact reattachment
+    ydoc.transact(
+      () => {
+        const liveMap = ydoc.getMap<ConceptNode>(`nodes:${activeConceptMapId}`);
+        liveMap.set(restored.id, restored);
+        console.log('NodesProvider.tsx 8002 › node set in map', restored.id);
+
+        if (parent) {
+          const updatedChildren = [...(parent.childrenNodeIds || []), restored.id];
+          yNodesMap.set(parentId, { ...parent, childrenNodeIds: updatedChildren });
+          console.log('NodesProvider.tsx 8002 › parent updated', parentId, 'children:', updatedChildren);
+        }
+
+        if (isPrimary) {
+          incrementVersion();
+        }
+      },
+      { type: 'system', action: 'restoreNode' }
+    );
+
+    // 5) Log completion
+    console.log('NodesProvider.tsx 8003 › restoreNode complete', restored.id);
+  },
+  [yNodesMap, ydoc, incrementVersion, activeConceptMapId, getRootNode]
+);
+
 
 
 
@@ -325,6 +494,9 @@ const createNewNode = useCallback(
     }
       const node = yNodesMap.get(nodeId);
       if (!node || node.isRoot) return;
+
+      const depth = node.depth
+     
       const parentId = node.parentNodeId!;
       const parent = yNodesMap.get(parentId);
       if (!parent || (node.childrenNodeIds?.length || 0) > 0) return;
@@ -336,6 +508,11 @@ const createNewNode = useCallback(
           delta,
           () => {
             yNodesMap.delete(nodeId);
+
+             if (depth === 1){
+      // primary node is being created
+      incrementVersion()
+    }
             yNodesMap.set(parentId, {
               ...parent,
               childrenNodeIds: parent.childrenNodeIds!.filter((c) => c !== nodeId),
@@ -349,55 +526,78 @@ const createNewNode = useCallback(
         );
       });
     },
-    [ydoc, yNodesMap, isReadOnly]
+    [isReadOnly, yNodesMap, ydoc, incrementVersion]
   );
 
-  const transferNode = useCallback(
-    (sourceId: string, targetId: string) => {
-          if (isReadOnly) {
-      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
+/**
+ * @function transferNode
+ * @responsibilities
+ *  - Move a node under a new parent; recompute depth.
+ *  - If node becomes primary and lacks lessonOrder, seed it.
+ *  - If node is moved out of primary, strip lessonOrder (to avoid stale values).
+ *  - Update old/new parents atomically.
+ *
+ * @workflow
+ *  1) Guard read-only and sanity-check source/target.
+ *  2) Derive new depth from target; prepare updated node + parents.
+ *  3) If moving to depth 1 and missing lessonOrder → assign next order.
+ *  4) If moving away from depth 1 → delete lessonOrder.
+ *  5) Transact: write three updates (old parent, source, target).
+ */
+const transferNode = useCallback(
+  (sourceId: string, targetId: string) => {
+    // 1) Guard & sanity checks
+    if (isReadOnly) {
+      console.warn('NodesProvider.tsx 2006 › Read-only mode: transferNode blocked');
       return;
     }
-      const source = yNodesMap.get(sourceId);
-      const target = yNodesMap.get(targetId);
-      if (!source || !target || source.isRoot) return;
-      if (
-        sourceId === targetId ||
-        (source.childrenNodeIds || []).includes(targetId)
-      ) {
-        return;
-      }
+    const source = yNodesMap.get(sourceId);
+    const target = yNodesMap.get(targetId);
+    if (!source || !target || source.isRoot) return;
+    if (sourceId === targetId || (source.childrenNodeIds || []).includes(targetId)) return;
 
-      const oldParentId = source.parentNodeId!;
-      const oldParent = yNodesMap.get(oldParentId)!;
-      const newDepth = (target.depth || 0) + 1;
+    const oldParentId = source.parentNodeId!;
+    const oldParent = yNodesMap.get(oldParentId)!;
+    const newDepth = (target.depth || 0) + 1;
 
-      const updatedSource: ConceptNode = {
-        ...source,
-        parentNodeId: targetId,
-        depth: newDepth,
-      };
-      const updatedOldParent: ConceptNode = {
-        ...oldParent,
-        childrenNodeIds: oldParent.childrenNodeIds!.filter((c) => c !== sourceId),
-      };
-      const updatedTarget: ConceptNode = {
-        ...target,
-        childrenNodeIds: [...(target.childrenNodeIds || []), sourceId],
-      };
+    // 2) Build updated node and parents
+    let updatedSource: ConceptNode = { ...source, parentNodeId: targetId, depth: newDepth };
+    const updatedOldParent: ConceptNode = {
+      ...oldParent,
+      childrenNodeIds: oldParent.childrenNodeIds!.filter((c) => c !== sourceId),
+    };
+    const updatedTarget: ConceptNode = {
+      ...target,
+      childrenNodeIds: [...(target.childrenNodeIds || []), sourceId],
+    };
 
-      // Apply as a system-origin transaction so undo/redo engine ignores it:
-      ydoc.transact(
-        () => {
-          yNodesMap.set(oldParentId, updatedOldParent);
-          yNodesMap.set(sourceId, updatedSource);
-          yNodesMap.set(targetId, updatedTarget);
-        },
-        { origin: { type: 'system', action: 'transfer' as SystemActionType } }
-      );
-    },
-    [ydoc, yNodesMap, isReadOnly]
-  );
+    // 3) If moving to primary without lessonOrder → seed it
+    const rootId = getRootNode();
+    const becomesPrimary = newDepth === 1 && targetId === rootId;
+    if (becomesPrimary && (updatedSource.lessonOrder == null || updatedSource.lessonOrder === '')) {
+      updatedSource = { ...updatedSource, lessonOrder: computeNextPrimaryOrder(yNodesMap, rootId) };
+    }
+
+    // 4) If leaving primary → remove lessonOrder
+    const wasPrimary = (source.depth ?? 0) === 1 && oldParentId === rootId;
+    if (!becomesPrimary && wasPrimary && updatedSource.lessonOrder != null) {
+      const { lessonOrder, ...rest } = updatedSource as any;
+      updatedSource = rest;
+    }
+
+    // 5) Apply as system-origin transaction
+    ydoc.transact(
+      () => {
+        yNodesMap.set(oldParentId, updatedOldParent);
+        yNodesMap.set(sourceId, updatedSource);
+        yNodesMap.set(targetId, updatedTarget);
+      },
+      { origin: { type: 'system', action: 'transfer' as SystemActionType } }
+    );
+  },
+  [ydoc, yNodesMap, isReadOnly, getRootNode]
+);
+
 
   // 7) resetNodes
   const resetNodes = useCallback(() => {
@@ -445,6 +645,7 @@ const getGlobalNode = useCallback(
     () => ({
       nodes,
       setNodes,
+      setGeneratedNodes,
       createNewNode,
       updateNodeTitle,
       deleteNode,
@@ -459,7 +660,7 @@ const getGlobalNode = useCallback(
       getNodes,
       getGlobalNode,
     }),
-    [nodes, setNodes, createNewNode, updateNodeTitle, deleteNode, transferNode, resetNodes, initNewDocument, getNodeTitle, getRootNode, getReviewNode, restoreNode, saveEditwithNewNode, getNodes, getGlobalNode]
+    [nodes, setNodes,setGeneratedNodes, createNewNode, updateNodeTitle, deleteNode, transferNode, resetNodes, initNewDocument, getNodeTitle, getRootNode, getReviewNode, restoreNode, saveEditwithNewNode, getNodes, getGlobalNode]
   );
 
   return <NodesContext.Provider value={contextValue}>{children}</NodesContext.Provider>;

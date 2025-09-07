@@ -51,6 +51,7 @@ import { LessonsDropdown, UploadsDropdown } from './DropdownComponents';
 import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
 import './CanvasHeader.css';
+import { useAccountStatus } from '@/app/src/context/ApiContext';
 
 export interface CanvasHeaderProps {
   onMenuToggle: () => void;
@@ -104,6 +105,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   const { activeConceptMapId, getLessonModule, updateConceptMapTitle } = useLessonModule();
   const { getVisibility } = useYDoc();
   const { addGeneratedLessonFile } = useFileAsset();
+  const { accountStatus} = useAccountStatus();
   
   // Step 2: Determine document privacy state for UI indicators
   const isPrivate = getVisibility() === 'private';
@@ -144,13 +146,18 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
     try {
       // Convert backend response to TextFileMessage format for file asset context
       const generatedFileMessage: TextFileMessage = {
-        id: responseData.id,
-        type: 'pdf',
-        title: responseData.title,
-        serverUrl: responseData.url,
-        uploadDate: new Date(),
-        size: responseData.size,
-      };
+            id: responseData.id,
+            type: 'pdf',
+            title: responseData.title,
+            serverUrl: responseData.url,
+            uploadDate: new Date(),
+            size: responseData.size,
+            // ✅ FIXED: Include the privacy metadata from backend response
+            visibility: responseData.visibility || 'private',
+            ownerId: responseData.owner ,
+            accountType: accountStatus?.accountType || 'scholar',
+          };
+      
       
       // Update file asset context with generated lesson file
       addGeneratedLessonFile(generatedFileMessage);
@@ -172,20 +179,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
     <header className="canvas-header flex items-center justify-between">
       {/* ───────────────────────── Left cluster: menu, title, nav dropdowns ───────────────────────── */}
       <div className="flex items-center gap-3">
-        {/* Menu toggle button */}
-        <button
-          onClick={() => {
-            console.log('[CanvasHeader.tsx][9008] Menu toggle requested');
-            onMenuToggle();
-          }}
-          className="btn btn--icon canvas-header__menu"
-          title="Toggle menu"
-          aria-label="Toggle menu"
-        >
-          <Menu size={20} />
-        </button>
-
-        {/* Document title display and editing */}
+               {/* Document title display and editing */}
         <div
           className="canvas-header__titlewrap"
           onClick={() => {

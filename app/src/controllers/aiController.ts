@@ -88,105 +88,163 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
 }
 
 
+/**
+   * handleQuestion (Enhanced with streamlined processing)
+   * @description
+   *   Processes user questions with contextual text retrieval and AI-powered response generation.
+   *   This enhanced version focuses on core question processing logic with the assurance that all
+   *   permission validation has been handled at the service layer. The method combines user questions
+   *   with relevant context from document sources to provide comprehensive and accurate responses
+   *   that leverage the full knowledge base available in uploaded educational materials.
+   * @param req - API request object containing question, text selection, and file ID
+   * @param res - API response object for sending structured question responses
+   * @returns Promise resolving when question processing is complete
+   */
   public static async handleQuestion(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
-      console.log("[AIController] handleQuestion called with body:", req.body);
+      console.log('[aiController.ts][5005] Processing question request with enhanced validation');
       const { question, textSelection, fileID } = req.body;
+      
+      // Step 6: Validate required parameters
       if (!question || !fileID) {
-        res.status(400).json({ error: "Missing question, moduleID, or fileID" });
+        console.log('[aiController.ts][5006] Missing required parameters for question processing');
+        res.status(400).json({ 
+          error: 'MISSING_PARAMETERS',
+          message: "Missing question or fileID parameters",
+          service: 'askAssistant'
+        });
         return;
       }
+      
+      // Step 7: Combine question with text selection for context
       let combinedInput = question;
       if (textSelection && typeof textSelection === 'string' && textSelection.trim().length > 0) {
         combinedInput += " " + textSelection.trim();
       }
-      console.log("[AIController] Combined input for QA:", combinedInput);
+      console.log('[aiController.ts][5007] Combined input prepared for context retrieval');
+      
+      // Step 8: Retrieve additional context from document sources
       let retrievedContext = "";
-      // Always get text context for a given question.
-      retrievedContext = await getTextContext(combinedInput, fileID);
-      console.log("[AIController] Retrieved additional context:", retrievedContext);
+      try {
+        retrievedContext = await getTextContext(combinedInput, fileID);
+        console.log('[aiController.ts][5008] Context retrieval completed successfully');
+      } catch (contextError) {
+        console.warn('[aiController.ts][5009] Context retrieval failed, proceeding without additional context:', contextError);
+      }
  
+      // Step 9: Construct final prompt with question and context
       let finalPrompt = "\n User Question :" + question;
       if (retrievedContext && retrievedContext.trim().length > 0) {
         finalPrompt += "\nContext: " + retrievedContext.trim();
       }
-      console.log("[AIController] Final prompt for QA:", finalPrompt);
+      console.log('[aiController.ts][5010] Final prompt constructed for AI processing');
+      
+      // Step 10: Generate AI response using structured output
       const systemPrompt = predefinedPrompts['QApipeline'];
-      console.log("[AIController] Using system prompt for QA:", systemPrompt);
       const aiService = AIController.getAIService();
       const structuredResponse = await aiService.generateStructuredOutput(
         QAschema,
         finalPrompt,
         systemPrompt
       );
-      console.log("[AIController] QA structured response:", structuredResponse);
+      
+      console.log('[aiController.ts][5011] Question processing completed successfully');
       res.status(200).json(structuredResponse);
     } catch (error) {
-      console.error("[AIController] Error in handleQuestion:", error);
-      res.status(500).json({ error: "Failed to generate answer for the question." });
+      console.error('[aiController.ts][5012] Question processing failed:', error);
+      res.status(500).json({ 
+        error: 'QUESTION_PROCESSING_FAILED',
+        message: "Failed to generate answer for the question.",
+        service: 'askAssistant'
+      });
     }
   }
 
+/**
+   * handleTopicGeneration (Enhanced with streamlined processing)
+   * @description
+   *   Generates educational topics based on user requests with contextual document analysis and AI-powered
+   *   content creation. This enhanced version focuses on core topic generation logic while leveraging the
+   *   centralized validation system for permission enforcement. The method combines user topic requests
+   *   with relevant document context to create comprehensive educational topics that align with learning
+   *   objectives and provide meaningful exploration opportunities for students and educators.
+   * @param req - API request object containing topic request, export data, file ID, and text selection
+   * @param res - API response object for sending structured topic generation responses
+   * @returns Promise resolving when topic generation processing is complete
+   */
   public static async handleTopicGeneration(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
-      console.log("[AIController] handleTopicGeneration called with body:", req.body);
+      console.log('[aiController.ts][5013] Processing topic generation request with enhanced validation');
       const { userTopicRequest, exportData, fileID, textSelection } = req.body;
+      
+      // Step 11: Validate required parameters
       if (!userTopicRequest || !fileID) {
-        res.status(400).json({ error: "Missing required fields: userTopicRequest, moduleID, or fileID" });
+        console.log('[aiController.ts][5014] Missing required parameters for topic generation');
+        res.status(400).json({ 
+          error: 'MISSING_PARAMETERS',
+          message: "Missing required fields: userTopicRequest or fileID",
+          service: 'exploreTopic'
+        });
         return;
       }
 
-      let getContext = userTopicRequest
-      if (textSelection){
-        getContext += `\n ${textSelection}`
+      // Step 12: Prepare context retrieval input
+      let getContext = userTopicRequest;
+      if (textSelection) {
+        getContext += `\n ${textSelection}`;
       }
-      // Retrieve additional context based on the user's topic request.
-      const retrievedContext = await getTextContext(getContext, fileID);
-      console.log("[AIController] Retrieved context for topic generation:", retrievedContext);
-      // Construct final prompt.
+      
+      // Step 13: Retrieve additional context based on the user's topic request
+      let retrievedContext = "";
+      try {
+        retrievedContext = await getTextContext(getContext, fileID);
+        console.log('[aiController.ts][5015] Context retrieval completed for topic generation');
+      } catch (contextError) {
+        console.warn('[aiController.ts][5016] Context retrieval failed, proceeding without additional context:', contextError);
+      }
+      
+      // Step 14: Construct final prompt for topic generation
       let finalPrompt = "User Topic Request: " + userTopicRequest;
       finalPrompt += "\nUpload: " + (textSelection ? textSelection : exportData);
       finalPrompt += "\nContext: " + retrievedContext;
-      console.log("[AIController] Final prompt for topic generation:", finalPrompt);
+      console.log('[aiController.ts][5017] Final prompt constructed for topic generation');
+      
+      // Step 15: Generate AI response for topic exploration
       const systemPrompt = predefinedPrompts['ExploreTopic'];
-      console.log("[AIController] Using system prompt for topic generation:", systemPrompt);
       const aiService = AIController.getAIService();
       const structuredResponse = await aiService.generateStructuredOutput(
         topicSchema,
         finalPrompt,
         systemPrompt
       );
-      console.log("[AIController] Topic generation structured response:", structuredResponse);
+      
+      console.log('[aiController.ts][5018] Topic generation completed successfully');
       res.status(200).json(structuredResponse);
     } catch (error) {
-      console.error("[AIController] Error in handleTopicGeneration:", error);
-      res.status(500).json({ error: "Failed to generate topic." });
+      console.error('[aiController.ts][5019] Topic generation failed:', error);
+      res.status(500).json({ 
+        error: 'TOPIC_GENERATION_FAILED',
+        message: "Failed to generate topic exploration.",
+        service: 'exploreTopic'
+      });
     }
   }
 
-  /**
-   * handleQuizTool
-   *
-   * Processes specialized quiz generation requests from the Quiz Tool.
-   * It extracts the following fields from the request body:
-   *   - topicIds: string[] (selected concept node IDs)
-   *   - quizTypes: string[] (supported values: multipleChoice, matching, FIB, true-false)
-   *   - includeDocs: boolean
-   *   - fileID, summary, summaryPresent, mapID, exportData: exported study data
-   *
-   * Based on the includeDocs flag:
-   *   - If true: Calls getTextContext on exportData to retrieve additional document context.
-   *   - If false: Uses exportData directly.
-   *
-   * Constructs a final prompt including the export data, additional context (if any),
-   * and a note of the selected quiz types.
-   *
-   * Then selects an appropriate JSON schema and system prompt based on the quiz type.
-   * Finally, calls generateStructuredOutput and returns the structured quiz response.
+/**
+   * handleQuizTool (Enhanced with streamlined processing)
+   * @description
+   *   Processes specialized quiz generation requests with support for multiple quiz types and educational
+   *   contexts. This enhanced version focuses on core quiz generation logic while benefiting from centralized
+   *   permission validation. The method supports various quiz formats including multiple choice, matching,
+   *   fill-in-blank, and true-false questions based on selected topics and educational content. The
+   *   implementation ensures pedagogically sound quiz generation that aligns with learning objectives.
+   * @param req - API request object containing topic IDs, quiz types, file ID, and export data
+   * @param res - API response object for sending structured quiz generation responses
+   * @returns Promise resolving when quiz generation processing is complete
    */
   public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
-      console.log("[AIController] handleQuizTool called with body:", req.body);
+      console.log('[aiController.ts][5020] Processing quiz generation request with enhanced validation');
       const {
         topicIds,
         quizTypes,
@@ -195,19 +253,23 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
         textSelection,
       } = req.body;
       
+      // Step 16: Validate required parameters
       if (!topicIds || !quizTypes || !fileID || !exportData) {
-        res.status(400).json({ error: "Missing required fields for quiz generation." });
+        console.log('[aiController.ts][5021] Missing required parameters for quiz generation');
+        res.status(400).json({ 
+          error: 'MISSING_PARAMETERS',
+          message: "Missing required fields for quiz generation.",
+          service: 'createQuiz'
+        });
         return;
       }
 
-      // Construct the final prompt.
-      // It always includes the export data and the quiz types.
+      // Step 17: Construct final prompt for quiz generation
       let finalPrompt = "Context : " + (textSelection ? textSelection : exportData);
-
       finalPrompt += "\nQuiz Types: " + quizTypes.join(", ");
-      console.log("[AIController] Final prompt for quiz generation:", finalPrompt);
+      console.log('[aiController.ts][5022] Final prompt constructed for quiz generation');
 
-      // Mapping for system prompts and schemas.
+      // Step 18: Map quiz types to appropriate schemas and prompts
       const quizTypeMapping: { [key: string]: { promptKey: string, schema: any } } = {
         "multipleChoice": { promptKey: "multipleChoice", schema: MultipleChoiceSchema },
         "matching": { promptKey: "matching", schema: MatchingQuizSchema },
@@ -218,6 +280,7 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
       let chosenSchema = MultipleChoiceSchema;
       let systemPrompt = "";
 
+      // Step 19: Select appropriate schema and prompt based on quiz types
       if (quizTypes.length === 1) {
         const mapping = quizTypeMapping[quizTypes[0]];
         if (mapping) {
@@ -227,22 +290,28 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
           systemPrompt = "Generate a quiz based on the provided content.";
         }
       } else {
-        // If multiple quiz types are selected, use a composite prompt.
+        // Multiple quiz types selected, use composite prompt
         systemPrompt = "Generate a composite quiz that includes the following types: " + quizTypes.join(", ");
       }
-      console.log("[AIController] Using system prompt:", systemPrompt);
+      console.log('[aiController.ts][5023] Quiz schema and prompt selected for generation');
 
+      // Step 20: Generate AI response for quiz creation
       const aiService = AIController.getAIService();
       const structuredResponse = await aiService.generateStructuredOutput(
         chosenSchema,
         finalPrompt,
         systemPrompt
       );
-      console.log("[AIController] Quiz generation structured response:", structuredResponse);
+      
+      console.log('[aiController.ts][5024] Quiz generation completed successfully');
       res.status(200).json(structuredResponse);
     } catch (error) {
-      console.error("[AIController] Error in handleQuizTool:", error);
-      res.status(500).json({ error: "Failed to generate quiz." });
+      console.error('[aiController.ts][5025] Quiz generation failed:', error);
+      res.status(500).json({ 
+        error: 'QUIZ_GENERATION_FAILED',
+        message: "Failed to generate quiz content.",
+        service: 'createQuiz'
+      });
     }
   }
 
@@ -323,70 +392,7 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
   return root;
   }
 
-
-  /**
-   * generateSubtreeLessonV2
-   *
-   * Generates detailed lesson content, flash cards, optional secondary subtree,
-   * and a quiz for multiple depth-1 PrimaryNode and its children.
-   *
-   * @param root - A PrimaryNode with .title, .aggregated_text, and optional depth2_subtopics.
-   * @returns Promise resolving to the enriched PrimaryNode with:
-   *   - lesson: { lecture_note, flash_cards }
-   *   - secondary_subtopic: ...[]
-   *   - quiz: matching_quiz object
-   */
-  public static async generateSubtreeLessonV2(roots: any[], mainTopic:string, fullText:string): Promise<{
-  primary_subtopics: EnrichedPrimary[];
-  citations: Citation[];
-}> {
-    const aiService = this.getAIService();
-
-    let syllabus: string = '';
-    roots.forEach(root => {
-      const primary: PrimaryForPrompt = {
-    title: root.title!,
-    Learning_Objectives: root.Learning_Objectives!,
-    LessonOutline: root.LessonOutline!,
-    ChronologicalOrder: root.ChronologicalOrder,
-    secondary_topics: (root.depth2_subtopics || []).map((s: any) => ({
-      title: s.title,
-      Learning_Objectives: s.Learning_Objectives,
-      LessonOutline: s.LessonOutline,
-    }))
-  };
-    syllabus+= formatSyllabusForPrompt(primary) + '\n ######## \n';
-    })
-      
-
-  
-  // produce the formatted string
-  //const syllabusBlock = formatSyllabusForPrompt(primary);
-  console.log(`[aiController 444442] ${JSON.stringify(syllabus)} `);
-    // System prompt to guide structured subtree output
-  const systemPrompt = buildSubtreePromptV2(mainTopic, syllabus, roots.length);
-
-
-    // Perform the structured call
-    const response = await aiService.generateStructuredOutput(
-      { name: subtreeSchemaV4.name, schema: subtreeSchemaV4.schema, strict: subtreeSchemaV4.strict },
-      fullText,
-      systemPrompt
-    );
-
-
-    const batch = (response as any).primary_subtopics as EnrichedPrimary[];
-    const global_citations = (response as any).citations as Citation[]
-
-    const payload = {
-      primary_subtopics : batch,
-      citations: global_citations,
-    }
-    
-    return payload;
-  }
-
-  
+ 
 
     /**
    * generateSubtreeLessonV3

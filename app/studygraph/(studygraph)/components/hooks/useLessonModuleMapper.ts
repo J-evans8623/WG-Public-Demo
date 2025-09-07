@@ -34,7 +34,7 @@ export function useLessonModuleMapper(): void {
     addLoadingLesson,
     removeLoadingLesson,
   } = useLessonModule();
-  const { updateNodeTitle, setNodes, getRootNode } = useNodesContext();
+  const { updateNodeTitle, setGeneratedNodes, getRootNode } = useNodesContext();
   const { createResource } = useCardCrudOperations();
   const { subtrees, setSubtrees } = useSubTreeContext();
   const { docFileID , updateFileName, getFileName} = useYDoc();
@@ -42,9 +42,9 @@ export function useLessonModuleMapper(): void {
   // Wrap setNodes and setSubtrees to pass additional parameters if needed.
   const wrappedSetNodes = useCallback(
     (nodesMap: Map<string, any>, mapID?: string) => {
-      setNodes(nodesMap, undefined, mapID);
+      setGeneratedNodes(nodesMap, undefined, mapID);
     },
-    [setNodes]
+    [setGeneratedNodes]
   );
 
   const wrappedSetSubtrees = useCallback(
