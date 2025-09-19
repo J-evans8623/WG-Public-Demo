@@ -33,6 +33,39 @@ import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import AIController from '@/app/src/controllers/aiController';
 import { validatePremiumAccess, mapActionToServiceType, ServiceType } from '@/app/src/services/validatePremiumAccess';
 import { UserService } from '@/app/src/services/userService';
+import { extractLessonsFromDocId} from '@/app/src/services/lessonExtraction/lessonExtractionService';
+
+
+
+type ExtractedLesson = {
+  lessonId: string;
+  lessonTitle: string;
+  topics: { topicTitle: string; topicContent: string }[];
+};
+
+/**
+ * formatExportDataFromExtractedLesson
+ * @purpose
+ *   Produce a clean, readable text context from a single extracted lesson. We:
+ *   1) Print the lesson title.
+ *   2) Print each topic title on its own heading-like line.
+ *   3) Print the topic’s joined note text beneath it.
+ *   4) Separate topics with a blank line to keep the LLM input tidy.
+ *   This function ensures the quiz pipeline receives high-signal text without JSON noise.
+ */
+function formatExportDataFromExtractedLesson(lesson: ExtractedLesson): string {
+  const lines: string[] = [];
+  lines.push(`# Lesson: ${lesson.lessonTitle || 'Untitled Lesson'}`);
+  for (const t of lesson.topics) {
+    const title = t.topicTitle?.trim() || 'Untitled Topic';
+    const body = t.topicContent?.trim() || '';
+    lines.push(`\n## Topic: ${title}`);
+    if (body) lines.push(body);
+  }
+  return lines.join('\n');
+}
+
+
 
 /**
  * handler
@@ -124,8 +157,65 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         sessionData.user.email,
         'exploreTopic'
       );
+    } else if (action === 'generateTopic') {
+      console.log('[aiServiceLayer.ts][3009] Routing to topic generation service');
+      processingResult = await processAIServiceRequest(
+        () => AIController.handleTopicGeneration(req, res),
+        sessionData.user.email,
+        'exploreTopic'
+      );
     } else if (action === 'quizGenerator') {
+      
       console.log('[aiServiceLayer.ts][3010] Routing to quiz generation service');
+
+      // [A] Shape/validate identifiers
+      const body = req.body || {};
+      const fileID: string | undefined = body.fileID || body.documentId || body.docId;
+      const incomingTopicIds: string[] | undefined = Array.isArray(body.topicIds) ? body.topicIds : undefined;
+      const lessonId: string | undefined = body.lessonId || (Array.isArray(body.topicIds) ? body.topicIds?.[0] : undefined);
+
+      // Require fileID and either (topicIds[0]) or lessonId
+      const selectedLessonId = lessonId || incomingTopicIds?.[0];
+      if (!fileID || !selectedLessonId) {
+        console.log('[aiServiceLayer.ts][3010A] Missing fileID or selectedLessonId for quiz generation');
+        return res.status(400).json({
+          error: 'MISSING_PARAMETERS',
+          message: 'fileID and a single lessonId (concept map id) are required',
+          service: 'createQuiz',
+        });
+      }
+
+      // [B] Extract the requested lesson (Y.Doc → lesson object)
+      console.log('[aiServiceLayer.ts][3010B] Extracting lesson for quiz generation', { fileID, selectedLessonId });
+      const lessons = await extractLessonsFromDocId(fileID, { mapIds: [selectedLessonId] });
+      const extractedLesson = lessons?.[0] as ExtractedLesson | undefined;
+
+      if (!extractedLesson) {
+        console.log('[aiServiceLayer.ts][3010C] No lesson returned for given map id', { fileID, selectedLessonId });
+        return res.status(404).json({
+          error: 'LESSON_NOT_FOUND',
+          message: 'The specified lesson (concept map) was not found in the document',
+          service: 'createQuiz',
+        });
+      }
+
+      // [C] Normalize/cap questionCount (shared generator, caps for Scholars)
+      const requestedCountRaw = Number(body.questionCount);
+      const requestedCount = Number.isFinite(requestedCountRaw) && requestedCountRaw > 0 ? Math.floor(requestedCountRaw) : 10;
+      const normalizedQuestionCount = Math.max(1, Math.min(requestedCount, 10));
+
+      // [D] Attach extracted lesson context + normalized count to req.body for controller
+      (req.body as any).extractedLesson = extractedLesson;
+      (req.body as any).exportData = formatExportDataFromExtractedLesson(extractedLesson);
+      (req.body as any).questionCount = normalizedQuestionCount;
+
+      console.log('[aiServiceLayer.ts][3010D] Lesson extracted & questionCount normalized', {
+        lessonId: extractedLesson.lessonId,
+        topics: extractedLesson.topics.length,
+        normalizedQuestionCount,
+      });
+
+      // [E] Delegate to controller
       processingResult = await processAIServiceRequest(
         () => AIController.handleQuizTool(req, res),
         sessionData.user.email,

@@ -37,7 +37,8 @@ import { useYDoc } from './YDocContext';
 import { useAccountStatus } from '@/app/src/context/ApiContext';
 import { TextFileMessage } from '../Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
-import { useModalManager } from '@/app/studygraph/(studygraph)/components/modals/AppModals';
+import { useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
+
 
 // Step 1: Enhanced interface definitions for privacy-aware file management
 interface EnhancedTextFileMessage extends TextFileMessage {
@@ -112,7 +113,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
   // Step 3: Core context dependencies
   const { ydoc, docFileID } = useYDoc();
   const { accountStatus, hasFeature } = useAccountStatus();
-  const { showModal } = useModalManager();
+  const { showModal } = useGlobalModal();
   const yFileMap = ydoc.getMap<EnhancedTextFileMessage>('fileAssets');
   
   // Step 4: State management

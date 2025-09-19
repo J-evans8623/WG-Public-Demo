@@ -43,14 +43,16 @@ import {
   History,
   Lock,
   Loader2,
+  ChevronsLeft,
   Calendar as CalendarIcon
 } from 'lucide-react';
+import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { LessonsDropdown, UploadsDropdown } from './DropdownComponents';
 import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
-import './CanvasHeader.css';
+import '@/app/studygraph/(studygraph)/components/layout/Canvas/bottomUtilityBar/CanvasHeader.css'
 import { useAccountStatus } from '@/app/src/context/ApiContext';
 
 export interface CanvasHeaderProps {
@@ -106,6 +108,20 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   const { getVisibility } = useYDoc();
   const { addGeneratedLessonFile } = useFileAsset();
   const { accountStatus} = useAccountStatus();
+  const { togglePanel, isPanelExpanded } = useViewSwitch();
+
+
+  const renderMenuIcon = () => {
+    return isPanelExpanded ? 
+      <ChevronsLeft size={20} className="text-gray-600" /> : 
+      <Menu size={20} className="text-gray-600" />;
+  };
+
+  // Step 3: Handle menu toggle with context
+  const handleMenuClick = () => {
+    console.log('[CanvasHeader.tsx][9008] Menu toggle requested from CanvasHeader');
+    togglePanel();
+  };
   
   // Step 2: Determine document privacy state for UI indicators
   const isPrivate = getVisibility() === 'private';
@@ -166,7 +182,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
     } catch (error) {
       console.error('[CanvasHeader.tsx][9006] Error processing lesson generation response:', error);
     }
-  }, [addGeneratedLessonFile]);
+  }, [accountStatus?.accountType, addGeneratedLessonFile]);
 
   // Step 8: Handle successful file uploads with logging
   const handleFileUploaded = useCallback((file: TextFileMessage) => {
@@ -176,9 +192,18 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
 
   // Step 9: Render the enhanced canvas header
   return (
-    <header className="canvas-header flex items-center justify-between">
+    <header className="canvas-header brand-ui flex items-center justify-between">
       {/* ───────────────────────── Left cluster: menu, title, nav dropdowns ───────────────────────── */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center ">
+         {/* Menu toggle button */}
+         <button
+          onClick={handleMenuClick}
+          className="btn btn--icon canvas-header__menu"
+          title={isPanelExpanded ? "Collapse menu" : "Expand menu"}
+          aria-label={isPanelExpanded ? "Collapse menu" : "Expand menu"}
+        >
+          {renderMenuIcon()}
+        </button>
                {/* Document title display and editing */}
         <div
           className="canvas-header__titlewrap"
@@ -280,7 +305,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
             console.log('[CanvasHeader.tsx][9017] Bookmark button clicked');
             onBookmark();
           }}
-          className="btn btn--border" 
+          className="btn btn--icon btn--border"
           title="Bookmarks" 
           aria-label="Bookmarks"
         >
@@ -292,7 +317,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
             console.log('[CanvasHeader.tsx][9018] Share button clicked');
             onShare();
           }}
-          className="btn btn--border" 
+          className="btn btn--icon btn--border"
           title="Share" 
           aria-label="Share"
         >
@@ -304,7 +329,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
             console.log('[CanvasHeader.tsx][9019] Version History button clicked');
             onVersionHistory();
           }}
-          className="btn btn--border" 
+          className="btn btn--icon btn--border"
           title="History" 
           aria-label="History"
         >

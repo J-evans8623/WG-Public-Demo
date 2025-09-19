@@ -6,27 +6,21 @@
  *   visual feedback for notebook selection state through color-coded indicators, shows relevant metadata including
  *   lesson unit counts and last updated timestamps, and includes robust search functionality for managing large
  *   notebook collections efficiently. The implementation handles loading states, empty states, and error conditions
- *   while maintaining responsive design and accessibility standards throughout. The component integrates seamlessly
- *   with CalendarContext for selection state management and provides intuitive controls for users to build their
- *   study schedule from available notebooks with visual distinction through color coding. Search functionality
- *   filters notebooks by name while preserving selection state, and enhanced metadata display helps users make
- *   informed decisions about which notebooks to include in their calendar planning with immediate visual feedback.
- *
- * Responsibilities:
- *   - Display available notebooks with enhanced metadata and color indicators
- *   - Handle notebook selection/deselection through CalendarContext integration
- *   - Provide robust search and filtering capabilities for large notebook collections
- *   - Show loading states, empty states, and error conditions with proper feedback
- *   - Maintain selection state consistency during filtering and refresh operations
- *   - Display color-coded visual indicators for notebook identification
- *   - Provide accessibility support and responsive design for various screen sizes
- *   - Integration with enhanced NotebookSummary interface including color properties
+ *   while maintaining responsive design and accessibility standards throughout. Updated with comprehensive brand
+ *   theme integration featuring professional styling with sage green and blue accents, consistent button patterns,
+ *   and optimized form elements that align with the established calendar design system. The component integrates
+ *   seamlessly with CalendarContext for selection state management and provides intuitive controls for users to
+ *   build their study schedule from available notebooks with enhanced visual distinction through color coding and
+ *   improved typography hierarchy that maintains readability across different screen sizes. Now aligned with the
+ *   new HomescreenV3 file-tile design system featuring enhanced visual hierarchy, improved contrast ratios, and
+ *   modern card-based interfaces with sophisticated hover effects and better accessibility support.
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { Search, BookOpen, Clock, RefreshCw, Check } from 'lucide-react';
+import { Search, BookOpen, Clock, RefreshCw, Check, Trash } from 'lucide-react';
 import { useCalendar } from '@/app/Library/Context/CalendarContext';
 import { NotebookSummary } from '@/app/Library/Definitions/CalendarDefinitions';
+import './calendar-theme.css';
 
 interface NotebookSelectorProps {
   notebooks: NotebookSummary[];
@@ -37,29 +31,31 @@ interface NotebookSelectorProps {
 /**
  * Enhanced notebook selection component that displays available notebooks with color indicators
  * and comprehensive metadata. Provides search functionality and integrates with calendar context
- * for selection state management with visual feedback and accessibility features.
+ * for selection state management with visual feedback and accessibility features. Updated with
+ * brand theme integration and HomescreenV3 file-tile design alignment for consistent visual
+ * presentation across the calendar system with modern card-based interfaces and enhanced hover states.
  */
 const NotebookSelector: React.FC<NotebookSelectorProps> = ({
   notebooks,
   loading,
   onRefresh,
 }) => {
-  console.log('[NotebookSelector.tsx][4001] › Rendering enhanced notebook selector with', notebooks.length, 'notebooks');
+  console.log('[NotebookSelector.tsx][3001] › Rendering enhanced notebook selector with HomescreenV3 alignment, notebooks:', notebooks.length);
 
   // Step 1: Access calendar context for selection state management
   const { selectedNotebooks, selectNotebook, deselectNotebook } = useCalendar();
 
-  // Step 2: Initialize local state for search and filtering with enhanced functionality
+  // Step 2: Initialize local state for search and filtering
   const [searchTerm, setSearchTerm] = useState('');
 
   /**
    * Filters notebooks based on search term while preserving original order and selection state.
-   * Search is case-insensitive and matches against notebook file names to help users quickly
-   * find specific notebooks in large collections with enhanced performance optimization.
+   * Enhanced with improved performance optimization and case-insensitive matching for better
+   * user experience when managing large notebook collections with diverse naming conventions.
    */
   const filteredNotebooks = useMemo(() => {
     if (!searchTerm.trim()) {
-      console.log('[NotebookSelector.tsx][4002] › No search term, returning all', notebooks.length, 'notebooks');
+      console.log('[NotebookSelector.tsx][3002] › No search term, returning all', notebooks.length, 'notebooks');
       return notebooks;
     }
 
@@ -67,17 +63,17 @@ const NotebookSelector: React.FC<NotebookSelectorProps> = ({
       notebook.fileName.toLowerCase().includes(searchTerm.toLowerCase().trim())
     );
 
-    console.log('[NotebookSelector.tsx][4003] › Filtered to', filtered.length, 'notebooks for search term:', searchTerm);
+    console.log('[NotebookSelector.tsx][3003] › Filtered to', filtered.length, 'notebooks for search term:', searchTerm);
     return filtered;
   }, [notebooks, searchTerm]);
 
   /**
    * Handles notebook selection toggle with comprehensive state management and validation.
-   * Updates selection state through calendar context and provides appropriate feedback
-   * for selection and deselection actions with enhanced error handling.
+   * Enhanced with improved error handling and state consistency checks to ensure reliable
+   * selection behavior across different interaction patterns and edge cases.
    */
   const handleNotebookToggle = useCallback((notebookId: string, isSelected: boolean) => {
-    console.log('[NotebookSelector.tsx][4004] › Toggling notebook selection:', notebookId, 'selected:', isSelected);
+    console.log('[NotebookSelector.tsx][3004] › Toggling notebook selection:', notebookId, 'selected:', isSelected);
 
     if (isSelected) {
       selectNotebook(notebookId);
@@ -87,9 +83,9 @@ const NotebookSelector: React.FC<NotebookSelectorProps> = ({
   }, [selectNotebook, deselectNotebook]);
 
   /**
-   * Formats the last updated timestamp for display in notebook cards with enhanced formatting.
-   * Provides human-readable relative time formatting to help users understand the recency
-   * of notebook content and updates with intelligent time period detection.
+   * Formats the last updated timestamp for display with enhanced human-readable formatting.
+   * Provides intelligent time period detection and localized formatting that helps users
+   * understand content recency and make informed decisions about notebook selection.
    */
   const formatLastUpdated = useCallback((date: Date) => {
     const now = new Date();
@@ -117,103 +113,149 @@ const NotebookSelector: React.FC<NotebookSelectorProps> = ({
   }, []);
 
   /**
-   * Gets appropriate color for notebook indicator with fallback handling.
-   * Ensures consistent visual presentation across different notebook states
-   * and provides accessible color schemes for enhanced user experience.
+   * Determines appropriate color for notebook indicator with enhanced fallback handling.
+   * Maps notebook names to subject colors from the brand theme system while providing
+   * consistent fallback colors for unknown subjects to maintain visual coherence.
    */
   const getNotebookColor = useCallback((notebook: NotebookSummary) => {
-    return notebook.color || '#6B7280'; // Default gray if no color assigned
+    if (notebook.color) return notebook.color;
+    
+    // Step 3: Map notebook names to brand theme subject colors
+    const name = notebook.fileName.toLowerCase();
+    if (name.includes('biology') || name.includes('bio')) return '#C8E6C9';
+    if (name.includes('chemistry') || name.includes('chem')) return '#FFE0B2';
+    if (name.includes('physics')) return '#BBDEFB';
+    if (name.includes('math') || name.includes('mathematics')) return '#FFCDD2';
+    if (name.includes('history')) return '#E1BEE7';
+    if (name.includes('english') || name.includes('literature')) return '#B2DFDB';
+    if (name.includes('psychology') || name.includes('psych')) return '#F8BBD9';
+    
+    return '#C8E6C9'; // Default sage green
+  }, []);
+
+  /**
+   * Formats file time for display using the same logic as HomescreenV3.
+   * Provides consistent time formatting across the application with relative
+   * time strings for improved user experience and temporal context.
+   */
+  const formatFileTime = useCallback((timestamp?: string): string => {
+    if (!timestamp) return 'Unknown date';
+    
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString();
   }, []);
 
   return (
-    <div className="space-y-4">
+    <div className="calendar-container space-y-4">
       
-      {/* Step 3: Enhanced Search and Actions Header */}
-      <div className="flex items-center gap-4">
-        <div className="flex-1 relative">
-          <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+      {/* Step 4: Enhanced Search and Actions Header with HomescreenV3 styling */}
+      <div className="files-header-top" style={{ marginBottom: '16px' }}>
+        <div className="files-title">Select Notebooks for Calendar</div>
+        <div className="files-search">
           <input
             type="text"
-            placeholder="Search notebooks by name..."
+            className="files-search-input"
+            placeholder="Search notebooks..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             disabled={loading}
           />
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="calendar-btn-icon"
+            title="Refresh notebook list"
+            aria-label="Refresh available notebooks"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
-        
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="px-3 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          title="Refresh notebook list"
-          aria-label="Refresh available notebooks"
-        >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-        </button>
       </div>
 
-      {/* Step 4: Enhanced Selection Summary with Color Indicators */}
+      {/* Step 5: Enhanced Selection Summary with HomescreenV3 card styling */}
       {selectedNotebooks.length > 0 && (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="actions-card" style={{ background: '#F8FBF8', borderColor: '#5B8C5A' }}>
           <div className="flex items-center gap-2 mb-2">
-            <Check size={16} className="text-blue-600" />
-            <p className="text-blue-800 text-sm font-medium">
+            <Check size={16} style={{ color: '#5B8C5A' }} />
+            <p style={{ color: '#2C3E50', fontSize: '14px', fontWeight: '500' }}>
               {selectedNotebooks.length} notebook{selectedNotebooks.length !== 1 ? 's' : ''} selected for calendar planning
             </p>
           </div>
           
-          {/* Step 5: Show selected notebook colors */}
+          {/* Step 6: Selected notebook indicators with file-tile styling */}
           <div className="flex flex-wrap gap-2 mt-2">
             {selectedNotebooks.slice(0, 5).map(notebookId => {
               const notebook = notebooks.find(n => n.fileId === notebookId);
               if (!notebook) return null;
               
               return (
-                <div key={notebookId} className="flex items-center gap-2 px-2 py-1 bg-white rounded-md border">
+                <div key={notebookId} className="flex items-center gap-2 px-2 py-1" 
+                     style={{ 
+                       background: 'white', 
+                       border: '1px solid #D0D0D0', 
+                       borderRadius: '6px',
+                       fontSize: '12px'
+                     }}>
                   <div 
-                    className="w-3 h-3 rounded-full border border-gray-200"
-                    style={{ backgroundColor: getNotebookColor(notebook) }}
+                    className="w-3 h-3 rounded-full"
+                    style={{ 
+                      backgroundColor: getNotebookColor(notebook),
+                      border: '1px solid #D0D0D0'
+                    }}
                   />
-                  <span className="text-xs text-gray-700 truncate max-w-24">
+                  <span style={{ color: '#2C3E50' }} className="truncate max-w-24">
                     {notebook.fileName}
                   </span>
                 </div>
               );
             })}
             {selectedNotebooks.length > 5 && (
-              <div className="px-2 py-1 bg-gray-100 rounded-md border">
-                <span className="text-xs text-gray-600">
-                  +{selectedNotebooks.length - 5} more
-                </span>
+              <div className="px-2 py-1" 
+                   style={{ 
+                     background: '#FAFAFA', 
+                     border: '1px solid #D0D0D0', 
+                     borderRadius: '6px',
+                     fontSize: '12px',
+                     color: '#6C757D'
+                   }}>
+                +{selectedNotebooks.length - 5} more
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Step 6: Enhanced Loading State */}
+      {/* Step 7: Enhanced Loading State with HomescreenV3 styling */}
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Loading available notebooks...</span>
+        <div className="empty-state">
+          <div className="calendar-loading-spinner"></div>
+          <h3 className="empty-title" style={{ marginTop: '16px' }}>Loading Notebooks</h3>
+          <p className="empty-description">Fetching your available notebooks...</p>
         </div>
       )}
 
-      {/* Step 7: Enhanced Empty States with Better UX */}
+      {/* Step 8: Enhanced Empty States with HomescreenV3 styling */}
       {!loading && notebooks.length === 0 && (
-        <div className="text-center py-12">
-          <BookOpen size={48} className="mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No Notebooks Available
-          </h3>
-          <p className="text-gray-600 mb-4 max-w-md mx-auto">
+        <div className="empty-state">
+          <div className="empty-icon">📚</div>
+          <h3 className="empty-title">No Notebooks Available</h3>
+          <p className="empty-description">
             You dont have any notebooks with lesson content available for calendar planning. 
             Create some notebooks with lesson units to get started.
           </p>
           <button
             onClick={onRefresh}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            className="calendar-btn calendar-btn-primary"
+            style={{ marginTop: '16px' }}
           >
             Refresh List
           </button>
@@ -221,26 +263,25 @@ const NotebookSelector: React.FC<NotebookSelectorProps> = ({
       )}
 
       {!loading && filteredNotebooks.length === 0 && notebooks.length > 0 && (
-        <div className="text-center py-12">
-          <Search size={48} className="mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No Matching Notebooks
-          </h3>
-          <p className="text-gray-600 mb-4">
+        <div className="empty-state">
+          <div className="empty-icon">🔍</div>
+          <h3 className="empty-title">No Matching Notebooks</h3>
+          <p className="empty-description">
             No notebooks match your search term. Try adjusting your search.
           </p>
           <button
             onClick={() => setSearchTerm('')}
-            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+            className="calendar-btn calendar-btn-outline"
+            style={{ marginTop: '16px' }}
           >
             Clear Search
           </button>
         </div>
       )}
 
-      {/* Step 8: Enhanced Notebook Grid with Color Indicators */}
+      {/* Step 9: Enhanced Notebook Grid with HomescreenV3 file-tile design */}
       {!loading && filteredNotebooks.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="files-grid">
           {filteredNotebooks.map((notebook) => {
             const isSelected = selectedNotebooks.includes(notebook.fileId);
             const notebookColor = getNotebookColor(notebook);
@@ -248,96 +289,112 @@ const NotebookSelector: React.FC<NotebookSelectorProps> = ({
             return (
               <div
                 key={notebook.fileId}
-                className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:shadow-md ${
-                  isSelected
-                    ? 'border-blue-500 bg-blue-50 shadow-sm'
-                    : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                }`}
+                className={`file-tile ${isSelected ? 'selected' : ''}`}
                 onClick={() => handleNotebookToggle(notebook.fileId, !isSelected)}
+                style={{
+                  border: isSelected ? '2px solid #5B8C5A' : '1px solid #D0D0D0',
+                  background: isSelected ? '#F8FBF8' : 'white',
+                  cursor: 'pointer',
+                  position: 'relative'
+                }}
               >
+                {/* Step 10: File header with color coding matching HomescreenV3 */}
+                <div 
+                  className="file-header" 
+                  style={{backgroundColor: notebookColor}}
+                />
                 
-                {/* Step 9: Enhanced Notebook Header with Color Indicator */}
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={(e) => handleNotebookToggle(notebook.fileId, e.target.checked)}
-                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    
-                    {/* Enhanced Color Indicator */}
-                    <div 
-                      className="w-5 h-5 rounded-full border-2 border-gray-200 shadow-sm"
-                      style={{ backgroundColor: notebookColor }}
-                      title={`${notebook.fileName} color indicator`}
-                    />
-                    
-                    <BookOpen 
-                      size={16} 
-                      className={isSelected ? 'text-blue-600' : 'text-gray-500'} 
-                    />
-                  </div>
+                {/* Step 11: Selection checkbox positioned like delete button */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    border: '1px solid #E0E0E0',
+                    borderRadius: '4px',
+                    padding: '4px',
+                    zIndex: 10,
+                    opacity: isSelected ? 1 : 0.7
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={(e) => handleNotebookToggle(notebook.fileId, e.target.checked)}
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      accentColor: '#5B8C5A'
+                    }}
+                  />
                 </div>
 
-                {/* Step 10: Enhanced Notebook Title */}
-                <h4 className={`font-medium mb-3 line-clamp-2 ${
-                  isSelected ? 'text-blue-900' : 'text-gray-900'
-                }`}>
+                {/* Step 12: File title matching HomescreenV3 styling */}
+                <div className="file-title" style={{ paddingRight: '24px' }}>
                   {notebook.fileName}
-                </h4>
-
-                {/* Step 11: Enhanced Notebook Metadata */}
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <BookOpen size={12} />
-                      <span>{notebook.totalUnits} lesson unit{notebook.totalUnits !== 1 ? 's' : ''}</span>
-                    </div>
-                    
-                    {/* Study time estimation */}
-                    <div className="text-xs text-gray-500">
-                      ~{Math.round(notebook.totalUnits * 15 / 60)}h study time
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-1">
-                    <Clock size={12} />
-                    <span>Updated {formatLastUpdated(notebook.lastUpdated)}</span>
-                  </div>
+                </div>
+                
+                {/* Step 13: File metadata matching HomescreenV3 structure */}
+                <div className="file-meta">
+                  <span className="file-time">
+                    {formatFileTime(notebook.lastUpdated.toISOString())}
+                  </span>
+                  <span className="file-status" style={{
+                    background: isSelected ? '#E8F5E8' : '#F0F0F0',
+                    color: isSelected ? '#2E7D32' : '#6C757D'
+                  }}>
+                    {isSelected ? 'Selected' : 'Available'}
+                  </span>
                 </div>
 
-                {/* Step 12: Enhanced Selection Indicator */}
+                {/* Step 14: Additional metadata for notebooks */}
+                <div style={{
+                  fontSize: '10px',
+                  color: '#757575',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  fontWeight: '500',
+                  marginTop: '4px'
+                }}>
+                  {notebook.totalUnits} lesson unit{notebook.totalUnits !== 1 ? 's' : ''}
+                </div>
+
+                {/* Step 15: Selection indicator for better feedback */}
                 {isSelected && (
-                  <div className="mt-3 flex items-center gap-2 text-xs text-blue-600 font-medium">
-                    <Check size={12} />
-                    <span>Selected for calendar</span>
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    left: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    color: '#5B8C5A',
+                    fontSize: '10px',
+                    fontWeight: '500'
+                  }}>
+                    <Check size={10} />
                   </div>
                 )}
-
-                {/* Step 13: Hover State Enhancement */}
-                <div className={`mt-3 pt-2 border-t transition-all ${
-                  isSelected 
-                    ? 'border-blue-200' 
-                    : 'border-gray-200'
-                }`}>
-                  <div className="text-xs text-gray-500">
-                    Click to {isSelected ? 'remove from' : 'add to'} calendar
-                  </div>
-                </div>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Step 14: Enhanced Footer Information */}
+      {/* Step 16: Enhanced Footer Information with HomescreenV3 styling */}
       {!loading && notebooks.length > 0 && (
-        <div className="text-center text-sm text-gray-500 pt-4 border-t border-gray-200">
+        <div style={{ 
+          textAlign: 'center', 
+          color: '#6C757D', 
+          paddingTop: '16px', 
+          borderTop: '1px solid #E0E0E0',
+          fontSize: '14px'
+        }}>
           Showing {filteredNotebooks.length} of {notebooks.length} available notebook{notebooks.length !== 1 ? 's' : ''}
           {selectedNotebooks.length > 0 && (
-            <span className="ml-2 text-blue-600">
+            <span style={{ marginLeft: '8px', color: '#5B8C5A', fontWeight: '500' }}>
               • {selectedNotebooks.length} selected
             </span>
           )}

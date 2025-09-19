@@ -28,7 +28,8 @@ import DocumentAccessManager from './hooks/access/DocumentAccessManager';
  *   ISO strings to align with AccessLayer’s newest-wins logic.
  */
 export type PickerFileMeta = {
-  docId: string;
+  fileId: string;
+  colorCode?: string;
   fileStorageId?: string;
   fileName: string;
   role?: Role;
@@ -182,7 +183,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
    */
   const buildPickerMeta = (file: UserFileMetadata): PickerFileMeta => {
     const meta: PickerFileMeta = {
-      docId: file.fileId,
+      fileId: file.fileId,
+      colorCode: file.colorCode,
       fileStorageId: file.fileStoragePath,
       fileName: file.fileName,
       role: file.role, // Now directly available from the interface

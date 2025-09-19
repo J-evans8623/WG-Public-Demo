@@ -11,7 +11,9 @@ import { Timestamp } from 'firebase-admin/firestore';
 export interface UserFileMetadata {
   fileId: string;           // Document ID (same as docFileID)
   ownerId: string;          // Email of the owner
-  fileName: string;         // Display name of the file
+  fileName: string;
+  version:number;          // Display name of the file
+  colorCode?: string;        // Use to personalize file card
   fileStoragePath: string;  // Firebase Storage path
   timestamp: Timestamp | string; // Creation/modification time
   fileSize: number;         // File size in bytes
@@ -20,10 +22,8 @@ export interface UserFileMetadata {
   sharedWith: string[];     // Array of all shared user emails
   publicEdit?: boolean;     // Whether anyone can edit
   publicView?: boolean;     // Whether anyone can view
-  
-  // Computed fields (added by listUserFiles)
   role?: 'Owner' | 'Editor' | 'Viewer';
-  updatedAt?: string;       // ISO string version of timestamp
+  updatedAt: string;       // ISO string version of timestamp
   lessonUnitsMeta?: LessonUnitsMeta;
 }
 

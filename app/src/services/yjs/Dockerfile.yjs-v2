@@ -54,9 +54,18 @@ RUN npx tsc
 FROM node:18-alpine
 WORKDIR /app
 
+# Build arg + label allow you to stamp the image so you can confirm you're running the latest.
+ARG BUILD_VERSION=dev
+LABEL org.opencontainers.image.title="bloommaps yjs-server-v2"
+LABEL org.opencontainers.image.version=$BUILD_VERSION
+LABEL org.opencontainers.image.description="Production Yjs WebSocket server with JWT auth, Redis fanout, enhanced logging, and server-driven heartbeats."
+
 ENV NODE_ENV=production
 ENV PORT=1234
 ENV JWT_PUBLIC_PATH=/app/keys/jwt_2025.pub
+
+ENV HEARTBEAT_INTERVAL_MS=30000
+ENV HEARTBEAT_KILL_ON_MISS=true
 
 # Copy runtime deps and install production packages
 COPY package*.json ./

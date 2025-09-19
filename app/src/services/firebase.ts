@@ -21,11 +21,10 @@
 import admin from 'firebase-admin';
 import { publishRevokeAllNonOwner, publishRevokeUser } from '../utils/revocationBus';
 import { UserFileMetadata } from '../types/fileTypes';
-import { 
-   CalendarMonth, DailyStudyPlan,
-  CalendarData, 
-} from '@/app/Library/Definitions/CalendarDefinitions';
-
+import { CalendarData,} from '@/app/Library/Definitions/CalendarDefinitions';
+import {readAclSnapshot as cacheReadAclSnapshot,   
+  readRole as cacheReadRole,               
+  bumpAclVersion } from './redisCache/aclCache';
 
 
 if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
@@ -160,6 +159,33 @@ export async function storeDocumentFile(
   }
 }
 
+
+// app/src/services/firebase.ts  (singleton Admin file; excerpt shows only the new helper)
+/**
+ * 
+ * @function getObjectGeneration
+ * @description
+ *   Reads the current Firebase Storage object metadata for a given path and returns the
+ *   object’s generation as a string, or null if it cannot be determined. This helper
+ *   centralizes all Storage metadata access behind our Admin singleton to preserve the
+ *   project’s initialization pattern and make future backend caching straightforward:
+ *   higher layers call one function whose implementation we can later cache or batch.
+ *   Time complexity is O(1) for the lookup; network latency dominates in practice.
+ */
+export async function getObjectGeneration(path: string): Promise<string | null> { 
+  try {
+    const file = bucket.file(path); // uses the already-initialized admin.storage().bucket()
+    const [meta] = await file.getMetadata();
+    const gen = (meta?.generation ?? null) as string | null;
+    console.log('firebase.ts [8211] › getObjectGeneration', { path, generation: gen }); 
+    return gen;
+  } catch (e) {
+    console.warn('firebase.ts [8212] › getObjectGeneration failed (non-fatal)', { path, err: e });
+    return null;
+  }
+}
+
+
 /**
  * Loads a document file from Firebase Storage.
  * @param fileId - The file storage identifier (path) to retrieve.
@@ -194,6 +220,7 @@ export async function storeFileMetadata(metadata: {
     lastUpdated: admin.firestore.Timestamp;
     totalUnits: number;
   };
+  colorCode?:string;
   version:number;
 }): Promise<void> {
   try {
@@ -219,6 +246,7 @@ export async function storeFileMetadata(metadata: {
 
 export async function updateFileMetadata(params: {
   fileId: string;
+  colorCode?: string;
   fileName?: string;
   fileStoragePath?: string;
   timestamp?: admin.firestore.FieldValue;
@@ -235,6 +263,7 @@ export async function updateFileMetadata(params: {
   
   const updates: Record<string, any> = {};
   if (params.fileName)         updates.fileName       = params.fileName;
+  if (params.colorCode)         updates.colorCode       = params.colorCode;
   if (params.fileStoragePath)  updates.fileStoragePath = params.fileStoragePath;
   if (params.timestamp)        updates.timestamp      = params.timestamp;
   if (params.fileSize != null) updates.fileSize       = params.fileSize;
@@ -293,6 +322,13 @@ export async function addEditor(docId: string, userEmail: string): Promise<void>
     });
   });
 
+  try {
+    const ver = await bumpAclVersion(docId); // update - 11
+    console.log('firebase.ts [8411] › addEditor bumped ACL version', { docId, ver }); // update - 11
+  } catch (e) {
+    console.warn('firebase.ts [8412] › addEditor bumpAclVersion failed (non-fatal)', { docId, err: e }); // update - 11
+  }
+
 }
 
 /**
@@ -339,7 +375,13 @@ export async function removeEditor(
   });
 
 
-
+  // 1) Bump version post-mutation so cached readers see fresh ACL posture.
+  try {
+    const ver = await bumpAclVersion(docId); // update - 12
+    console.log('firebase.ts [8421] › removeEditor bumped ACL version', { docId, ver }); // update - 12
+  } catch (e) {
+    console.warn('firebase.ts [8422] › removeEditor bumpAclVersion failed (non-fatal)', { docId, err: e }); // update - 12
+  }
 
   // Force active sessions to re-bootstrap (downgrade or full revoke)
   try {
@@ -394,6 +436,7 @@ export async function listUserFiles(userEmail: string): Promise<UserFilesList> {
     const data = doc.data() as Partial<UserFileMetadata>;
     return {
       fileId: doc.id,
+      colorCode: data.colorCode,
       ownerId: data.ownerId || '',
       fileName: data.fileName || 'Untitled',
       fileStoragePath: data.fileStoragePath || '',
@@ -405,6 +448,7 @@ export async function listUserFiles(userEmail: string): Promise<UserFilesList> {
       publicEdit: (data as any).publicEdit || false,
       publicView: (data as any).publicView || false,
       lessonUnitsMeta: (data as any).lessonUnitsMeta || undefined,
+      version: data.version!,
       // Computed fields
       role: 'Owner',
       updatedAt: data.timestamp 
@@ -424,6 +468,7 @@ export async function listUserFiles(userEmail: string): Promise<UserFilesList> {
     return {
       fileId: doc.id,
       ownerId: data.ownerId || '',
+      colorCode: data.colorCode,
       fileName: data.fileName || 'Untitled',
       fileStoragePath: data.fileStoragePath || '',
       timestamp: data.timestamp || admin.firestore.Timestamp.now(),
@@ -434,7 +479,7 @@ export async function listUserFiles(userEmail: string): Promise<UserFilesList> {
       publicEdit: (data as any).publicEdit || false,
       publicView: (data as any).publicView || false,
       lessonUnitsMeta: (data as any).lessonUnitsMeta || undefined,
-      // Computed fields
+      version: data.version!,
       role: isEditor ? 'Editor' : 'Viewer',
       updatedAt: data.timestamp 
         ? (data.timestamp as any).toDate?.() 
@@ -474,6 +519,12 @@ export async function deleteFileMetadata(fileId: string): Promise<void> {
   try {
     await firestore.collection('userFiles').doc(fileId).delete();
     console.log(`File metadata for ${fileId} deleted successfully from Firestore.`);
+    try {
+      const ver = await bumpAclVersion(fileId); // update - 13
+      console.log('firebase.ts [8431] › deleteFileMetadata bumped ACL version', { fileId, ver }); // update - 13
+    } catch (e) {
+      console.warn('firebase.ts [8432] › deleteFileMetadata bumpAclVersion failed (non-fatal)', { fileId, err: e }); // update - 13
+    }
   } catch (error) {
     console.error('Error deleting file metadata:', error);
     throw error;
@@ -488,71 +539,170 @@ export async function addToSharedWith(docId: string, userEmail: string): Promise
     sharedWith: admin.firestore.FieldValue.arrayUnion(email),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+  try {
+    const ver = await bumpAclVersion(docId); 
+    console.log('firebase.ts [8441] › addToSharedWith bumped ACL version', { docId, ver }); 
+  } catch (e) {
+    console.warn('firebase.ts [8442] › addToSharedWith bumpAclVersion failed (non-fatal)', { docId, err: e });
+  }
 }
 
 /**
- * generateUploadUrl
- * @param docId    Document identifier
- * @param type     'doc' or 'chat'
- * @param userId   REQUIRED for 'chat' (per-user scope)
- * @returns        { uploadUrl, path }
+ * update - 6
+ * @function generateUploadUrl
+ * @description
+ *   Extends the existing upload helper to enforce Phase-3 preconditions for **doc** uploads.
+ *   Backward compatible:
+ *     - Chat: unchanged behavior.
+ *     - Doc without opts: unchanged behavior (just returns a signed PUT URL).
+ *     - Doc with `opts.expect*`: compares expectations to the latest identifiers.
+ *       • Match  → mints URL and returns `{ ok:true, uploadUrl, path }`
+ *       • Mismatch → returns `{ ok:false, conflict:{ path, storageGeneration, versionNumber } }`
+ *
+ *   Workflow:
+ *   1) Compute canonical path via resolvePaths(docId, type, userId).
+ *   2) If type==='chat': mint v4 write URL (return legacy shape `{ uploadUrl, path }`).
+ *   3) If type==='doc' and no opts provided: mint v4 write URL (legacy behavior).
+ *   4) If type==='doc' and opts provided:
+ *      4.1) Read latest identifiers via getLatestFileIdentifiers(docId).
+ *      4.2) Compare expectations vs latest; on mismatch → return conflict payload.
+ *      4.3) On match → mint v4 write URL and return `{ ok:true, uploadUrl, path }`.
  */
 export async function generateUploadUrl(
   docId: string,
   type: 'doc' | 'chat',
-  userId?: string
-): Promise<{ uploadUrl: string; path: string }> {
-  // Determine destination path
-  let destination: string;
-  if (type === 'doc') {
-    destination = `documents/${docId}.bloomdocx`;
-  } else {
-    if (!userId) throw new Error('firebase.ts 1003 › userId required for chat upload');
-    destination = `documents/${docId}/privateChats/${userId}.chat.json`;
-  }
-  console.log(`firebase.ts 1004 › generateUploadUrl for ${type}`, { docId, userId, destination });
+  opts: { expectStorageGeneration?: string | null; expectVersionNumber?: number | null },
+  userId?:string,
+): Promise<
+  | { uploadUrl: string; path: string } // legacy success (chat or doc without opts)
+  | { ok: true; uploadUrl: string; path: string } // doc with opts, preconditions satisfied
+  | { ok: false; conflict: { path: string; storageGeneration: string | null; versionNumber: number | null } } // doc with opts, conflict
+> {
+  // 1) Canonical path
+  const destination = resolvePaths(docId, type, userId); // update - 6
 
-  const file = bucket.file(destination);
+  // 2) Chat → legacy behavior
+  if (type === 'chat') {
+    const file = bucket.file(destination);
+    const [uploadUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'write',
+      expires: Date.now() + 5 * 60 * 1000,
+      contentType: 'application/json',
+    });
+    console.log('firebase.ts [upd-6] › chat uploadUrl generated', { destination });
+    return { uploadUrl, path: destination };
+  }
+
+  // 4) Doc with preconditions → enforce Phase-3 expectations
+  // 4.1) Latest identifiers
+  const latest = await getLatestFileIdentifiers(docId);
+  const sgLatest = latest.storageGeneration;
+  const vnLatest = latest.versionNumber;
+
+  // 4.2) Compare expectations
+  const sgOk =
+    opts.expectStorageGeneration == null || opts.expectStorageGeneration === sgLatest;
+  const vnOk =
+    opts.expectVersionNumber == null || opts.expectVersionNumber === vnLatest;
+
+  if (!(sgOk && vnOk)) {
+    console.log('firebase.ts [upd-6] › precondition mismatch → conflict', {
+      docId,
+      expected: { sg: opts.expectStorageGeneration, vn: opts.expectVersionNumber },
+      latest,
+    });
+    return {
+      ok: false,
+      conflict: {
+        path: latest.path,
+        storageGeneration: sgLatest,
+        versionNumber: vnLatest,
+      },
+    };
+  }
+
+  // 4.3) Preconditions satisfied → mint signed PUT URL
+  const file = bucket.file(latest.path);
   const [uploadUrl] = await file.getSignedUrl({
     version: 'v4',
     action: 'write',
     expires: Date.now() + 5 * 60 * 1000,
-    contentType: type === 'chat' ? 'application/json' : 'application/octet-stream',
+    contentType: 'application/octet-stream',
   });
-  console.log('firebase.ts 1005 › uploadUrl generated', { destination });
-  return { uploadUrl, path: destination };
+  console.log('firebase.ts [upd-6] › preconditions ok → doc uploadUrl minted', {
+    docId,
+    path: latest.path,
+    sgLatest,
+    vnLatest,
+  });
+  return { ok: true, uploadUrl, path: latest.path };
 }
 
+
 /**
- * generateDownloadUrl
- * @param docId    Document identifier
- * @param type     'doc' or 'chat'
- * @param userId   REQUIRED for 'chat'
- * @returns        { downloadUrl, path }
+ * update - 7
+ * @function generateDownloadUrl
+ * @description
+ *   Extends the existing download helper to optionally return identifiers for **doc**
+ *   so the client can seed `metadata.persist.*` on open. Backward compatible:
+ *     - Without opts or for 'chat' → legacy `{ downloadUrl, path }`.
+ *     - With `opts.includeIdentifiers===true` and type==='doc' → also includes
+ *       `{ storageGeneration, versionNumber }` in the response.
+ *
+ *   Workflow:
+ *   1) If includeIdentifiers+doc → call getLatestFileIdentifiers(docId) for {path, sg, vn}.
+ *   2) Else compute canonical path via resolvePaths(docId, type, userId).
+ *   3) Mint v4 read URL for chosen path.
+ *   4) Return legacy shape or the extended shape (for doc+identifiers).
  */
 export async function generateDownloadUrl(
   docId: string,
   type: 'doc' | 'chat',
-  userId?: string
-): Promise<{ downloadUrl: string; path: string }> {
-  let destination: string;
-  if (type === 'doc') {
-    destination = `documents/${docId}.bloomdocx`;
-  } else {
-    if (!userId) throw new Error('firebase.ts 2003 › userId required for chat download');
-    destination = `documents/${docId}/privateChats/${userId}.chat.json`;
-  }
-  console.log(`firebase.ts 2004 › generateDownloadUrl for ${type}`, { docId, userId, destination });
+  opts: { includeIdentifiers?: boolean },
+  userId?: string,
+): Promise<
+  | { downloadUrl: string; path: string } // legacy
+  | { downloadUrl: string; path: string; storageGeneration: string | null; versionNumber: number | null } // extended (doc)
+> {
+  // 1) Prefer identifier-bearing path for doc when requested
+  let path: string;
+  let storageGeneration: string | null | undefined;
+  let versionNumber: number | null | undefined;
 
-  const file = bucket.file(destination);
+  if (type === 'doc' && opts?.includeIdentifiers) {
+    const latest = await getLatestFileIdentifiers(docId);
+    path = latest.path;
+    storageGeneration = latest.storageGeneration;
+    versionNumber = latest.versionNumber;
+  } else {
+    // 2) Canonical path (legacy)
+    path = resolvePaths(docId, type, userId); // update - 7
+  }
+
+  // 3) Signed read URL
+  const file = bucket.file(path);
   const [downloadUrl] = await file.getSignedUrl({
     version: 'v4',
     action: 'read',
     expires: Date.now() + 5 * 60 * 1000,
   });
-  console.log('firebase.ts 2005 › downloadUrl generated', { destination });
-  return { downloadUrl, path: destination };
+
+  // 4) Return appropriate shape
+  if (type === 'doc' && opts?.includeIdentifiers) {
+    console.log('firebase.ts [upd-7] › doc downloadUrl+ids generated', {
+      docId,
+      path,
+      storageGeneration,
+      versionNumber,
+    });
+    return { downloadUrl, path, storageGeneration: storageGeneration ?? null, versionNumber: versionNumber ?? null };
+  }
+
+  console.log('firebase.ts [upd-7] › downloadUrl generated', { type, docId, path });
+  return { downloadUrl, path };
 }
+
 
 
 /**
@@ -572,6 +722,13 @@ export async function setPublicEdit(docId: string, enabled: boolean): Promise<vo
   const was = Boolean(snap.data()?.publicEdit);
   await docRef.set({ publicEdit: enabled }, { merge: true });
   console.log('firebase.ts [8038] › setPublicEdit write ok', { docId, was, now: enabled });
+
+  try {
+    const ver = await bumpAclVersion(docId); // update - 15
+    console.log('firebase.ts [8451] › setPublicEdit bumped ACL version', { docId, ver }); // update - 15
+  } catch (e) {
+    console.warn('firebase.ts [8452] › setPublicEdit bumpAclVersion failed (non-fatal)', { docId, err: e }); // update - 15
+  }
 
   if (was && !enabled) {
     try {
@@ -598,6 +755,13 @@ export async function setPublicView(docId: string, enabled: boolean): Promise<vo
   const was = Boolean(snap.data()?.publicView);
   await docRef.set({ publicView: enabled }, { merge: true });
   console.log('firebase.ts [8041] › setPublicView write ok', { docId, was, now: enabled });
+
+  try {
+    const ver = await bumpAclVersion(docId); // update - 16
+    console.log('firebase.ts [8461] › setPublicView bumped ACL version', { docId, ver }); // update - 16
+  } catch (e) {
+    console.warn('firebase.ts [8462] › setPublicView bumpAclVersion failed (non-fatal)', { docId, err: e }); // update - 16
+  }
 }
 
 
@@ -613,20 +777,21 @@ export interface AclSnapshot {
   publicView: boolean;
 }
 
+
 /**
- * @function getAclSnapshot
+ * update - 9
+ * @function _loadAclSnapshotFromFirestore
  * @description
- *   Read the canonical ACL posture from `userFiles/{docId}`. Returns a normalized
- *   shape (lower-cased emails, defaults for missing arrays/flags) plus `docExists`.
- *   This function does **no** authorization itself; callers use it to compose a
- *   consistent `{ access }` envelope and make policy decisions centrally.
+ *   Internal helper that performs the authoritative Firestore read and normalization for the ACL
+ *   snapshot shape. This is passed to the cache layer as the loader function. It never touches
+ *   Redis directly to avoid circular dependencies and keep read logic testable in isolation.
  */
-export async function getAclSnapshot(docId: string): Promise<AclSnapshot> {
+async function _loadAclSnapshotFromFirestore(docId: string): Promise<AclSnapshot> { // update - 9
   const ref = firestore.collection('userFiles').doc(docId);
   const snap = await ref.get();
 
   if (!snap.exists) {
-    console.log('firebase.ts [4101] › getAclSnapshot: doc not found', { docId });
+    console.log('firebase.ts [4101] › _loadAclSnapshotFromFirestore: doc not found', { docId }); // update - 9
     return {
       docExists: false,
       ownerId: '',
@@ -644,7 +809,7 @@ export async function getAclSnapshot(docId: string): Promise<AclSnapshot> {
   const publicEdit = Boolean((data as any)?.publicEdit);
   const publicView = Boolean((data as any)?.publicView);
 
-  console.log('firebase.ts [4102] › getAclSnapshot ok', {
+  console.log('firebase.ts [4102] › _loadAclSnapshotFromFirestore ok', { // update - 9
     docId,
     ownerId,
     editorsCount: editors.length,
@@ -656,6 +821,28 @@ export async function getAclSnapshot(docId: string): Promise<AclSnapshot> {
   return { docExists: true, ownerId, editors, sharedWith, publicEdit, publicView };
 }
 
+
+export async function getAclSnapshotFresh(docId: string): Promise<AclSnapshot> {
+  // Call the authoritative Firestore loader directly, bypassing Redis.
+  return _loadAclSnapshotFromFirestore(docId);
+}
+
+
+/**
+ * update - 10
+ * @function getAclSnapshot
+ * @description
+ *   Returns a normalized ACL snapshot using a versioned, Redis-backed cache-aside flow. The loader
+ *   is the authoritative Firestore read `_loadAclSnapshotFromFirestore`. Negative results (“doc not
+ *   found”) are short-lived to avoid storms. Firestore remains the source of truth.
+ */
+export async function getAclSnapshot(docId: string): Promise<AclSnapshot> { // update - 10
+  const snap = await cacheReadAclSnapshot(docId, () => _loadAclSnapshotFromFirestore(docId)); // update - 10
+  return (snap ?? { 
+    docExists: false, ownerId: '', editors: [], sharedWith: [], publicEdit: false, publicView: false
+  }); 
+}
+
 /**
  * @function resolveRole
  * @description
@@ -664,18 +851,116 @@ export async function getAclSnapshot(docId: string): Promise<AclSnapshot> {
  *   'Editor'. Otherwise: owner → 'Owner'; listed editor → 'Editor'; publicView or
  *   sharedWith → 'Viewer'; else 'None'. Routes may then decide read/write policy.
  */
-export async function resolveRole(docId: string, email: string): Promise<Role> {
-  const snap = await getAclSnapshot(docId);
-  if (!snap.docExists) return 'None';
-
-  const who = normEmail(email);
-  if (who === snap.ownerId) return 'Owner';
-  if (snap.publicEdit) return 'Editor';
-  if (snap.editors.includes(who)) return 'Editor';
-  if (snap.publicView) return 'Viewer';
-  if (snap.sharedWith.includes(who)) return 'Viewer';
-  return 'None';
+export async function resolveRole(docId: string, email: string, snapshot?:AclSnapshot): Promise<Role> {
+  const who = normEmail(email); // update - 17
+  // If caller provided a snapshot, we can compute deterministically; still benefit from role cache.
+  const compute = async (): Promise<Role> => { // update - 17
+    const snap = snapshot ?? (await getAclSnapshot(docId)); // update - 17
+    if (!snap.docExists) return 'None';
+    if (who === snap.ownerId) return 'Owner';
+    if (snap.publicEdit) return 'Editor';
+    if (snap.editors.includes(who)) return 'Editor';
+    if (snap.publicView) return 'Viewer';
+    if (snap.sharedWith.includes(who)) return 'Viewer';
+    return 'None';
+  };
+  const role = await cacheReadRole(docId, who, compute); // update - 17
+  return role; // update - 17
 }
+
+
+/**
+ * update - 2
+ * @function resolvePaths
+ * @description
+ *   Canonical path resolver for GCS objects.
+ *   Returns the exact bucket path for a given doc/chat artifact so every caller
+ *   computes paths consistently (eliminates scattered string assembly).
+ *
+ *   Workflow:
+ *   1) Validate inputs (docId always; userId required for 'chat').
+ *   2) For 'doc' → return `documents/{docId}.bloomdocx`.
+ *   3) For 'chat' → return `documents/{docId}/privateChats/{userId}.chat.json`.
+ *   4) Log a single concise line for observability.
+ */
+export function resolvePaths(
+  docId: string,
+  type: 'doc' | 'chat',
+  userId?: string
+): string {
+  // 1) Validate inputs
+  if (!docId || typeof docId !== 'string') {
+    throw new Error('resolvePaths: invalid docId');
+  }
+  if (type === 'chat' && !userId) {
+    throw new Error('resolvePaths: userId required for chat path');
+  }
+
+  // 2/3) Compute canonical path
+  const path =
+    type === 'doc'
+      ? `documents/${docId}.bloomdocx`
+      : `documents/${docId}/privateChats/${userId}.chat.json`;
+
+  // 4) Log (low-noise)
+  console.log('firebase.ts [upd-2] › resolvePaths', { type, docId, userId: !!userId, path });
+  return path;
+}
+
+
+/**
+ * update - 3
+ * @function getLatestFileIdentifiers
+ * @description
+ *   Single source of truth for persistence identifiers used by Phase 3:
+ *   returns the canonical doc path, current Storage generation, and Firestore
+ *   logical version in *one* atomic helper (cache-friendly later).
+ *
+ *   Workflow:
+ *   1) Resolve canonical doc path via resolvePaths(docId, 'doc').
+ *   2) Read Storage object metadata → extract `generation` (string|null).
+ *   3) Read Firestore `userFiles/{docId}.version` → coerce to number|null.
+ *   4) Log a concise line and return `{ path, storageGeneration, versionNumber }`.
+ */
+export async function getLatestFileIdentifiers(docId: string): Promise<{
+  path: string;
+  storageGeneration: string | null;
+  versionNumber: number | null;
+}> {
+  // 1) Path (SSoT)
+  const path = resolvePaths(docId, 'doc');
+
+  // 2) Storage metadata (generation)
+  let storageGeneration: string | null = null;
+  try {
+    const [meta] = await bucket.file(path).getMetadata();
+    storageGeneration = (meta?.generation ?? null) as string | null;
+  } catch (e) {
+    console.warn('firebase.ts [upd-3] › storage generation read failed (non-fatal)', { docId, path, err: e });
+  }
+
+  // 3) Firestore logical version
+  let versionNumber: number | null = null;
+  try {
+    const snap = await firestore.collection('userFiles').doc(docId).get();
+    const raw = snap.exists ? (snap.data() as any)?.version : null;
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      versionNumber = raw;
+    } else if (typeof raw === 'string' && raw.trim() !== '' && !Number.isNaN(Number(raw))) {
+      versionNumber = Number(raw);
+    } else {
+      versionNumber = null;
+    }
+  } catch (e) {
+    console.warn('firebase.ts [upd-3] › version read failed (non-fatal)', { docId, err: e });
+  }
+
+  // 4) Return identifiers
+  console.log('firebase.ts [upd-3] › getLatestFileIdentifiers', { docId, path, storageGeneration, versionNumber });
+  return { path, storageGeneration, versionNumber };
+}
+
+
 
 /**
  * Stores enhanced user calendar data in Firestore with complete structure support.
@@ -863,6 +1148,22 @@ export async function clearCalendarData(userId: string): Promise<void> {
     console.error('[firebase.ts][9110] › Error clearing enhanced calendar data:', error);
     throw new Error('Failed to clear enhanced calendar data');
   }
+}
+
+/**
+ * update - 18
+ * @function readDocBytesById
+ * @description
+ *   Resolves the canonical Storage path for a document’s Y.Doc by its persistent id and downloads
+ *   the raw bytes using the Admin SDK helper `loadDocumentFile`. This consolidates IO and path
+ *   logic in one place so service-layer code (e.g., lesson extraction, AI) can stay pure and testable.
+ *   Returns a Uint8Array for zero-copy downstream use. Time complexity is O(1); network dominates.
+ */
+export async function readDocBytesById(docId: string): Promise<Uint8Array> { // update - 18
+  const path = resolvePaths(docId, 'doc');                                  // update - 18
+  const buf = await loadDocumentFile(path);                                  // update - 18
+  console.log('firebase.ts 8511 › readDocBytesById', { docId, path, byteLength: buf?.length ?? 0 }); // update - 18
+  return new Uint8Array(buf);                                                // update - 18
 }
 
 /**

@@ -26,11 +26,13 @@ import { Delta } from '@/app/Library/Definitions/deltaTypes';
 import { useUndoRedo } from '@/app/studygraph/(studygraph)/components/Context/UndoRedoContext';
 import {
   ResourceCard,
-  //PictureResource,
   PracticeSheetResource,
   CueCardResource,
   NoteResource,
-  Citation,
+  Citation,LOCAL_ORIGIN,
+  GLOBAL_ASSESSMENTS_NODE_ID, 
+  QuizAssessmentResource,      
+  QuizBinding,
 } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -40,7 +42,7 @@ export interface ResourceContextType {
   addResourcev1(
     params: {
       nodeId: string;
-      type: 'cueCard' | 'note' | 'practiceSheet';
+      type: 'cueCard' | 'note' | 'practiceSheet' | 'quizAssessment';
       title: string;
       content: any;
       citations?: Array<{ index: number; textsource: string; page_number: number }> | null;
@@ -72,6 +74,8 @@ export interface ResourceContextType {
   //selectPictures(nodeId: string): PictureResource[];
   selectPracticeSheets(nodeId: string): PracticeSheetResource[];
   setResources(newResources: Map<string, ResourceCard[]>): void;
+  selectQuizAssessments(): QuizAssessmentResource[];
+  getQuizAssessmentById: (assignmentId: string, mapId?: string) => QuizAssessmentResource | undefined;
   resetResources(): void;
   getResourceCard(id: string): ResourceCard | undefined;
   // global undo/redo
@@ -84,6 +88,15 @@ export interface ResourceContextType {
     nodeId: string,
     resourceId: string
   ) => ResourceCard | undefined;
+   createQuizAssignmentCard: (args: {
+    mapId: string;
+    title: string;
+    binding: QuizBinding | any; // tolerant of inline bindings
+    window?: { startAt?: string; endAt?: string };
+    attemptLimit?: number;
+    instructions?: string;
+    createdByEmail?: string;
+  }) => Promise<QuizAssessmentResource>;
 }
 
 
@@ -153,107 +166,146 @@ export const ResourceProvider: React.FC<{ children: ReactNode }> = ({ children }
   // --- CRUD + undo/redo instrumentation ---
 
 const addResourcev1 = useCallback(
-  async (
-    {
-      nodeId,
-      type,
-      title,
-      content,
-      /** Optional array of citations metadata to attach to this resource */
-      citations,
-    }: {
-      nodeId: string;
-      type: 'cueCard' | 'note' | 'practiceSheet';
-      title: string;
-      content: any;
-      citations?: Citation[] | null;
-    },
-    mapID?: string
-  ) => {
-        if (isReadOnly) {
-      console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
-      return;
-    }
-    const usedMapId = mapID || activeConceptMapId;
-    const mapKey = `resources:${usedMapId}`;
-    const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>(mapKey);
-
-    const id = uuidv4();
-    let card: ResourceCard;
-    if (type === 'cueCard') {
-      card = {
-        id,
+    async (
+      {
         nodeId,
         type,
         title,
         content,
-        citations: citations ?? null,
-        mapId:usedMapId,
-      } as CueCardResource;
+        citations,
+      }: {
+        nodeId: string;
+        type: 'cueCard' | 'note' | 'practiceSheet' | 'quizAssessment'; // update - 6
+        title: string;
+        content: any;
+        citations?: Citation[] | null;
+      },
+      mapID?: string
+    ) => {
+      if (isReadOnly) {
+        console.warn('ResourceContext.tsx[2003] › Read-only mode: addResourcev1 blocked');
+        return;
+      }
+      const usedMapId = mapID || activeConceptMapId;
+      const dynamicMapKey = `resources:${usedMapId}`;
+      const localYResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>(dynamicMapKey);
+
+      const id = uuidv4();
+      let card: ResourceCard;
+
+      // update - 7
+      // 1) Construct the concrete card per type. For quizAssessment we override nodeId
+      //    with the sentinel node to keep global scope and ensure O(1) access via Yjs.
+      if (type === 'cueCard') {
+        card = {
+          id,
+          nodeId,
+          type,
+          title,
+          content,
+          citations: citations ?? null,
+          mapId: usedMapId,
+        } as CueCardResource;
+        setupdatedRivisionCard(true);
+      } else if (type === 'note') {
+        card = {
+          id,
+          nodeId,
+          type,
+          title,
+          content,
+          citations: citations ?? null,
+          mapId: usedMapId,
+        } as NoteResource;
+      } else if (type === 'practiceSheet') {
+        card = {
+          id,
+          nodeId,
+          type,
+          title,
+          content,
+          citations: citations ?? null,
+          mapId: usedMapId,
+        } as PracticeSheetResource;
+        setupdatedRivisionCard(true);
+      } else {
+        // type === 'quizAssessment'
+        // Content must include a `binding` that reuses existing quiz interfaces.
+        const {
+          binding,
+          window,
+          attemptLimit,
+          instructions,
+          createdByEmail,
+          createdAt,
+          updatedAt,
+        }: {
+          binding: QuizBinding;
+          window?: { startAt?: string; endAt?: string };
+          attemptLimit?: number;
+          instructions?: string;
+          createdByEmail?: string;
+          createdAt?: string;
+          updatedAt?: string;
+        } = content || {};
+
+        card = {
+          id,
+          nodeId: GLOBAL_ASSESSMENTS_NODE_ID,
+          type: 'quizAssessment',
+          title,
+          citations: citations ?? null,
+          mapId: usedMapId,
+          assignmentId: id,
+          binding,
+          window,
+          attemptLimit,
+          instructions,
+          createdByEmail,
+          createdAt,
+          updatedAt,
+        } as QuizAssessmentResource;
+
+        console.log('ResourceContext.tsx[2101] › add quizAssessment assignmentId=', id, 'mapId=', usedMapId);
+      }
+
+      const effectiveNodeId = (card as ResourceCard).nodeId;
+      const delta: Delta = { type: 'RESOURCE_ADD', nodeId: effectiveNodeId, card };
       setupdatedRivisionCard(true);
-    } else if (type === 'note') {
-      card = {
-        id,
-        nodeId,
-        type,
-        title,
-        content,
-        citations: citations ?? null,
-        mapId:usedMapId,
-      } as NoteResource;
-    } else {
-      card = {
-        id,
-        nodeId,
-        type,
-        title,
-        content,
-        citations: citations ?? null,
-        mapId:usedMapId,
-      } as PracticeSheetResource;
-      setupdatedRivisionCard(true);
-    }
 
-    const delta: Delta = { type: 'RESOURCE_ADD', nodeId, card };
-    setupdatedRivisionCard(true);
-
-    ydoc.transact(() => {
-      record(
-        delta,
-        () => {
-          // apply: update React state
-          setResources((prev) => {
-            const m = new Map(prev);
-            const arr = m.get(nodeId) || [];
-            m.set(nodeId, [...arr, card]);
-            return m;
-          });
-          // Y.Doc update on the chosen map
-          let yMap = yResourcesMap.get(nodeId);
-          if (!yMap) {
-            yMap = new Y.Map<ResourceCard>();
-            yResourcesMap.set(nodeId, yMap);
+      ydoc.transact(() => {
+        record(
+          delta,
+          () => {
+            setResources((prev) => {
+              const m = new Map(prev);
+              const arr = m.get(effectiveNodeId) || [];
+              m.set(effectiveNodeId, [...arr, card]);
+              return m;
+            });
+            let yMap = localYResourcesMap.get(effectiveNodeId);
+            if (!yMap) {
+              yMap = new Y.Map<ResourceCard>();
+              localYResourcesMap.set(effectiveNodeId, yMap);
+            }
+            yMap.set((card as ResourceCard).id, card);
+          },
+          () => {
+            setResources((prev) => {
+              const m = new Map(prev);
+              m.set(
+                effectiveNodeId,
+                (m.get(effectiveNodeId) || []).filter((c) => c.id !== (card as ResourceCard).id)
+              );
+              return m;
+            });
+            localYResourcesMap.get(effectiveNodeId)?.delete((card as ResourceCard).id);
           }
-          yMap.set(card.id, card);
-        },
-        () => {
-          // inverse: revert React state
-          setResources((prev) => {
-            const m = new Map(prev);
-            m.set(
-              nodeId,
-              (m.get(nodeId) || []).filter((c) => c.id !== card.id)
-            );
-            return m;
-          });
-          // revert Y.Doc
-          yResourcesMap.get(nodeId)?.delete(card.id);
-        }
-      );
-    });
-  },
-  [ydoc, activeConceptMapId, isReadOnly]
-);
+        );
+      }, LOCAL_ORIGIN);
+    },
+    [ydoc, activeConceptMapId, isReadOnly]
+  );
 
 
  /**
@@ -347,7 +399,7 @@ const restoreResource = useCallback(
             yMap.set(card.id, card);
           }
         );
-      });
+      }, LOCAL_ORIGIN );
     },
     [resources, ydoc, yResourcesMap, isReadOnly]
   );
@@ -406,191 +458,10 @@ const restoreResource = useCallback(
             yResourcesMap.get(before.nodeId)?.set(before.id, before);
           }
         );
-      });
+      },  LOCAL_ORIGIN);
     },
     [resources, ydoc, yResourcesMap, isReadOnly]
   );
-
-/**const addPictureResourcev1 = useCallback(
-  async (
-    params: { nodeId: string; title: string; description?: any },
-    image: File,
-    mapID?: string
-  ) => {
-
-      if (isReadOnly) {
-        console.warn('ResourceContext.tsx 3008 › Read-only mode: addPictureResourcev1 blocked');
-        return;
-      }
-    // Determine which Y.Doc map to use
-    const usedMapId = mapID || activeConceptMapId;
-    const mapKey = `resources:${usedMapId}`;
-    const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>(mapKey);
-
-    try {
-      // 1) Upload the image to our backend and await the server URL
-      const formData = new FormData();
-      formData.append('image', image);
-      const response = await fetch('/api/asset', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error('Failed to upload image');
-      }
-      const { url: serverUrl } = await response.json();
-
-      // 2) Construct a new PictureResource using only the server URL
-      const newId = uuidv4();
-      const card: PictureResource = {
-        id: newId,
-        nodeId: params.nodeId,
-        type: 'picture',
-        title: params.title,
-        imageUrl: serverUrl,
-        description: params.description,
-        mapId: activeConceptMapId,
-      };
-
-      // 3) Create a single Y.Doc transaction to persist the new card
-      const delta: Delta = {
-        type: 'RESOURCE_ADD',
-        nodeId: params.nodeId,
-        card,
-      };
-
-      ydoc.transact(() => {
-        record(
-          delta,
-          () => {
-            // Apply: update React local state
-            setResources((prev) => {
-              const m = new Map(prev);
-              const arr = m.get(params.nodeId) || [];
-              m.set(params.nodeId, [...arr, card]);
-              return m;
-            });
-            // Apply: update Y.Doc map
-            let yMap = yResourcesMap.get(params.nodeId);
-            if (!yMap) {
-              yMap = new Y.Map<ResourceCard>();
-              yResourcesMap.set(params.nodeId, yMap);
-            }
-            yMap.set(card.id, card);
-          },
-          () => {
-            // Inverse: rollback React local state
-            setResources((prev) => {
-              const m = new Map(prev);
-              m.set(
-                params.nodeId,
-                (m.get(params.nodeId) || []).filter((c) => c.id !== newId)
-              );
-              return m;
-            });
-            // Inverse: rollback Y.Doc map
-            yResourcesMap.get(params.nodeId)?.delete(newId);
-          }
-        );
-      });
-    } catch (error) {
-      console.error('addPictureResourcev1 error:', error);
-      throw error;
-    }
-  },
-  [ydoc, activeConceptMapId, isReadOnly]
-);  */
-
-/**const editPictureResourcev1 = useCallback(
-  async (resource: PictureResource, newImage: boolean, image?: File) => {
-      if (isReadOnly) {
-        console.warn('ResourceContext.tsx 3008 › Read-only mode: addPictureResourcev1 blocked');
-        return;
-      }
-    // Clone the existing resource for “previous” state
-    const before = { ...resource };
-    let updated: PictureResource = { ...resource };
-
-    // Determine which Y.Doc map to use
-    const usedMapId = activeConceptMapId;
-    const mapKey = `resources:${usedMapId}`;
-    const yResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>(mapKey);
-
-    if (newImage) {
-      if (!image) {
-        throw new Error('File required when newImage=true');
-      }
-
-      try {
-        // 1) Upload the new image to backend and await the server URL
-        const form = new FormData();
-        form.append('image', image);
-        const res = await fetch('/api/asset', {
-          method: 'POST',
-          body: form,
-          credentials: 'include',
-        });
-        if (!res.ok) {
-          throw new Error('Upload failed');
-        }
-        const { url: serverUrl } = await res.json();
-
-        // 2) Update only the imageUrl field to the server URL
-        updated = { ...updated, imageUrl: serverUrl };
-      } catch (err) {
-        console.error('editPictureResourcev1 upload error:', err);
-        throw err;
-      }
-    }
-
-    // 3) Perform a single Y.Doc transaction to persist the edit
-    const delta: Delta = {
-      type: 'RESOURCE_EDIT',
-      nodeId: updated.nodeId,
-      cardId: updated.id,
-      previous: before,
-      next: updated,
-    };
-
-    ydoc.transact(() => {
-      record(
-        delta,
-        () => {
-          // Apply: update React local state
-          setResources((prev) => {
-            const m = new Map(prev);
-            m.set(
-              updated.nodeId,
-              (m.get(updated.nodeId) || []).map((c) =>
-                c.id === updated.id ? updated : c
-              )
-            );
-            return m;
-          });
-          // Apply: update Y.Doc map
-          yResourcesMap.get(updated.nodeId)?.set(updated.id, updated);
-        },
-        () => {
-          // Inverse: rollback React local state to the “before” version
-          setResources((prev) => {
-            const m = new Map(prev);
-            m.set(
-              before.nodeId,
-              (m.get(before.nodeId) || []).map((c) =>
-                c.id === before.id ? before : c
-              )
-            );
-            return m;
-          });
-          // Inverse: rollback Y.Doc map to the “before” version
-          yResourcesMap.get(before.nodeId)?.set(before.id, before);
-        }
-      );
-    });
-  },
-  [ydoc, activeConceptMapId, isReadOnly]
-);  */
 
   const transferResource = useCallback(
     (
@@ -700,24 +571,32 @@ const restoreResource = useCallback(
   },[resources])  
 
 const selectResourcesFn = useCallback(
-  (nodeId: string) => {
-    const arr = resources.get(nodeId) || [];
+    (nodeId: string) => {
+      const arr = resources.get(nodeId) || [];
+      const filtered = arr.filter(
+        (r) => r.type !== 'quizAssessment'
+      );
+      console.log(
+        'ResourceContext.tsx[3601] › selectResources filtered count=',
+        filtered.length,
+        'original=',
+        arr.length
+      );
 
-    // Sort order: 0-Note, 1-Picture, 2-CueCard, 3-PracticeSheet
-    const order: Record<ResourceCard['type'], number> = {
-      note: 0,
-      //picture: 1,
-      cueCard: 1,
-      practiceSheet: 2,
-    };
+      // Only order the standard card types that appear in this view.
+      const order: Record<'note' | 'cueCard' | 'practiceSheet', number> = {
+        note: 0,
+        cueCard: 1,
+        practiceSheet: 2,
+      };
 
-    // Return a new array ordered by the mapping above
-    return [...arr].sort(
-      (a, b) => (order[a.type] ?? Number.MAX_SAFE_INTEGER) - (order[b.type] ?? Number.MAX_SAFE_INTEGER),
-    );
-  },
-  [resources],
-);
+      return [...filtered].sort(
+        (a, b) => (order[a.type as keyof typeof order] ?? Number.MAX_SAFE_INTEGER) -
+                  (order[b.type as keyof typeof order] ?? Number.MAX_SAFE_INTEGER)
+      );
+    },
+    [resources]
+  );
 
   const selectCueCards = useCallback(
     (nodeId: string) =>
@@ -760,6 +639,43 @@ const selectResourcesFn = useCallback(
     },
     [ydoc, yResourcesMap, isReadOnly]
   );
+
+ /**
+   * @function selectQuizAssessments
+   * @description
+   * Returns all QuizAssessmentResource cards stored under the sentinel node id for the active map.
+   * This selector is used by the “Start review” modal to list global assignments in real-time.
+   * @complexity O(k) where k is number of assessments (linear scan of that node map).
+   */
+  const selectQuizAssessments = useCallback((): QuizAssessmentResource[] => {
+    const list = (resources.get(GLOBAL_ASSESSMENTS_NODE_ID) || []).filter(
+      (r): r is QuizAssessmentResource => r.type === 'quizAssessment'
+    );
+    console.log('ResourceContext.tsx[3301] › selectQuizAssessments count=', list.length);
+    return list;
+  }, [resources]);
+
+
+  /**
+   * @function getQuizAssessmentById
+   * @description
+   * Helper to fetch a quiz assessment by assignmentId in O(1) using the sentinel node id.
+   * The mapId defaults to the active concept map if not provided explicitly.
+   */
+  const getQuizAssessmentById = useCallback(
+    (assignmentId: string, mapId?: string): QuizAssessmentResource | undefined => {
+      const m = mapId || activeConceptMapId;
+      const card = globalResourceCardLookup(ydoc, m, GLOBAL_ASSESSMENTS_NODE_ID, assignmentId);
+      if (card && card.type === 'quizAssessment') {
+        console.log('ResourceContext.tsx[3401] › getQuizAssessmentById hit', assignmentId);
+        return card as QuizAssessmentResource;
+      }
+      console.log('ResourceContext.tsx[3402] › getQuizAssessmentById miss', assignmentId);
+      return undefined;
+    },
+    [activeConceptMapId, ydoc]
+  );
+  
 
   const resetResources = useCallback(() => {
       if (isReadOnly) {
@@ -823,19 +739,102 @@ const selectResourcesFn = useCallback(
     [activeDoc]
   );
 
+
+
+  /**
+   * createQuizAssignmentCard
+   * @description
+   *   Creates a global `quizAssessment` card (under the sentinel node) and returns the created
+   *   card immediately so callers can persist meta using its authoritative `assignmentId`. This
+   *   mirrors the internal `addResourcev1` logic for quizAssessment but exposes the result. Work
+   *   is O(1). Logs [9201–9204].
+   */
+  const createQuizAssignmentCard = useCallback(async (args: {
+    mapId: string;
+    title: string;
+    binding: QuizBinding | any;
+    window?: { startAt?: string; endAt?: string };
+    attemptLimit?: number;
+    instructions?: string;
+    createdByEmail?: string;
+  }): Promise<QuizAssessmentResource> => {
+    if (isReadOnly) {
+      console.warn('ResourceContext.tsx[9200] › Read-only mode: createQuizAssignmentCard blocked');
+      throw new Error('Read-only mode');
+    }
+    const usedMapId = args.mapId || activeConceptMapId;
+    const dynamicMapKey = `resources:${usedMapId}`;
+    const localYResourcesMap = ydoc.getMap<Y.Map<ResourceCard>>(dynamicMapKey);
+
+    const id = uuidv4();
+    const card: QuizAssessmentResource = {
+      id,
+      nodeId: GLOBAL_ASSESSMENTS_NODE_ID,
+      type: 'quizAssessment',
+      title: args.title,
+      citations: null,
+      mapId: usedMapId,
+      assignmentId: id,
+      binding: args.binding,
+      window: args.window,
+      attemptLimit: args.attemptLimit,
+      instructions: args.instructions,
+      createdByEmail: args.createdByEmail,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    console.log('ResourceContext.tsx[9201] › createQuizAssignmentCard start', { assignmentId: id, mapId: usedMapId });
+
+    const delta: Delta = { type: 'RESOURCE_ADD', nodeId: GLOBAL_ASSESSMENTS_NODE_ID, card };
+    ydoc.transact(() => {
+      record(
+        delta,
+        () => {
+          // React state
+          setResources((prev) => {
+            const m = new Map(prev);
+            const arr = m.get(GLOBAL_ASSESSMENTS_NODE_ID) || [];
+            m.set(GLOBAL_ASSESSMENTS_NODE_ID, [...arr, card]);
+            return m;
+          });
+          // Y.Doc
+          let yMap = localYResourcesMap.get(GLOBAL_ASSESSMENTS_NODE_ID);
+          if (!yMap) {
+            yMap = new Y.Map<ResourceCard>();
+            localYResourcesMap.set(GLOBAL_ASSESSMENTS_NODE_ID, yMap);
+          }
+          yMap.set(card.id, card);
+        },
+        () => {
+          setResources((prev) => {
+            const m = new Map(prev);
+            m.set(
+              GLOBAL_ASSESSMENTS_NODE_ID,
+              (m.get(GLOBAL_ASSESSMENTS_NODE_ID) || []).filter((c) => c.id !== card.id)
+            );
+            return m;
+          });
+          localYResourcesMap.get(GLOBAL_ASSESSMENTS_NODE_ID)?.delete(card.id);
+        }
+      );
+    }, LOCAL_ORIGIN);
+
+    console.log('ResourceContext.tsx[9202] › createQuizAssignmentCard ok', { assignmentId: id });
+    return card;
+  }, [ydoc, activeConceptMapId, isReadOnly]);
+
   const value = useMemo<ResourceContextType>(
     () => ({
       resources,
       addResourcev1,
       removeResourcev1,
       editResourcev1,
-      //addPictureResourcev1,
-      //editPictureResourcev1,
       transferResource,
       selectResources: selectResourcesFn,
       selectNoteCards,
       selectCueCards,
-      //selectPictures,
+
       selectPracticeSheets,
       setResources: setResourcesFn,
       resetResources,
@@ -846,8 +845,11 @@ const selectResourcesFn = useCallback(
       getGlobalResourceCard,
       updatedRivisonCard,
       setupdatedRivisionCard,
+      selectQuizAssessments,
+      getQuizAssessmentById,
+       createQuizAssignmentCard
     }),
-    [resources, addResourcev1, removeResourcev1, editResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard]
+    [resources, addResourcev1, removeResourcev1, editResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard, selectQuizAssessments, getQuizAssessmentById, createQuizAssignmentCard]
   );
 
   return (

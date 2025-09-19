@@ -1,48 +1,57 @@
-// MapRenderer.tsx  (read only)
- 
+// app/studygraph/(studygraph)/components/layout/ReadOnly/map/MapRenderer.tsx
+
 /**
  * @file MapRenderer.tsx
  * @description
- *   Renders the concept-map canvas, applies a one-time “fit-to-viewport” zoom,
- *   then programmatically centers both horizontal and vertical scrollbars
- *   in a single useLayoutEffect. After this initial setup, all zoom and pan
- *   controls remain entirely in the user’s hands.
+ *   Renders the concept-map canvas (read-only), applies a one-time “fit-to-viewport”
+ *   zoom, then programmatically centers the scrollbars for the initial paint. After
+ *   this setup, control stays with the user. Phase 1 wires this renderer into the
+ *   ZoomContext’s new imperative re-center API without changing layout or styling.
  *
- *   A `data-testid="map-renderer-container"` attribute is present for easy
- *   querying in tests or the browser’s dev tools.
+ *   What’s new in Phase 1:
+ *   1) On first fit we call setInitialFitZoom(targetZoom) so ZoomContext can remember
+ *      the baseline. This enables safe, “never upscale” clamp behavior later.
+ *   2) We register a DOM-owned re-center handler with ZoomContext. When invoked,
+ *      it scrolls the container back to its content midpoint. If requested, it
+ *      clamps the current zoom down to the initial fit value.
+ *   3) We keep this code O(1) with useRef and no additional re-renders.
  *
- * Responsibilities:
- *   1. Compute composite layout & tight bounding box of nodes + subtrees.
- *   2. Apply one-time fit-to-viewport zoom & center scrollbars using actual
- *      scrollWidth/scrollHeight of the container.
- *   3. Expose a test-id on the container for external automation or debugging.
- *   4. Render ConceptNode and Subtree components.
+ *   Logging:
+ *   - Logs capture first-fit zoom, registration success, and recenter application.
  */
 
-import React, { useRef, useMemo, useLayoutEffect, useState, useEffect } from 'react';
+import React, { useRef, useMemo, useLayoutEffect, useState, useEffect, useCallback } from 'react';
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
 import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
+import { centerContainerToMidpoint } from '@/app/Library/utils/map/centerUtils';
 import ConceptNode from './ConceptNode';
 import Subtree from './Subtree';
 import '@/app/studygraph/(studygraph)/components/layout/hiddenScrollbar.css';
 
-
 const MIN_ZOOM = 0.5;           // Never shrink below 50%
 const VIEWPORT_PADDING = 0.9;   // Fit to 90% of viewport
+const WORLD_ANCHOR_OFFSET = { x: 125, y: 200 };
 
 const MapRenderer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { zoomLevel, dispatch: zoomDispatch } = useZoomContext();
+  const {
+    zoomLevel,
+    dispatch: zoomDispatch,
+    setInitialFitZoom,            // update - 2
+    getInitialFitZoom,            // update - 3
+    registerMapCenterHandler,     // update - 4
+    unregisterMapCenterHandler,   // update - 5
+  } = useZoomContext();
+
   const { nodes } = useNodesContext();
   const { subtrees } = useSubTreeContext();
 
   // 1. Compute composite layout → absolute x/y for every node
-  const laidOutNodes = useCompositeLayout(nodes);// -> For reading
-
+  const laidOutNodes = useCompositeLayout(nodes);
   const rootNode = Array.from(nodes.values()).find((n) => n.isRoot);
 
   // 2. Compute the tight bounding box of all subtrees + nodes
@@ -81,8 +90,6 @@ const MapRenderer: React.FC = () => {
   const [didInitialSetup, setDidInitialSetup] = useState(false);
 
   // ─── RESET ON CONTENT CHANGE ────────────────────────────────────────────────
-  // Whenever the computed dimensions change (e.g. on first load of a new file),
-  // clear the “didInitialSetup” flag so the centering logic runs again.
   useEffect(() => {
     setDidInitialSetup(false);
   }, [mapWidth, mapHeight]);
@@ -114,17 +121,49 @@ const MapRenderer: React.FC = () => {
         type:    ZoomActionType.SET_ZOOM_LEVEL,
         payload: targetZoom,
       });
+      setInitialFitZoom(targetZoom); // update - 6
+      console.log('[MapRenderer(RO).tsx][9725] initial fit computed', { targetZoom, vw, vh, mapWidth, mapHeight });
+    } else {
+      // In cases where zoom stays the same, record the current level as baseline once
+      setInitialFitZoom(zoomLevel);  // update - 7
+      console.log('[MapRenderer(RO).tsx][9726] initial fit equals current zoom', { zoomLevel });
     }
 
-    // — CENTER BASED ON ACTUAL SCROLL DIMENSIONS —
-    const contentW = container.scrollWidth * targetZoom;
-    const contentH = container.scrollHeight * targetZoom;
-
-    container.scrollLeft = Math.max(0, (contentW / 2) - (200 * targetZoom));
-    container.scrollTop  = 0
+    // — CENTER BASED ON CONTENT DIMENSIONS —
+    const { left, top } = centerContainerToMidpoint(container); // update - 8
+    console.log('[MapRenderer(RO).tsx][9727] centered to content midpoint', { left, top });
 
     setDidInitialSetup(true);
-  }, [didInitialSetup, mapWidth, mapHeight, zoomLevel, zoomDispatch]);
+  }, [didInitialSetup, mapWidth, mapHeight, zoomLevel, zoomDispatch, setInitialFitZoom]);
+
+  /**
+   * @function centerToMidpointHandler
+   * @description
+   *   Re-center callback registered with ZoomContext. It scrolls the container to the
+   *   content midpoint and, when requested, clamps zoom down to the initial fit zoom
+   *   (never upscaling). The math is O(1) and relies on the utility helper.
+   */
+  const centerToMidpointHandler = useCallback((opts?: { clampToInitialFit?: boolean }) => { // update - 9
+    const el = containerRef.current;
+    if (!el) return;
+
+    const applied = centerContainerToMidpoint(el);
+    console.log('[MapRenderer(RO).tsx][9728] recenter applied', { applied, opts: opts ?? null });
+
+    if (opts?.clampToInitialFit) {
+      const initial = getInitialFitZoom();
+      if (typeof initial === 'number' && zoomLevel > initial) {
+        console.log('[MapRenderer(RO).tsx][9729] clamping zoom to initial fit', { initial, current: zoomLevel });
+        zoomDispatch({ type: ZoomActionType.SET_ZOOM_LEVEL, payload: initial });
+      }
+    }
+  }, [getInitialFitZoom, zoomLevel, zoomDispatch]);
+
+  // Register/unregister handler with ZoomContext (O(1))  // update - 10
+  useEffect(() => {
+    registerMapCenterHandler(centerToMidpointHandler);
+    return () => unregisterMapCenterHandler();
+  }, [registerMapCenterHandler, unregisterMapCenterHandler, centerToMidpointHandler]);
 
   return (
     <div
@@ -140,14 +179,12 @@ const MapRenderer: React.FC = () => {
           position: 'absolute',
           top: 0,
           left: 0,
-          width: `${Math.max(mapWidth + 400, window.innerWidth)}px`, // Add padding
-          height: `${Math.max(mapHeight + 300, window.innerHeight)}px`, // Add padding
+          width: `${Math.max(mapWidth + 400, window.innerWidth)}px`,
+          height: `${Math.max(mapHeight + 300, window.innerHeight)}px`,
           minWidth: '100%',
           minHeight: '100%',
         }}
       />
-
-      
       <div
         style={{
           position: 'relative',
@@ -158,7 +195,7 @@ const MapRenderer: React.FC = () => {
         data-testid="map-renderer-container-2"
       >
         <div
-        data-testid="map-renderer-container-3"
+          data-testid="map-renderer-container-3"
           style={{
             position:        'absolute',
             transform:       `translate(${-minX}px, ${-minY}px) scale(${zoomLevel})`,

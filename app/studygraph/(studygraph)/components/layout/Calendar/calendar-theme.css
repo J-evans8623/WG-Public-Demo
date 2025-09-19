@@ -1,0 +1,841 @@
+/**
+ * @file calendar-theme.css
+ * @description
+ *   Comprehensive CSS framework for the Study Calendar Planner that implements the complete brand theme
+ *   with professional yet inviting design elements. This file serves as the single source of truth for
+ *   all visual styling including color systems, typography scales, spacing patterns, component variants,
+ *   and responsive design patterns. The framework emphasizes a compact calendar layout with optimal
+ *   information density while maintaining excellent readability and accessibility. The design system
+ *   balances professional dark blue-gray text with warm sage green and blue accents against a light
+ *   almond background, creating an academic atmosphere that feels both authoritative and welcoming.
+ *   All interactive elements include subtle hover effects and smooth transitions that enhance user
+ *   experience without overwhelming the interface. The modular approach ensures easy maintenance and
+ *   consistent application across all calendar components while supporting responsive behavior across
+ *   different device sizes and accessibility requirements for keyboard navigation and screen readers.
+ *   Now enhanced with HomescreenV3 file-tile design system integration for consistent notebook selection
+ *   interfaces that maintain visual hierarchy and modern card-based styling throughout the calendar application.
+ */
+
+/* Step 1: CSS Custom Properties - Brand Color System */
+:root {
+  /* Primary Brand Colors */
+  --calendar-bg-primary: #FAF8F5; /* Light almond background */
+  --calendar-bg-secondary: #FFFFFF; /* Pure white for cards/modals */
+  --calendar-text-primary: #2C3E50; /* Professional dark blue-gray */
+  --calendar-text-secondary: #6c757d; /* Medium gray for secondary text */
+  --calendar-text-muted: #9ca3af; /* Light gray for muted text */
+  
+  /* Brand Accent Colors */
+  --calendar-accent-primary: #5B8C5A; /* Sage green for primary actions */
+  --calendar-accent-secondary: #6C8EBF; /* Blue for secondary actions */
+  --calendar-accent-tertiary: #D4C4B0; /* Subtle tan for borders/dividers */
+  
+  /* Subject Color Palette */
+  --calendar-subject-biology: #27AE60;
+  --calendar-subject-chemistry: #8E44AD;
+  --calendar-subject-physics: #3498DB;
+  --calendar-subject-mathematics: #E74C3C;
+  --calendar-subject-history: #D68910;
+  --calendar-subject-english: #16A085;
+  --calendar-subject-psychology: #AF7AC5;
+  --calendar-subject-default: #95a5a6;
+  
+  /* State Colors */
+  --calendar-success: #27AE60;
+  --calendar-warning: #F39C12;
+  --calendar-error: #E74C3C;
+  --calendar-info: #3498DB;
+  
+  /* Neutral Grays */
+  --calendar-gray-50: #f8f9fa;
+  --calendar-gray-100: #e9ecef;
+  --calendar-gray-200: #dee2e6;
+  --calendar-gray-300: #ced4da;
+  --calendar-gray-400: #adb5bd;
+  --calendar-gray-500: #6c757d;
+  --calendar-gray-600: #495057;
+  --calendar-gray-700: #343a40;
+  --calendar-gray-800: #212529;
+  
+  /* Typography System */
+  --calendar-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --calendar-font-family-display: 'Crimson Text', Georgia, serif;
+  
+  /* Font Sizes */
+  --calendar-text-xs: 0.75rem;    /* 12px */
+  --calendar-text-sm: 0.875rem;   /* 14px */
+  --calendar-text-base: 1rem;     /* 16px */
+  --calendar-text-lg: 1.125rem;   /* 18px */
+  --calendar-text-xl: 1.25rem;    /* 20px */
+  --calendar-text-2xl: 1.5rem;    /* 24px */
+  --calendar-text-3xl: 1.875rem;  /* 30px */
+  
+  /* Font Weights */
+  --calendar-font-normal: 400;
+  --calendar-font-medium: 500;
+  --calendar-font-semibold: 600;
+  --calendar-font-bold: 700;
+  
+  /* Line Heights */
+  --calendar-leading-tight: 1.25;
+  --calendar-leading-normal: 1.5;
+  --calendar-leading-relaxed: 1.625;
+  
+  /* Spacing Scale */
+  --calendar-space-1: 0.25rem;   /* 4px */
+  --calendar-space-2: 0.5rem;    /* 8px */
+  --calendar-space-3: 0.75rem;   /* 12px */
+  --calendar-space-4: 1rem;      /* 16px */
+  --calendar-space-5: 1.25rem;   /* 20px */
+  --calendar-space-6: 1.5rem;    /* 24px */
+  --calendar-space-8: 2rem;      /* 32px */
+  --calendar-space-10: 2.5rem;   /* 40px */
+  --calendar-space-12: 3rem;     /* 48px */
+  
+  /* Border Radius */
+  --calendar-radius-sm: 0.25rem;  /* 4px */
+  --calendar-radius-md: 0.375rem; /* 6px */
+  --calendar-radius-lg: 0.5rem;   /* 8px */
+  --calendar-radius-xl: 0.75rem;  /* 12px */
+  
+  /* Shadows */
+  --calendar-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --calendar-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --calendar-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --calendar-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Transitions */
+  --calendar-transition-fast: 150ms ease-in-out;
+  --calendar-transition-normal: 250ms ease-in-out;
+  --calendar-transition-slow: 350ms ease-in-out;
+}
+
+/* Step 2: Base Typography and Layout */
+.calendar-container * {
+  font-family: var(--calendar-font-family);
+  box-sizing: border-box;
+}
+
+.calendar-container {
+  color: var(--calendar-text-primary);
+  line-height: var(--calendar-leading-normal);
+  font-size: var(--calendar-text-base);
+}
+
+/* Step 3: Compact Calendar Grid System */
+.calendar-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--calendar-gray-200);
+  border-radius: var(--calendar-radius-lg);
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.calendar-day-header {
+  background: var(--calendar-gray-50);
+  padding: var(--calendar-space-3) var(--calendar-space-2);
+  text-align: center;
+  font-size: var(--calendar-text-xs);
+  font-weight: var(--calendar-font-semibold);
+  color: var(--calendar-text-secondary);
+  border-bottom: 1px solid var(--calendar-gray-200);
+}
+
+.calendar-day-cell {
+  background: var(--calendar-bg-secondary);
+  min-height: 70px;
+  padding: var(--calendar-space-2);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition: all var(--calendar-transition-fast);
+  cursor: pointer;
+}
+
+.calendar-day-cell:hover {
+  background: var(--calendar-gray-50);
+}
+
+.calendar-day-cell.current-day {
+  background: #FFF9E6;
+  border: 2px solid var(--calendar-accent-primary);
+}
+
+.calendar-day-cell.other-month {
+  background: var(--calendar-gray-50);
+  opacity: 0.4;
+}
+
+.calendar-day-number {
+  font-size: var(--calendar-text-sm);
+  font-weight: var(--calendar-font-medium);
+  color: var(--calendar-text-primary);
+  margin-bottom: var(--calendar-space-2);
+  line-height: 1;
+}
+
+.calendar-day-cell.current-day .calendar-day-number {
+  color: var(--calendar-accent-primary);
+  font-weight: var(--calendar-font-semibold);
+}
+
+.calendar-day-cell.other-month .calendar-day-number {
+  color: var(--calendar-text-muted);
+}
+
+/* Step 4: HomescreenV3 File Tile Integration for Notebook Selection */
+
+/* Files Header Styling - Matching HomescreenV3 */
+.files-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.files-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--calendar-text-primary);
+}
+
+.files-search {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.files-search-input {
+  padding: 8px 16px;
+  border: 1px solid #D4C4B0;
+  border-radius: 20px;
+  font-size: 13px;
+  background: #FAFAFA;
+  color: var(--calendar-text-primary);
+  width: 220px;
+  font-family: var(--calendar-font-family);
+}
+
+.files-search-input:focus {
+  outline: none;
+  border-color: var(--calendar-accent-primary);
+  background: white;
+}
+
+.files-search-input::placeholder {
+  color: #9CA3AF;
+}
+
+/* Files Grid Layout - Matching HomescreenV3 */
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+}
+
+/* Enhanced File Tiles with HomescreenV3 Design */
+.file-tile {
+  background: white;
+  border: 1px solid #D0D0D0;
+  border-radius: 8px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.file-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  border-color: #B0B0B0;
+}
+
+.file-tile.selected {
+  border-color: var(--calendar-accent-primary);
+  background: #F8FBF8;
+  box-shadow: 0 2px 8px rgba(91, 140, 90, 0.15);
+}
+
+.file-tile.selected:hover {
+  border-color: var(--calendar-accent-primary);
+  background: #F0F8F0;
+}
+
+.file-header {
+  height: 5px;
+  border-radius: 2px;
+  margin-bottom: 12px;
+}
+
+/* Enhanced color coding with better contrast */
+.file-header.bio { background: #C8E6C9; }
+.file-header.chem { background: #FFE0B2; }
+.file-header.math { background: #BBDEFB; }
+.file-header.history { background: #E1BEE7; }
+.file-header.physics { background: #C8E6C9; }
+.file-header.psych { background: #FFCDD2; }
+
+.file-title {
+  font-weight: 500;
+  font-size: 14px;
+  color: #1A1A1A;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.file-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.file-time {
+  font-size: 11px;
+  color: #555555;
+}
+
+.file-status {
+  font-size: 9px;
+  background: #E8F5E8;
+  color: #2E7D32;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.file-subject {
+  font-size: 10px;
+  color: #757575;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+/* Actions Card Styling - Matching HomescreenV3 */
+.actions-card {
+  background: white;
+  border: 1px solid #E8E8E8;
+  border-radius: 12px;
+  padding: 20px;
+  flex-shrink: 0;
+}
+
+/* Empty State Styling - Matching HomescreenV3 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.6;
+}
+
+.empty-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--calendar-text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.empty-description {
+  color: var(--calendar-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  max-width: 400px;
+}
+
+/* Step 5: Tab Navigation System */
+.calendar-tab-navigation {
+  display: flex;
+  background: var(--calendar-gray-50);
+  border-radius: var(--calendar-radius-lg);
+  padding: var(--calendar-space-1);
+  margin-bottom: var(--calendar-space-5);
+  gap: var(--calendar-space-1);
+}
+
+.calendar-tab-button {
+  flex: 1;
+  padding: var(--calendar-space-3) var(--calendar-space-4);
+  border: none;
+  background: transparent;
+  color: var(--calendar-text-primary);
+  font-size: var(--calendar-text-sm);
+  font-weight: var(--calendar-font-medium);
+  border-radius: var(--calendar-radius-md);
+  cursor: pointer;
+  transition: all var(--calendar-transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--calendar-space-2);
+}
+
+.calendar-tab-button:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.calendar-tab-button.active {
+  background: var(--calendar-bg-secondary);
+  box-shadow: var(--calendar-shadow-sm);
+  color: var(--calendar-accent-primary);
+}
+
+.calendar-tab-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Step 6: Button System */
+.calendar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--calendar-space-2);
+  padding: var(--calendar-space-3) var(--calendar-space-4);
+  border: none;
+  border-radius: var(--calendar-radius-md);
+  font-size: var(--calendar-text-sm);
+  font-weight: var(--calendar-font-medium);
+  cursor: pointer;
+  transition: all var(--calendar-transition-fast);
+  text-decoration: none;
+  line-height: 1;
+  font-family: var(--calendar-font-family);
+}
+
+.calendar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Primary Button - Sage Green */
+.calendar-btn-primary {
+  background: var(--calendar-accent-primary);
+  color: white;
+}
+
+.calendar-btn-primary:hover:not(:disabled) {
+  background: #4a7549;
+  transform: translateY(-1px);
+  box-shadow: var(--calendar-shadow-md);
+}
+
+/* Secondary Button - Blue */
+.calendar-btn-secondary {
+  background: var(--calendar-accent-secondary);
+  color: white;
+}
+
+.calendar-btn-secondary:hover:not(:disabled) {
+  background: #5a7ba8;
+  transform: translateY(-1px);
+  box-shadow: var(--calendar-shadow-md);
+}
+
+/* Outline Button */
+.calendar-btn-outline {
+  background: transparent;
+  color: var(--calendar-text-primary);
+  border: 1px solid var(--calendar-accent-tertiary);
+}
+
+.calendar-btn-outline:hover:not(:disabled) {
+  background: var(--calendar-gray-50);
+  border-color: var(--calendar-accent-primary);
+  transform: translateY(-1px);
+}
+
+/* Small Button Variant */
+.calendar-btn-sm {
+  padding: var(--calendar-space-2) var(--calendar-space-3);
+  font-size: var(--calendar-text-xs);
+}
+
+/* Icon Button */
+.calendar-btn-icon {
+  padding: var(--calendar-space-2);
+  border-radius: 50%;
+  background: var(--calendar-gray-50);
+  color: var(--calendar-text-secondary);
+  border: 1px solid var(--calendar-gray-300);
+  transition: all var(--calendar-transition-fast);
+}
+
+.calendar-btn-icon:hover:not(:disabled) {
+  background: var(--calendar-accent-primary);
+  color: white;
+  border-color: var(--calendar-accent-primary);
+}
+
+/* Step 7: Enhanced Session Label Hover Coverage */
+.calendar-session-label {
+  display: flex;
+  align-items: center;
+  gap: var(--calendar-space-1);
+  padding: var(--calendar-space-1) var(--calendar-space-2);
+  border-radius: var(--calendar-radius-lg);
+  font-size: var(--calendar-text-xs);
+  font-weight: var(--calendar-font-medium);
+  color: white;
+  transition: all var(--calendar-transition-fast);
+  cursor: pointer;
+  overflow: hidden;
+  max-width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.calendar-session-label:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--calendar-shadow-md);
+  z-index: 2;
+}
+
+.calendar-session-icon,
+.calendar-session-subject {
+  pointer-events: none;
+}
+
+.calendar-session-icon {
+  font-size: var(--calendar-text-xs);
+  font-weight: var(--calendar-font-bold);
+  min-width: 12px;
+  text-align: center;
+  line-height: 1;
+}
+
+.calendar-session-subject {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.calendar-session-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--calendar-space-1);
+  flex: 1;
+  pointer-events: auto;
+}
+
+/* Step 8: Modal and Card Styling */
+.calendar-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--calendar-space-4);
+}
+
+.calendar-modal-content {
+  background: var(--calendar-bg-secondary);
+  border-radius: var(--calendar-radius-xl);
+  box-shadow: var(--calendar-shadow-xl);
+  width: 100%;
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--calendar-space-6);
+  border-bottom: 1px solid var(--calendar-gray-200);
+  flex-shrink: 0;
+}
+
+.calendar-modal-title {
+  display: flex;
+  align-items: center;
+  gap: var(--calendar-space-3);
+  font-size: var(--calendar-text-xl);
+  font-weight: var(--calendar-font-semibold);
+  color: var(--calendar-text-primary);
+}
+
+.calendar-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--calendar-space-6);
+}
+
+.calendar-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--calendar-space-6);
+  border-top: 1px solid var(--calendar-gray-200);
+  background: var(--calendar-gray-50);
+  flex-shrink: 0;
+}
+
+/* Step 9: Utility Classes */
+.calendar-text-muted {
+  color: var(--calendar-text-muted);
+}
+
+.calendar-text-secondary {
+  color: var(--calendar-text-secondary);
+}
+
+.calendar-text-primary {
+  color: var(--calendar-text-primary);
+}
+
+.calendar-bg-primary {
+  background: var(--calendar-bg-primary);
+}
+
+.calendar-bg-secondary {
+  background: var(--calendar-bg-secondary);
+}
+
+/* Step 10: Loading States */
+.calendar-loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--calendar-gray-200);
+  border-radius: 50%;
+  border-top-color: var(--calendar-accent-primary);
+  animation: calendar-spin 1s ease-in-out infinite;
+}
+
+@keyframes calendar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Step 11: Form Input Styling */
+.calendar-input {
+  width: 100%;
+  padding: var(--calendar-space-2) var(--calendar-space-3);
+  border: 1px solid var(--calendar-gray-300);
+  border-radius: var(--calendar-radius-md);
+  font-size: var(--calendar-text-sm);
+  font-family: var(--calendar-font-family);
+  color: var(--calendar-text-primary);
+  background: var(--calendar-bg-secondary);
+  transition: all var(--calendar-transition-fast);
+}
+
+.calendar-input:focus {
+  outline: none;
+  border-color: var(--calendar-accent-primary);
+  box-shadow: 0 0 0 2px rgba(91, 140, 90, 0.1);
+}
+
+.calendar-input:disabled {
+  background: var(--calendar-gray-50);
+  color: var(--calendar-text-muted);
+  cursor: not-allowed;
+}
+
+.calendar-input::placeholder {
+  color: var(--calendar-text-muted);
+}
+
+/* Step 12: Responsive Design */
+@media (max-width: 768px) {
+  .calendar-modal-content {
+    margin: var(--calendar-space-4);
+    max-height: calc(100vh - 2rem);
+  }
+  
+  .calendar-day-cell {
+    min-height: 60px;
+    padding: var(--calendar-space-1);
+  }
+  
+  .calendar-session-label {
+    font-size: 10px;
+    padding: 1px var(--calendar-space-1);
+  }
+  
+  .calendar-tab-navigation {
+    flex-direction: column;
+    gap: var(--calendar-space-1);
+  }
+  
+  .calendar-modal-header,
+  .calendar-modal-body,
+  .calendar-modal-footer {
+    padding: var(--calendar-space-4);
+  }
+  
+  .files-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+  }
+  
+  .files-search-input {
+    width: 180px;
+  }
+  
+  .files-header-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-day-cell {
+    min-height: 50px;
+  }
+  
+  .calendar-session-label {
+    font-size: 9px;
+  }
+  
+  .calendar-day-number {
+    font-size: var(--calendar-text-xs);
+  }
+  
+  .files-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .files-search-input {
+    width: 100%;
+  }
+}
+
+/* Step 13: Focus and Accessibility */
+.calendar-btn:focus,
+.calendar-tab-button:focus,
+.calendar-session-label:focus,
+.file-tile:focus {
+  outline: 2px solid var(--calendar-accent-primary);
+  outline-offset: 2px;
+}
+
+.calendar-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Step 14: High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  :root {
+    --calendar-text-primary: #000000;
+    --calendar-text-secondary: #333333;
+    --calendar-accent-primary: #006600;
+    --calendar-accent-secondary: #000080;
+  }
+}
+
+/* Step 15: Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .calendar-btn,
+  .calendar-tab-button,
+  .calendar-session-label,
+  .calendar-day-cell,
+  .file-tile {
+    transition: none;
+  }
+  
+  .calendar-loading-spinner {
+    animation: none;
+  }
+}
+
+/* Step 16: Additional Utility Classes for Spacing */
+.space-y-4 > * + * {
+  margin-top: 1rem;
+}
+
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.w-3 {
+  width: 0.75rem;
+}
+
+.h-3 {
+  height: 0.75rem;
+}
+
+.w-4 {
+  width: 1rem;
+}
+
+.h-4 {
+  height: 1rem;
+}
+
+.rounded-full {
+  border-radius: 50%;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.max-w-24 {
+  max-width: 6rem;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.animate-spin {
+  animation: calendar-spin 1s linear infinite;
+}

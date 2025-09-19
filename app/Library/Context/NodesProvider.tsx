@@ -17,7 +17,7 @@ import React, {
   useMemo,
 } from 'react';
 import * as Y from 'yjs';
-import { ConceptNode, SystemActionType  } from '@/app/Library/Definitions/Definitions';
+import { ConceptNode, SystemActionType, LOCAL_ORIGIN  } from '@/app/Library/Definitions/Definitions';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { record } from '@/app/studygraph/(studygraph)/components/utils/deltaEngine';
@@ -262,8 +262,7 @@ const setGeneratedNodes = useCallback(
         incrementVersion();
         normalized.forEach((node, id) => yMap.set(id, node));
       },
-      options?.origin
-    );
+       LOCAL_ORIGIN);
   },
   [isReadOnly, activeConceptMapId, ydoc, incrementVersion]
 );
@@ -358,8 +357,8 @@ const createNewNode = useCallback(
           childrenNodeIds: [...(parent.childrenNodeIds || []), newId],
         });
       },
-      { origin: { type: 'system', action: 'createNewNode' as SystemActionType } }
-    );
+       LOCAL_ORIGIN
+   );
   },
   [isReadOnly, yNodesMap, ydoc, incrementVersion, getRootNode]
 );
@@ -480,7 +479,7 @@ const restoreNode = useCallback(
             updateConceptMapTitle(first.id, `Unit 1 : ${trimmed}`);
           }
         }
-      });
+      },  LOCAL_ORIGIN);
     },
     [ydoc,isReadOnly, yNodesMap, mapKey, getFileName, updateFileName, getLessonModule, updateConceptMapTitle]
   );
@@ -524,7 +523,7 @@ const restoreNode = useCallback(
             yNodesMap.set(parentId, parent);
           }
         );
-      });
+      }, LOCAL_ORIGIN);
     },
     [isReadOnly, yNodesMap, ydoc, incrementVersion]
   );
@@ -592,7 +591,7 @@ const transferNode = useCallback(
         yNodesMap.set(sourceId, updatedSource);
         yNodesMap.set(targetId, updatedTarget);
       },
-      { origin: { type: 'system', action: 'transfer' as SystemActionType } }
+      LOCAL_ORIGIN
     );
   },
   [ydoc, yNodesMap, isReadOnly, getRootNode]

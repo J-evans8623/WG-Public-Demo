@@ -20,7 +20,7 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    1) Buttons (existing from Phase 1, retained and expanded)
    ─────────────────────────────────────────────────────────────────────────── */
-.btn {
+.brand-ui .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -37,46 +37,46 @@
   user-select: none;
 }
 
-.btn:focus-visible {
+.brand-ui .btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(108, 142, 191, 0.35); /* brand-blue focus ring */
 }
 
-.btn[disabled],
-.btn:disabled {
+.brand-ui .btn[disabled],
+.brand-ui .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-.btn--icon {
+.brand-ui .btn--icon {
   padding: 0.4rem;
   width: 36px;
   height: 36px;
   border-radius: var(--radius-6, 6px);
 }
 
-.btn--border {
+.brand-ui .btn--border {
   background: var(--surface, #FFFFFF);
   color: var(--muted, #6C757D);
   border-color: var(--edge, #E8E4DE);
 }
-.btn--border:hover {
+.brand-ui .btn--border:hover {
   background: var(--bg-app, #F7F3EE);
   color: var(--ink, #2C3E50);
   border-color: var(--edge-2, #D4C4B0);
 }
 
-.btn--primary {
+.brand-ui .btn--primary {
   background: var(--brand-blue, #6C8EBF);
   color: #fff;
 }
-.btn--primary:hover { filter: brightness(0.95); transform: translateY(-1px); }
+.brand-ui .btn--primary:hover { filter: brightness(0.95); transform: translateY(-1px); }
 
-.btn--success {
+.brand-ui .btn--success {
   background: var(--brand-green, #5B8C5A);
   color: #fff;
 }
-.btn--success:hover { filter: brightness(0.95); transform: translateY(-1px); }
+.brand-ui .btn--success:hover { filter: brightness(0.95); transform: translateY(-1px); }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    2) Panels (right rail width moved from inline to CSS)

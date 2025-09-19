@@ -28,6 +28,12 @@
 
 import { UserService, UserProfile } from './userService';
 import admin from 'firebase-admin';
+import {
+   getUserVersion,
+  readValidationResult,
+  writeValidationResult,
+} from './redisCache/userCache';
+import { fixedWindowTry } from './redisCache/rateGate';
 
 // Step 1: Define service types for validation routing
 export type ServiceType = 'lessonGeneration' | 'askAssistant' | 'exploreTopic' | 'createQuiz';
@@ -94,27 +100,58 @@ export async function validatePremiumAccess(
   email: string,
   serviceType: ServiceType
 ): Promise<ValidationResult> {
-  console.log('[validatePremiumAccess.ts][1001] Starting premium access validation', { email, serviceType });
+  console.log('[validatePremiumAccess.ts][1001] Start validation', { email, serviceType });
+
+  // 1) Version & micro-cache fast path
+  const ver = await getUserVersion(email); // update - 3
+  const cached = await readValidationResult(serviceType, email, ver); // update - 3
+  if (cached) {
+    console.log('[validatePremiumAccess.ts][1101] Micro-cache hit', { email, serviceType, ver }); // update - 3
+    return cached; // update - 3
+  }
+
+  // 2) Optional pre-gate for secondary services (cheap)
+  if (serviceType !== 'lessonGeneration') { // update - 4
+    const gate = await fixedWindowTry('secondary', email, 8, 300);
+    if (!gate.allowed) {
+      const userStatus = await getComprehensiveUserStatus(email); // leverage cached reads
+      const result: ValidationResult = {
+        allowed: false,
+        errorCode: 'RATE_LIMIT_EXCEEDED',
+        errorMessage: `Rate limit exceeded for ${getServiceDisplayName(serviceType)}. Please retry later.`,
+        retryAfter: gate.retryAfterSec || 60,
+        upgradeRequired: false,
+        userStatus,
+      };
+      await writeValidationResult(serviceType, email, ver, result);
+      console.log('[validatePremiumAccess.ts][1102] Blocked by rate-gate', { email, retryAfter: gate.retryAfterSec });
+      return result;
+    }
+  }
 
   try {
-    // Step 5: Get comprehensive user status with single optimized call
     const userStatus = await getComprehensiveUserStatus(email);
-    console.log('[validatePremiumAccess.ts][1002] User status retrieved', {
+    console.log('[validatePremiumAccess.ts][1002] Status retrieved', {
       accountType: userStatus.profile.accountType,
       subscriptionTier: userStatus.profile.subscriptionTier,
-      demoCreditsRemaining: userStatus.usage.demoCredits.remaining
+      demoCreditsRemaining: userStatus.usage.demoCredits.remaining,
     });
 
-    // Step 6: Validate service access based on subscription tier
+    let result: ValidationResult;
+
     if (userStatus.profile.subscriptionTier === 'freemium') {
-      return validateFreemiumAccess(userStatus, serviceType);
+      result = validateFreemiumAccess(userStatus, serviceType);
+    } else {
+      result = validatePremiumRateLimits(userStatus, serviceType);
     }
 
-    // Step 7: Validate premium user rate limits
-    return validatePremiumRateLimits(userStatus, serviceType);
+    // 3) Micro-cache the result for short duration keyed by current version
+    await writeValidationResult(serviceType, email, ver, result); // update - 5
+    console.log('[validatePremiumAccess.ts][1103] Micro-cache set', { email, ver, serviceType }); // update - 5
 
+    return result;
   } catch (error) {
-    console.error('[validatePremiumAccess.ts][1003] Validation error:', error);
+    console.error('[validatePremiumAccess.ts][1003] Validation error', error);
     throw new Error('Failed to validate premium access');
   }
 }

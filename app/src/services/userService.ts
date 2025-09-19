@@ -31,6 +31,11 @@
 
 import admin from 'firebase-admin';
 import { firestore } from './firebase';
+import {
+  cacheReadUserProfile,
+  cacheReadUserUsage,
+  bumpUserVersion,
+} from './redisCache/userCache';
 
 // Step 1: Core type definitions (preserved from original)
 export type AccountType = 'scholar' | 'educator';
@@ -267,11 +272,28 @@ export class UserService {
     batch.set(usageRef, userUsage);
     
     await batch.commit();
-    
+    await bumpUserVersion(normalizedEmail);
     console.log('[userService.ts][2002] Enhanced user profile created with secondary services tracking', { userId });
     return userProfile;
   }
+
   
+  private static ensureTimestamp(value: any): admin.firestore.Timestamp {
+  if (value instanceof admin.firestore.Timestamp) {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return admin.firestore.Timestamp.fromMillis(value);
+  }
+  if (typeof value === 'string') {
+    return admin.firestore.Timestamp.fromDate(new Date(value));
+  }
+  if (value && typeof value.seconds === 'number') {
+    return new admin.firestore.Timestamp(value.seconds, value.nanoseconds || 0);
+  }
+  return admin.firestore.Timestamp.now();
+}
+
   /**
    * getUserProfile
    * @description
@@ -281,22 +303,29 @@ export class UserService {
    * @param email User email for profile lookup
    * @returns Promise resolving to the user profile (existing or newly created)
    */
-  static async getUserProfile(email: string): Promise<UserProfile> {
-    console.log('[userService.ts][7003] Getting user profile for:', email);
-    
-    const normalizedEmail = email.toLowerCase().trim();
-    const userRef = firestore.collection('users').doc(normalizedEmail);
-    const snapshot = await userRef.get();
-    
-    if (snapshot.exists) {
-      const profile = snapshot.data() as UserProfile;
-      console.log('[userService.ts][7004] User profile found - Account type:', profile.accountType, 'Subscription:', profile.subscriptionTier);
-      return profile;
+static async getUserProfile(email: string): Promise<UserProfile> { // update - 3
+    const normalizedEmail = email.toLowerCase().trim(); // update - 3
+    const loader = async (): Promise<UserProfile | null> => { // update - 3
+      const userRef = firestore.collection('users').doc(normalizedEmail);
+      const snapshot = await userRef.get();
+      if (snapshot.exists) {
+        const profile = snapshot.data() as UserProfile;
+        console.log('[userService.ts][7004] Profile loader found', { email: normalizedEmail, tier: profile.subscriptionTier });
+        return profile;
+      }
+      console.log('[userService.ts][7005] Profile loader creating default', { email: normalizedEmail });
+      const created = await this.createUserProfile(normalizedEmail); // creates usage too
+      // createUserProfile already bumps version
+      return created;
+    };
+
+    const hit = await cacheReadUserProfile(normalizedEmail, loader); // update - 3
+    if (!hit) {
+      // Defensive: should not happen because loader creates; return a minimal default if needed.
+      console.warn('[userService.ts][7005a] Profile cache returned null after loader (unexpected)', { email: normalizedEmail }); // update - 3
+      return await this.createUserProfile(normalizedEmail); // update - 3
     }
-    
-    // Step 7: Auto-create profile with safe defaults
-    console.log('[userService.ts][7005] User profile not found, creating with defaults');
-    return await this.createUserProfile(normalizedEmail);
+    return hit; // update - 3
   }
   
   /**
@@ -337,6 +366,7 @@ export class UserService {
       };
       
       transaction.set(userRef, updatedProfile, { merge: true });
+      await bumpUserVersion(normalizedEmail);
       console.log('[userService.ts][7007] Account type updated successfully');
       return updatedProfile;
     });
@@ -402,6 +432,8 @@ static async updateSubscriptionTier(
       accountType: currentProfile.accountType,
       subscriptionTier: newTier
     });
+
+     await bumpUserVersion(normalizedEmail);
     return updatedProfile;
   });
 }
@@ -456,6 +488,7 @@ static async updateSubscriptionTier(
       
       const remainingCredits = updatedUsage.demoCredits.remaining;
       console.log('[userService.ts][7012] Demo credit consumed for lesson generation - Remaining:', remainingCredits);
+       await bumpUserVersion(normalizedEmail);
       return remainingCredits;
     });
   }
@@ -485,7 +518,7 @@ static async updateSubscriptionTier(
     if (action === 'upload') {
       // Step 12: File upload rate limiting (existing logic)
       const limits = RATE_LIMITS[userProfile.subscriptionTier];
-      const periodStart = userUsage.rateLimits.currentPeriodStart;
+      const periodStart = this.ensureTimestamp(userUsage.rateLimits.currentPeriodStart);
       const daysSincePeriodStart = (now.toMillis() - periodStart.toMillis()) / (1000 * 60 * 60 * 24);
       
       if (daysSincePeriodStart >= 1) {
@@ -615,6 +648,7 @@ static async updateSubscriptionTier(
       }
       
       transaction.update(usageRef, updates);
+       await bumpUserVersion(normalizedEmail);
       console.log('[userService.ts][2013] Enhanced usage counter incremented successfully');
     });
   }
@@ -629,84 +663,89 @@ static async updateSubscriptionTier(
    * @param email User email
    * @returns Promise resolving to enhanced user usage data with secondary services tracking
    */
-  static async getUserUsage(email: string): Promise<UserUsage> {
-    const normalizedEmail = email.toLowerCase().trim();
-    const usageRef = firestore.collection('userUsage').doc(normalizedEmail);
-    const snapshot = await usageRef.get();
-    
-    if (snapshot.exists) {
-      const usage = snapshot.data() as Partial<UserUsage>;
-      
-      // Step 8: Check if secondary services data exists, migrate if needed
-      if (!usage.rateLimits?.secondaryServices || !usage.metrics?.totalQuestionsAsked) {
-        console.log('[userService.ts][2010] Migrating existing user to secondary services support');
-        
-        const now = admin.firestore.Timestamp.now();
-        const migratedUsage: UserUsage = {
-          userId: normalizedEmail,
-          demoCredits: usage.demoCredits || { total: 2, remaining: 2, used: 0 },
-          rateLimits: {
-            ...usage.rateLimits,
-            secondaryServices: {
-              windowCount: 0,
-              windowStart: now,
-              dailyCount: 0,
-              totalCount: 0,
-            },
-          } as any,
-          metrics: {
-            ...usage.metrics,
-            totalQuestionsAsked: 0,
-            totalTopicsExplored: 0,
-            totalQuizzesCreated: 0,
-          } as any,
-          createdAt: usage.createdAt || now,
-          updatedAt: now,
-        };
-        
-        await usageRef.set(migratedUsage);
-        return migratedUsage;
+static async getUserUsage(email: string): Promise<UserUsage> { // update - 9
+    const normalizedEmail = email.toLowerCase().trim(); // update - 9
+    const loader = async (): Promise<UserUsage | null> => { // update - 9
+      const usageRef = firestore.collection('userUsage').doc(normalizedEmail);
+      const snapshot = await usageRef.get();
+
+      const now = admin.firestore.Timestamp.now();
+      if (snapshot.exists) {
+        const usage = snapshot.data() as Partial<UserUsage>;
+        // Migration for secondary-services fields / metrics if missing
+        if (!usage.rateLimits?.secondaryServices || (usage as any)?.metrics?.totalQuestionsAsked == null) {
+          console.log('[userService.ts][2010] Migrating usage to secondary-services support', { email: normalizedEmail });
+          const migrated: UserUsage = {
+            userId: normalizedEmail,
+            demoCredits: usage.demoCredits || { total: 2, remaining: 2, used: 0 },
+            rateLimits: {
+              ...usage.rateLimits,
+              secondaryServices: {
+                windowCount: 0,
+                windowStart: now,
+                dailyCount: 0,
+                totalCount: 0,
+              },
+            } as any,
+            metrics: {
+              ...(usage.metrics as any),
+              totalQuestionsAsked: 0,
+              totalTopicsExplored: 0,
+              totalQuizzesCreated: 0,
+            } as any,
+            createdAt: (usage as any).createdAt || now,
+            updatedAt: now,
+          };
+          await usageRef.set(migrated, { merge: true });
+          await bumpUserVersion(normalizedEmail); // keep caches fresh after migration
+          return migrated;
+        }
+        return usage as UserUsage;
       }
-      
-      return usage as UserUsage;
-    }
-    
-    // Step 9: Create default usage data with full secondary services support
-    const now = admin.firestore.Timestamp.now();
-    const defaultUsage: UserUsage = {
-      userId: normalizedEmail,
-      demoCredits: { total: 2, remaining: 2, used: 0 },
-      rateLimits: {
-        dailyUploads: 0,
-        currentPeriodStart: now,
-        lessonGeneration: {
-          hourlyCount: 0,
-          monthlyCount: 0,
-          hourlyPeriodStart: now,
-          monthlyPeriodStart: now,
+
+      const created: UserUsage = {
+        userId: normalizedEmail,
+        demoCredits: { total: 2, remaining: 2, used: 0 },
+        rateLimits: {
+          dailyUploads: 0,
+          currentPeriodStart: now,
+          lessonGeneration: {
+            hourlyCount: 0,
+            monthlyCount: 0,
+            hourlyPeriodStart: now,
+            monthlyPeriodStart: now,
+          },
+          secondaryServices: {
+            windowCount: 0,
+            windowStart: now,
+            dailyCount: 0,
+            totalCount: 0,
+          },
         },
-        secondaryServices: {
-          windowCount: 0,
-          windowStart: now,
-          dailyCount: 0,
-          totalCount: 0,
+        metrics: {
+          totalUploads: 0,
+          totalLessonsGenerated: 0,
+          totalDocumentsCreated: 0,
+          totalQuestionsAsked: 0,
+          totalTopicsExplored: 0,
+          totalQuizzesCreated: 0,
         },
-      },
-      metrics: {
-        totalUploads: 0,
-        totalLessonsGenerated: 0,
-        totalDocumentsCreated: 0,
-        totalQuestionsAsked: 0,
-        totalTopicsExplored: 0,
-        totalQuizzesCreated: 0,
-      },
-      createdAt: now,
-      updatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await usageRef.set(created);
+      await bumpUserVersion(normalizedEmail); // after creation
+      console.log('[userService.ts][2011] Usage created with defaults', { email: normalizedEmail });
+      return created;
     };
-    
-    await usageRef.set(defaultUsage);
-    console.log('[userService.ts][2011] Default usage data created with secondary services support');
-    return defaultUsage;
+
+    const hit = await cacheReadUserUsage(normalizedEmail, loader); // update - 9
+    if (!hit) {
+      // Extremely unlikely because loader creates; still provide fallback
+      console.warn('[userService.ts][2011a] Usage cache returned null after loader (unexpected)', { email: normalizedEmail }); // update - 9
+      return await loader() as UserUsage; // update - 9
+    }
+    return hit; // update - 9
   }
   
   /**
@@ -741,7 +780,7 @@ static async updateSubscriptionTier(
       updates['rateLimits.lessonGeneration.monthlyCount'] = 0;
       updates['rateLimits.lessonGeneration.monthlyPeriodStart'] = now;
     }
-    
+    await bumpUserVersion(normalizedEmail);
     await usageRef.update(updates);
     console.log('[userService.ts][7020] Rate limits reset successfully');
   }

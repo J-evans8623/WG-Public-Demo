@@ -42,7 +42,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "app/**/*.d.ts",
-    "app/src/services/*.js", "app/src/services/yjs/yjs-server.js", "../archive-v1-bloom/ConceptNode.tsx", "../archive-v1-bloom/shareToken.ts", "../archive-v1-bloom/invites.d.ts", "../archive-v1-bloom/ImageCard.tsx", "../archive-v1-bloom/ROAcardisplay.tsx", "../archive-v1-bloom/HomeScreen.tsx", 
+    "app/src/services/*.js", "app/src/services/yjs/yjs-server.js", "../archive-v1-bloom/ConceptNode.tsx", "../archive-v1-bloom/shareToken.ts", "../archive-v1-bloom/invites.d.ts", "../archive-v1-bloom/ImageCard.tsx", "../archive-v1-bloom/ROAcardisplay.tsx", "../archive-v1-bloom/HomeScreen.tsx", "../archive-v1-bloom/CardDisplay.tsx", "../archive-v1-bloom/ChatTab.tsx", "../archive-v1-bloom/useCollabProvider.ts", 
   ],
   "exclude": [
     "node_modules",

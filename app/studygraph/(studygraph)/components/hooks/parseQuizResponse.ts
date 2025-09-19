@@ -20,7 +20,7 @@
 
 import { QuizType, IQuizQuestion, PracticeSheetResource } from '@/app/Library/Definitions/Definitions';
 
-export function parseQuizResponse(aiResponse: any): PracticeSheetResource | null {
+export function parseQuizResponse(aiResponse: any, mapId:string): PracticeSheetResource | null {
   try {
     // Ensure the response contains the expected fields.
     if (!aiResponse || typeof aiResponse !== 'object' || !Array.isArray(aiResponse.questions)) {
@@ -89,14 +89,15 @@ export function parseQuizResponse(aiResponse: any): PracticeSheetResource | null
 
     // Build the PracticeSheetResource to be saved in the resource context.
     const quizResource: PracticeSheetResource = {
-      id: aiResponse.id,       // Use the ID provided by the backend
-      nodeId: "",              // The nodeId will be set when the resource is saved via useCardCrudOperations
-      type: "practiceSheet",   // Map the quiz to the 'practiceSheet' resource type
+      id: aiResponse.id, // Use the ID provided by the backend
+      nodeId: "", // The nodeId will be set when the resource is saved via useCardCrudOperations
+      type: "practiceSheet", // Map the quiz to the 'practiceSheet' resource type
       title: aiResponse.title, // Use the title from the response
       content: {
         quizType: determinedQuizType,
         quizContent: quizContent,
       },
+      mapId
     };
 
     return quizResource;

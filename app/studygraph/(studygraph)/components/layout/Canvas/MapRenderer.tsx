@@ -1,33 +1,34 @@
-// MapRenderer.tsx (edit Mode)
+// app/studygraph/(studygraph)/components/layout/Canvas/MapRenderer.tsx
 
 /**
  * @file MapRenderer.tsx
  * @description
  *   Edit-mode renderer for the concept map. This version preserves the existing
  *   world transform and SVG line rendering while solving the “content grows out
- *   of reach” issue. We introduce a large, static **scroll bed** that provides a
- *   generous scrollable area in all directions so the map is always reachable
- *   without re-centering the camera on content changes. On first paint only, we
- *   (1) compute a one-time fit-to-viewport zoom (as before) and (2) center the
- *   container’s scroll position to the **bed midpoint on BOTH axes** so the map
- *   starts in view. We never change scroll positions after that, which avoids
- *   the previous “jumping” behaviour. Styling and the SVG line renderer remain
- *   untouched. Logging is kept purposeful for observability (unique 4-digit ids).
+ *   of reach” issue via a fixed scroll bed. Phase 1 connects this renderer to
+ *   ZoomContext’s new imperative re-center API. On first paint we still compute
+ *   a one-time fit-to-viewport zoom and center the container to the bed midpoint.
+ *   We then register a handler that, when requested, scrolls to the same midpoint
+ *   and (optionally) clamps zoom back to the initial fit—never upscaling.
  *
- * Responsibilities:
- *   1) Keep current layout + SVG line rendering intact (no logic changes).
- *   2) Provide a fixed-size scroll bed to make large maps reachable.
- *   3) Center scroll to the bed midpoint once on mount; never re-center later.
- *   4) Maintain the one-time fit-to-viewport zoom logic you already had.
+ *   Responsibilities:
+ *   1) Keep layout + SVG rendering intact (no regressions).
+ *   2) Provide a static scroll bed so content is always reachable.
+ *   3) Store initial fit zoom in ZoomContext and expose a re-center handler.
+ *   4) Ensure all operations remain O(1) with minimal state.
+ *
+ *   Logging:
+ *   - Logs capture the first-fit zoom, bed centering, and request-driven re-centers.
  */
 
-import React, { useRef, useMemo, useLayoutEffect, useState, useEffect } from 'react';
+import React, { useRef, useMemo, useLayoutEffect, useState, useEffect, useCallback } from 'react';
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 import { useCompositeLayout } from '@/app/Library/utils/compositeLayout';
 import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
+import { centerContainerToMidpoint } from '@/app/Library/utils/map/centerUtils';
 import ConceptNode from './ConceptNode';
 import Subtree from './Subtree';
 import '@/app/studygraph/(studygraph)/components/layout/hiddenScrollbar.css';
@@ -37,7 +38,7 @@ const VIEWPORT_PADDING = 0.9;   // Fit to 90% of viewport
 
 // ❶ A fixed, generous scroll area so content never becomes unreachable.
 //    Keeping this static prevents “center drift.”
-const SCROLL_BED_PX = 20000;
+const SCROLL_BED_PX = 10000;
 
 const MapRenderer: React.FC = () => {
   /**
@@ -46,10 +47,18 @@ const MapRenderer: React.FC = () => {
    *   Render the map inside a large, static scroll bed. We compute a one-time
    *   fit zoom and then set the container’s scrollLeft/scrollTop to the **bed
    *   center** once so the world (positioned at 50%/50%) is visible initially.
-   *   We do not touch scroll again, preserving stability while allowing reach.
+   *   We do not touch scroll again unless user-initiated re-center is requested
+   *   via ZoomContext. Optional clamping reduces zoom down to the initial fit.
    */
   const containerRef = useRef<HTMLDivElement>(null);
-  const { zoomLevel, dispatch: zoomDispatch } = useZoomContext();
+  const {
+    zoomLevel,
+    dispatch: zoomDispatch,
+    setInitialFitZoom,            // update - 2
+    getInitialFitZoom,            // update - 3
+    registerMapCenterHandler,     // update - 4
+    unregisterMapCenterHandler,   // update - 5
+  } = useZoomContext();
   const { nodes } = useNodesContext();
   const { subtrees } = useSubTreeContext();
 
@@ -120,35 +129,56 @@ const MapRenderer: React.FC = () => {
         type:    ZoomActionType.SET_ZOOM_LEVEL,
         payload: targetZoom,
       });
+      setInitialFitZoom(targetZoom); // update - 6
+    } else {
+      setInitialFitZoom(zoomLevel);  // update - 7
+      console.log('MapRenderer.tsx 9721.1 › initial fit equals current zoom', { zoomLevel });
     }
 
     setDidInitialSetup(true);
-  }, [didInitialSetup, mapWidth, mapHeight, zoomLevel, zoomDispatch]);
+  }, [didInitialSetup, mapWidth, mapHeight, zoomLevel, zoomDispatch, setInitialFitZoom]);
 
-  // 5) NEW: One-time scroll to the **center of the fixed bed** (both axes).
+  // 5) One-time scroll to the **center of the fixed bed** (both axes).
   const [didBedCenter, setDidBedCenter] = useState(false);
   useLayoutEffect(() => {
     if (didBedCenter) return;
     const el = containerRef.current;
     if (!el) return;
 
-    const vw = el.clientWidth;
-    const vh = el.clientHeight;
-
-    // STEP A — horizontally center to bed midpoint
-    el.scrollLeft = Math.max(0, (SCROLL_BED_PX - vw) / 2);
-    // STEP B — vertically center to bed midpoint
-    el.scrollTop  = Math.max(0, (SCROLL_BED_PX - vh) / 2);
-
-    console.log('MapRenderer.tsx 9722 › centered to scroll bed', {
-      bed: SCROLL_BED_PX,
-      vw, vh,
-      scrollLeft: el.scrollLeft,
-      scrollTop:  el.scrollTop
-    });
+    const applied = centerContainerToMidpoint(el, { bedPx: SCROLL_BED_PX }); // update - 8
+    console.log('MapRenderer.tsx 9722 › centered to scroll bed', { bed: SCROLL_BED_PX, applied });
 
     setDidBedCenter(true);
   }, [didBedCenter]);
+
+  /**
+   * @function centerToBedMidpointHandler
+   * @description
+   *   Re-center callback registered with ZoomContext. It scrolls the container to the
+   *   bed midpoint and, when requested, clamps the zoom level down to the initial fit
+   *   (never upscaling). O(1) math achieved via a tiny helper.
+   */
+  const centerToBedMidpointHandler = useCallback((opts?: { clampToInitialFit?: boolean }) => { // update - 9
+    const el = containerRef.current;
+    if (!el) return;
+
+    const applied = centerContainerToMidpoint(el, { bedPx: SCROLL_BED_PX });
+    console.log('MapRenderer.tsx 9723 › recenter applied (edit)', { applied, opts: opts ?? null });
+
+    if (opts?.clampToInitialFit) {
+      const initial = getInitialFitZoom();
+      if (typeof initial === 'number' && zoomLevel > initial) {
+        console.log('MapRenderer.tsx 9724 › clamping zoom to initial fit', { initial, current: zoomLevel });
+        zoomDispatch({ type: ZoomActionType.SET_ZOOM_LEVEL, payload: initial });
+      }
+    }
+  }, [getInitialFitZoom, zoomLevel, zoomDispatch]);
+
+  // Register/unregister the handler with ZoomContext  // update - 10
+  useEffect(() => {
+    registerMapCenterHandler(centerToBedMidpointHandler);
+    return () => unregisterMapCenterHandler();
+  }, [registerMapCenterHandler, unregisterMapCenterHandler, centerToBedMidpointHandler]);
 
   return (
     <div 

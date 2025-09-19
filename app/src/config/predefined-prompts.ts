@@ -570,3 +570,57 @@ Display equations / multiline derivations: wrap in double dollar signs on their 
   'fillInBlank': '[Instructions: Generate fill-in-the-blank questions where key terms or concepts are removed from sentences. Follow the fill-in-the-blank schema format.]',
   'trueFalse': '[Instructions: Generate true/false statements about key concepts. Each question should have a clear true or false answer. Follow the true/false schema format.]'
 };
+
+
+/**
+ * buildQuestionCountInstruction
+ * @description
+ *   Construct a concise instruction that enforces target quantity and, for multiple types,
+ *   a roughly even distribution across types. The controller appends this to its system prompt.
+ *   Complexity: O(T) for T types.
+ */
+/**
+ * buildQuestionCountInstruction
+ * @description
+ *   Builds a concise instruction that enforces a specific number of quiz items. It can be reused
+ *   by other builders to ensure consistent count semantics. If quizType is provided, it clarifies
+ *   the target format, otherwise it only enforces the total item count.
+ */
+export function buildQuestionCountInstruction(questionCount: number, quizType?: string): string { // update - 1
+  const qty = Math.max(1, Math.floor(Number.isFinite(questionCount) ? questionCount : 10));
+  if (quizType) {
+    return `Generate exactly ${qty} ${quizType} question(s). If any item would be ambiguous, replace it to preserve count and clarity.`;
+  }
+  return `Generate exactly ${qty} question(s). If any item would be ambiguous, replace it to preserve count and clarity.`;
+}
+
+
+
+/**
+ * getQuizSystemPrompt
+ * @description
+ *   Authoritative system prompt builder for quiz generation. It accepts a single quiz type and a
+ *   question count, reuses the internal base maps, and returns a complete instruction block. The
+ *   controller will pass the lesson/user text as the user input for the model to base questions on.
+ *   We intentionally enforce a single quiz type for now; composite behavior can be added later
+ *   without changing controller code by expanding this function. Output must strictly follow the
+ *   JSON schema provided to the model call (no extra fields, no commentary).
+ */
+export function getQuizSystemPrompt(quizType: string, questionCount: number): string { // update - 2
+  // 1) Normalize type: only the first/primary type is honored.
+  const normalized = (quizType || 'multipleChoice').trim();
+
+  // 2) Select a baseline. Fall back to multipleChoice if unknown.
+  const base =
+    predefinedPrompts[normalized] ??
+    predefinedPrompts.multipleChoice;
+
+  // 3) Add a strict count instruction.
+  const countLine = buildQuestionCountInstruction(questionCount, normalized);
+
+  // 4) Append enforcement lines for schema-only output.
+  return [
+    base,
+    countLine,
+  ].join('\n');
+}

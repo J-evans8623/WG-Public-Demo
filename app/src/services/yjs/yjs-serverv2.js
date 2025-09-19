@@ -23,6 +23,19 @@ const REDIS_URL = process.env.REDIS_URL || '';
 const JWT_PUBLIC_PATH = process.env.JWT_PUBLIC_PATH || './keys/jwt_public.pem';
 const REVOKE_API_KEY = process.env.REVOKE_API_KEY || '';
 
+
+
+
+
+// Heartbeat configuration: server-driven ping/pong to keep connections non-idle.
+// HEARTBEAT_INTERVAL_MS: how often to send server->client ping (default 30s; min 5s)
+// HEARTBEAT_KILL_ON_MISS: terminate if no pong since last tick (default true)
+const HEARTBEAT_INTERVAL_MS = Math.max(
+  5000,
+  parseInt(process.env.HEARTBEAT_INTERVAL_MS || '30000', 10)
+);
+const HEARTBEAT_KILL_ON_MISS =
+  String(process.env.HEARTBEAT_KILL_ON_MISS || 'true').toLowerCase() !== 'false';
 // ────────────────────────────────────────────────────────────────────────────
 // ENHANCED STARTUP LOGGING
 // ────────────────────────────────────────────────────────────────────────────
@@ -32,6 +45,8 @@ console.log('[yjs-server.js][STARTUP] › Port:', PORT);
 console.log('[yjs-server.js][STARTUP] › Redis URL:', REDIS_URL || 'NOT SET (single instance mode)');
 console.log('[yjs-server.js][STARTUP] › JWT Public Key Path:', JWT_PUBLIC_PATH);
 console.log('[yjs-server.js][STARTUP] › Current Working Directory:', process.cwd());
+console.log('[yjs-server.js][STARTUP] › Heartbeat interval (ms):', HEARTBEAT_INTERVAL_MS, '[1002]');
+console.log('[yjs-server.js][STARTUP] › Heartbeat kill-on-miss:', HEARTBEAT_KILL_ON_MISS, '[1003]');
 console.log('═══════════════════════════════════════════════════════════════');
 
 // Load public key with detailed error handling
@@ -680,8 +695,52 @@ try {
   // Track the socket
   trackSocket(docId, uid, role, ws);
 
+    // 1) Heartbeat setup: mark alive on connect and on pong.
+  ws.isAlive = true;
+  ws.on('pong', () => {
+    ws.isAlive = true;
+    // Minimal but actionable: who/what responded.
+    console.log('[yjs-server.js][HB] › pong received:', { attemptId, docId, uid }, '[6101]');
+  });
+
+  // 2) Start per-socket heartbeat interval.
+  //    We do O(1) operations per tick; avoids scanning all clients.
+  const hbInterval = setInterval(() => {
+    // If socket is not open, let close handler clean up.
+    if (ws.readyState !== WebSocket.OPEN) return;
+
+    if (HEARTBEAT_KILL_ON_MISS && ws.isAlive === false) {
+      console.log('[yjs-server.js][HB] › heartbeat miss → terminating socket:', { attemptId, docId, uid }, '[6102]');
+      try {
+        ws.terminate();
+      } catch (e) {
+        console.error('[yjs-server.js][HB] › terminate error:', e?.message, '[6191]');
+      }
+      return;
+    }
+
+    // Prepare for next pong and send ping.
+    ws.isAlive = false;
+    try {
+      ws.ping();
+      console.log('[yjs-server.js][HB] › ping sent:', { attemptId, docId, uid }, '[6103]');
+    } catch (e) {
+      console.error('[yjs-server.js][HB] › ping error:', e?.message, '[6192]');
+    }
+  }, HEARTBEAT_INTERVAL_MS);
+
+  // Keep a reference for clean-up
+  ws.__hbInterval = hbInterval;
+
   // Enhanced close handler
   ws.on('close', (code, reason) => {
+
+    if (ws.__hbInterval) {
+      clearInterval(ws.__hbInterval);
+      ws.__hbInterval = null;
+      console.log('[yjs-server.js][HB] › interval cleared on close:', { attemptId, code }, '[6104]');
+    }
+
     console.log(`[yjs-server.js][WS] › 🔌 ATTEMPT #${attemptId}: Connection closed:`, {
       docId,
       uid,
@@ -696,6 +755,14 @@ try {
 
   // Enhanced error handler
   ws.on('error', (error) => {
+
+    if (ws.__hbInterval) {
+      clearInterval(ws.__hbInterval);
+      ws.__hbInterval = null;
+      console.log('[yjs-server.js][HB] › interval cleared on error:', { attemptId, msg: error?.message }, '[6105]');
+    }
+
+    
     console.error(`[yjs-server.js][WS] › ❌ ATTEMPT #${attemptId}: WebSocket error:`, {
       docId,
       uid,

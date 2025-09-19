@@ -107,7 +107,7 @@ export default async function handler(
     
     // Step 6: Send successful response
     res.status(200).json(accountStatus);
-    console.log('[api/account/status.ts][2008] Account status response sent successfully');
+    console.log(`[api/account/status.ts][2008] Account status response sent successfully ${JSON.stringify(accountStatus)}`);
 
   } catch (error) {
     console.error('[api/account/status.ts][2009] Account status request failed:', error);

@@ -30,6 +30,7 @@ import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import { resolveAcl } from '@/app/src/utils/resolveAcl';
 import { ErrorCode, statusForError } from '@/app/src/types/errorCodes';
 import { setPublicEdit, setPublicView, addEditor } from '@/app/src/services/firebase';
+import { bumpAclVersion } from '@/app/src/services/redisCache/aclCache'
 
 type Body = {
   docId: string;
@@ -87,6 +88,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           await addEditor(docId, e);
         }
       }
+    }
+
+    try {
+      const ver = await bumpAclVersion(docId); 
+      console.log('pages/api/document/acl/access-level.ts [7711] bumped ACL version', { docId, ver }); // update - 2
+    } catch (e) {
+      console.warn('pages/api/document/acl/access-level.ts [7712] bumpAclVersion failed (non-fatal)', { docId, err: e }); // update - 2
     }
 
     res.setHeader('Cache-Control', 'no-store, private, max-age=0');

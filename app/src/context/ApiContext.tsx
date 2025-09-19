@@ -32,6 +32,12 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { apiService, ApiErrorEvent, ApiResponse, ApiRequestConfig } from '../services/ApiService';
 import { UserFileMetadata, UserFilesResponse } from '@/app/src/types/fileTypes';
+import { insertDedupSorted, updateByIdSorted,
+  removeById,
+  resolveBucket, } from '@/app/studygraph/(studygraph)/components/utils/fileListOps';
+import DocumentAccessManager from '@/app/studygraph/(studygraph)/components/hooks/access/DocumentAccessManager';
+import { getFileListCache, setFileListCache, clearFileListCache } from '@/app/studygraph/(studygraph)/services/fileListCache';
+import { gradebookClient, AssignMetaPatchReq, AssignMetaPatchRes, AssignMetaUpsertReq, AssignMetaUpsertRes, GradebookQueryRes, AttemptStartReq, AttemptStartRes, AttemptSubmitReq, AttemptSubmitRes } from '@/app/studygraph/(studygraph)/services/gradebook/gradebookClient';
 
 // Step 1: Define enhanced interfaces for account management
 interface User {
@@ -59,9 +65,14 @@ interface ApiContextType {
   // Step 2: Existing authentication and file operations
   signOut: () => Promise<void>;
   listFiles: (query?: string) => Promise<UserFilesResponse>;
+  refreshList: () => Promise<void>; // 
   getWebSocketUrl: (documentId: string) => Promise<string>;
   deleteFile: (fileStorageId: string) => Promise<void>;
   
+  addFileMeta: (meta: UserFileMetadata) => void;
+  updateFileMeta: (fileId: string, patch: Partial<UserFileMetadata>) => void;
+  removeFileMeta: (fileId: string) => void;
+
   // Step 3: New account status management
   accountStatus: AccountStatus | null;
   isAccountLoading: boolean;
@@ -80,11 +91,18 @@ interface ApiContextType {
   askAssistant: (question: string, textSelection: string, fileID: string, config?: ApiRequestConfig) => Promise<ApiResponse>;
   generateLesson: (file: File, docId: string, options?: { isPublic?: boolean }, config?: ApiRequestConfig) => Promise<ApiResponse>;
   exploreTopic: (userTopicRequest: string, exportData: any, fileID: string, textSelection?: string, config?: ApiRequestConfig) => Promise<ApiResponse>;
-  createQuiz: (topicIds: string[], quizTypes: string[], fileID: string, exportData: string, textSelection?: string, config?: ApiRequestConfig) => Promise<ApiResponse>;
+  createQuiz: (lessonId:string, quizTypes: string[], fileID: string,  questionCount?:number, exportData?: string, textSelection?: string, config?: ApiRequestConfig) => Promise<ApiResponse>;
   
   // Request management
   cancelRequest: (requestId: string) => boolean;
   cancelAllRequests: () => number;
+
+ // Gradebook client surface (centralized networking for the new feature)
+  assignMetaUpsert: (req: AssignMetaUpsertReq) => Promise<AssignMetaUpsertRes>;
+  assignMetaPatch: (req: AssignMetaPatchReq) => Promise<AssignMetaPatchRes>;
+  getGradebook: (docId: string) => Promise<GradebookQueryRes>;
+  startAttempt: (req: AttemptStartReq) => Promise<AttemptStartRes>;
+  submitAttempt: (req: AttemptSubmitReq) => Promise<AttemptSubmitRes>;
 }
 
 // Step 4: Create context with comprehensive default values
@@ -138,10 +156,31 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
   const [isApiRequestActive, setIsApiRequestActive] = useState(false);
   const [activeRequestCount, setActiveRequestCount] = useState(0);
 
+  const [fileList, setFileList] = useState<{
+  ownedFiles: UserFileMetadata[];
+  sharedFiles: UserFileMetadata[];
+} | null>(null);
+
+  const [isFileListLoading, setIsFileListLoading] = useState(false);
+
   // Step 9: Use refs for cleanup and event handling
   const mountedRef = useRef(true);
   const requestCountIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   
+    /**
+   * 
+   * @function currentUserEmail
+   * @description
+   *   Returns the current user's email (lowercased) from AccountStatus when available.
+   *   This is used by file list helpers to resolve the “owned vs shared” bucket when
+   *   role is ambiguous. O(1) time; returns empty string if unavailable.
+   */
+  const currentUserEmail = useCallback((): string => {
+    return (accountStatus?.email ?? '').trim().toLowerCase();
+  }, [accountStatus?.email]);
+
+
   /**
    * handleApiError
    * @description
@@ -185,7 +224,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
    */
   const fetchAccountStatus = useCallback(async (): Promise<void> => {
 
-    if (!mountedRef.current) return;
+    
 
     console.log('[ApiContext.tsx][1001] Starting account status fetch');
     setIsAccountLoading(true);
@@ -279,6 +318,8 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
   const signOut = async () => {
     console.log('[ApiContext.tsx][1008] Sign out initiated');
     try {
+      const prevEmailKey = (accountStatus?.email ?? 'guest').trim().toLowerCase();
+      clearFileListCache(prevEmailKey);
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
       setUser(null);
       setIsGuest(false);
@@ -290,14 +331,15 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
   };
 
   /**
-   * @function listFiles
+   * @function fetchFilesFromServer
    * @description
    * Fetches user files from the backend API with proper type safety and error handling.
    * Returns UserFileMetadata objects with complete role information for access control.
    * Includes comprehensive logging for debugging file listing operations.
    */
-  const listFiles = async (query?: string): Promise<UserFilesResponse> => {
+  const fetchFilesFromServer = async (query?: string): Promise<UserFilesResponse> => {
     console.log('[ApiContext.tsx][1011] Fetching file lists');
+    
     const url = new URL('/api/files/list', window.location.origin);
     if (query) url.searchParams.append('query', query);
 
@@ -344,6 +386,8 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
         fileId: f.fileId || '',
         ownerId: f.ownerId || '',
         fileName: f.fileName || 'Untitled Document',
+        colorCode: f.colorCode, 
+        version: f.version,
         fileStoragePath: f.fileStoragePath || '',
         timestamp: f.timestamp || new Date().toISOString(),
         fileSize: f.fileSize || 0,
@@ -363,6 +407,201 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
     };
   };
 
+
+/**
+   * listFiles
+   * Responsibility:
+   *   Return the current user’s file list using a cache-first strategy:
+   *   1) Attempt to serve from a short-lived localStorage cache (O(1));
+   *   2) On miss, fetch from the server, then set state, sync AccessManager, and store in cache.
+   *   This delivers fast home screen loads while keeping a simple path to authoritative data.
+   */
+  const listFiles = async (): Promise<UserFilesResponse> => {
+    const userKey = currentUserEmail() || 'guest';
+
+    // Step 1 — Try cache (read-through)
+    const cached = getFileListCache(userKey);
+    if (cached) {
+      setFileList(cached);
+      try {
+        DocumentAccessManager.getInstance().syncFileList([...cached.ownedFiles, ...cached.sharedFiles]);
+        console.log('[ApiContext.tsx][7201] listFiles cache hit → hydrated + synced', {
+          owned: cached.ownedFiles.length,
+          shared: cached.sharedFiles.length,
+        });
+      } catch (e) {
+        console.warn('[ApiContext.tsx][7291] listFiles cache sync failed (non-fatal)', e);
+      }
+      return cached;
+    }
+    console.log('[ApiContext.tsx][7202] listFiles cache miss → fallback to network', { userKey });
+
+    // Step 2 — Network path (write-through)
+    setIsFileListLoading(true);
+    try {
+      const data = await fetchFilesFromServer();
+      setFileList(data);
+      try {
+        DocumentAccessManager.getInstance().syncFileList([...data.ownedFiles, ...data.sharedFiles]);
+        console.log('[ApiContext.tsx][7203] listFiles network success → state+sync', {
+          owned: data.ownedFiles.length,
+          shared: data.sharedFiles.length,
+        });
+      } catch (e) {
+        console.warn('[ApiContext.tsx][7292] listFiles sync failed (non-fatal)', e);
+      }
+      setFileListCache(userKey, data);
+      return data;
+    } finally {
+      setIsFileListLoading(false);
+    }
+  };
+
+
+const refreshFileList = async (): Promise<void> => {
+    setIsFileListLoading(true);
+    const userKey = currentUserEmail() || 'guest';
+    try {
+      const data = await fetchFilesFromServer();
+      setFileList(data);
+      try {
+        DocumentAccessManager.getInstance().syncFileList([...data.ownedFiles, ...data.sharedFiles]);
+        console.log('[ApiContext.tsx][7204] refreshList network success → state+sync', {
+          owned: data.ownedFiles.length,
+          shared: data.sharedFiles.length,
+        });
+      } catch (e) {
+        console.warn('[ApiContext.tsx][7293] refreshList sync failed (non-fatal)', e);
+      }
+      // Write-through cache
+      setFileListCache(userKey, data);
+    } catch (e) {
+      console.warn('[ApiContext.tsx][7294] refreshList network failed; preserving current state', e);
+      // Optional: fallback to cached data if state is empty and cache exists
+      if (!fileList) {
+        const cached = getFileListCache(userKey);
+        if (cached) {
+          setFileList(cached);
+          try {
+            DocumentAccessManager.getInstance().syncFileList([...cached.ownedFiles, ...cached.sharedFiles]);
+            console.log('[ApiContext.tsx][7205] refreshList fallback to cache → state+sync', {
+              owned: cached.ownedFiles.length,
+              shared: cached.sharedFiles.length,
+            });
+          } catch (err) {
+            console.warn('[ApiContext.tsx][7295] refreshList fallback sync failed (non-fatal)', err);
+          }
+        }
+      }
+    } finally {
+      setIsFileListLoading(false);
+    }
+  };
+
+/**
+   * applyAndSync
+   * Responsibility:
+   *   Apply a pure transformation to the local fileList (race-safe via functional setState),
+   *   then synchronize the combined list with DocumentAccessManager exactly once. This version
+   *   also performs a write-through to the user-scoped file list cache so that local UI changes
+   *   remain coherent after navigation and across brief offline windows. Time complexity is O(N)
+   *   where N is the number of files touched in a single pass; cache I/O is O(1).
+   */
+  const applyAndSync = useCallback((
+    transform: (prev: { ownedFiles: UserFileMetadata[]; sharedFiles: UserFileMetadata[] } | null) =>
+      { ownedFiles: UserFileMetadata[]; sharedFiles: UserFileMetadata[] }
+  ) => {
+    setFileList(prev => {
+      const next = transform(prev);
+      try {
+        DocumentAccessManager.getInstance().syncFileList([...next.ownedFiles, ...next.sharedFiles]);
+        console.log('[ApiContext.tsx][7206] applyAndSync → access synced', {
+          owned: next.ownedFiles.length,
+          shared: next.sharedFiles.length,
+        });
+      } catch (e) {
+        console.warn('[ApiContext.tsx][7296] applyAndSync sync failed (non-fatal)', e);
+      }
+
+      // Write-through cache with the new state after transformation
+      try {
+        const userKey = currentUserEmail() || 'guest';
+        setFileListCache(userKey, next);
+        console.log('[ApiContext.tsx][7207] applyAndSync → cache stored', { userKey });
+      } catch (e) {
+        console.warn('[ApiContext.tsx][7297] applyAndSync cache store failed (non-fatal)', e);
+      }
+      return next;
+    });
+  }, [currentUserEmail]);
+
+  /**
+   * 
+   * @function addFileMeta
+   * @description
+   *   Synchronously insert/replace a file metadata record in the local cache only (no network).
+   *   Decides bucket (owned/shared), de-duplicates by fileId across both buckets, normalizes
+   *   updatedAt, and maintains descending order. Calls syncFileList to keep access parity.
+   */
+  const addFileMeta = useCallback((meta: UserFileMetadata): void => {
+    const email = currentUserEmail();
+    applyAndSync(prev => {
+      const materialized = prev ?? { ownedFiles: [], sharedFiles: [] };
+      const next = insertDedupSorted(
+        { owned: materialized.ownedFiles, shared: materialized.sharedFiles },
+        meta,
+        email
+      );
+      console.log('ApiContext.tsx 4118 › [] addFileMeta', {
+        fileId: meta.fileId,
+        bucket: resolveBucket(meta, email),
+      });
+      return { ownedFiles: next.owned, sharedFiles: next.shared };
+    });
+  }, [applyAndSync, currentUserEmail]);
+
+  /**
+   * 
+   * @function updateFileMeta
+   * @description
+   *   Synchronously patch a file metadata record in the local cache (no network). If the role or
+   *   ownerId change triggers a bucket flip, this function moves the entry across buckets safely.
+   *   Re-sorts the affected bucket after patch.
+   */
+  const updateFileMeta = useCallback((fileId: string, patch: Partial<UserFileMetadata>): void => {
+    const email = currentUserEmail();
+    applyAndSync(prev => {
+      const materialized = prev ?? { ownedFiles: [], sharedFiles: [] };
+      const next = updateByIdSorted(
+        { owned: materialized.ownedFiles, shared: materialized.sharedFiles },
+        fileId,
+        patch,
+        email
+      );
+      console.log('ApiContext.tsx 4119 › [] updateFileMeta', { fileId, patchKeys: Object.keys(patch || {}) });
+      return { ownedFiles: next.owned, sharedFiles: next.shared };
+    });
+  }, [applyAndSync, currentUserEmail]);
+
+  /**
+   * 
+   * @function removeFileMeta
+   * @description
+   *   Removes a file metadata record from whichever bucket contains it. Purely local cache
+   *   hygiene with no network calls. After removal, syncs access list for parity.
+   */
+  const removeFileMeta = useCallback((fileId: string): void => {
+    applyAndSync(prev => {
+      const materialized = prev ?? { ownedFiles: [], sharedFiles: [] };
+      const next = removeById(
+        { owned: materialized.ownedFiles, shared: materialized.sharedFiles },
+        fileId
+      );
+      console.log('ApiContext.tsx 4120 › [] removeFileMeta', { fileId, removed: next.removed });
+      return { ownedFiles: next.owned, sharedFiles: next.shared };
+    });
+  }, [applyAndSync]);
+  
   /**
    * @function getWebSocketUrl
    * @description
@@ -439,6 +678,19 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
         console.error('[ApiContext.tsx][1019] Delete file failed:', response.statusText, errorText);
         throw new Error(`Delete file failed: ${response.statusText}`);
       }
+
+      const current = fileList;
+      let removedId: string | null = null;
+      if (current) {
+        const hit =
+          current.ownedFiles.find(f => f.fileStoragePath === fileStorageId) ??
+          current.sharedFiles.find(f => f.fileStoragePath === fileStorageId);
+        if (hit) {
+          removedId = hit.fileId;
+          removeFileMeta(hit.fileId);
+        }
+      }
+
       
       console.log('[ApiContext.tsx][1020] File deleted successfully:', fileStorageId);
     } catch (error) {
@@ -530,24 +782,48 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
     }
   }, [updateRequestActivityState]);
 
-  const createQuiz = useCallback(async (
-    topicIds: string[],
-    quizTypes: string[],
-    fileID: string,
-    exportData: string,
-    textSelection?: string,
-    config: ApiRequestConfig = {}
-  ): Promise<ApiResponse> => {
-    console.log('[ApiContext.tsx][8009] Processing quiz creation request through enhanced API service');
-    updateRequestActivityState();
-    
-    try {
-      const response = await apiService.createQuiz(topicIds, quizTypes, fileID, exportData, textSelection, config);
-      return response;
-    } finally {
+  const createQuiz = useCallback(
+    async (
+      lessonId: string,                  // concept map id (replaces topicIds)
+      quizTypes: string[],               // array, first type honored server-side
+      fileID: string,                    // document/file id
+      questionCount?: number,            // optional: preferred number of questions
+      exportData?: string,               // optional: full text export
+      textSelection?: string,            // optional: focused selection
+      config: ApiRequestConfig = {}
+    ): Promise<ApiResponse> => {
+      console.log('[ApiContext.tsx][8809] createQuiz begin', {
+        lessonId,
+        fileID,
+        quizTypes,
+        questionCount: questionCount ?? null,
+        hasExportData: typeof exportData === 'string' && exportData.length > 0,
+        hasTextSelection: typeof textSelection === 'string' && textSelection.length > 0,
+      });
+
       updateRequestActivityState();
-    }
-  }, [updateRequestActivityState]);
+
+      try {
+        // Shape params for the new EnhancedApiService signature
+        const response = await apiService.createQuiz(
+          {
+            lessonId,          // mapped to topicIds internally by the service
+            quizTypes,
+            fileID,
+            questionCount,
+            exportData,
+            textSelection,
+          },
+          config
+        );
+        return response;
+      } finally {
+        updateRequestActivityState();
+      }
+    },
+    [updateRequestActivityState]
+  );
+
 
   const cancelRequest = useCallback((requestId: string): boolean => {
     const result = apiService.cancelRequest(requestId);
@@ -562,46 +838,98 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
   }, [updateRequestActivityState]);
 
 
-    // Step 9: Auto-fetch account status on mount
-  useEffect(() => {
-    console.log('[ApiContext.tsx][1007] ApiProvider mounted, fetching account status');
-    fetchAccountStatus();// Subscribe to API error events
-    const errorHandler: EventListener = (e: Event) => {
-    const ce = e as CustomEvent<ApiErrorEvent>;
-    if (!('detail' in ce)) {
-      console.warn('[ApiContext.tsx][8012] api-error received without CustomEvent detail');
-      return;
+
+  // Gradebook wrappers (centralize logging + request activity state)
+  const assignMetaUpsert = useCallback(async (req: AssignMetaUpsertReq): Promise<AssignMetaUpsertRes> => {
+    console.log('[ApiContext.tsx][6701] assignMetaUpsert begin', { docId: req.docId, assignmentId: req.assignmentId });
+    updateRequestActivityState();
+    try {
+      const res = await gradebookClient.assignMetaUpsert(req);
+      return res;
+    } finally {
+      updateRequestActivityState();
     }
-    // Ignore returned promise to satisfy void listener contract
-    void handleApiError(ce);
-  };
-    apiService.addEventListener('api-error', errorHandler);
+  }, [updateRequestActivityState]);
 
-    // Set up request count polling for real-time activity monitoring
-    requestCountIntervalRef.current = setInterval(updateRequestActivityState, 1000);
+  const assignMetaPatch = useCallback(async (req: AssignMetaPatchReq): Promise<AssignMetaPatchRes> => {
+    console.log('[ApiContext.tsx][6702] assignMetaPatch begin', { docId: req.docId, assignmentId: req.assignmentId });
+    updateRequestActivityState();
+    try {
+      const res = await gradebookClient.assignMetaPatch(req);
+      return res;
+    } finally {
+      updateRequestActivityState();
+    }
+  }, [updateRequestActivityState]);
 
-    // Cleanup function
-    return () => {
-      console.log('[ApiContext.tsx][8011] Cleaning up enhanced API context subscriptions');
-      mountedRef.current = false;
-      
-      // Remove event listeners
-      apiService.removeEventListener('api-error', errorHandler);
-      
-      // Clear polling interval
-      if (requestCountIntervalRef.current) {
-        clearInterval(requestCountIntervalRef.current);
-      }
-      
-      // Cancel any active requests
-      apiService.cancelAllRequests();
-    };
-  }, [fetchAccountStatus, handleApiError, updateRequestActivityState]);
+  const getGradebook = useCallback(async (docId: string): Promise<GradebookQueryRes> => {
+    console.log('[ApiContext.tsx][6703] getGradebook begin', { docId });
+    updateRequestActivityState();
+    try {
+      const res = await gradebookClient.getGradebook(docId);
+      return res;
+    } finally {
+      updateRequestActivityState();
+    }
+  }, [updateRequestActivityState]);
+
+  const startAttempt = useCallback(async (req: AttemptStartReq): Promise<AttemptStartRes> => {
+    console.log('[ApiContext.tsx][6704] startAttempt begin', { docId: req.docId, assignmentId: req.assignmentId });
+    updateRequestActivityState();
+    try {
+      const res = await gradebookClient.startAttempt(req);
+      return res;
+    } finally {
+      updateRequestActivityState();
+    }
+  }, [updateRequestActivityState]);
+
+  const submitAttempt = useCallback(async (req: AttemptSubmitReq): Promise<AttemptSubmitRes> => {
+    console.log('[ApiContext.tsx][6705] submitAttempt begin', { docId: req.docId, attemptId: req.attemptId });
+    updateRequestActivityState();
+    try {
+      const res = await gradebookClient.submitAttempt(req);
+      return res;
+    } finally {
+      updateRequestActivityState();
+    }
+  }, [updateRequestActivityState]);
+
+
+
+    // Step 9: Auto-fetch account status on mount
+useEffect(() => {
+  const ac = new AbortController();
+  setIsAccountLoading(true);
+
+  (async () => {
+    try {
+      const res = await fetch('/api/account/status', {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        signal: ac.signal,
+      });
+      if (!res.ok) throw new Error(res.statusText);
+      const data = await res.json();
+      setAccountStatus(data); // safe: only runs if not aborted
+    } catch (e) {
+      if ((e as any)?.name === 'AbortError') return; // expected on cleanup/supersede
+      // apply fallback / log real error here
+    } finally {
+      setIsAccountLoading(false);
+    }
+  })();
+
+  return () => ac.abort(); // cancels on unmount or effect re-run
+}, []); // deps as needed
+
 
   // Step 10: Expose comprehensive API context value
   const contextValue: ApiContextType = {
     signOut,
     listFiles,
+    refreshList: refreshFileList,
     getWebSocketUrl,
     deleteFile,
     accountStatus,
@@ -623,7 +951,17 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
     // Request management
     cancelRequest,
     cancelAllRequests,
-    error
+    error,
+    addFileMeta,        
+    updateFileMeta,    
+    removeFileMeta,   
+    
+    // Gradebook methods (now available app-wide)
+    assignMetaUpsert,
+    assignMetaPatch,
+    getGradebook,
+    startAttempt,
+    submitAttempt,
   };
 
   return (

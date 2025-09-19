@@ -1,4 +1,4 @@
-// AutoSaveManager.ts
+
 /**
  * AutoSaveManager.ts
  *
@@ -11,6 +11,7 @@
 
 import * as Y from 'yjs';
 import { debounce } from 'lodash';
+import { LOCAL_ORIGIN } from '@/app/Library/Definitions/Definitions';
 
 /** Configuration overrides for AutoSaveManager */
 interface AutoSaveConfig {
@@ -52,22 +53,29 @@ export class AutoSaveManager {
     };
 
     // Bind and register the afterTransaction handler
-    this.afterTxHandler = (tx) => {
+     this.afterTxHandler = (tx) => {
+      // Step 1: Read transaction origin fields in a defensive way.
       const origin = (tx as any).origin;
-      if (
-         origin === 'autosave' || origin === 'WebsocketProvider' ||
-        (origin && typeof origin === 'object' && origin.type === 'system')
-      ) {
-        // Don't trigger autosave for WebSocket sync/awareness updates
-        return;
+      const isLocal = (tx as any).local === true;
+
+      // Step 2: Ignore any non-local transactions (remote sync, awareness, system loads).
+      if (!isLocal) {
+        console.log('AutoSaveManager.ts 1102 › afterTx ignored (non-local)', { origin, local: isLocal }); // update - 001
+        return; // update - 001
       }
-      console.log('AutoSaveManager.ts 1002 › afterTransaction triggered', {
-        origin
-      });
-      this.handleLocalChange();
+
+      // Step 3: Only accept transactions explicitly tagged with LOCAL_ORIGIN.
+      if (origin !== LOCAL_ORIGIN) {
+        console.log('AutoSaveManager.ts 1103 › afterTx ignored (origin mismatch)', { originExpected: LOCAL_ORIGIN, originActual: origin }); // update - 001
+        return; // update - 001
+      }
+
+      // Step 4: Eligible local transaction → schedule autosave.
+      console.log('AutoSaveManager.ts 1104 › afterTx accepted (local + LOCAL_ORIGIN)', { origin, local: isLocal }); // update - 001
+      this.handleLocalChange(); // update - 001
     };
     this.ydoc.on('afterTransaction', this.afterTxHandler);
-
+    
     this.setupBeforeUnloadHandler();
   }
 

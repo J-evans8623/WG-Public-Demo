@@ -29,7 +29,7 @@
  * @date Current
  ***************************************************************************************/
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { FileText, FolderOpen } from 'lucide-react';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
@@ -37,7 +37,7 @@ import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
-import { useModalManager } from '@/app/studygraph/(studygraph)/components/modals/AppModals';
+import { useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider'
 
 /**
  * The top-level view types that can be displayed.
@@ -87,7 +87,7 @@ const ReadOnlyNavigationPanel: React.FC<ReadOnlyNavigationPanelProps> = ({
   console.log('[ReadOnlyNavigationPanel.tsx][2001] ReadOnlyNavigationPanel rendering with centralized modal integration');
 
   // Step 1: Initialize modal management system for private uploads only
-  const { showModal, ModalRenderer } = useModalManager();
+  const { showModal } = useGlobalModal();
 
   // Step 2: State management for panel expansion
   const [isHoveredOpen, setIsHoveredOpen] = useState(false);
@@ -101,7 +101,10 @@ const ReadOnlyNavigationPanel: React.FC<ReadOnlyNavigationPanelProps> = ({
     setActiveConceptMapId,
   } = useLessonModule();
   
-  const lessons = getLessonModule().conceptMaps || [];
+  const lessons = useMemo(
+  () => getLessonModule().conceptMaps ?? [],
+  [getLessonModule]
+);
   const { getAllFiles, addFile } = useFileAsset();
   const { clearSelection } = useNodeSelection();
   const { getFileName, docFileID } = useYDoc();
@@ -258,9 +261,9 @@ const ReadOnlyNavigationPanel: React.FC<ReadOnlyNavigationPanelProps> = ({
           {/* Header */}
           <div className="flex items-center p-4 border-b">
             <div className="w-8 h-8 flex items-center justify-center bg-orange-500 text-white rounded mr-3">
-              <span className="font-bold">B</span>
+              <span className="font-bold">W</span>
             </div>
-            <span className="font-semibold text-gray-800">BloomMap</span>
+            <span className="font-semibold text-gray-800">Wisegraph</span>
             <span className="text-xs text-blue-600 ml-2">Read-Only</span>
           </div>
 
@@ -415,9 +418,6 @@ const ReadOnlyNavigationPanel: React.FC<ReadOnlyNavigationPanelProps> = ({
           </nav>
         </div>
       </div>
-
-      {/* Step 9: Render centralized modal system */}
-      <ModalRenderer />
     </div>
   );
 };

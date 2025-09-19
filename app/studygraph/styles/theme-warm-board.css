@@ -23,6 +23,9 @@
   pointer-events: none;
 }
 
+
+
+
 /* canonical theme scope */
 :is(.theme-warm-board, [data-theme="warm-board"], .warm-board) {
   --header-tint: #FAFAFA;

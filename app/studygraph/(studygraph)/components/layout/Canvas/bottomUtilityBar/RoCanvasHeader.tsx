@@ -43,7 +43,8 @@ import {
   History,
   Lock,
   Loader2,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  ChevronsLeft
 } from 'lucide-react';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
@@ -52,6 +53,7 @@ import {  UploadsDropdown } from './DropdownComponents';
 import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
 import './CanvasHeader.css';
+import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 
 export interface CanvasHeaderProps {
   onMenuToggle: () => void;
@@ -104,6 +106,20 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   // Step 1: Initialize context hooks for lesson and document management
   const { activeConceptMapId, getLessonModule, updateConceptMapTitle } = useLessonModule();
   const { getVisibility } = useYDoc();
+  const { togglePanel, isPanelExpanded } = useViewSwitch();
+  
+  // Step 2: Render menu icon based on panel state
+  const renderMenuIcon = () => {
+    return isPanelExpanded ? 
+      <ChevronsLeft size={20} className="text-gray-600" /> : 
+      <Menu size={20} className="text-gray-600" />;
+  };
+
+  // Step 3: Handle menu toggle with context
+  const handleMenuClick = () => {
+    console.log('[CanvasHeader.tsx][9008] Menu toggle requested from CanvasHeader');
+    togglePanel();
+  };
   
   
   // Step 2: Determine document privacy state for UI indicators
@@ -149,7 +165,16 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   return (
     <header className="canvas-header flex items-center justify-between">
       {/* ───────────────────────── Left cluster: menu, title, nav dropdowns ───────────────────────── */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center">
+         {/* Menu toggle button */}
+                 <button
+          onClick={handleMenuClick}
+          className="btn btn--icon canvas-header__menu"
+          title={isPanelExpanded ? "Collapse menu" : "Expand menu"}
+          aria-label={isPanelExpanded ? "Collapse menu" : "Expand menu"}
+        >
+          {renderMenuIcon()}
+        </button>
               {/* Document title display and editing */}
         <div
           className="canvas-header__titlewrap"
@@ -251,7 +276,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
             console.log('[CanvasHeader.tsx][9017] Bookmark button clicked');
             onBookmark();
           }}
-          className="btn btn--border" 
+          className="btn btn--icon btn--border" 
           title="Bookmarks" 
           aria-label="Bookmarks"
         >
@@ -263,7 +288,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
             console.log('[CanvasHeader.tsx][9018] Share button clicked');
             onShare();
           }}
-          className="btn btn--border" 
+          className="btn btn--icon btn--border" 
           title="Share" 
           aria-label="Share"
         >
@@ -275,7 +300,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
             console.log('[CanvasHeader.tsx][9019] Version History button clicked');
             onVersionHistory();
           }}
-          className="btn btn--border" 
+          className="btn btn--icon btn--border" 
           title="History" 
           aria-label="History"
         >

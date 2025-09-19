@@ -308,10 +308,78 @@ export interface PracticeSheetResource extends BaseResource {
   };
 }
 
+
+// 3) Quiz binding shapes to reuse existing quiz specs and question interfaces.
+//    This is used by the new QuizAssessmentResource.
+export type QuizBinding =
+  | {
+      mode: 'ref';
+      ref: QuizSpecRef;
+    }
+  | {
+      mode: 'inline';
+      spec: InlineQuizSpec;
+    };
+
+/**
+ * @description
+ * Reference to an existing quiz spec already stored as a PracticeSheetResource in the doc.
+ * O(1) lookup is achieved through Yjs map chain: resources:${mapId} → nodeId → resourceId.
+ */
+export interface QuizSpecRef {
+  mapId: string;
+  nodeId: string;
+  resourceId: string;
+  quizType?: QuizType;
+}
+
+/**
+ * @description
+ * Minimal inline spec compatible with the existing quiz player. Mirrors PracticeSheetResource.content
+ * but remains small and focused on the quiz renderer needs only.
+ */
+export interface InlineQuizSpec {
+  quizType: QuizType;
+  quizContent: IQuizQuestion[];
+}
+
+// update - 5
+// 4) Sentinel node id for globally-scoped quiz assessments (Option A).
+//    All quiz assessment cards will live under this node id to keep CRUD/undo/redo consistent
+//    while remaining "global" and discoverable from the header modal.
+export const GLOBAL_ASSESSMENTS_NODE_ID = '__assessments__';
+
+// update - 6
+// 5) New QuizAssessmentResource (first-class ResourceCard).
+export interface QuizAssessmentResource extends BaseResource {
+  type: 'quizAssessment';
+  /** Stable id also doubling as assignment id for server correlation */
+  assignmentId: string; // mirrors id
+  /** Binding wraps an existing quiz by ref or inline payload reusing existing question interfaces */
+  binding: QuizBinding;
+  /** Optional scheduling/limits metadata */
+  window?: { startAt?: string; endAt?: string };
+  attemptLimit?: number;
+  /** Optional educator-facing notes */
+  instructions?: string;
+  /** Optional UI audit hints */
+  createdByEmail?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// update - 7
 /**
  * Discriminated union type for all resources.
+ * NOTE: This is the authoritative union used everywhere in the app (ResourceContext, etc).
  */
-export type ResourceCard = CueCardResource | NoteResource | PracticeSheetResource ; //| ImageMessage;
+export type ResourceCard =
+  | CueCardResource
+  | NoteResource
+  | PracticeSheetResource
+  | QuizAssessmentResource;
+
+
 
 
 
@@ -398,3 +466,10 @@ export interface SystemOrigin {
   action: SystemActionType;
   transactionId?: string; // Optional identifier for tracking related operations
 }
+
+// autosave origins
+export type LocalOrigin = { __bm_local: true };
+
+export const LOCAL_ORIGIN: LocalOrigin = Object.freeze({ __bm_local: true });
+
+

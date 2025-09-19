@@ -28,6 +28,12 @@
   border-radius: var(--radius-6, 6px);
 }
 
+.canvas-header__titlewrap-container {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+}
+
 /* title wrapper */
 .canvas-header__titlewrap {
   display: inline-flex;
@@ -39,6 +45,8 @@
   min-width: 0;
   max-width: 40ch;
   color: var(--ink, #2C3E50);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 .canvas-header__titlewrap:hover {
   background: var(--bg-app, #F7F3EE);
@@ -54,20 +62,41 @@
   color: var(--muted, #6C757D);
 }
 
-/* inline editor overlay */
-.canvas-header__editbox {
-  width: 20rem;
-  height: 3rem;
-  border: 1px solid var(--edge, #E8E4DE);
-  border-radius: var(--radius-8, 8px);
-  padding: 0.5rem;
-  background: var(--surface, #FFFFFF);
-  resize: none;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+
+/* inline editor overlay - Fixed alignment to match title wrapper exactly */
+.canvas-header__editpop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 60;
+  width: 320px;
 }
+
+.canvas-header__editbox {
+  width: 100%;
+  min-height: 80px; /* Generous height for multi-line titles */
+  border: 2px solid var(--edge, #E8E4DE);
+  border-radius: var(--radius-8, 8px);
+  padding: 12px 16px; /* Generous padding for comfortable typing */
+  background: var(--surface, #FFFFFF);
+  resize: vertical; /* Allow vertical resizing only */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12); /* Enhanced shadow for better visibility */
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--ink, #2C3E50);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+
 .canvas-header__editbox:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(108, 142, 191, 0.35);
+  border-color: var(--brand-blue, #6C8EBF);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15), 0 0 0 3px rgba(108, 142, 191, 0.2);
+}
+
+.canvas-header__editbox:hover:not(:focus) {
+  border-color: var(--edge-2, #D4C4B0);
 }
 
 /* saving indicator */
@@ -186,3 +215,5 @@
   cursor: not-allowed;
   pointer-events: none;
 }
+
+

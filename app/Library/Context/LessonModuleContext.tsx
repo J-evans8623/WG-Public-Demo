@@ -26,7 +26,8 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { useYDoc } from './YDocContext';
 import * as Y from 'yjs';
 import { v4 as uuidv4 } from 'uuid';
-import { ConceptNode } from '@/app/Library/Definitions/Definitions';
+import { ConceptNode, LOCAL_ORIGIN } from '@/app/Library/Definitions/Definitions';
+import { useDeepMapMirror } from '@/app/studygraph/(studygraph)/components/utils/useDeepMapMirror';
 
 export interface ConceptMap {
   id: string;
@@ -46,7 +47,7 @@ export interface LessonModuleContextType {
   activeConceptMapId: string;
   setActiveConceptMapId: (id: string) => void;
   getLessonModule: () => LessonModule;
-  addConceptMap: (title: string, id?: string) => { id: string; nodesMap: Y.Map<ConceptNode> };
+  addConceptMap: (title: string, id: string) => { id: string; nodesMap: Y.Map<ConceptNode> };
   getExistingLessonModules: () => string[];
   updateConceptMapTitle: (conceptMapId: string, newTitle: string) => void;
   updateLessonModule: (moduleId: string, details: { topic?: string; summary?: string }) => void;
@@ -127,6 +128,31 @@ export const LessonModuleProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return lessonModuleState;
   }, [lessonModuleState]);
 
+
+  
+  /**
+   * @function readFromYDoc
+   * @description
+   *   Rebuilds the React snapshot of the lesson module directly from the Y.Doc. This projector reads
+   *   the module title and the `conceptMaps` array (if present), falling back to safe defaults otherwise.
+   *   It is intentionally side-effect free except for setting state. The function is designed to be used
+   *   by the deep-observer initialization helper so cached bytes and live updates are always visible.
+   *   Complexity is O(N) where N equals the number of concept maps; all map lookups are O(1).
+   */
+  const readFromYDoc = useCallback(() => { // update - 4
+    const title = (lessonModuleYMap.get('title') as string) || 'Untitled Lesson Module';
+    const conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any>;
+    const conceptMaps: ConceptMap[] = conceptMapsYArray ? conceptMapsYArray.toArray() : [];
+    setLessonModuleState({ title, conceptMaps });
+    // [LessonModuleContext.tsx][6101]
+    // eslint-disable-next-line no-console
+    console.log('[LessonModuleContext.tsx][6101] readFromYDoc snapshot', { count: conceptMaps.length });
+  }, [lessonModuleYMap]);
+
+  // [update - 5] Adopt the NodesProvider-style init and subscription via reusable helper.
+  useDeepMapMirror(lessonModuleYMap as Y.Map<any>, readFromYDoc); // update - 5
+
+
   /**
    * addConceptMap
    * Creates a new lesson module (concept map) with the given title.
@@ -137,39 +163,50 @@ export const LessonModuleProvider: React.FC<{ children: React.ReactNode }> = ({ 
    * @param id - Optional externally provided module id.
    * @returns An object containing the id of the new lesson module and its nodes map.
    */
-  const addConceptMap = useCallback((title: string, id?: string): { id: string; nodesMap: Y.Map<ConceptNode> } => {
+const addConceptMap = useCallback(
+  (title: string, id?: string): { id: string; nodesMap: Y.Map<ConceptNode> } => {
     const newId = id || `map-${uuidv4()}`;
-    const newConceptMap: ConceptMap = {
-      id: newId,
-      title,
-      createdAt: new Date().toISOString(),
-    };
+    let createdNodesMap!: Y.Map<ConceptNode>; // set inside transact
 
-    let conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any>;
-    if (!conceptMapsYArray) {
-      conceptMapsYArray = new Y.Array();
-      lessonModuleYMap.set('conceptMaps', conceptMapsYArray);
-    }
-    conceptMapsYArray.push([newConceptMap]);
+    ydoc.transact(() => {
+      const newConceptMap: ConceptMap = {
+        id: newId,
+        title,
+        createdAt: new Date().toISOString(),
+      };
 
-    // Initialize a namespaced nodes map for this lesson module.
-    const nodesKey = `nodes:${newId}`;
-    const nodesMap = ydoc.getMap<ConceptNode>(nodesKey);
-    nodesMap.clear();
-    const rootNode: ConceptNode = {
-      id: 'node-1',
-      title: 'Root Concept',
-      parentNodeId: undefined,
-      childrenNodeIds: [],
-      x: 0,
-      y: 0,
-      isRoot: true,
-      depth: 0,
-    };
-    nodesMap.set(rootNode.id, rootNode);
+      // ensure conceptMaps array exists
+      let conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any> | undefined;
+      if (!(conceptMapsYArray instanceof Y.Array)) {
+        conceptMapsYArray = new Y.Array();
+        lessonModuleYMap.set('conceptMaps', conceptMapsYArray);
+      }
+      conceptMapsYArray.push([newConceptMap]);
 
-    return { id: newId, nodesMap };
-  }, [lessonModuleYMap, ydoc]);
+      // namespaced nodes map for this concept map
+      const nodesKey = `nodes:${newId}`;
+      const nodesMap = ydoc.getMap<ConceptNode>(nodesKey);
+      nodesMap.clear();
+
+      const rootNode: ConceptNode = {
+        id: 'node-1',
+        title: 'Root Concept',
+        parentNodeId: undefined,
+        childrenNodeIds: [],
+        x: 0,
+        y: 0,
+        isRoot: true,
+        depth: 0,
+      };
+      nodesMap.set(rootNode.id, rootNode);
+
+      createdNodesMap = nodesMap;
+    }, LOCAL_ORIGIN);
+
+    return { id: newId, nodesMap: createdNodesMap };
+  },
+  [lessonModuleYMap, ydoc]
+);
 
   /**
    * getExistingLessonModules

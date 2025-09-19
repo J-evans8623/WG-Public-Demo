@@ -1,0 +1,221 @@
+/**
+ * @file gradebook.css
+ * @description
+ *   (update - 2)
+ *   This stylesheet scopes all styling for the Gradebook modal. In this update, we specifically
+ *   address the inability to scroll vertically while preserving the existing horizontal scroll
+ *   behavior. The key change is to give the modal’s shell a fixed viewport-relative height and
+ *   to set `min-height: 0` on the flex child that owns the grid so the browser allows it to
+ *   shrink and overflow. The grid wrapper continues to be the single scroll owner for both axes.
+ *   We also keep the sticky header and sticky first column intact for context during scrolling.
+ *
+ *   Why this works:
+ *     1) `.gb-shell { height: 85vh }` (update - 2) establishes a concrete height.
+ *     2) `.gb-body { min-height: 0 }` (update - 2) lets the flex child become scrollable vertically.
+ *     3) `.gb-grid-wrapper { overflow: auto }` (existing) remains the one scroll owner.
+ *
+ *   All other visual rules (brand palette, spacing, sticky behaviors) remain unchanged.
+ */
+
+/* ---------- Gradebook ui elements ---------- */
+
+/* Larger, fixed-height shell so the inner wrapper can scroll */
+.gb-shell {
+  /* Bigger shell than typical modals */
+  max-height: 85vh;
+  height: 85vh;               /* (update - 2) fix: ensure the shell has a concrete height */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;           /* keep a single inner scroll owner */
+}
+
+/* Header */
+.gb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.gb-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gb-counts {
+  color: #6B7280;
+  font-size: 13px;
+}
+
+.gb-counts .gb-dot {
+  margin: 0 6px;
+}
+
+.gb-close {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 6px 10px;
+  line-height: 1;
+  color: #6B7280;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.gb-close:hover,
+.gb-close:focus {
+  color: #2C3E50;
+  background: rgba(108, 142, 191, 0.08);
+  outline: none;
+}
+
+/* Body: make sure the flex child can actually shrink so vertical overflow is allowed */
+.gb-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;              /* (update - 2) critical: enables vertical scrolling inside the child */
+  padding: 6px 2px 2px 2px;
+}
+
+/* Single scroll owner (both axes) */
+.gb-grid-wrapper {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;           /* (update - 2) keep wrapper constrained to flex area */
+  overflow: auto;             /* single scroller for both axes */
+  -webkit-overflow-scrolling: touch; /* (update - 2) smooth scroll on iOS */
+  scrollbar-gutter: stable both-edges;
+  background: #FFFFFF;
+  border: 1px solid #E8E0D6;
+  border-radius: 10px;
+}
+
+/* Table */
+.gb-table {
+  border-collapse: separate; /* keep cell rounding nice */
+  border-spacing: 0;
+  width: max-content;        /* allow columns to grow; wrapper scrolls */
+  min-width: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Header cells */
+.gb-th {
+  position: sticky;
+  top: 0;
+  background: #FAF8F5;
+  border-bottom: 1px solid #D4C4B0;
+  padding: 12px 10px;
+  text-align: left;
+  color: #2C3E50;
+  font-weight: 600;
+  font-size: 13px;
+  z-index: 2;
+  min-width: 160px;
+}
+
+.gb-th:first-child {
+  min-width: 220px;
+}
+
+.gb-th-title {
+  white-space: nowrap;
+}
+
+.gb-th-sub {
+  color: #6B7280;
+  font-weight: 500;
+  font-size: 12px;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* Cells */
+.gb-td {
+  border-bottom: 1px solid #F0ECE6;
+  border-right: 1px solid #F5F1EB;
+  padding: 10px;
+  min-width: 140px;
+  background: #FFFFFF;
+}
+
+.gb-row-even .gb-td {
+  background: #FFFEFD;
+}
+
+/* Sticky helpers */
+.gb-sticky-top {
+  position: sticky;
+  top: 0;
+}
+
+.gb-sticky-left {
+  position: sticky;
+  left: 0;
+  background: #FFFFFF;
+  border-right: 1px solid #D4C4B0;
+  z-index: 2;
+}
+
+/* First column content */
+.gb-student {
+  display: grid;
+  gap: 2px;
+}
+
+.gb-student-name {
+  color: #2C3E50;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.gb-student-email {
+  color: #6B7280;
+  font-size: 12px;
+}
+
+/* Score chips */
+.gb-score {
+  display: inline-block;
+  min-width: 44px;
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+.gb-score-high {
+  color: #14532d;
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+}
+
+.gb-score-mid {
+  color: #1f2937;
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.gb-score-low {
+  color: #7c2d12;
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.gb-score-missing {
+  color: #6B7280;
+  background: #F9F7F3;
+  border-color: #E8E0D6;
+}
+
+/* Responsive */
+@media (max-width: 720px) {
+  .gb-th:first-child,
+  .gb-td:first-child {
+    min-width: 200px;
+  }
+}

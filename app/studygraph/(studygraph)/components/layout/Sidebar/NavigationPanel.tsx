@@ -26,7 +26,7 @@
  * @date Current
  ***************************************************************************************/
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Pencil, Trash2, FolderOpen, FileText, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useLessonData } from '@/app/Library/Context/LessonDataContext';
@@ -36,7 +36,7 @@ import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
-import { useModalManager } from '@/app/studygraph/(studygraph)/components/modals/AppModals';
+import { useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider'
 import { useAccountStatus } from '@/app/src/context/ApiContext';
 
 /**
@@ -86,7 +86,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 
   // Step 1: Initialize account status and modal management
   const { accountStatus, canUpgrade } = useAccountStatus();
-  const { showModal, ModalRenderer } = useModalManager();
+  const { showModal} = useGlobalModal ();
 
   // Step 2: State management for panel expansion and interactions
   const [isHoveredOpen, setIsHoveredOpen] = useState(false);
@@ -104,7 +104,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     isGeneratingLesson,
   } = useLessonModule();
   
-  const lessons = getLessonModule().conceptMaps || [];
+  const lessons = useMemo(
+  () => getLessonModule().conceptMaps ?? [],
+  [getLessonModule]
+);
   const { getAllFiles, addFile, addGeneratedLessonFile } = useFileAsset();
   const { clearSelection } = useNodeSelection();
   const { getFileName, updateFileName, docFileID } = useYDoc();
@@ -370,22 +373,6 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     });
   }, [showModal, docFileID, handleGenerateLessonSuccess]);
 
-  /**
-   * @function renderSubscriptionBadge
-   * @description
-   * Render subscription tier indicator in header for user awareness and upgrade prompts.
-   * Provides visual feedback about current account status and potential upgrade opportunities.
-   */
-  const renderSubscriptionBadge = () => {
-    if (canUpgrade()) {
-      return (
-        <span className="text-xs text-orange-600 ml-2">
-          Freemium
-        </span>
-      );
-    }
-    return null;
-  };
 
   return (
     <div className="relative">
@@ -419,13 +406,13 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         }}
       >
         <div className="flex flex-col">
-          {/* Header with subscription badge */}
+          {/* Header */}
           <div className="flex items-center p-4 border-b">
             <div className="w-8 h-8 flex items-center justify-center bg-orange-500 text-white rounded mr-3">
-              <span className="font-bold">B</span>
+              <span className="font-bold">W</span>
             </div>
-            <span className="font-semibold text-gray-800">BloomMap</span>
-            {renderSubscriptionBadge()}
+            <span className="font-semibold text-gray-800">Wisegraph</span>
+           
           </div>
 
           {/* Primary navigation with enhanced functionality */}
@@ -722,9 +709,6 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
           </div>
         </div>
       )}
-
-      {/* Step 16: Render centralized modal system */}
-      <ModalRenderer />
     </div>
   );
 };

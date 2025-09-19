@@ -33,7 +33,7 @@ import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
 import { useLessonData } from '@/app/Library/Context/LessonDataContext';
-import { useModalManager } from '@/app/studygraph/(studygraph)/components/modals/AppModals';
+import { useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
 import { useAccountStatus } from '@/app/src/context/ApiContext';
 import './DropdownComponents.css';
 
@@ -100,7 +100,7 @@ export const LessonsDropdown: React.FC<LessonsDropdownProps> = ({ onLessonGenera
   const { addLessonModule } = useLessonData();
 
   // Step 3: Centralized modal integration
-  const { showModal, ModalRenderer } = useModalManager();
+  const { showModal } = useGlobalModal ();
 
   // Step 4: Click-outside dismissal setup
   useClickOutside(dropdownRef, () => setIsOpen(false));
@@ -303,7 +303,7 @@ export const LessonsDropdown: React.FC<LessonsDropdownProps> = ({ onLessonGenera
       )}
 
       {/* Step 11: CRITICAL - Render centralized modal system */}
-      <ModalRenderer />
+    
     </div>
   );
 };
@@ -339,7 +339,7 @@ export const UploadsDropdown: React.FC<UploadsDropdownProps> = ({ onFileUploaded
   const { activeView, setSelectedPdfUrl, setActiveView } = useViewSwitch();
 
   // Step 3: Centralized modal integration
-  const { showModal, ModalRenderer } = useModalManager();
+  const { showModal} = useGlobalModal();
   const { accountStatus } = useAccountStatus();
 
   // Step 4: Click-outside dismissal setup
@@ -499,7 +499,6 @@ export const UploadsDropdown: React.FC<UploadsDropdownProps> = ({ onFileUploaded
       )}
 
       {/* Step 10: CRITICAL - Render centralized modal system */}
-      <ModalRenderer />
     </div>
   );
 };

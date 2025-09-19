@@ -176,27 +176,49 @@ class DocumentAccessManager {
     }
   }
 
-  /**
+ /**
    * @method selectDocument
    * @description
    *   Initiates document selection workflow by setting status to PENDING and creating
    *   a promise that will resolve when access resolution is complete. This method
    *   should be called at the start of any document loading operation to signal that
    *   access state is being resolved and canvas rendering should wait.
+   *
+   *   Phase-3 refinement ( update - 2 ):
+   *   If an access record for this doc already exists (seeded via syncFileList), we flip
+   *   to READY immediately and resolve any waiter synchronously. This matches the intended
+   *   no-network behavior for picker opens, making waitForDocumentReady() effectively O(1).
    */
-  selectDocument(docId: string): void {
+  selectDocument(docId: string): void { // update - 2
     console.log('[DocumentAccessManager.ts][1009] › Selecting document', { 
       docId, 
       previousStatus: this.status,
       previousDocId: this.currentDocId 
     });
 
-    // Step 1: Set current document and PENDING status
     this.currentDocId = docId;
-    this.status = 'PENDING';
 
-    // Step 2: Create new ready promise
-    this.readyPromise = new Promise<void>((resolve) => {
+    // Fast-path: record is already known from file tiles (no backend dependency).
+    const known = this.accessRecords.get(docId); // update - 3
+    if (known) {
+      this.status = 'READY'; // update - 4
+      // Resolve any previous waiter immediately (idempotent)
+      if (this.readyResolve) { // update - 5
+        this.readyResolve();
+        this.readyResolve = null;
+      }
+      this.readyPromise = null; // update - 6
+      console.log('[DocumentAccessManager.ts][1040] › selectDocument fast-path READY', {
+        docId,
+        role: known.role,
+        canEdit: known.canEdit
+      });
+      return; // update - 7
+    }
+
+    // Standard path: create a new pending promise to be completed later.
+    this.status = 'PENDING';
+    this.readyPromise = new Promise<void>((resolve) => { // update - 8
       this.readyResolve = resolve;
     });
 
@@ -205,7 +227,6 @@ class DocumentAccessManager {
       status: this.status 
     });
   }
-
   /**
    * @method confirmDocumentReady
    * @description

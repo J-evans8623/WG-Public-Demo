@@ -580,35 +580,66 @@ export class EnhancedApiService extends EventTarget {
   /**
    * createQuiz
    * @description
-   *   Enhanced quiz creation API call with standardized error handling and event emission support.
-   *   This method wraps the quiz generation functionality while providing consistent error
-   *   classification, premium service validation, and modal integration through the centralized
-   *   event system. The implementation supports multiple quiz types and maintains existing
-   *   functionality while enabling unified error handling for subscription and rate limiting.
-   * @param topicIds - Array of selected topic identifiers for quiz generation
-   * @param quizTypes - Array of quiz types for generation
-   * @param fileID - File identifier for document context
-   * @param exportData - Exported data for quiz context
-   * @param textSelection - Optional selected text for additional context
-   * @param config - Additional request configuration options
-   * @returns Promise resolving to standardized API response with quiz data
+   *   Sends a quiz generation request to the backend with resilient payload shaping. Honors only
+   *   the first quiz type server-side but forwards the array for parity. Accepts either `topicIds`
+   *   or a single `lessonId` (mapped to `topicIds`), and optionally includes `questionCount`,
+   *   `exportData`, and `textSelection`. Logs key checkpoints with stable 4-digit codes. All work
+   *   is O(1); network cost dominates.
    */
   public async createQuiz(
-    topicIds: string[],
-    quizTypes: string[],
-    fileID: string,
-    exportData: string,
-    textSelection?: string,
+    params: {
+      quizTypes: string[];
+      fileID: string;
+      /** Optional: preferred number of questions (1–10 recommended) */
+      questionCount?: number;
+      /** Optional: convenience input — mapped to topicIds when provided */
+      lessonId?: string;
+      /** Optional: explicit topic ids (takes precedence if provided) */
+      topicIds?: string[];
+      /** Optional content to base quiz on */
+      exportData?: string;
+      /** Optional focused selection from the document */
+      textSelection?: string;
+    },
     config: ApiRequestConfig = {}
   ): Promise<ApiResponse> {
-    console.log('[enhancedApiService.ts][7013] Processing quiz creation request', {
+    // 1) Normalize inputs
+    const {
+      quizTypes,
       fileID,
-      topicCount: topicIds.length,
-      quizTypes: quizTypes.join(', ')
+      questionCount,
+      lessonId,
+      topicIds,
+      exportData,
+      textSelection,
+    } = params || ({} as any);
+
+    // 2) Resolve topicIds from lessonId when necessary (single-quiz assumption upstream)
+    const resolvedTopicIds = Array.isArray(topicIds) && topicIds.length > 0
+      ? topicIds
+      : (lessonId ? [String(lessonId)] : []);
+
+    // 3) Build minimal payload; omit undefined to keep backend parsing clean
+    const payload: Record<string, any> = {
+      quizTypes,
+      fileID,
+    };
+    if (resolvedTopicIds.length > 0) payload.topicIds = resolvedTopicIds;
+    if (typeof questionCount === 'number') payload.questionCount = questionCount;
+    if (typeof exportData === 'string') payload.exportData = exportData;
+    if (typeof textSelection === 'string') payload.textSelection = textSelection;
+
+    console.log('[enhancedApiService.ts][7413] createQuiz payload shaped', {
+      fileID,
+      quizTypes,
+      topicIdsLen: resolvedTopicIds.length,
+      hasLessonId: !!lessonId,
+      questionCount: questionCount ?? null,
+      hasExportData: typeof exportData === 'string' && exportData.length > 0,
+      hasTextSelection: typeof textSelection === 'string' && textSelection.length > 0,
     });
 
-    const payload = { topicIds, quizTypes, fileID, exportData, textSelection };
-
+    // 4) Dispatch request through the unified request pipeline
     return await this.makeApiRequest(
       '/api/aiServiceLayer?action=quizGenerator',
       {
@@ -620,6 +651,7 @@ export class EnhancedApiService extends EventTarget {
       config
     );
   }
+
 
   /**
    * cancelRequest

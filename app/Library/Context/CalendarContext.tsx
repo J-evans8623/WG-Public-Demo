@@ -36,6 +36,7 @@ import {
 import { CalendarService } from '@/app/src/services/calendar/CalendarService';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { CalendarApi } from '@/app/src/services/calendar/CalendarApi'; // Step 2 uses the thin API
+import readiness from '@/app/studygraph/(studygraph)/services/DocumentReadinessService';
 
 /**
  * Internal context (do not export directly).
@@ -73,7 +74,33 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [hydrating, setHydrating] = useState(false);
 
   // YDoc inputs for global version monitoring
-  const { docFileID, version: currentDocVersion, isInitialized } = useYDoc();
+  const { docFileID, version: currentDocVersion } = useYDoc();
+  const [renderReady, setRenderReady] = useState(false);
+
+useEffect(() => {
+  if (!docFileID) {
+    setRenderReady(false);
+    return;
+  }
+  const stream = readiness.renderReady$(docFileID);
+  // 1) Immediate replay
+  const initial =
+    stream.value.phase === 'RENDER_READY' || stream.value.phase === 'SAVE_READY';
+  setRenderReady(initial);
+  console.log('[CalendarContext.tsx][5401] renderReady (initial):', { docId: docFileID, ready: initial });
+
+  // 2) Live updates
+  const sub = stream.subscribe((s) => {
+    const ok = s.phase === 'RENDER_READY' || s.phase === 'SAVE_READY';
+    setRenderReady(ok);
+    console.log('[CalendarContext.tsx][5402] renderReady (update):', { docId: docFileID, phase: s.phase, ready: ok });
+  });
+
+  return () => sub.unsubscribe();
+}, [docFileID]);
+
+// update - 4 (optional alias to minimize edits below—lets you keep existing guards)
+const isInitialized = renderReady;
 
   // Default schedule config (local-first)
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>({

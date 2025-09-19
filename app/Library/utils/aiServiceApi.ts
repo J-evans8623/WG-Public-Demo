@@ -1,6 +1,6 @@
 
 /**
- * aiServiceAPI.ts (OUTDATED VERSION)
+ * aiServiceAPI.ts 
  *
  * This utility file provides functions for making secure API calls from the frontend
  * to the centralized AI service layer.
@@ -126,25 +126,42 @@ export async function generateAILesson(
  * Sends a quiz generation request to the backend.
  */
 export async function generateQuiz(payload: {
-  topicIds: string[];
   quizTypes: string[];
   fileID: string;
-  exportData: string;
+  questionCount?: number;
+  lessonId?: string;
+  topicIds?: string[];
+  exportData?: string;
   textSelection?: string;
 }): Promise<any> {
-  console.log('[aiServiceAPI] generateQuiz payload:', payload);
+  // update - 1
+  const body: Record<string, any> = { ...payload };
+  if (!body.topicIds && body.lessonId) {
+    body.topicIds = [body.lessonId];
+  }
+  console.log('[aiServiceApi.ts][4105] generateQuiz payload shaped', {
+    fileID: body.fileID,
+    quizTypes: body.quizTypes,
+    hasLessonId: !!payload.lessonId,
+    topicIdsLen: Array.isArray(body.topicIds) ? body.topicIds.length : 0,
+    questionCount: body.questionCount ?? null,
+  });
+
   const response = await fetch('/api/aiServiceLayer?action=quizGenerator', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
+
   if (!response.ok) {
-    console.error('[aiServiceAPI] generateQuiz failed');
+    const errorText = await response.text();
+    console.error('[aiServiceApi.ts][4193] generateQuiz failed', { status: response.status, errorText });
     throw new Error('Failed to generate quiz');
   }
+
   const data = await response.json();
-  console.log('[aiServiceAPI] generateQuiz response:', data);
+  console.log('[aiServiceApi.ts][4106] generateQuiz ok');
   return data;
 }
 

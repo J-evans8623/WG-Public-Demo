@@ -16,7 +16,7 @@
 
 import React, { useState, useEffect, ChangeEvent, FormEvent, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import './modalStyles.css';
+import '@/app/studygraph/(studygraph)/components/modals/modalStyles.css'
 import { useAccountStatus } from '@/app/src/context/ApiContext';
 import { generateAILesson } from '@/app/Library/utils/aiServiceApi';
 import { modalEventManager } from '@/app/src/services/modalEventManager';

@@ -28,6 +28,7 @@ import { PickerFileMeta, StudySession } from '../Definitions/CalendarDefinitions
 import { useYDoc } from './YDocContext';
 import { useUserData } from './UserDataContext';
 import { useBlockStudySession } from '@/app/studygraph/(studygraph)/components/hooks/calendar/useBlockStudySession';
+import readiness from '@/app/studygraph/(studygraph)/services/DocumentReadinessService';
 
 interface SlideShowContextValue {
   // The array of slides currently being displayed (override or ordered resources)
@@ -95,9 +96,34 @@ export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionLaunchState, setSessionLaunchState] = useState<SessionLaunchState>({ type: 'IDLE' });
   // Access dependency contexts
-  const { docFileID, isInitialized: ydocReady } = useYDoc();
+  const { docFileID } = useYDoc();
   const { userRevisionData, loading: userDataLoading ,  generateRevision } = useUserData();
   const { generateBlockSession } = useBlockStudySession();
+
+  const [renderReady, setRenderReady] = useState(false);
+
+useEffect(() => {
+  if (!docFileID) {
+    setRenderReady(false);
+    return;
+  }
+  const stream = readiness.renderReady$(docFileID);
+  const initial =
+    stream.value.phase === 'RENDER_READY' || stream.value.phase === 'SAVE_READY';
+  setRenderReady(initial);
+  console.log('[SlideShowContext.tsx][5411] renderReady (initial):', { docId: docFileID, ready: initial });
+
+  const sub = stream.subscribe((s) => {
+    const ok = s.phase === 'RENDER_READY' || s.phase === 'SAVE_READY';
+    setRenderReady(ok);
+    console.log('[SlideShowContext.tsx][5412] renderReady (update):', { docId: docFileID, phase: s.phase, ready: ok });
+  });
+
+  return () => sub.unsubscribe();
+}, [docFileID]);
+
+// update - 4 (optional alias to preserve the old variable name used in the state machine)
+const ydocReady = renderReady;
  
 
   // === Default “selection-based” open ===
