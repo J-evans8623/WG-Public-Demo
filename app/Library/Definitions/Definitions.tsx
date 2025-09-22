@@ -309,53 +309,54 @@ export interface PracticeSheetResource extends BaseResource {
 }
 
 
-// 3) Quiz binding shapes to reuse existing quiz specs and question interfaces.
-//    This is used by the new QuizAssessmentResource.
-export type QuizBinding =
-  | {
-      mode: 'ref';
-      ref: QuizSpecRef;
-    }
-  | {
-      mode: 'inline';
-      spec: InlineQuizSpec;
-    };
-
 /**
+ * @section Quiz Binding & Assessment Types (inline-only) — update - 1
  * @description
- * Reference to an existing quiz spec already stored as a PracticeSheetResource in the doc.
- * O(1) lookup is achieved through Yjs map chain: resources:${mapId} → nodeId → resourceId.
+ * This section defines the single, authoritative quiz binding shape used across authoring, storage,
+ * rendering, and networking. We adopt a decisive, inline-only contract so that a quiz assessment card
+ * contains the exact quiz spec the player will render. This avoids any ambiguity about indirection,
+ * removes legacy adapter paths, and eliminates the need to chase references at read time.
+ *
+ * Performance: by continuing to key assessment cards by `assignmentId` inside a Y.Map, core lookups
+ * and mutations remain O(1). Rendering lists stays O(N) (iterate and map headers). This choice reduces
+ * coupling between modules (authoring, gradebook, overlay) and preserves cache-friendly structures.
+ * Observability remains consistent: higher layers log network/result checkpoints; types here remain
+ * pure. No runtime logs are added in this section by design.
  */
-export interface QuizSpecRef {
-  mapId: string;
-  nodeId: string;
-  resourceId: string;
-  quizType?: QuizType;
-}
 
-/**
- * @description
- * Minimal inline spec compatible with the existing quiz player. Mirrors PracticeSheetResource.content
- * but remains small and focused on the quiz renderer needs only.
- */
+// -------------------------------------------------------------------------------------------------
+// 1) Inline-only binding (authoritative shape) — update - 1
+// -------------------------------------------------------------------------------------------------
+export type QuizBinding = {
+  mode: 'inline';
+  spec: InlineQuizSpec;
+};
+
+// -------------------------------------------------------------------------------------------------
+// 2) Minimal inline spec consumed by the quiz player — update - 1
+//    Mirrors PracticeSheetResource.content but intentionally small and stable.
+// -------------------------------------------------------------------------------------------------
 export interface InlineQuizSpec {
-  quizType: QuizType;
-  quizContent: IQuizQuestion[];
+  quizType: QuizType;             // Reuses existing union: 'matching' | 'multipleChoice' | 'true-false' | 'FIB'
+  quizContent: IQuizQuestion[];   // Reuses existing question interfaces
 }
 
-// update - 5
-// 4) Sentinel node id for globally-scoped quiz assessments (Option A).
-//    All quiz assessment cards will live under this node id to keep CRUD/undo/redo consistent
-//    while remaining "global" and discoverable from the header modal.
-export const GLOBAL_ASSESSMENTS_NODE_ID = '__assessments__';
+// -------------------------------------------------------------------------------------------------
+// 3) NOTE ON REMOVALS — update - 2
+//    The previous reference variant `QuizSpecRef` is intentionally removed to enforce a decisive,
+//    inline-only contract. Please ensure all references to `QuizSpecRef` are deleted throughout
+//    the codebase. O(1) access is preserved via Y.Map keyed by `assignmentId` rather than ref hops.
+// -------------------------------------------------------------------------------------------------
+// (intentionally no code here — this comment documents the removal of QuizSpecRef)
 
-// update - 6
-// 5) New QuizAssessmentResource (first-class ResourceCard).
+// -------------------------------------------------------------------------------------------------
+// 4) QuizAssessmentResource keeps the binding field but is now always inline — update - 3
+// -------------------------------------------------------------------------------------------------
 export interface QuizAssessmentResource extends BaseResource {
   type: 'quizAssessment';
   /** Stable id also doubling as assignment id for server correlation */
   assignmentId: string; // mirrors id
-  /** Binding wraps an existing quiz by ref or inline payload reusing existing question interfaces */
+  /** Binding is decisively inline-only (see QuizBinding) */
   binding: QuizBinding;
   /** Optional scheduling/limits metadata */
   window?: { startAt?: string; endAt?: string };
@@ -367,6 +368,13 @@ export interface QuizAssessmentResource extends BaseResource {
   createdAt?: string;
   updatedAt?: string;
 }
+
+
+
+// 4) Sentinel node id for globally-scoped quiz assessments (Option A).
+//    All quiz assessment cards will live under this node id to keep CRUD/undo/redo consistent
+//    while remaining "global" and discoverable from the header modal.
+export const GLOBAL_ASSESSMENTS_NODE_ID = '__assessments__';
 
 // update - 7
 /**

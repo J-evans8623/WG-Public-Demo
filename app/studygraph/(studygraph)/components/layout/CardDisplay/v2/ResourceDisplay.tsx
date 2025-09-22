@@ -1,4 +1,4 @@
-/**
+/** (Legacy)
  * @file ResourceDisplay.tsx
  * @description
  *   Re-usable resource card (read-only in NotesTab, editable in EditTab).

@@ -50,7 +50,7 @@ import VersionHistoryPanel from './components/versionHistory/ui/VersionHistoryPa
 import SelectionAttachmentHandler from './components/layout/Canvas/SelectionAttachmentHandler';
 import HomeScreen from './components/HomescreenV3';
 import NavigationController from './NavigationController';
-import { CanvasView } from './components/layout/Canvas/CanvasView';
+import { CanvasView} from '@/app/studygraph/(studygraph)/components/layout/Canvas/ReadWriteCanvas/CanvasView'
 import VHcanvasView from './components/layout/ReadOnly/map/VHcanvasView';
 import ROcardDisplay from './components/layout/ReadOnly/CardDisplay/VHcardDisplay';
 import { UserInfoPanel } from '@/app/studygraph/(studygraph)/components/layout/UserInfoPanel';
@@ -61,19 +61,16 @@ import { LessonModuleProvider , useLessonModule} from '@/app/Library/Context/Les
 import { AutoSaveManager } from '@/app/studygraph/(studygraph)/services/AutoSaveManager';
 import { useLessonModuleMapper } from '@/app/studygraph/(studygraph)/components/hooks/useLessonModuleMapper';
 import { SlideShowProvider } from '@/app/Library/Context/SlideShowContext';
-import { SlideShowProvider as ROSlideShowProvider } from '@/app/Library/Context/ROSlideShowContext';
 import { SearchProvider } from '@/app/Library/Context/SearchContext';
 import { Menu, ChevronsLeft } from 'lucide-react';
 import SearchModal from './components/layout/SearchModal';
 import { AccessLayerProvider, useAccessLayer } from '@/app/Library/Context/AccessLayerContext'; 
 import { Role } from './types/access';
-import { RefreshModal } from './components/access/RefreshModal';
-import ROCanvasView from './components/layout/ReadOnly/ROCanvasView';
+import { RefreshModal } from './components/access/RefreshModal';;
 import { useCollaborationManager } from './services/collab/useCollaborationManager';
 import DocumentAccessManager from './components/hooks/access/DocumentAccessManager';
 import { LoadingAnimation } from './LoadingAnimation';
 import { CalendarProvider } from '@/app/Library/Context/CalendarContext';
-import { Doc } from 'yjs';
 import readiness from '@/app/studygraph/(studygraph)/services/DocumentReadinessService';
 import { GlobalModalProvider } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
 
@@ -610,7 +607,7 @@ const handleCreateNewDocument = async () => {
       )}
       {currentView === 'map' && (
         <SlideShowProvider>
-          <ROSlideShowProvider>
+          
         <div className="flex-1 flex">
           {/* Version History Panel (when open) */}
             {isHistoryOpen && <VersionHistoryPanel />}
@@ -653,24 +650,15 @@ const handleCreateNewDocument = async () => {
               );
             }
             
-            // Step 2: Determine canvas mode based on resolved access
-            const canEditDoc = currentDocId ? manager.canEdit(currentDocId) : false;
-            console.log('AppLayout.tsx 8210 › Canvas mode determined', { 
-              docId: currentDocId, 
-              canEdit: canEditDoc 
-            });
-            
-            return canEditDoc ? (
+                       
+            return  (
               <CanvasView autosaveStatus={saveStatus} handleFileSelect={handleFileSelect}/>
-            ) : (
-              <ROCanvasView />
-            );
+            ) ; 
           })()}
                 
               </>
             ) }
         </div>
-        </ROSlideShowProvider>
         </SlideShowProvider>
       )}
       {currentView === 'user' && (

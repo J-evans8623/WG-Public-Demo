@@ -22,10 +22,10 @@
  *   all other operations are O(1). Console logs include file-scoped 4-digit codes for grepability.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import '@/app/studygraph/(studygraph)/components/modals/modalStyles.css';
 import './ReviewModalSystem.css';
-import { ArrowLeft } from 'lucide-react';
+import { AlertTriangle, ArrowLeft } from 'lucide-react';
 
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useGradebook } from '@/app/Library/hooks/useGradebook';
@@ -33,7 +33,7 @@ import { useApiContext } from '@/app/src/context/ApiContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { parseQuizResponse } from '../../hooks/parseQuizResponse';
-
+import type { QuizBinding } from '@/app/Library/Definitions/Definitions'; 
 // (no CSS changes)
 export type QuizType = 'multipleChoice' | 'matching' | 'trueFalse' | 'fillBlanks';
 
@@ -85,7 +85,6 @@ function combineLocalDateTime12h(
 /**
  * mapQuizTypeToApiValue
  * @description
- *   (update - 13)
  *   Translate our UI-level QuizType union into the backend’s expected discriminator. The
  *   mapping is stable and explicit to avoid accidental mismatches. Complexity is O(1).
  */
@@ -100,9 +99,52 @@ function mapQuizTypeToApiValue(qt: QuizType): string {
 }
 
 /**
+ * getBlockingMessage
+ * @description
+ *   (update - 71) Computes the highest-priority validation blocker for the disabled primary action.
+ *   The resolver returns a short message and an `focusTargetId` which the UI uses to move focus to
+ *   the relevant control when the user clicks “Fix”. This runs in O(1) time using already-derived
+ *   booleans. The priority is:
+ *    1) Lesson not selected
+ *    2) Title empty
+ *    3) Dates incomplete
+ *    4) Dates invalid (start >= end)
+ *    5) Quiz type not chosen
+ */
+function getBlockingMessage(params: {
+  isEducator: boolean;
+  canCreate: boolean;
+  chosenLesson: string;
+  titleValid: boolean;
+  datesFilled: boolean;
+  datesValid: boolean;
+  quizTypeChosen: boolean;
+}): { message: string; focusTargetId: string } | null {
+  // (update - 72) Permissions trump validation; do not surface warnings for non-educators.
+  if (!params.isEducator || params.canCreate) return null;
+
+  if (!params.chosenLesson) {
+    return { message: 'Select a lesson to continue.', focusTargetId: 'lessonSelectTrigger' };
+  }
+  if (!params.titleValid) {
+    return { message: 'Add a quiz title.', focusTargetId: 'quizTitleInput' };
+  }
+  if (!params.datesFilled) {
+    // Prefer focusing the first missing piece the UI can target (date inputs exist).
+    return { message: 'Set a start and end time.', focusTargetId: 'startDateInput' };
+  }
+  if (!params.datesValid) {
+    return { message: 'Start must be before end.', focusTargetId: 'startDateInput' };
+  }
+  if (!params.quizTypeChosen) {
+    return { message: 'Choose a quiz type.', focusTargetId: 'quizTypeGroup' };
+  }
+  return null;
+}
+
+/**
  * AssignQuizModal
  * @description
- *   (update - 8, 27–44)
  *   Validates inputs, gates to Educators, and on submit executes the full creation flow:
  *   generate quiz → add Yjs card (inline binding) → assign-meta upsert → gradebook nudge + refresh.
  *   Logs major checkpoints with stable codes for observability. Outside of lesson rendering, all
@@ -113,13 +155,13 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
   onClose,
   onCreate,
   defaultOpenDropdown = false,
-  isEducator,      // update - 29
+  isEducator,     
 }) => {
-  // update - 30
+
   const { createQuizAssignmentCard } = useResourceContext();
   const {docFileID: docId} = useYDoc();
   const api = useApiContext();
-  const { upsertAssignmentMeta, refresh } = useGradebook(docId!);
+  const { upsertAssignmentMeta} = useGradebook(docId!);
   const { activeConceptMapId, getLessonModule } = useLessonModule();
   
   const contextLessons: LessonLite[] = useMemo(() => {
@@ -142,23 +184,23 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
   const [startDateStr, setStartDateStr] = useState<string>('');
   const [endDateStr, setEndDateStr] = useState<string>('');
   const [startTime, setStartTime] = useState<{ hour: string; minute: string; period: Period }>({
-    hour: '',
-    minute: '',
+    hour: '12',
+    minute: '00',
     period: 'AM',
   });
   const [endTime, setEndTime] = useState<{ hour: string; minute: string; period: Period }>({
-    hour: '',
-    minute: '',
-    period: 'PM',
+    hour: '12',
+    minute: '00',
+    period: 'AM',
   });
   const [attempts, setAttempts] = useState<number>(1);
   const [numQuestions, setNumQuestions] = useState<number>(10);
-  // update - 32
+
   const [submitting, setSubmitting] = useState<boolean>(false);
 
    const hasLessons = useMemo(() => lessonOptions && lessonOptions.length > 0, [lessonOptions]);
 
-  const hourOptions = useMemo(() => Array.from({ length: 11 }, (_, i) => String(i + 1).padStart(2, '0')), []);
+  const hourOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')), []);
   const minuteOptions = useMemo(() => Array.from({ length: 4 }, (_, i) => String(i * 15).padStart(2, '0')), []);
   const orderedPeriodOptions = (selected: 'AM' | 'PM' | ''): Array<'AM' | 'PM'> =>
     selected === 'PM' ? ['PM', 'AM'] : ['AM', 'PM'];
@@ -175,52 +217,19 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
   const titleValid = quizTitle.trim().length > 0;
   const canCreate = Boolean(isEducator && chosenLesson && titleValid && quizType && datesValid && attemptsValid && questionsValid && !submitting);
 
-
-  
-
-  // update - 34
-  async function upsertAssignMeta(params: {
-    docId: string;
-    assignmentId: string;
-    title: string;
-    startAtISO: string;
-    endAtISO: string;
-    attemptLimit: number;
-  }): Promise<{ assignmentId: string; title: string; startAt: string; endAt: string; attemptLimit: number }> {
-    console.log('[AssignQuizModal.tsx][9411] POST /api/gradebook/assign-meta', { docId: params.docId });
-    const resp = await fetch('/api/gradebook/assign-meta', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        docId: params.docId,
-        assignmentId: params.assignmentId,
-        title: params.title,
-        window: { startAt: params.startAtISO, endAt: params.endAtISO },
-        attemptLimit: params.attemptLimit,
-      }),
-    });
-    if (!resp.ok) {
-      const errText = await resp.text();
-      console.error('[AssignQuizModal.tsx][9499] assign-meta failed', { status: resp.status, errText });
-      throw new Error('assign-meta upsert failed');
-    }
-    const data = await resp.json();
-    console.log('[AssignQuizModal.tsx][9412] assign-meta ok', data);
-    // Normalize to AssignmentHeader shape
-    return {
-      assignmentId: data.assignmentId,
-      title: data.title,
-      startAt: data.window?.startAt ?? params.startAtISO,
-      endAt: data.window?.endAt ?? params.endAtISO,
-      attemptLimit: data.attemptLimit ?? params.attemptLimit,
-    };
-  }
+  const blocking = getBlockingMessage({
+    isEducator,
+    canCreate,
+    chosenLesson,
+    titleValid,
+    datesFilled,
+    datesValid,
+    quizTypeChosen: Boolean(quizType),
+  });
 
   /**
    * handleCreate
    * @description
-   *   (update - 12, 35–40)
    *   Executes the full flow:
    *     A) generate quiz (shared generator)
    *     B) create Yjs quizAssessment card (inline binding)
@@ -254,7 +263,7 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
       const apiQuizType = mapQuizTypeToApiValue(payload.quizType);
       console.log('[AssignQuizModal.tsx][9413] generateQuiz begin', { docId, lessonId: payload.lessonId, apiQuizType, questionCount: payload.numQuestions });
 
-      const quizResponse = api.createQuiz(
+      const quizResponse = await api.createQuiz(
         payload.lessonId,
         [apiQuizType],
         docId,
@@ -274,11 +283,19 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
 
       // B) Create a Yjs global quizAssessment card with INLINE binding
       //    We provide `mapId` so the resource is stored under the correct concept map.
-      const inlineBinding: any = {
-        variant: 'inline',               // flexible binding shape
-        quizType: parsedResource.content.quizType,
-        data: parsedResource.content.quizContent,              // full JSON from the model
+       const inlineBinding: QuizBinding = { //  (decisive inline-only binding)
+        mode: 'inline',
+        spec: {
+          quizType: parsedResource.content.quizType,
+          quizContent: parsedResource.content.quizContent,
+        },
       };
+
+      console.log('[AssignQuizModal.tsx][9452] inline binding prepared', {
+        mode: inlineBinding.mode,
+        qtype: inlineBinding.spec.quizType,
+        qlen: inlineBinding.spec.quizContent?.length ?? 0,
+      });
 
       const yjsCard = await createQuizAssignmentCard({
         mapId: payload.lessonId,
@@ -311,7 +328,6 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
         attemptLimit: saved.attemptLimit,
       });
       console.log('[AssignQuizModal.tsx][9416] Gradebook header nudged');
-      await refresh();
       console.log('[AssignQuizModal.tsx][9417] Gradebook refreshed');
 
       // Notify host (original callback contract preserved)
@@ -327,7 +343,26 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
     }
   };
 
-  // Disabled view for non-Educators (update - 41)
+
+function handleFix() {
+  if (!blocking) return;
+  console.log('[AssignQuizModal.tsx][9751] fix clicked', { target: blocking.focusTargetId });
+
+  if (blocking.focusTargetId === 'lessonSelectTrigger' && !isOpenSelect) {
+    setOpenSelect(true);
+  }
+
+  const el = document.getElementById(blocking.focusTargetId) as HTMLElement | null;
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => el.focus?.(), 50);
+  } else {
+    console.log('[AssignQuizModal.tsx][9752] focus target not found');
+  }
+}
+
+
+  
   const gatedDisabled = !isEducator;
 
   return (
@@ -377,6 +412,7 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
 
               <div className="rms-select">
                 <button
+                  id="lessonSelectTrigger"
                   type="button"
                   className="rms-select-trigger"
                   onClick={() => setOpenSelect((s) => !s)}
@@ -421,6 +457,7 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
               <div className="quiz-title-section">
                 <div className="quiz-group-label">Quiz Title</div>
                 <input
+                 id="quizTitleInput" 
                   type="text"
                   className="quiz-title-input"
                   placeholder="Enter a title for this quiz"
@@ -446,6 +483,7 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
                   <div className="quiz-datetime-group">
                     <div className="quiz-group-label">Start</div>
                     <input
+                       id="startDateInput"
                       type="date"
                       className="quiz-date-input"
                       value={startDateStr}
@@ -457,7 +495,6 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
                           value={startTime.hour}
                           onChange={(e) => setStartTime((t) => ({ ...t, hour: e.target.value }))}
                         >
-                          <option value="">12</option>
                           {hourOptions.map((h) => (
                             <option key={`sh-${h}`} value={h}>
                               {h.padStart(2, '0')}
@@ -471,7 +508,6 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
                           value={startTime.minute}
                           onChange={(e) => setStartTime((t) => ({ ...t, minute: e.target.value }))}
                         >
-                          <option value="">00</option>
                           {minuteOptions.map((m) => (
                             <option key={`sm-${m}`} value={m}>
                               {m}
@@ -501,6 +537,7 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
                   <div className="quiz-datetime-group">
                     <div className="quiz-group-label">End</div>
                     <input
+                      id="endDateInput"
                       type="date"
                       className="quiz-date-input"
                       value={endDateStr}
@@ -594,7 +631,7 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
             {/* (3) Quiz Type */}
             <fieldset className="rms-field" disabled={gatedDisabled}>
               <legend className="rms-legend">Select a quiz type</legend>
-              <div className="rms-radio-grid">
+              <div id="quizTypeGroup" className="rms-radio-grid">
                 <label className={`rms-radio-option ${quizType === 'multipleChoice' ? 'selected' : ''}`}>
                   <input
                     type="radio"
@@ -652,6 +689,29 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
                 </label>
               </div>
             </fieldset>
+                   {/* Contextual warning bar: show one message above footer actions */}
+            {blocking && (
+              <div
+                className="rms-warn"
+                role="alert"
+                aria-live="polite"
+                style={{ marginTop: 8 }}
+              >
+                <div className="rms-warn-left">
+                  <AlertTriangle className="rms-warn-ic" aria-hidden="true" />
+                  <span className="rms-warn-text">{blocking.message}</span>
+                </div>
+                <button
+                  type="button"
+                  className="rms-warn-fix"
+                  onClick={handleFix}
+                  aria-label={`Fix: ${blocking.message}`}
+                  title="Fix"
+                >
+                  Fix
+                </button>
+              </div>
+            )}
 
             {/* Footer */}
             <div className="button-section">

@@ -109,6 +109,8 @@ export interface AttemptStartReq {
   docId: DocId;
   assignmentId: AssignmentId;
 }
+
+
 export interface AttemptStartRes {
   attemptId: AttemptId;
   remainingAttempts: number;

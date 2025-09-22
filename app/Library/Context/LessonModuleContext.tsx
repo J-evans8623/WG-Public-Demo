@@ -47,7 +47,7 @@ export interface LessonModuleContextType {
   activeConceptMapId: string;
   setActiveConceptMapId: (id: string) => void;
   getLessonModule: () => LessonModule;
-  addConceptMap: (title: string, id: string) => { id: string; nodesMap: Y.Map<ConceptNode> };
+  addConceptMap: (title: string, id?: string) => { id: string; nodesMap: Y.Map<ConceptNode> };
   getExistingLessonModules: () => string[];
   updateConceptMapTitle: (conceptMapId: string, newTitle: string) => void;
   updateLessonModule: (moduleId: string, details: { topic?: string; summary?: string }) => void;

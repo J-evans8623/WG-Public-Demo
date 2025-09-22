@@ -1,4 +1,4 @@
-// ROQuizOverlay.tsx - Read-Only specific QuizOverlay
+// ROQuizOverlay.tsx - Read-Only specific QuizOverlay (Legacy - this version works!)
 
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
@@ -10,7 +10,7 @@ import TrueFalseQuiz from '../../../utils/quiz/TrueFalseQuiz';
 import FillInBlankQuiz from '../../../utils/quiz/FillInBlankQuiz';
 import MatchingQuiz from '../../../utils/quiz/MatchingQuiz';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
-import '../../../utils/quiz/QuizStyles.css';
+import '@/app/studygraph/(studygraph)/components/utils/quiz/QuizStyles.css';
 
 interface QuizOverlayProps {
   isOpen: boolean;

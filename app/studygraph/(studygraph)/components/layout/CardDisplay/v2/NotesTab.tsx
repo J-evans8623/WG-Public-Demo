@@ -1,4 +1,4 @@
-/**
+/**(Legacy)
  * @file NotesTab.tsx
  * @description
  * This component is responsible for rendering the list of resource cards within the right-hand panel of the application.

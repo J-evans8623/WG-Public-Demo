@@ -945,7 +945,7 @@ const saveToFirebase = useCallback(
       });
     toast.success('Save complete'); // update - 1
   },
-  [docFileID, fileName, persistDoc, readPersistFromDoc, updateFileMeta, writePersistToDoc, ydoc]
+  [assertDocIdentityOrThrow, docFileID, fileName, persistDoc, readPersistFromDoc, updateFileMeta, writePersistToDoc, ydoc]
 );
 
 

@@ -1,168 +1,66 @@
+// app/studygraph/(studygraph)/components/modals/GradebookModal.tsx
 /**
  * @file GradebookModal.tsx
  * @description
- *   (update - 1)
- *   A large-format modal that renders a simple gradebook grid where rows represent students
- *   and columns represent assigned quizzes. This component is intentionally “view-only” and
- *   focuses on fast rendering, approachable styling, and predictable scrolling behavior.
- *   It owns a single scroll container that supports both horizontal and vertical overflow,
- *   with a sticky header row and a sticky first column so the user always sees context while
- *   scrolling. For stress testing (as requested), the modal now generates a **large mock data
- *   set** by default (60 students × 16 assignments ≈ 960 cells) but allows overriding with
- *   props. The grid render is O(S×A) where S is the number of students and A is the number of
- *   assignments; mock generation is O(S×A) as well. Purposeful console logging is included to
- *   expose critical checkpoints: open, close, data generation, and refresh.
- *
- * Responsibilities:
- *   1) Provide a brand-aligned, larger modal shell dedicated to tabular grade display.
- *   2) Render column headers with assignment title and time window; stick the header on scroll.
- *   3) Render student rows; keep the “Name / Email” first column sticky on horizontal scroll.
- *   4) Handle internal mock-data generation for stress testing, plus a manual “Refresh” action.
- *   5) Preserve a single scroll container and comfortable gutters to avoid cramped UI.
+ *   This modal renders the gradebook grid using a single authoritative source: the server snapshot
+ *   retrieved by the `useGradebook(docId)` hook ( update - 2001 ). In Phase 1 we remove all internal
+ *   mock-data generation and wire the modal to the live hook. When opened, the component triggers an
+ *   immediate `refresh()` to fetch students, assignments, and grades from the backend; the same
+ *   `refresh()` is exposed on the “Refresh” button ( update - 2002 ). A sticky header row and a sticky
+ *   first column preserve context during scroll while CSS styling remains unchanged. The grid itself
+ *   is O(S×A) to render. Purposeful logs annotate open/close, refresh actions, and status changes to
+ *   support debugging without noise. The modal does not coordinate with Yjs at all by design.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect } from 'react';
 import '@/app/studygraph/(studygraph)/components/modals/modalStyles.css';
 import './gradebook.css';
-
-type Assignment = {
-  id: string;
-  title: string;
-  startAt: string; // ISO
-  endAt: string;   // ISO
-};
-
-type Student = {
-  id: string;
-  email: string;
-  name?: string;
-};
-
-type GradeGrid = Record<string, Record<string, number | null>>; // studentId -> assignmentId -> score% | null
+import { useGradebook } from '@/app/Library/hooks/useGradebook'; // update - 2003
 
 export interface GradebookModalProps {
   isOpen: boolean;
   onClose: () => void;
-
-  /** (update - 2) Optional overrides to control mock size for stress testing. */
-  mockStudentCount?: number;
-  mockAssignmentCount?: number;
-
-  /** (optional) Supply real data to bypass mock generation. */
-  students?: Student[];
-  assignments?: Assignment[];
-  grid?: GradeGrid;
-
-  /** (optional) External refresh hook; if omitted, refresh regenerates mock data. */
-  onRefresh?: () => void;
+  /** Scope the gradebook to a document. */
+  docId: string; // update - 2004
 }
 
 /**
  * formatWindow
  * @description
- *   Return a concise local time-window label for an assignment header. This keeps the
- *   component readable while still conveying the availability window to educators.
- *   All operations are O(1) and locale-aware via toLocaleString.
+ *   Return a concise local time-window label for an assignment header to keep the table header
+ *   readable. This is a pure formatter with O(1) cost and localized output via toLocaleString.
  */
-function formatWindow(a: Assignment): string {
+function formatWindow(startAt: string, endAt: string): string {
   const opts: Intl.DateTimeFormatOptions = {
     month: 'short',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   };
-  return `${new Date(a.startAt).toLocaleString(undefined, opts)} – ${new Date(a.endAt).toLocaleString(undefined, opts)}`;
+  return `${new Date(startAt).toLocaleString(undefined, opts)} – ${new Date(endAt).toLocaleString(
+    undefined,
+    opts
+  )}`;
 }
 
-/**
- * generateMockData
- * @description
- *   (update - 3)
- *   Produce a large, but deterministic, mock dataset for stress testing the grid. We generate
- *   N students and M assignments, then fill a sparse score table with random percentages
- *   (including some nulls). Complexity is O(S×A). The function is pure and memo-friendly.
- */
-function generateMockData(studentCount: number, assignmentCount: number) {
-  const baseNow = Date.now();
-  const day = 24 * 60 * 60 * 1000;
+const GradebookModal: React.FC<GradebookModalProps> = ({ isOpen, onClose, docId }) => {
+  const { assignments, students, grid, status, lastUpdated, error, refresh } = useGradebook(docId); // update - 2005
 
-  const students: Student[] = Array.from({ length: studentCount }, (_, i) => {
-    const num = (i + 1).toString().padStart(2, '0');
-    return {
-      id: `stu-${num}`,
-      email: `student${num}@school.edu`,
-      name: Math.random() > 0.4 ? `Student ${num}` : undefined,
-    };
-  });
-
-  const assignments: Assignment[] = Array.from({ length: assignmentCount }, (_, j) => {
-    const idx = (j + 1).toString().padStart(2, '0');
-    const start = baseNow - (j % 5) * day + j * 12345; // spread the dates a bit
-    const end = start + 3 * day + (j % 3) * 3600_000;
-    return {
-      id: `aq-${idx}`,
-      title: `Assigned Quiz ${idx}`,
-      startAt: new Date(start).toISOString(),
-      endAt: new Date(end).toISOString(),
-    };
-  });
-
-  const grid: GradeGrid = {};
-  for (const s of students) {
-    grid[s.id] = {};
-    for (const a of assignments) {
-      // ~85% filled, some nulls for realism
-      const filled = Math.random() > 0.15;
-      grid[s.id][a.id] = filled ? Math.round(50 + Math.random() * 50) : null;
-    }
-  }
-
-  return { students, assignments, grid };
-}
-
-const GradebookModal: React.FC<GradebookModalProps> = ({
-  isOpen,
-  onClose,
-  mockStudentCount = 60,     // (update - 4) larger default set
-  mockAssignmentCount = 16,  // (update - 4) larger default set
-  students: providedStudents,
-  assignments: providedAssignments,
-  grid: providedGrid,
-  onRefresh,
-}) => {
-  // (update - 5) Seed mock data once on open; allow refresh to regenerate
-  const initialData = useMemo(() => {
-    if (providedStudents && providedAssignments && providedGrid) {
-      console.log('[GradebookModal.tsx][7711] using provided gradebook data');
-      return {
-        students: providedStudents,
-        assignments: providedAssignments,
-        grid: providedGrid,
-      };
-    }
-    console.log('[GradebookModal.tsx][7712] generating mock data', {
-      students: mockStudentCount,
-      assignments: mockAssignmentCount,
-    });
-    return generateMockData(mockStudentCount, mockAssignmentCount);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providedStudents, providedAssignments, providedGrid, isOpen]);
-
-  const [data, setData] = useState(initialData);
+  // Load on open ( update - 2006 )
+  useEffect(() => {
+    if (!isOpen) return;
+    console.log('[GradebookModal.tsx][7711] open → refresh begin', { docId });
+    refresh().catch((e) => console.warn('[GradebookModal.tsx][7712] initial refresh error', e?.message));
+  }, [isOpen, docId, refresh]);
 
   if (!isOpen) return null;
 
-  const { students, assignments, grid } = data;
-
   const handleRefresh = () => {
     console.log('[GradebookModal.tsx][7713] refresh clicked');
-    if (onRefresh) {
-      onRefresh();
-      return;
-    }
-    const regenerated = generateMockData(mockStudentCount, mockAssignmentCount);
-    setData(regenerated);
+    refresh().catch((e) => console.warn('[GradebookModal.tsx][7715] refresh error', e?.message));
   };
+
+  const isLoading = status === 'updating' || status === 'idle';
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Gradebook modal">
@@ -177,9 +75,15 @@ const GradebookModal: React.FC<GradebookModalProps> = ({
               <span>{students.length} students</span>
               <span className="gb-dot">•</span>
               <span>{assignments.length} assignments</span>
+              {lastUpdated && (
+                <>
+                  <span className="gb-dot">•</span>
+                  <span>Updated {new Date(lastUpdated).toLocaleTimeString()}</span>
+                </>
+              )}
             </div>
-            <button className="btn btn-secondary" onClick={handleRefresh}>
-              Refresh
+            <button className="btn btn-secondary" onClick={handleRefresh} disabled={isLoading}>
+              {isLoading ? 'Loading…' : 'Refresh'}
             </button>
             <button
               className="gb-close"
@@ -194,6 +98,15 @@ const GradebookModal: React.FC<GradebookModalProps> = ({
           </div>
         </div>
 
+        {/* Error banner (non-blocking) — update - 2007 */}
+        {error && (
+          <div className="rms-warn" role="status" aria-live="polite" style={{ margin: '8px 0' }}>
+            <div className="rms-warn-left">
+              <span className="rms-warn-text">{error}</span>
+            </div>
+          </div>
+        )}
+
         {/* Grid body */}
         <div className="gb-body">
           <div className="gb-grid-wrapper">
@@ -204,24 +117,25 @@ const GradebookModal: React.FC<GradebookModalProps> = ({
                     Name / Email
                   </th>
                   {assignments.map((a) => (
-                    <th key={a.id} className="gb-th gb-sticky-top">
+                    <th key={a.assignmentId} className="gb-th gb-sticky-top">
                       <div className="gb-th-title">{a.title}</div>
-                      <div className="gb-th-sub">{formatWindow(a)}</div>
+                      <div className="gb-th-sub">{formatWindow(a.startAt, a.endAt)}</div>
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {students.map((s, rIndex) => (
-                  <tr key={s.id} className={rIndex % 2 === 0 ? 'gb-row-even' : 'gb-row-odd'}>
+                {students.map((email, rIndex) => (
+                  <tr key={email} className={rIndex % 2 === 0 ? 'gb-row-even' : 'gb-row-odd'}>
                     <td className="gb-td gb-sticky-left">
                       <div className="gb-student">
-                        <div className="gb-student-name">{s.name ?? s.email.split('@')[0]}</div>
-                        <div className="gb-student-email">{s.email}</div>
+                        <div className="gb-student-name">{email.split('@')[0]}</div>
+                        <div className="gb-student-email">{email}</div>
                       </div>
                     </td>
                     {assignments.map((a, cIndex) => {
-                      const score = grid[s.id]?.[a.id] ?? null;
+                      const cell = grid[email]?.[a.assignmentId] || null;
+                      const score = cell ? cell.scorePct : null;
                       const cls =
                         score === null
                           ? 'gb-score gb-score-missing'
@@ -231,7 +145,7 @@ const GradebookModal: React.FC<GradebookModalProps> = ({
                           ? 'gb-score gb-score-mid'
                           : 'gb-score gb-score-low';
                       return (
-                        <td key={`${s.id}-${a.id}`} className="gb-td" data-col={cIndex + 1}>
+                        <td key={`${email}-${a.assignmentId}`} className="gb-td" data-col={cIndex + 1}>
                           <div className={cls}>{score === null ? '—' : `${score}%`}</div>
                         </td>
                       );
@@ -240,6 +154,18 @@ const GradebookModal: React.FC<GradebookModalProps> = ({
                 ))}
               </tbody>
             </table>
+
+            {/* Empty states ( update - 2008 ) */}
+            {!isLoading && assignments.length === 0 && (
+              <div className="modal-subtext" style={{ marginTop: 12, textAlign: 'left' }}>
+                No assignments yet. Use “Create Assigned Quiz” to add columns.
+              </div>
+            )}
+            {!isLoading && students.length === 0 && (
+              <div className="modal-subtext" style={{ marginTop: 4, textAlign: 'left' }}>
+                No students found in this document’s ACL.
+              </div>
+            )}
           </div>
         </div>
       </div>

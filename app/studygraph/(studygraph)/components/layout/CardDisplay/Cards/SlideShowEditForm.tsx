@@ -15,7 +15,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Save, X, ArrowLeft } from 'lucide-react';
+import { Save, X, ArrowLeft } from 'lucide-react'; // (update - 6) removed Settings import
 import RichTextEditor from '@/components/RichTextEditor';
 import useCardCrudOperations from '@/app/studygraph/(studygraph)/components/hooks/useCardCrudOperations';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -26,6 +26,7 @@ import type {
   PracticeSheetResource 
 } from '@/app/Library/Definitions/Definitions';
 import type { ResourceFormInput } from '../types/resourceForm';
+import './SlideShowEditForm.css'; // (update - 2)
 
 export interface SlideShowEditFormProps {
   /** The resource card being edited */
@@ -87,6 +88,8 @@ const SlideShowEditForm: React.FC<SlideShowEditFormProps> = ({
 
   const [isValid, setIsValid] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // (update - 7) removed unused settings handler
 
   // 3. Initialize content based on slide type
   useEffect(() => {
@@ -185,8 +188,8 @@ const SlideShowEditForm: React.FC<SlideShowEditFormProps> = ({
   };
 
   return (
-    <div className="slideshow-edit-fullscreen">
-      {/* Full-Screen Edit Header */}
+    <div className="slideshow-edit-fullscreen" role="dialog" aria-modal="true">
+      {/* Header (navigation/context only) */}
       <header className="slideshow-edit-fullscreen-header">
         <div className="slideshow-edit-header-left">
           <button
@@ -194,6 +197,7 @@ const SlideShowEditForm: React.FC<SlideShowEditFormProps> = ({
             disabled={isSaving}
             className="slideshow-edit-back-btn"
             title="Back to slideshow"
+            aria-label="Go back"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -206,28 +210,23 @@ const SlideShowEditForm: React.FC<SlideShowEditFormProps> = ({
             </p>
           </div>
         </div>
-        
-        <div className="slideshow-edit-header-actions">
+
+        {/* (update - 8) Header tools: close only (gear removed) */}
+        <div className="slideshow-edit-header-tools">
           <button
+            type="button"
+            className="slideshow-edit-close-btn"
             onClick={handleCancel}
+            title="Close editor"
+            aria-label="Close"
             disabled={isSaving}
-            className="slideshow-edit-cancel-btn"
           >
-            <X className="h-4 w-4" />
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!isValid || isSaving}
-            className="slideshow-edit-save-btn"
-          >
-            <Save className="h-4 w-4" />
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            <X className="h-5 w-5" />
           </button>
         </div>
       </header>
 
-      {/* Full-Screen Edit Body */}
+      {/* Body */}
       <main className="slideshow-edit-fullscreen-body">
         <div className="slideshow-edit-content-container">
           
@@ -267,6 +266,28 @@ const SlideShowEditForm: React.FC<SlideShowEditFormProps> = ({
 
         </div>
       </main>
+
+      {/* (update - 9) Footer anchored at bottom via flex (not sticky) */}
+      <footer className="slideshow-edit-footer" aria-label="Editor actions">
+        <div className="slideshow-edit-footer-inner">
+          <button
+            type="button"
+            className="btn-secondary-outline"
+            onClick={handleCancel}
+            disabled={isSaving}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleSave}
+            disabled={!isValid || isSaving}
+          >
+            {isSaving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      </footer>
     </div>
   );
 };

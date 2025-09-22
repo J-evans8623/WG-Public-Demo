@@ -20,7 +20,7 @@ import BaseResourceCard from '../../CardDisplay/v2/BaseResourceCard';
 import CueCard from '../../CardDisplay/Cards/CueCard';
 import NoteCard from '../../CardDisplay/Cards/NoteCard';
 import QuizCard from '../../CardDisplay/Cards/QuizCard';
-import { useSlideShow } from '@/app/Library/Context/ROSlideShowContext';
+import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import { QuizType, IQuizQuestion, ResourceCard } from '@/app/Library/Definitions/Definitions';
 import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/resourceDisplay.css'; // Use same CSS as main ResourceDisplay

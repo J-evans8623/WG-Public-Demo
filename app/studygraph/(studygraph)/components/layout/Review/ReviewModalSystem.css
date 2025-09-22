@@ -377,7 +377,7 @@
 }
 .quiz-attempts-label { font-size: 13px; color: #6B7280; margin-top: 6px; }
 
-/* (update - 24) New: Attempts + Questions row */
+
 .quiz-meta-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -479,4 +479,51 @@
 /* New: responsive stacking for the row */
 @media (max-width: 600px) {
   .quiz-meta-row { grid-template-columns: 1fr; }
+}
+
+
+/* (update - 102) ---------- Warning banner for disabled primary action ---------- */
+.rms-warn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #FFFBEB;          /* mirrors .sm-perm--public */
+  border: 1px solid #FDE68A;     /* soft amber border */
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+.rms-warn-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.rms-warn-ic {
+  width: 18px;
+  height: 18px;
+  color: #F59E0B;
+  flex: 0 0 auto;
+}
+.rms-warn-text {
+  font-size: 14px;
+  color: #2C3E50;
+}
+.rms-warn-fix {
+  appearance: none;
+  border: 1px solid #E5E7EB;
+  background: white;
+  color: #2C3E50;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rms-warn-fix:hover {
+  background: #F9FAFB;
+}
+.rms-warn-fix:focus {
+  outline: 2px solid rgba(91,140,90,0.25); /* brand green focus ring */
+  outline-offset: 2px;
 }

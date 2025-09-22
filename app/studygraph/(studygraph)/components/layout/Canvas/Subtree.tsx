@@ -1,7 +1,7 @@
 // components/layout/Canvas/Subtree.tsx (edit mode)
 import React, { useMemo, useCallback } from 'react';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
-import ConceptNode from './ConceptNode';
+import ConceptNode from './ReadWriteCanvas/Map/ConceptNode';
 import { ConceptNode as ConceptNodeType } from '@/app/Library/Definitions/Definitions';
 import { drawIndentedStyleLines } from '@/app/Library/utils/drawIndentedStyleLines';
 

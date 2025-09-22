@@ -17,6 +17,7 @@ interface AddResourceDropdownProps {
   onSelectType: (type: ResourceType) => void;
   disabled?: boolean;
   askHandler: ()=> void
+  canAdd?:boolean;
 }
 
 /**
@@ -27,7 +28,8 @@ interface AddResourceDropdownProps {
 const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
   onSelectType,
   disabled = false,
-  askHandler
+  askHandler,
+  canAdd = true
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [coords, setCoords] = useState<{ left: number; bottom: number }>({
@@ -36,6 +38,14 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
   });
   const anchorRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  //Step 1: If Add is hidden, ensure dropdown is never open (safety + a11y)  
+   useEffect(() => {
+    if (!canAdd && isOpen) {
+      setIsOpen(false);
+      console.log('[AddResourceDropdown.tsx][8101] forced close — Add hidden'); // update - 20
+    }
+  }, [canAdd, isOpen]);
 
   // Measure the button's position and store in `coords` whenever we open the menu
   useEffect(() => {
@@ -73,6 +83,7 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
 
   // Recalculate position on window resize (if user resizes while menu is open)
   useEffect(() => {
+    if (!canAdd) return;
     if (!isOpen) return;
     function handleResize() {
       if (anchorRef.current) {
@@ -88,12 +99,12 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [isOpen]);
+  }, [canAdd, isOpen]);
 
   // Toggle the dropdown when the user clicks the add card button
   function handleAddCardClick(e: ReactMouseEvent) {
     e.stopPropagation();
-    if (disabled) return;
+    if (disabled || !canAdd) return;
     setIsOpen((prev) => !prev);
   }
 
@@ -140,6 +151,8 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
       </button>
 
       {/* Add Card Button with Dropdown */}
+      { canAdd && (
+      <>
       <button
         ref={anchorRef}
         type="button"
@@ -151,7 +164,8 @@ const AddResourceDropdown: React.FC<AddResourceDropdownProps> = ({
         Add Card
         <ChevronDown className="toolbar-icon" />
       </button>
-
+      </>
+      )}
       {/* When open, render the menu in a portal so it sits atop everything else */}
       {isOpen && (
         <Portal>

@@ -1,0 +1,230 @@
+/* SlideShowEditForm.css
+   Encapsulated styles for the full-screen edit experience with an anchored action footer.
+   Branding tokens:
+   - Backgrounds: #FFFFFF (surfaces), map area outside modal uses #FAF8F5
+   - Text: #2C3E50
+   - Primary (Save): #5B8C5A
+   - Secondary (links/outline): #6C8EBF
+   - Subtle divider (tan): #D4C4B0
+*/
+
+:root {
+  --sg-surface: #FFFFFF;
+  --sg-text: #2C3E50;
+  --sg-primary: #5B8C5A;
+  --sg-primary-press: #4c774c;
+  --sg-secondary: #6C8EBF;
+  --sg-secondary-press: #5a79a6;
+  --sg-divider: #D4C4B0;
+  --sg-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --sg-radius: 8px;
+}
+
+.slideshow-edit-fullscreen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--sg-surface);
+  color: var(--sg-text);
+}
+
+/* Header (navigation/context only) */
+.slideshow-edit-fullscreen-header {
+  /* (update - 10) keep simple header; no sticky to avoid transform side-effects */
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--sg-surface);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+  flex-shrink: 0;
+}
+
+.slideshow-edit-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slideshow-edit-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--sg-radius);
+  border: 1px solid rgba(0,0,0,0.06);
+  background: var(--sg-surface);
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+.slideshow-edit-back-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--sg-shadow);
+}
+.slideshow-edit-back-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.slideshow-edit-title-info {
+  display: grid;
+  gap: 2px;
+}
+.slideshow-edit-main-title {
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 700;
+  margin: 0;
+  color: var(--sg-text);
+}
+.slideshow-edit-topic-name {
+  font-size: 13px;
+  opacity: 0.8;
+  margin: 0;
+}
+
+/* Header tools: close only (gear removed) */
+.slideshow-edit-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.slideshow-edit-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--sg-radius);
+  background: var(--sg-surface);
+  border: 1px solid rgba(0,0,0,0.06);
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+.slideshow-edit-close-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--sg-shadow);
+}
+.slideshow-edit-close-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Body */
+.slideshow-edit-fullscreen-body {
+  flex: 1;
+  overflow: hidden;
+  padding: 20px;
+  min-height: 0; /* (update - 11) enable flex child to shrink and scroll correctly */
+}
+
+.slideshow-edit-content-container {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.slideshow-edit-section {
+  margin-bottom: 20px;
+}
+
+.slideshow-edit-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.slideshow-edit-title-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--sg-radius);
+  border: 1px solid rgba(0,0,0,0.12);
+  outline: none;
+  transition: box-shadow 120ms ease, border-color 120ms ease;
+}
+.slideshow-edit-title-input:focus {
+  border-color: var(--sg-secondary);
+  box-shadow: 0 0 0 3px rgba(108, 142, 191, 0.25);
+}
+
+.slideshow-edit-error-text {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #b3261e;
+}
+
+.slideshow-edit-content-section .slideshow-edit-content-wrapper {
+  border-radius: var(--sg-radius);
+  border: 1px solid rgba(0,0,0,0.12);
+  overflow: hidden;
+}
+
+/* Footer — anchored at bottom via flex column (no sticky) */
+.slideshow-edit-footer {
+  /* (update - 12) remove sticky to prevent mid-panel float inside transformed modal */
+  position: relative;
+  bottom: auto;
+  z-index: 1;
+  background: var(--sg-surface);
+  border-top: 1px solid var(--sg-divider);
+  padding: 14px 20px;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.04);
+  flex-shrink: 0;
+}
+
+.slideshow-edit-footer-inner {
+  max-width: 980px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Buttons */
+.btn-primary {
+  appearance: none;
+  border: none;
+  border-radius: var(--sg-radius);
+  padding: 10px 16px;
+  font-weight: 600;
+  background: var(--sg-primary);
+  color: #FFFFFF;
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--sg-shadow);
+  filter: brightness(1.04);
+}
+.btn-primary:active:not(:disabled) {
+  background: var(--sg-primary-press);
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary-outline {
+  appearance: none;
+  background: var(--sg-surface);
+  color: var(--sg-secondary);
+  border: 2px solid var(--sg-secondary);
+  border-radius: var(--sg-radius);
+  padding: 8px 14px;
+  font-weight: 600;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, color 120ms ease;
+}
+.btn-secondary-outline:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--sg-shadow);
+  background: rgba(108,142,191,0.06);
+}
+.btn-secondary-outline:active:not(:disabled) {
+  border-color: var(--sg-secondary-press);
+  color: var(--sg-secondary-press);
+}
+.btn-secondary-outline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

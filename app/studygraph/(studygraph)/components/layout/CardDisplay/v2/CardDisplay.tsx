@@ -1,4 +1,4 @@
-/**
+/** (Legacy)
  * @file CardDisplay.tsx
  * @description
  *   Top‐level right‐hand pane: renders UnifiedHeader, NotesTab/ChatTab/EditTab, and ActionFooter.

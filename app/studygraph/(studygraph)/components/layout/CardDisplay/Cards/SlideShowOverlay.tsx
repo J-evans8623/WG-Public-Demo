@@ -1,5 +1,5 @@
 /**
- * SlideShowOverlay.tsx - Enhanced Slideshow Component with Repositioned Layout
+ * SlideShowOverlay.tsx - Enhanced Slideshow Component with Repositioned Layout (Legacy read/write)
  * 
  * This component manages the complete slideshow experience with modal overlay functionality.
  * Key responsibilities include:

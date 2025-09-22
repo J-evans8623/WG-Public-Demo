@@ -106,7 +106,7 @@ export interface Bookmark {
   resourceId: string;
   mapId: string;
   nodeId: string;
-  type: 'cueCard' | 'picture' | 'practiceSheet' | 'note';
+  type: 'cueCard' | 'practiceSheet' | 'note';
   timestamp: number;
 }
 

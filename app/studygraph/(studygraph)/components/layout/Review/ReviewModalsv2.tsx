@@ -39,6 +39,8 @@ import type { PracticeSheetResource } from '@/app/Library/Definitions/Definition
 import type { QuizItemStats } from '@/app/Library/Definitions/UserDataDefinitions';
 import type { LessonStats, PerformanceMetrics } from './types';
 import { computeQuizStats } from './quizStats';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
+
 
 export interface ReviewModalProps {
   isOpen: boolean;
@@ -65,6 +67,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
 }) => {
   // (update - 3) view controller
   const [view, setView] = useState<ViewKey>('practice');
+  const {docFileID} = useYDoc()
 
   const { userRevisionData } = useUserData();
   const lessonModule = useLessonModule().getLessonModule();
@@ -228,10 +231,12 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
             {view === 'assessment' && (
               <div className="rms-avoid-nested-scroll">
                 <AssessmentTab
+                
                   onCreateAssignedQuiz={onCreateAssignedQuiz}
                   onViewGradebook={onViewGradebook}
-                  onClose={onClose}
-                />
+                  onClose={onClose} 
+                  docId={docFileID!}
+                  />
               </div>
             )}
 

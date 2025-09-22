@@ -1,71 +1,78 @@
-// SlideShowContext.tsx
-
-// File: src/app/Library/Context/SlideShowContext.tsx
-/**
+/** // bloom-maps\app\studygraph\(studygraph)\components\layout\Canvas\ReadWriteCanvas\Context\SlideShowContext.tsx
  * @file SlideShowContext.tsx
  * @description
- *   Provides a context for managing the slideshow overlay with real-time synchronization capabilities.
- *   In addition to the existing "selection-based" behavior (where slides come from useOrderedResources()),
- *   we now allow callers to supply an explicit list of ResourceCard objects via openCustom(...).
- *   The context implements intelligent override synchronization that ensures edited slides are immediately
- *   reflected in the slideshow without breaking existing auto-advance behaviors from AI services.
- *   When an override list is set, the slideshow will render exactly that list with real-time updates;
- *   otherwise, it falls back to the default node-selection-driven array from useOrderedResources().
- *   The synchronization system monitors ResourceContext changes and rebuilds override slides dynamically
- *   while preserving slide order and current position, ensuring users see their edits immediately.
+ * This file defines the **single, unified SlideShow context and provider** that powers slideshow behavior
+ * in both read-only (RO) and read/write (RW) canvases. The provider centralizes all slideshow lifecycle
+ * concerns: (1) resolving the “selection-based” deck from the current node selection through
+ * `useOrderedResources()`; (2) accepting an explicit, immutable override deck via `openCustom()` that
+ * callers can supply to run ad-hoc or session-derived slideshows; (3) coordinating a robust state
+ * machine that launches study sessions (revision or lesson blocks) only after all dependencies are ready
+ * (document readiness from YDoc, user data readiness from UserData, and correct file focus); (4) exposing
+ * a stable, documented API for consumers (`open`, `openCustom`, `resetToSelection`, `openSelectedSlides`,
+ * `gotoPrev`, `gotoNext`, `close`) while remaining compatible with previous RO and RW call sites; and
+ * (5) mounting the canonical slideshow overlay one time under this provider to ensure consistent portal
+ * lifecycles. Purposeful console logs (codes 5411–6036 and 7001–7022) trace critical transitions—render
+ * readiness, session launch phases, and navigation—without noise. All per-interaction operations are O(1),
+ * while reconciliation or synchronization work over slide arrays executes in O(N) when strictly necessary.
  *
- *   RESPONSIBILITIES:
- *     - Maintain `overrideSlides` (ResourceCard[] | null) with real-time synchronization to ResourceContext
- *     - Implement override slide synchronization that preserves order and current position during updates
- *     - Expose `open(resourceId)` for selection-based opening (existing behavior)
- *     - Expose `openCustom(slidesToShow: ResourceCard[])` for override mode with live updates
- *     - Expose `resetToSelection()` to clear any override, returning to default behavior
- *     - Ensure that `close()` always clears overrideSlides to avoid stale state
- *     - Provide currentSlide, currentIndex, gotoNext, gotoPrev, isOpen, and slides list with live data
- *     - Coordinate session launch state machine for study sessions and revision modes
- *     - Monitor and log critical synchronization events for debugging and observability
+ * Responsibilities:
+ *  1) Provide a single `SlideShowProvider` that replaces RO and RW variants.
+ *  2) Resolve slides from selection (default) or caller overrides (custom).
+ *  3) Expose a consistent API: `slides`, `isOpen`, `currentIndex/currentSlide`, `open`, `openCustom`,
+ *     `resetToSelection`, `openSelectedSlides`, `gotoNext/gotoPrev`, `close`, and session launch helpers.
+ *  4) Synchronize override slides with ResourceContext edits in O(N) only when override mode is active.
+ *  5) Coordinate a dependency-aware session launch state machine with clear, recoverable phases.
+ *  6) Mount the unified SlideShowOverlay exactly once below the provider.
  */
 
-import React, { createContext, useContext, useMemo, useState, ReactNode, useCallback, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  ReactNode,
+  useCallback,
+  useEffect,
+} from 'react';
 import type { ResourceCard } from '@/app/Library/Definitions/Definitions';
 import { useOrderedResources } from '@/app/studygraph/(studygraph)/components/hooks/useOrderedResources';
-import SlideShowOverlay from '@/app/studygraph/(studygraph)/components/layout/CardDisplay/Cards/SlideShowOverlay';
+import SlideShowOverlay from '@/app/studygraph/(studygraph)/components/layout/Canvas/ReadWriteCanvas/Overlays/SlideShowOverlay';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
-import { PickerFileMeta, StudySession, LessonUnit } from '../Definitions/CalendarDefinitions';
-import { useYDoc } from './YDocContext';
-import { useUserData } from './UserDataContext';
+import { StudySession } from '@/app/Library/Definitions/CalendarDefinitions';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
+import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useBlockStudySession } from '@/app/studygraph/(studygraph)/components/hooks/calendar/useBlockStudySession';
 import readiness from '@/app/studygraph/(studygraph)/services/DocumentReadinessService';
 
-
 interface SlideShowContextValue {
-  // The array of slides currently being displayed (override or ordered resources)
+  // Active slides (selection-based or override)
   slides: ResourceCard[];
-  // Whether the overlay is open
+  // Overlay visibility
   isOpen: boolean;
-  // Index of the current slide in `slides`
+  // Current index & slide
   currentIndex: number;
-  // The currently displayed slide (or null if index is out of range)
   currentSlide: ResourceCard | null;
-  // Default mode: open slideshow at a particular resource (selection-based)
-  open: (resourceId: string, nodeId?:boolean) => void;
-  // Close the slideshow (also resets any override)
+
+  // Selection-based open: resourceId refers to a resource (default) or a nodeId when nodeId=true
+  open: (resourceId: string, nodeId?: boolean) => void;
+
+  // Close and clear override
   close: () => void;
-  // Advance to next slide
+
+  // Navigation
   gotoNext: () => void;
-  // Go back to previous slide
   gotoPrev: () => void;
 
-  // ******** Override Mode Methods ********
-  // Override mode: open slideshow with exactly the provided array of ResourceCard
+  // Override deck management
   openCustom: (slidesToShow: ResourceCard[]) => void;
-  // Clear any override, returning to default node-selection-driven mode
   resetToSelection: () => void;
 
-  openSelectedSlides : () => void;
+  // Convenience: open the currently resolved slides from selection
+  openSelectedSlides: () => void;
 
+  // Study-session launching
   requestSessionLaunch: (request: SessionLaunchRequest) => void;
-  sessionLaunchState: SessionLaunchState
+  sessionLaunchState: SessionLaunchState;
 }
 
 interface SessionLaunchRequest {
@@ -74,11 +81,11 @@ interface SessionLaunchRequest {
   targetFileId: string;
 }
 
-type SessionLaunchState = 
+type SessionLaunchState =
   | { type: 'IDLE' }
   | { type: 'REQUESTED'; request: SessionLaunchRequest }
   | { type: 'SWITCHING_FILE'; request: SessionLaunchRequest; targetFileId: string }
-  | { type: 'LOADING_DOCUMENT'; request: SessionLaunchRequest; targetFileId: string }  // Skip SWITCHING_FILE
+  | { type: 'LOADING_DOCUMENT'; request: SessionLaunchRequest; targetFileId: string }
   | { type: 'LOADING_USERDATA'; request: SessionLaunchRequest; targetFileId: string }
   | { type: 'READY_TO_LAUNCH'; request: SessionLaunchRequest }
   | { type: 'LAUNCHING'; request: SessionLaunchRequest }
@@ -86,93 +93,98 @@ type SessionLaunchState =
 
 const SlideShowContext = createContext<SlideShowContextValue | undefined>(undefined);
 
+/**
+ * @function SlideShowProvider
+ * @description
+ * Provides the unified slideshow state and behaviors to all children. Steps:
+ * 1) Read the default selection-based slides (`useOrderedResources()`).
+ * 2) Maintain an optional `overrideSlides` that takes precedence when set.
+ * 3) Track overlay visibility & current index; compute current slide cheaply.
+ * 4) Synchronize override slides with ResourceContext when edits occur—O(N) and only when active.
+ * 5) Implement a robust session launch state machine that waits for YDoc render readiness and user
+ *    data to be ready before generating and opening a session (block or revision). Errors reset safely.
+ * The provider also mounts the single canonical SlideShowOverlay under the tree.
+ */
 export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Default slides come from the current node selection via useOrderedResources()
+  // Default slides from current node selection
   const defaultSlides = useOrderedResources();
-  const {selectResources, getResourceCard, resources} = useResourceContext();
-  const { currentDocId } = useUserData();
 
-  // When overrideSlides is non-null, we use it; otherwise, fall back to defaultSlides
+  // Resource helpers (for override synchronization and node->resources resolution)
+  const { selectResources, getResourceCard, resources } = useResourceContext();
+
+  // Override deck, visibility, and index
   const [overrideSlides, setOverrideSlides] = useState<ResourceCard[] | null>(null);
-  
-  // Track whether the overlay is open and the current index into `slides`
   const [isOpen, setIsOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Study-session state machine
   const [sessionLaunchState, setSessionLaunchState] = useState<SessionLaunchState>({ type: 'IDLE' });
-  
-  // Access dependency contexts
+
+  // Cross-context dependencies for document & user data readiness
   const { docFileID } = useYDoc();
-  const { userRevisionData, loading: userDataLoading ,  generateRevision } = useUserData();
+  const { userRevisionData, loading: userDataLoading, generateRevision, currentDocId } = useUserData();
   const { generateBlockSession } = useBlockStudySession();
 
-
-
+  // Render readiness from DAM/ydoc readiness service
   const [renderReady, setRenderReady] = useState(false);
+  useEffect(() => {
+    if (!docFileID) {
+      setRenderReady(false);
+      return;
+    }
+    const stream = readiness.renderReady$(docFileID);
+    const initial = stream.value.phase === 'RENDER_READY' || stream.value.phase === 'SAVE_READY';
+    setRenderReady(initial);
+    console.log('[SlideShowContext.tsx][5411] renderReady (initial):', { docId: docFileID, ready: initial });
 
-useEffect(() => {
-  if (!docFileID) {
-    setRenderReady(false);
-    return;
-  }
-  const stream = readiness.renderReady$(docFileID);
-  const initial =
-    stream.value.phase === 'RENDER_READY' || stream.value.phase === 'SAVE_READY';
-  setRenderReady(initial);
-  console.log('[SlideShowContext.tsx][5411] renderReady (initial):', { docId: docFileID, ready: initial });
+    const sub = stream.subscribe((s) => {
+      const ok = s.phase === 'RENDER_READY' || s.phase === 'SAVE_READY';
+      setRenderReady(ok);
+      console.log('[SlideShowContext.tsx][5412] renderReady (update):', { docId: docFileID, phase: s.phase, ready: ok });
+    });
 
-  const sub = stream.subscribe((s) => {
-    const ok = s.phase === 'RENDER_READY' || s.phase === 'SAVE_READY';
-    setRenderReady(ok);
-    console.log('[SlideShowContext.tsx][5412] renderReady (update):', { docId: docFileID, phase: s.phase, ready: ok });
-  });
+    return () => sub.unsubscribe();
+  }, [docFileID]);
 
-  return () => sub.unsubscribe();
-}, [docFileID]);
+  // Alias retained for legacy logs & guards
+  const ydocReady = renderReady;
 
-// update - 4 (optional alias to preserve the old variable name used in the state machine)
-const ydocReady = renderReady;
+  // Compute active slides (override takes precedence)
+  const slides = overrideSlides !== null ? overrideSlides : defaultSlides;
 
   /**
-   * synchronizeOverrideSlides
-   * Core synchronization function that rebuilds the override slides array with fresh data
-   * from ResourceContext while preserving order and maintaining current slide position.
-   * This ensures that any edits made to slides are immediately reflected in the slideshow
-   * without disrupting the user experience or breaking auto-advance behaviors.
-   * Uses O(n) time complexity for efficient processing of slide arrays.
+   * @function synchronizeOverrideSlides
+   * @description
+   * Rebuilds the override deck with fresh ResourceContext data while preserving the order.
+   * This ensures inline edits are reflected live during a running slideshow without a restart.
+   * The pass is O(N) over the override deck and runs only when override mode is active.
    */
   const synchronizeOverrideSlides = useCallback(() => {
     console.log('[SlideShowContext.tsx][7001] › synchronizeOverrideSlides called, overrideSlides length:', overrideSlides?.length || 0);
-    
+
     if (!overrideSlides || overrideSlides.length === 0) {
       console.log('[SlideShowContext.tsx][7002] › No override slides to synchronize, skipping');
       return;
     }
 
-    // 1. Rebuild override slides with fresh data from ResourceContext
     const synchronizedSlides: ResourceCard[] = [];
     let foundUpdates = false;
 
-    // 2. Iterate through existing override slides and fetch fresh data
-    overrideSlides.forEach((existingSlide, index) => {
-      const freshSlide = getResourceCard(existingSlide.id);
-      
-      if (freshSlide) {
-        synchronizedSlides.push(freshSlide);
-        
-        // 3. Check if this slide has been updated by comparing content
-        const hasChanged = JSON.stringify(existingSlide) !== JSON.stringify(freshSlide);
-        if (hasChanged) {
+    overrideSlides.forEach((existingSlide) => {
+      const fresh = getResourceCard(existingSlide.id);
+      if (fresh) {
+        synchronizedSlides.push(fresh);
+        const changed = JSON.stringify(existingSlide) !== JSON.stringify(fresh);
+        if (changed) {
           foundUpdates = true;
           console.log('[SlideShowContext.tsx][7003] › Slide updated detected for ID:', existingSlide.id);
         }
       } else {
-        // 4. If slide no longer exists, keep the original (fallback behavior)
         synchronizedSlides.push(existingSlide);
         console.log('[SlideShowContext.tsx][7004] › Slide not found in ResourceContext, keeping original:', existingSlide.id);
       }
     });
 
-    // 5. Only update state if we found actual changes (optimization)
     if (foundUpdates) {
       console.log('[SlideShowContext.tsx][7005] › Applying synchronized slides, count:', synchronizedSlides.length);
       setOverrideSlides(synchronizedSlides);
@@ -181,32 +193,29 @@ const ydocReady = renderReady;
     }
   }, [overrideSlides, getResourceCard]);
 
-  /**
-   * Real-time Override Synchronization Effect
-   * Monitors ResourceContext changes and triggers synchronization when override mode is active.
-   * This ensures that slide edits are immediately visible without requiring slideshow restart.
-   * The effect uses dependency tracking to minimize unnecessary synchronization calls.
-   */
+  // React to ResourceContext changes only when override is active
   useEffect(() => {
     console.log('[SlideShowContext.tsx][7007] › ResourceContext change detected, checking synchronization needs');
-    
-    // Only synchronize when we have override slides active
     if (overrideSlides && overrideSlides.length > 0) {
       console.log('[SlideShowContext.tsx][7008] › Override mode active, triggering synchronization');
       synchronizeOverrideSlides();
     } else {
       console.log('[SlideShowContext.tsx][7009] › Default mode active, no synchronization needed');
     }
-  }, [overrideSlides, resources, synchronizeOverrideSlides]); // Watch ResourceContext changes
+  }, [overrideSlides, resources, synchronizeOverrideSlides]);
 
-  // Compute final slides array (override takes precedence)
-  let slides = overrideSlides !== null ? overrideSlides : defaultSlides;
-
-  // === Default "selection-based" open ===
-const open = useCallback(
+  /**
+   * @function open
+   * @description
+   * Opens the slideshow using the default selection-based deck, positioning the index at either:
+   * (a) the resource with the provided `resourceId`, or (b) the first resource in a node’s resources
+   * when `nodeId=true`. If the resource from the node is not present in the current selection deck, the
+   * provider switches to override mode by prepending the node’s resources to the selection-based list.
+   * Time complexity is O(N) only for the index lookup/merge; otherwise O(1).
+   */
+  const open = useCallback(
     (resourceId: string, nodeId: boolean = false) => {
       console.log('[SlideShowContext.tsx][7010] › Opening slideshow for resource:', resourceId, 'nodeId mode:', nodeId);
-      
       let idx: number = -1;
 
       if (nodeId) {
@@ -215,13 +224,8 @@ const open = useCallback(
           console.log('[SlideShowContext.tsx][7011] › No resources found for node:', resourceId);
           return;
         }
-
-        // Try to find the first resource from that node in current slides
         idx = slides.findIndex((r) => r.id === resourceCards[0].id);
-
         if (idx < 0) {
-          // Not present in current/default slides; switch to override mode so we can include it
-          // Prepend the node's resources, then the default selection-based list
           const merged = [...resourceCards, ...defaultSlides];
           console.log('[SlideShowContext.tsx][7012] › Switching to override mode with merged slides, count:', merged.length);
           setOverrideSlides(merged);
@@ -230,7 +234,6 @@ const open = useCallback(
           return;
         }
       } else {
-        // resourceId refers directly to a resource
         idx = slides.findIndex((r) => r.id === resourceId);
       }
 
@@ -245,21 +248,28 @@ const open = useCallback(
     [slides, defaultSlides, selectResources]
   );
 
-  const openSelectedSlides = useCallback (() => {
+  /**
+   * @function openSelectedSlides
+   * @description
+   * Opens the slideshow with the current resolved deck (selection or override) starting from index 0.
+   * This is an O(1) operation that simply flips visibility and resets the index to the first slide.
+   */
+  const openSelectedSlides = useCallback(() => {
     console.log('[SlideShowContext.tsx][7015] › Opening selected slides, count:', slides.length);
-    
-    if (slides.length > 0 ) {
-        setCurrentIndex(0);
-        setIsOpen(true);
+    if (slides.length > 0) {
+      setCurrentIndex(0);
+      setIsOpen(true);
     }
-  }, [slides])
+  }, [slides]);
 
-  // === Override methods ===
-
+  /**
+   * @function openCustom
+   * @description
+   * Replaces the deck with the caller-provided slides. When slides are present, opens the overlay
+   * and starts at index 0. This is O(1) for state flips and O(N) only for any future sync passes.
+   */
   const openCustom = useCallback((slidesToShow: ResourceCard[]) => {
     console.log('[SlideShowContext.tsx][7016] › Opening custom slideshow with slides, count:', slidesToShow.length);
-    
-    // Replace the slides array with the caller's list, start at index 0, and open
     setOverrideSlides(slidesToShow);
     if (slidesToShow.length > 0) {
       setCurrentIndex(0);
@@ -267,160 +277,156 @@ const open = useCallback(
     }
   }, []);
 
+  /**
+   * @function resetToSelection
+   * @description
+   * Clears the override deck so that the next `open()` call uses the selection-based deck again.
+   * This is O(1) and does not affect the default selection list.
+   */
   const resetToSelection = useCallback(() => {
     console.log('[SlideShowContext.tsx][7017] › Resetting to selection-based mode');
-    
-    // Clear override slides so next open uses defaultSlides again
     setOverrideSlides(null);
   }, []);
 
-  // === Close should clear override ===
+  /**
+   * @function close
+   * @description
+   * Closes the overlay and clears the override deck to avoid stale state. O(1).
+   */
   const close = useCallback(() => {
     console.log('[SlideShowContext.tsx][7018] › Closing slideshow and clearing overrides');
-    
     setIsOpen(false);
     resetToSelection();
-  }, [resetToSelection])
+  }, [resetToSelection]);
 
-  // === Navigation helpers ===
+  /**
+   * @function gotoNext
+   * @description
+   * Moves the slideshow forward a single slide, clamping at the final slide. O(1).
+   */
   const gotoNext = useCallback(() => {
-    const newIndex = Math.min(currentIndex + 1, slides.length - 1);
-    console.log('[SlideShowContext.tsx][7019] › Going to next slide, index:', currentIndex, '->', newIndex);
-    setCurrentIndex(newIndex);
+    const next = Math.min(currentIndex + 1, slides.length - 1);
+    console.log('[SlideShowContext.tsx][7019] › Going to next slide, index:', currentIndex, '->', next);
+    setCurrentIndex(next);
   }, [currentIndex, slides.length]);
-  
+
+  /**
+   * @function gotoPrev
+   * @description
+   * Moves the slideshow backward a single slide, clamping at zero. O(1).
+   */
   const gotoPrev = useCallback(() => {
-    const newIndex = Math.max(currentIndex - 1, 0);
-    console.log('[SlideShowContext.tsx][7020] › Going to previous slide, index:', currentIndex, '->', newIndex);
-    setCurrentIndex(newIndex);
+    const prev = Math.max(currentIndex - 1, 0);
+    console.log('[SlideShowContext.tsx][7020] › Going to previous slide, index:', currentIndex, '->', prev);
+    setCurrentIndex(prev);
   }, [currentIndex]);
 
-  // Compute currentSlide once per relevant state change
+  /**
+   * @function currentSlide
+   * @description
+   * Returns the slide at the current index or null if out-of-bounds. O(1).
+   */
   const currentSlide = useMemo(() => {
     const slide = slides[currentIndex] || null;
     console.log('[SlideShowContext.tsx][7021] › Current slide computed:', slide?.id || 'null');
     return slide;
   }, [slides, currentIndex]);
 
-   const requestSessionLaunch = useCallback((request: SessionLaunchRequest) => {
+  /**
+   * @function requestSessionLaunch
+   * @description
+   * Enqueues a session launch request (revision or block). The state machine ensures all dependencies
+   * are ready before generating the deck and opening the slideshow. O(1) enqueue.
+   */
+  const requestSessionLaunch = useCallback((request: SessionLaunchRequest) => {
     console.log('[SlideShowContext.tsx][7022] › Session launch requested:', request.sessionId);
     setSessionLaunchState({ type: 'REQUESTED', request });
   }, []);
 
-  /**
-   * Enhanced session launch state machine with comprehensive dependency coordination.
-   * Handles file switching, document loading, user data initialization, and content
-   * generation with proper error handling and recovery mechanisms throughout.
-   * This state machine coordinates multiple contexts to ensure all dependencies are
-   * ready before launching study sessions, maintaining data consistency and user experience.
-   */
+  // Session launch state machine
   useEffect(() => {
-    const handleStateTransition = async () => {
+    const handleState = async () => {
       try {
         switch (sessionLaunchState.type) {
           case 'REQUESTED': {
             console.log('[SlideShowContext.tsx][6019] › Processing session launch request for:', sessionLaunchState.request.sessionId);
             const targetFileId = sessionLaunchState.request.targetFileId;
-            
-            // Step 1: Check if file switching is required
             if (docFileID !== targetFileId) {
               console.log('[SlideShowContext.tsx][6020] › File switch required from', docFileID, 'to', targetFileId);
-              setSessionLaunchState({ 
-                type: 'SWITCHING_FILE', 
-                request: sessionLaunchState.request,
-                targetFileId 
-              });
+              setSessionLaunchState({ type: 'SWITCHING_FILE', request: sessionLaunchState.request, targetFileId });
             } else {
               console.log('[SlideShowContext.tsx][6021] › Same file, proceeding to document verification');
-              setSessionLaunchState({ 
-                type: 'LOADING_DOCUMENT', 
-                request: sessionLaunchState.request,
-                targetFileId 
-              });
+              setSessionLaunchState({ type: 'LOADING_DOCUMENT', request: sessionLaunchState.request, targetFileId });
             }
             break;
           }
-
           case 'SWITCHING_FILE': {
-            // Step 2: Wait for file switch completion with timeout protection
             if (docFileID === sessionLaunchState.targetFileId) {
               console.log('[SlideShowContext.tsx][6022] › File switch completed successfully');
-              setSessionLaunchState({ 
-                type: 'LOADING_DOCUMENT', 
+              setSessionLaunchState({
+                type: 'LOADING_DOCUMENT',
                 request: sessionLaunchState.request,
-                targetFileId: sessionLaunchState.targetFileId
+                targetFileId: sessionLaunchState.targetFileId,
               });
             } else {
               console.log('[SlideShowContext.tsx][6023] › Waiting for file switch completion... current:', docFileID, 'target:', sessionLaunchState.targetFileId);
             }
             break;
           }
-
           case 'LOADING_DOCUMENT': {
-            // Step 3: Verify document readiness with comprehensive checks
-            const isDocumentReady = docFileID === sessionLaunchState.targetFileId && ydocReady;
-            
-            if (isDocumentReady) {
+            const ready = docFileID === sessionLaunchState.targetFileId && ydocReady;
+            if (ready) {
               console.log('[SlideShowContext.tsx][6024] › Document ready, proceeding to user data verification');
-              setSessionLaunchState({ 
-                type: 'LOADING_USERDATA', 
+              setSessionLaunchState({
+                type: 'LOADING_USERDATA',
                 request: sessionLaunchState.request,
-                targetFileId: sessionLaunchState.targetFileId
+                targetFileId: sessionLaunchState.targetFileId,
               });
             } else {
-              console.log('[SlideShowContext.tsx][6025] › Waiting for document readiness... fileMatch:', 
-                docFileID === sessionLaunchState.targetFileId, 'ydocReady:', ydocReady);
+              console.log('[SlideShowContext.tsx][6025] › Waiting for document readiness... fileMatch:', docFileID === sessionLaunchState.targetFileId, 'ydocReady:', ydocReady);
             }
             break;
           }
-
           case 'LOADING_USERDATA': {
-            // Step 4: Ensure UserData is properly loaded and synchronized
-            const isUserDataReady = docFileID === sessionLaunchState.targetFileId && 
-                                   !userDataLoading && 
-                                   currentDocId === sessionLaunchState.targetFileId &&
-                                   userRevisionData !== null;
-            
-            if (isUserDataReady) {
+            const ok =
+              docFileID === sessionLaunchState.targetFileId &&
+              !userDataLoading &&
+              currentDocId === sessionLaunchState.targetFileId &&
+              userRevisionData !== null;
+
+            if (ok) {
               console.log('[SlideShowContext.tsx][6026] › UserData ready, preparing for session launch');
-              setSessionLaunchState({ 
-                type: 'READY_TO_LAUNCH', 
-                request: sessionLaunchState.request 
-              });
+              setSessionLaunchState({ type: 'READY_TO_LAUNCH', request: sessionLaunchState.request });
             } else {
-              console.log('[SlideShowContext.tsx][6027] › Waiting for UserData readiness... fileMatch:', 
+              console.log('[SlideShowContext.tsx][6027] › Waiting for UserData readiness... fileMatch:',
                 docFileID === sessionLaunchState.targetFileId,
-                'userDataFileMatch:', currentDocId === sessionLaunchState.targetFileId,
-                'loading:', userDataLoading, 
-                'hasData:', !!userRevisionData);
+                'userDataFileMatch:',
+                currentDocId === sessionLaunchState.targetFileId,
+                'loading:',
+                userDataLoading,
+                'hasData:',
+                !!userRevisionData
+              );
             }
             break;
           }
-
           case 'READY_TO_LAUNCH': {
             console.log('[SlideShowContext.tsx][6028] › All dependencies ready, launching session');
             setSessionLaunchState({ type: 'LAUNCHING', request: sessionLaunchState.request });
-            
-            // Step 5: Generate session content based on session type
+
             const { request } = sessionLaunchState;
             let generatedSlides: ResourceCard[] = [];
-            
+
             if (request.sessionData.type === 'block') {
-              // Generate block session slides with validation
               console.log('[SlideShowContext.tsx][6029] › Generating block session with', request.sessionData.targetLessonUnits.length, 'units');
-              
               if (!request.sessionData.targetLessonUnits || request.sessionData.targetLessonUnits.length === 0) {
                 throw new Error('No lesson units provided for block session');
               }
-              
               generatedSlides = generateBlockSession(request.sessionData.targetLessonUnits);
               console.log('[SlideShowContext.tsx][6030] › Generated', generatedSlides.length, 'block session slides');
-              
             } else {
-              // Generate revision slides with validation
               console.log('[SlideShowContext.tsx][6031] › Generating revision session');
               const revision = generateRevision();
-              
               if (revision) {
                 generatedSlides = [...revision.flashCards, ...revision.quizzes];
                 console.log('[SlideShowContext.tsx][6032] › Generated', generatedSlides.length, 'revision slides');
@@ -429,24 +435,17 @@ const open = useCallback(
               }
             }
 
-            // Step 6: Validate generated content and launch slideshow
             if (generatedSlides.length === 0) {
               throw new Error('No slides generated for session - empty content collection');
             }
 
-            // Launch the slideshow with generated content
             openCustom(generatedSlides);
             console.log('[SlideShowContext.tsx][6033] › Session launched successfully with', generatedSlides.length, 'slides');
-
-            // Reset state machine to idle
             setSessionLaunchState({ type: 'IDLE' });
             break;
           }
-
           case 'ERROR': {
             console.error('[SlideShowContext.tsx][6034] › Session launch error:', sessionLaunchState.error);
-            
-            // Step 7: Auto-reset after error display with user feedback
             setTimeout(() => {
               console.log('[SlideShowContext.tsx][6035] › Resetting state machine after error');
               setSessionLaunchState({ type: 'IDLE' });
@@ -454,18 +453,17 @@ const open = useCallback(
             break;
           }
         }
-      } catch (error) {
-        console.error('[SlideShowContext.tsx][6036] › State machine error:', error);
-        setSessionLaunchState({ 
-          type: 'ERROR', 
-          error: error instanceof Error ? error.message : 'Unknown state machine error'
+      } catch (err) {
+        console.error('[SlideShowContext.tsx][6036] › State machine error:', err);
+        setSessionLaunchState({
+          type: 'ERROR',
+          error: err instanceof Error ? err.message : 'Unknown state machine error',
         });
       }
     };
 
-    // Only run state machine when not idle
     if (sessionLaunchState.type !== 'IDLE') {
-      handleStateTransition();
+      handleState();
     }
   }, [
     sessionLaunchState,
@@ -476,10 +474,9 @@ const open = useCallback(
     currentDocId,
     generateBlockSession,
     generateRevision,
-    openCustom
+    openCustom,
   ]);
 
-  // Memoize context value object
   const value = useMemo(
     () => ({
       slides,
@@ -494,20 +491,40 @@ const open = useCallback(
       resetToSelection,
       openSelectedSlides,
       requestSessionLaunch,
-      sessionLaunchState
+      sessionLaunchState,
     }),
-    [slides, isOpen, currentIndex, currentSlide, open, close, gotoNext, gotoPrev, openCustom, resetToSelection, openSelectedSlides, requestSessionLaunch, sessionLaunchState]
+    [
+      slides,
+      isOpen,
+      currentIndex,
+      currentSlide,
+      open,
+      close,
+      gotoNext,
+      gotoPrev,
+      openCustom,
+      resetToSelection,
+      openSelectedSlides,
+      requestSessionLaunch,
+      sessionLaunchState,
+    ]
   );
 
   return (
     <SlideShowContext.Provider value={value}>
       {children}
-      {/* Always mount the overlay so it can react to context state */}
+      {/* The unified overlay is mounted once under the provider to avoid portal churn. */}
       <SlideShowOverlay />
     </SlideShowContext.Provider>
   );
 };
 
+/**
+ * @function useSlideShow
+ * @description
+ * Accessor hook for the unified slideshow context. It throws an explicit error if used without the
+ * provider to prevent undefined behavior and aid debugging. O(1).
+ */
 export function useSlideShow(): SlideShowContextValue {
   const ctx = useContext(SlideShowContext);
   if (!ctx) throw new Error('useSlideShow must be used within a SlideShowProvider');

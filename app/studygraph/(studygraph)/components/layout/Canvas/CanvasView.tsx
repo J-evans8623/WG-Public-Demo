@@ -1,5 +1,5 @@
 /**
- * @file CanvasView.tsx
+ * @file CanvasView.tsx (Legacy Edit version)
  * @description
  *   CanvasView orchestrates the primary user workspace by seamlessly integrating the interactive concept map
  *   or PDF viewer with a static resource panel displaying study materials such as cue cards, quizzes, and
@@ -20,7 +20,7 @@
  *   4. Provide console.log checkpoints with unique codes for debugging layout and state transitions.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import MapRenderer from './MapRenderer';
 import PDFRenderer from './PDFRenderer';
@@ -42,17 +42,16 @@ import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import './CanvasView.css';
 import { useLessonUnitOrder } from '../../hooks/useLessonUnitOrder';
-import MentionBadge from '../forum/MentionBadge';
 import ForumModal from '../forum/ForumModal';
 import { useComments } from '@/app/Library/Context/CommentContext';
 import ReviewModal from '../Review/ReviewModalsv2';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import BookmarkModal from './Bookmarks/BookmarkModal';
-import CanvasHeader from './bottomUtilityBar/CanvasHeader';
+import CanvasHeader from './ReadWriteCanvas/CanvasHeader'
 import CardDisplay from '../CardDisplay/v2/CardDisplay';
 import CalendarModal from '../Calendar/CalendarModal';
 import { PickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
-
+import { useDocumentAccessMode, isEditReady } from '@/app/studygraph/(studygraph)/components/hooks/access/useDocumentAccessMode';
 
 interface CanvasViewProps {
   handleFileSelect: (meta: PickerFileMeta) => void;
@@ -95,6 +94,12 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus , handleF
   const lessonTitle = activeLesson?.title ?? 'Untitled Lesson';
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(lessonTitle);
+
+    /* ───────────────────── DAM-driven mode + readiness  ──────────── */
+  const { mode, status } = useDocumentAccessMode();                            
+  const editReady = useMemo(() => isEditReady(mode, status), [mode, status]); 
+
+  
   useEffect(() => {
     if (!isEditingTitle) setTitleDraft(lessonTitle);
   }, [lessonTitle, isEditingTitle]);
@@ -201,20 +206,21 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus , handleF
       data-testid="canvas-viewer"
     >
       {/* Step 1: Render integrated header in conceptMap view */}
-              <CanvasHeader
-          isSaving={autosaveStatus === 'saving'}
-          onMenuToggle={() => {/* your menu logic */}}
-          onDiscuss={openForum}
-          onStartLesson={handleViewAllSlides}
-          onStartReview={openReviewModal}
-          onBookmark={() => setBookmarkModalOpen(true)}
-          onShare={() => setShareOpen(true)}
-          onVersionHistory={openHistory}
-          onOpenCalendar={() => {
-    console.log('[CanvasView.tsx][3040] › Opening calendar modal');
-    setCalendarModalOpen(true);
-  }}
-        />
+        <CanvasHeader
+        // update - 2: pass edit mode to enable full interactions in unified header
+        mode={mode} // update - 2
+        isSaving={autosaveStatus === 'saving'}
+        onDiscuss={openForum}
+        onStartLesson={handleViewAllSlides}
+        onStartReview={openReviewModal}
+        onBookmark={() => setBookmarkModalOpen(true)}
+        onShare={() => setShareOpen(true)}
+        onVersionHistory={openHistory}
+        onOpenCalendar={() => {
+          console.log('[CanvasView.tsx][3040] › Opening calendar modal');
+          setCalendarModalOpen(true);
+        }}
+      />
     
 
 {/** ──────────────────────────────────────────────────────────────── **/
@@ -245,8 +251,6 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus , handleF
         </div>
       )}
    </div>
-
-
     
 
     {/** 4: Bottom‑centered toolbar, sits outside the overflow container **/}
@@ -255,10 +259,6 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus , handleF
       zoomLevel={activeView === 'conceptMap' ? zoomLevel : pdfScale}
       onZoomIn={handleZoomIn}
       onZoomOut={handleZoomOut}
-      canUndo={canUndo}
-      canRedo={canRedo}
-      onUndo={undo}
-      onRedo={redo}
       pdfPageInfo={
         activeView === 'pdf'
           ? { current: pdfCurrentPage, total: pdfTotalPages }
@@ -267,6 +267,10 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus , handleF
       onPdfPrevPage={activeView === 'pdf' ? handlePdfPrev : undefined}
       onPdfNextPage={activeView === 'pdf' ? handlePdfNext : undefined}
       onPdfGoToPage={activeView === 'pdf' ? handlePdfGoToPage : undefined}
+      canUndo={editReady && canUndo}
+      canRedo={editReady && canRedo}
+      onUndo={undo}
+      onRedo={redo}
     />
   </div>
 

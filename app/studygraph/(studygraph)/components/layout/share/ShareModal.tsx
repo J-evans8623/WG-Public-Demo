@@ -1,65 +1,49 @@
+// app/Library/components/ShareModal.tsx
 /**
- * @file app/Library/components/ShareModal.tsx
- * @description
- *   Modern share modal component that implements the new access control-based sharing system,
- *   replacing the deprecated token-based workflow. This component provides a clean interface
- *   for configuring document sharing through public access flags (publicView and publicEdit)
- *   rather than individual share tokens. It follows the refined design prototype with enhanced
- *   UX patterns including real-time email validation, editor tag management, and integrated
- *   QR code generation. The component supports three sharing modes: private (restricted to
- *   specific editors), public-view (read-only access via link), and public-edit (collaborative
- *   access via link). It generates direct document URLs that work seamlessly with the existing
- *   Yjs collaboration system and access control infrastructure, eliminating token redemption
- *   complexity while preserving marketing features like QR codes and flyer generation.
- * 
- * Responsibilities:
- *   - Render intuitive sharing interface with access level controls
- *   - Manage editor email validation and tag display
- *   - Generate and display QR codes for marketing purposes
- *   - Handle flyer PDF generation and download
- *   - Provide copy-to-clipboard functionality for share URLs
- *   - Integrate with public share API for access control updates
- *   - Display loading states and error handling
+ * (update - 50)
+ * Header: add Settings icon next to Close in success scene
+ * Success actions: bottom-right bar with Done only
  */
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, Copy, Check, Printer } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import '@/app/studygraph/(studygraph)/components/modals/modalStyles.css';
+import './ShareModal.css';
+import { X, Copy, Check, Settings } from 'lucide-react';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { usePublicShare, ShareMode, PublicShareResult } from '../../hooks/sharing/usePublicShare';
-import Image
- from 'next/image';
-interface ShareModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
 
-/**
- * Validates email address format using a comprehensive regex pattern that checks for
- * proper structure including local part, @ symbol, domain, and top-level domain.
- */
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email.trim());
-}
+interface ShareModalProps { isOpen: boolean; onClose: () => void; }
+function isValidEmail(email: string) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()); }
 
 export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
-  console.log('ShareModal.tsx 5001 › Modal render', { isOpen });
-
-  // Step 1: Hook and context initialization
   const { docFileID } = useYDoc();
-  const { isLoading, error, configureSharing, downloadFlyer, clearError } = usePublicShare();
+  const { isLoading, error, configureSharing, clearError } = usePublicShare();
 
-  // Step 2: Component state management
   const [shareMode, setShareMode] = useState<ShareMode>('public-view');
   const [editors, setEditors] = useState<string[]>([]);
   const [emailInput, setEmailInput] = useState('');
   const [result, setResult] = useState<PublicShareResult | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Step 3: Reset modal state when opened
+  const helperText = useMemo(() => {
+    switch (shareMode) {
+      case 'public-view': return 'Anyone with the link can view this document. Edits are disabled.';
+      case 'public-edit': return 'Anyone with the link can view and edit this document.';
+      case 'private':     return 'Only the editors you add here can edit. Others cannot access edits via the link.';
+      default:            return '';
+    }
+  }, [shareMode]);
+
+  const successNote = useMemo(() => {
+    if (!result) return { text: '', variant: '' as 'public' | 'private' | '' };
+    if (result.mode === 'private') {
+      return { text: 'Only the editors you added can edit; others won’t have edit access.', variant: 'private' as const };
+    }
+    const action = result.mode === 'public-edit' ? 'edit' : 'view';
+    return { text: `Anyone with this link can ${action}.`, variant: 'public' as const };
+  }, [result]);
+
   useEffect(() => {
     if (isOpen) {
-      console.log('ShareModal.tsx 5002 › Modal opened, resetting state');
       setShareMode('public-view');
       setEditors([]);
       setEmailInput('');
@@ -69,443 +53,193 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
     }
   }, [isOpen, clearError]);
 
-  /**
-   * Adds a new email to the editors list after validation, preventing duplicates
-   * and ensuring proper email format. Updates the editor tag display immediately.
-   */
   const addEmail = useCallback((email: string) => {
-    const cleanEmail = email.trim().toLowerCase();
-    console.log('ShareModal.tsx 5003 › Adding email', { email: cleanEmail });
-    
-    if (cleanEmail && isValidEmail(cleanEmail) && !editors.includes(cleanEmail)) {
-      const newEditors = [...editors, cleanEmail];
-      setEditors(newEditors);
-      console.log('ShareModal.tsx 5004 › Email added successfully', { 
-        totalEditors: newEditors.length 
-      });
-    } else {
-      console.log('ShareModal.tsx 5005 › Email rejected', { 
-        email: cleanEmail,
-        isValid: isValidEmail(cleanEmail),
-        isDuplicate: editors.includes(cleanEmail)
-      });
-    }
+    const clean = email.trim().toLowerCase();
+    if (clean && isValidEmail(clean) && !editors.includes(clean)) setEditors(p => [...p, clean]);
   }, [editors]);
 
-  /**
-   * Removes an email from the editors list and updates the tag display.
-   * Used when users click the remove button on email tags.
-   */
-  const removeEmail = useCallback((emailToRemove: string) => {
-    console.log('ShareModal.tsx 5006 › Removing email', { email: emailToRemove });
-    const newEditors = editors.filter(email => email !== emailToRemove);
-    setEditors(newEditors);
-  }, [editors]);
-
-  /**
-   * Processes email input by parsing comma-separated or newline-separated values
-   * and adding each valid email to the editors list. Clears input after processing.
-   */
-  const handleEmailInput = useCallback((value: string) => {
-    if (!value.trim()) return;
-    
-    console.log('ShareModal.tsx 5007 › Processing email input', { value });
-    
-    // Step 4: Parse multiple emails from input
-    const emailList = value.split(/[,\n]/).map(email => email.trim()).filter(Boolean);
-    
-    // Step 5: Add each valid email
-    emailList.forEach(email => addEmail(email));
-    
-    // Step 6: Clear input
+  const removeEmail = useCallback((e: string) => setEditors(p => p.filter(x => x !== e)), []);
+  const handleEmailInput = useCallback((v: string) => {
+    if (!v.trim()) return;
+    v.split(/[,\n]/).map(s => s.trim()).filter(Boolean).forEach(addEmail);
     setEmailInput('');
   }, [addEmail]);
 
-  /**
-   * Handles keyboard input for email field, processing emails on Enter or comma,
-   * and providing immediate feedback for invalid email formats.
-   */
   const handleEmailKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      handleEmailInput(emailInput);
-    }
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); handleEmailInput(emailInput); }
   }, [emailInput, handleEmailInput]);
 
-  /**
-   * Configures document sharing settings by calling the public share API with current
-   * form state. Handles both public sharing modes and private sharing with editor lists.
-   */
   const handleApplySharing = useCallback(async () => {
-    if (!docFileID) {
-      console.error('ShareModal.tsx 5008 › No document ID available');
-      return;
-    }
-
-    console.log('ShareModal.tsx 5009 › Applying sharing configuration', {
-      docId: docFileID,
-      mode: shareMode,
-      editorsCount: editors.length
-    });
-
+    if (!docFileID) return;
     try {
       const sharingResult = await configureSharing({
-        docId: docFileID,
-        mode: shareMode,
-        delivery: 'link',
-        editors: shareMode === 'private' ? editors : []
+        docId: docFileID, mode: shareMode, delivery: 'link', editors: shareMode === 'private' ? editors : []
       });
-
       setResult(sharingResult);
-      console.log('ShareModal.tsx 5010 › Sharing configuration applied', {
-        mode: sharingResult.mode,
-        url: sharingResult.url,
-        hasQr: !!sharingResult.qrDataUri
-      });
-
-    } catch (error) {
-      console.error('ShareModal.tsx 5011 › Failed to apply sharing configuration', error);
-    }
+    } catch (err) { console.error('[ShareModal][apply] failed', err); }
   }, [docFileID, shareMode, editors, configureSharing]);
 
-  /**
-   * Copies the share URL to the clipboard and provides visual feedback with a
-   * temporary success state that automatically resets after 2 seconds.
-   */
   const handleCopyUrl = useCallback(async () => {
     if (!result?.url) return;
-
     try {
       await navigator.clipboard.writeText(result.url);
-      setCopied(true);
-      console.log('ShareModal.tsx 5012 › URL copied to clipboard', { url: result.url });
-      
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error('ShareModal.tsx 5013 › Failed to copy URL', error);
+      setCopied(true); setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const ta = document.createElement('textarea'); ta.value = result.url;
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+      setCopied(true); setTimeout(() => setCopied(false), 2000);
     }
   }, [result?.url]);
 
-  /**
-   * Downloads the flyer PDF by opening it in a new tab, providing users with
-   * print-ready promotional materials containing QR codes and document information.
-   */
-  const handleDownloadFlyer = useCallback(async () => {
-    if (!docFileID) return;
+  const handleOpenLink = useCallback(() => {
+    if (result?.url) window.open(result.url, '_blank', 'noopener,noreferrer');
+  }, [result?.url]);
 
-    console.log('ShareModal.tsx 5014 › Generating flyer', { docId: docFileID });
-
-    try {
-      const flyerResult = await configureSharing({
-        docId: docFileID,
-        mode: shareMode,
-        delivery: 'flyer',
-        editors: shareMode === 'private' ? editors : []
-      });
-
-      if (flyerResult.flyerUrl) {
-        downloadFlyer(flyerResult.flyerUrl);
-        console.log('ShareModal.tsx 5015 › Flyer download initiated', { 
-          flyerUrl: flyerResult.flyerUrl 
-        });
-      }
-    } catch (error) {
-      console.error('ShareModal.tsx 5016 › Flyer generation failed', error);
-    }
-  }, [docFileID, shareMode, editors, configureSharing, downloadFlyer]);
-
-  // Step 7: Early return for closed modal
   if (!isOpen) return null;
 
+  const isConfigureScene = !result && !isLoading;
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" style={{ backdropFilter: 'blur(4px)' }}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
-        {/* Modal Header */}
-        <div className="p-5 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Share Document</h2>
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              aria-label="Close modal"
-            >
-              <X size={20} />
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Share modal">
+      <div className="modal-container sm-shell" style={{ width: 560, maxWidth: '92vw' }}>
+        {/* Header */}
+        <div className="sm-header">
+          <h2 className="modal-title" style={{ margin: 0, textAlign: 'left' }}>Share Document</h2>
+
+          {/* (update - 51) When in success scene, show Settings icon to the left of X */}
+          <div className="sm-header-actions">
+            {result && !isLoading && (
+              <button
+                type="button"
+                className="sm-icon-btn"
+                onClick={() => setResult(null)}
+                aria-label="Change settings"
+                title="Change settings"
+              >
+                <Settings size={18} />
+              </button>
+            )}
+            <button className="sm-close" onClick={onClose} aria-label="Close" title="Close" type="button">
+              <X size={18} />
             </button>
           </div>
         </div>
 
-        <div className="p-6" style={{ backgroundColor: '#FAFBFC' }}>
-          {!result && !isLoading && (
-            <div className="space-y-6">
-              {/* Access Level Section */}
-              <div className="space-y-3">
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Current Access Level
-                </div>
-                <select
-                  value={shareMode}
-                  onChange={(e) => setShareMode(e.target.value as ShareMode)}
-                  className="w-full px-3 py-2 border rounded-md text-sm bg-white text-gray-900 cursor-pointer appearance-none"
-                  style={{
-                    borderColor: '#D4C4B0',
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%238795A1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 12px center',
-                    paddingRight: '36px'
-                  }}
-                >
-                  <option value="public-edit">Anyone with the link can edit</option>
-                  <option value="public-view">Anyone with the link can view</option>
-                  <option value="private">Only editors on the list can edit</option>
-                </select>
-
-                {/* Email Input Section */}
-                {shareMode === 'private' && (
-                  <div 
-                    className="mt-3 p-3 bg-white border rounded-md"
-                    style={{ 
-                      borderColor: '#E8E8E8',
-                      animation: 'slideDown 0.3s ease-out'
-                    }}
+        <div className="sm-body">
+          {/* Scene 1 — Configure */}
+          {isConfigureScene && (
+            <div className="sm-body-inner sm-stack">
+              <div className="form-section">
+                <label className="form-label">Current Access Level</label>
+                <div className="sm-select">
+                  <select
+                    value={shareMode}
+                    onChange={(e) => setShareMode(e.target.value as ShareMode)}
+                    className="text-input sm-select-native"
                   >
-                    <div className="text-xs font-medium text-gray-900 mb-2">
-                      Add editors (enter email addresses)
-                    </div>
-                    
-                    {/* Email Tags */}
-                    {editors.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {editors.map((email) => (
-                          <div
-                            key={email}
-                            className="flex items-center gap-1 px-2 py-1 bg-gray-100 border rounded text-xs text-gray-900"
-                            style={{ borderColor: '#D4C4B0' }}
-                          >
-                            <span>{email}</span>
-                            <button
-                              onClick={() => removeEmail(email)}
-                              className="text-gray-500 hover:text-red-500 transition-colors"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <textarea
-                      value={emailInput}
-                      onChange={(e) => setEmailInput(e.target.value)}
-                      onKeyDown={handleEmailKeyDown}
-                      onBlur={() => handleEmailInput(emailInput)}
-                      placeholder="Enter email addresses separated by commas or new lines"
-                      className="w-full min-h-[60px] px-2 py-2 border rounded text-xs resize-vertical"
-                      style={{ 
-                        borderColor: '#D4C4B0',
-                        backgroundColor: '#FAFBFC'
-                      }}
-                    />
-                    <div className="text-xs text-gray-500 mt-1">
-                      Press Enter or use comma to add multiple emails
-                    </div>
-
-                    {/* Accumulated Emails Display */}
-                    {editors.length > 0 && (
-                      <div 
-                        className="mt-3 p-2 bg-green-50 border rounded"
-                        style={{ borderColor: '#D4C4B0' }}
-                      >
-                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                          Added Editors
-                        </div>
-                        <div className="text-xs text-gray-900">
-                          {editors.join(', ')}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Loading State */}
-          {isLoading && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 border-4 border-gray-200 border-t-blue-600 rounded-full mx-auto mb-4 animate-spin"></div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Configuring sharing settings...
-              </h3>
-              <p className="text-sm text-gray-600">This will just take a moment</p>
-            </div>
-          )}
-
-          {/* Success Result */}
-          {result && !isLoading && (
-            <div className="space-y-6">
-              {/* Success Banner */}
-              <div className="text-center">
-                <div 
-                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                  style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
-                >
-                  <Check className="text-white" size={28} />
+                    <option value="public-edit">Anyone with the link can edit</option>
+                    <option value="public-view">Anyone with the link can view</option>
+                    <option value="private">Only editors on the list can edit</option>
+                  </select>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Sharing Configured!
-                </h3>
-                <p className="text-gray-600">
-                  Your document sharing settings have been updated.
-                </p>
+                <div className="modal-subtext sm-helper">{helperText}</div>
               </div>
 
-              {/* Copyable URL */}
-              <div 
-                className="p-4 rounded-xl border"
-                style={{ backgroundColor: '#F9FAFB', borderColor: '#D4C4B0' }}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
-                      Generated URL
+              {shareMode === 'private' && (
+                <div className="rms-field">
+                  <div className="rms-legend">Add editors (email addresses)</div>
+                  {editors.length > 0 && (
+                    <div className="sm-tags">
+                      {editors.map((email) => (
+                        <span key={email} className="sm-tag">
+                          {email}
+                          <button type="button" className="sm-tag-x" aria-label={`Remove ${email}`} onClick={() => removeEmail(email)}>×</button>
+                        </span>
+                      ))}
                     </div>
-                    <div 
-                      className="text-sm text-gray-900 font-mono break-all p-3 rounded-lg border"
-                      style={{ backgroundColor: 'white', borderColor: '#E5E7EB' }}
-                    >
-                      {result.url}
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleCopyUrl}
-                    className={`flex-shrink-0 p-3 rounded-lg transition-all ${
-                      copied
-                        ? 'bg-green-100 text-green-600'
-                        : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                    }`}
-                    aria-label="Copy to clipboard"
-                  >
-                    {copied ? <Check size={18} /> : <Copy size={18} />}
-                  </button>
-                </div>
-                {copied && (
-                  <div className="text-xs text-green-600 mt-2 font-medium">
-                    ✓ Copied to clipboard!
-                  </div>
-                )}
-              </div>
-
-              {/* QR Code Display */}
-              {result.qrDataUri && (
-                <div className="space-y-2 text-center">
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">QR Code</div>
-                  <Image
-                    src={result.qrDataUri} 
-                    alt="Share QR code" 
-                     width={200}
-                     height={200}
-                    className="mx-auto border rounded"
-                    style={{ borderColor: '#E5E7EB' }}
+                  )}
+                  <textarea
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    onKeyDown={handleEmailKeyDown}
+                    onBlur={() => handleEmailInput(emailInput)}
+                    placeholder="Enter emails separated by commas or new lines"
+                    className="text-input sm-textarea"
                   />
-                  <button
-                    onClick={handleDownloadFlyer}
-                    className="mt-2 inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                    style={{ backgroundColor: '#3B82F6' }}
-                  >
-                    <Printer size={16} />
-                    Download QR
-                  </button>
+                  <div className="modal-subtext" style={{ margin: 0 }}>Press Enter or comma to add multiple emails.</div>
                 </div>
               )}
 
-              {/* Editor Confirmation */}
-              {result.mode === 'private' && result.editorsCount && result.editorsCount > 0 && (
-                <div 
-                  className="p-4 rounded-xl border"
-                  style={{ 
-                    backgroundColor: '#EFF6FF', 
-                    borderColor: '#BFDBFE'
-                  }}
-                >
-                  <div className="flex items-center gap-2 text-blue-800">
-                    <span className="text-sm font-medium">
-                      Successfully configured for {result.editorsCount} editor(s)
-                    </span>
-                  </div>
-                  <div className="text-xs text-blue-600 mt-1">
-                    {editors.join(', ')}
-                  </div>
-                </div>
-              )}
-
-              {/* New Share Button */}
-              <div className="pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => setResult(null)}
-                  className="w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
-                >
-                  Configure Different Settings
-                </button>
-              </div>
+              {error && <div className="error-message" role="alert">{error}</div>}
             </div>
           )}
 
-          {/* Error Display */}
-          {error && !isLoading && (
-            <div className="text-center py-8">
-              <div className="text-sm text-red-600 mb-4">{error}</div>
-              <button
-                onClick={clearError}
-                className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
-              >
-                Try Again
-              </button>
+          {/* Loading */}
+          {isLoading && (
+            <div className="loading-section">
+              <div className="pulsing-dots" aria-hidden="true"><span className="dot" /><span className="dot" /><span className="dot" /></div>
+              <div className="loading-text">Configuring sharing settings…</div>
+              <div className="modal-subtext">This will just take a moment.</div>
+            </div>
+          )}
+
+          {/* Scene 2 — Success */}
+          {result && !isLoading && (
+            <div className="sm-stack">
+              <div className="sm-success-head">
+                <div className="sm-success-avatar"><Check className="sm-success-check" /></div>
+                <div className="sm-success-titles">
+                  <h3 className="sm-success-title">Your link is ready to be shared</h3>
+                  <p className="sm-success-sub">Your sharing settings have been updated</p>
+                </div>
+              </div>
+
+              <div className="sm-share-block">
+                <label className="sm-share-label">Share Link</label>
+                <div className="sm-share-row">
+                  <p className="sm-share-url" title={result.url}>{result.url}</p>
+                  <div className="sm-share-actions">
+                    <button onClick={handleCopyUrl} className="sm-share-btn sm-share-btn--copy" title="Copy to clipboard" aria-label="Copy to clipboard">
+                      {copied ? <Check className="sm-share-ic" /> : <Copy className="sm-share-ic" />}
+                      <span className="sm-share-btn-text">{copied ? 'Copied!' : 'Copy'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {successNote.text && (
+                <div className={`sm-perm sm-perm--${successNote.variant}`}>
+                  <div className="sm-perm-dot" />
+                  <div className="sm-perm-texts">
+                    <p className="sm-perm-title">{successNote.variant === 'public' ? 'Public Access' : 'Restricted Access'}</p>
+                    <p className="sm-perm-sub">{successNote.text}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* (update - 52) Bottom-right action bar with Done */}
+              <div className="sm-success-actions-bar">
+                <button type="button" className="btn btn-primary" onClick={onClose}>Done</button>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Modal Footer */}
-        {!result && !isLoading && (
-          <div className="p-4 bg-white border-t border-gray-200 flex justify-end gap-3">
+        {/* Footer (Scene 1 only) */}
+        {isConfigureScene && (
+          <div className={`sm-footer ${isConfigureScene ? 'sm-footer--borderless' : ''}`}>
+            <button type="button" className="btn btn-cancel" onClick={onClose}>Cancel</button>
             <button
-              onClick={onClose}
-              className="px-5 py-2 bg-white border text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium"
-              style={{ borderColor: '#D4C4B0' }}
-            >
-              Cancel
-            </button>
-            <button
+              type="button"
+              className={`btn ${shareMode === 'private' && editors.length === 0 ? 'btn-disabled' : 'btn-primary'}`}
               onClick={handleApplySharing}
               disabled={shareMode === 'private' && editors.length === 0}
-              className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
-                shareMode === 'private' && editors.length === 0
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'text-white hover:bg-green-700'
-              }`}
-              style={{ 
-                backgroundColor: shareMode === 'private' && editors.length === 0 
-                  ? '#E5E7EB' 
-                  : '#5B8C5A'
-              }}
             >
               Apply Changes
             </button>
           </div>
         )}
       </div>
-
-      <style jsx>{`
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
 }

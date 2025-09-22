@@ -1,39 +1,36 @@
+// app/Library/hooks/useGradebook.ts
 /**
  * @file useGradebook.ts
  * @description
- *   This file implements the production-ready `useGradebook(docId)` React hook and a small,
- *   per-document in-memory cache that composes two independent data sources into a single,
- *   ergonomic interface for Gradebook UIs. (1) It consumes **Yjs** via `ResourceContext` to
- *   discover live `quizAssessment` assignment cards that render as gradebook columns, and (2)
- *   it fetches authoritative grades and student rosters from the **BFF/Firestore** through
- *   `ApiContext.getGradebook`. The hook exposes the merged `{ assignments, students, grid }`,
- *   a `status` state machine for UX, and imperative helpers to `refresh()` from the server,
- *   `applyAttemptResult()` for optimistic cell updates, and `upsertAssignmentMeta()` to nudge
- *   headers after assignment authoring. It centralizes logging with stable 4-digit codes,
- *   maintains O(1)/O(N) operations where applicable, and never performs automatic fetching—
- *   callers decide when to load data. The internal cache is keyed by `docId` to avoid
- *   cross-document bleed, supports multiple subscribers, and keeps the UI snappy while
- *   deferring authority to the backend on each refresh. This isolation reduces coupling and
- *   keeps GradebookModal, QuizGate, and QuizAttemptController trivial to reason about.
+ *   This file implements the production-ready `useGradebook(docId)` React hook and a compact,
+ *   per-document in-memory cache with pub/sub so multiple subscribers (e.g., GradebookModal,
+ *   AssignQuizModal) can share a single authoritative gradebook snapshot. In this revision we
+ *   intentionally **remove all Yjs dependencies** and any merging logic with client-side
+ *   `quizAssessment` cards; the **server** is now the single source of truth for *all three lanes*:
+ *   `assignments`, `students`, and `grid`. The hook exposes a small, ergonomic surface:
+ *   1) `refresh()` to fetch the latest snapshot on demand,
+ *   2) `applyAttemptResult()` for optimistic, single-cell updates between submissions and refreshes,
+ *   3) `upsertAssignmentMeta()` for optimistic, in-memory header patches after successful network
+ *   writes. This keeps the implementation simple, predictable, and testable, reduces coupling
+ *   (no editor-state concerns), and makes operational behavior explicit. Complexity is O(1) for
+ *   reads/mutations against the cache and O(S + A + C) for merges where S=students, A=assignments,
+ *   and C=cells returned by the backend.
  *
  *   Responsibilities (step-by-step):
  *   1) Maintain a process-wide, per-`docId` in-memory store with pub/sub for UI subscribers.
- *   2) Derive gradebook column headers from live Yjs `quizAssessment` cards.
- *   3) Fetch server snapshots on demand and normalize their shape.
- *   4) Offer optimistic mutations (assignment header nudge & attempt result write-through).
- *   5) Emit compact, traceable console logs at critical checkpoints for observability.
+ *   2) Fetch server snapshots on demand and **set** assignments, students, and grid from the server.
+ *   3) Offer optimistic mutations (assignment header nudge & attempt result write-through).
+ *   4) Emit compact, traceable console logs at critical checkpoints for observability.
  *
  *   Performance & Big-O:
  *   - Reading/serving from the cache is O(1) for lookups; merging server results is
  *     O(S + A + C) where S=students, A=assignments, C=cells in the payload.
- *   - Comparing/patching assignments is O(A). Optimistic cell writes are O(1).
+ *   - Optimistic cell writes and header upserts are O(1) and O(A) respectively.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useResourceContext } from '@/app/Library/Context/ResourceContext';
-import { QuizAssessmentResource } from '@/app/Library/Definitions/Definitions';
-import { useApiContext } from '@/app/src/context/ApiContext';
-import type {
+import { useApiContext } from '@/app/src/context/ApiContext'; // update - 1 (removed ResourceContext/Yjs imports)
+import type { // update - 2
   AssignmentHeader,
   GradebookCell,
   GradebookQueryRes,
@@ -70,11 +67,11 @@ export interface UseGradebookResult {
   /**
    * refresh
    * @description
-   *   Imperative fetch that loads an authoritative gradebook snapshot from the backend, merges it
-   *   into the per-doc cache, and notifies all subscribers. The hook sets `status='updating'`
-   *   while the request is in flight, then returns to `ready` (or `error` on failure). This call
-   *   never auto-retries; callers control timing (e.g., fire on modal open or via a Refresh UI).
-   *   Complexity: network-bound; merge is O(S + A + C) where S students, A assignments, C cells.
+   *   Imperative fetch that loads an authoritative gradebook snapshot from the backend and writes
+   *   **all three lanes** (assignments, students, grid) into the per-doc cache, then notifies all
+   *   subscribers. The hook sets `status='updating'` while the request is in flight, and resets to
+   *   `ready` (or `error` on failure). Callers choose when to load (e.g., on modal open).
+   *   Complexity: network-bound; merge is O(S + A + C).
    */
   refresh: () => Promise<void>;
   /**
@@ -94,11 +91,9 @@ export interface UseGradebookResult {
   /**
    * upsertAssignmentMeta
    * @description
-   *   Optimistically creates or updates a single assignment header within the column list. This
-   *   is used by authoring flows (e.g., AssignQuizModal) after successfully persisting metadata
-   *   to the backend so the UI is immediately coherent while awaiting `refresh()`. It preserves
-   *   existing order where possible and performs a stable in-place patch when ids match.
-   *   Complexity: O(A) to scan and patch a single header among A columns.
+   *   Optimistically creates or updates a single assignment header in the column list after the
+   *   server has accepted an upsert/patch. This keeps UI snappy while a background `refresh()`
+   *   reconciles in case the server normalizes values. Complexity: O(A) to scan/patch.
    */
   upsertAssignmentMeta: (header: AssignmentHeader) => void;
 }
@@ -128,7 +123,7 @@ function _getOrInit(docId: string): GradebookCache {
       version: 0,
     };
     _store.set(docId, s);
-    console.log('useGradebook.ts [7301] › cache init', { docId });
+    console.log('useGradebook.ts [9301] › cache init', { docId }); // update - 3
   }
   return s;
 }
@@ -140,7 +135,7 @@ function _emit(docId: string): void {
     try {
       fn();
     } catch (e) {
-      console.warn('useGradebook.ts [7397] › subscriber threw', e);
+      console.warn('useGradebook.ts [9397] › subscriber threw', e); // update - 4
     }
   });
 }
@@ -149,11 +144,11 @@ function _subscribe(docId: string, cb: () => void): () => void {
   const set = _subs.get(docId) ?? new Set<() => void>();
   set.add(cb);
   _subs.set(docId, set);
-  console.log('useGradebook.ts [7302] › subscribe', { docId, count: set.size });
+  console.log('useGradebook.ts [9302] › subscribe', { docId, count: set.size }); // update - 5
   return () => {
     set.delete(cb);
     if (set.size === 0) _subs.delete(docId);
-    console.log('useGradebook.ts [7303] › unsubscribe', { docId, count: set.size });
+    console.log('useGradebook.ts [9303] › unsubscribe', { docId, count: set.size }); // update - 6
   };
 }
 
@@ -165,61 +160,32 @@ function _patch(docId: string, updater: (prev: GradebookCache) => void): void {
 }
 
 /* =================================================================================================
- * Local helpers
+ * Server snapshot merge (assignments + students + grid)
  * =================================================================================================*/
 
 /**
- * assignmentsFromYjs
- * Responsibility:
- *   Transform live Yjs `quizAssessment` cards into assignment headers expected by the gradebook.
- *   Falls back to sane defaults when optional fields are missing to keep UI resilient. The order
- *   is preserved as provided by ResourceContext to avoid surprising users in multi-editor sessions.
- */
-function assignmentsFromYjs(cards: QuizAssessmentResource[]): AssignmentHeader[] {
-  return cards.map((c) => ({
-    assignmentId: c.assignmentId,
-    title: c.title || 'Untitled',
-    startAt: c.window?.startAt ?? '',
-    endAt: c.window?.endAt ?? '',
-    attemptLimit: Number.isFinite(c.attemptLimit) && (c.attemptLimit as number) > 0 ? (c.attemptLimit as number) : 1,
-  }));
-}
-
-/**
- * shallowEqualAssignments
- * Responsibility:
- *   Determine if two assignment header lists are equivalent by id and header fields. Used to
- *   avoid unnecessary cache churn when Yjs toggles or makes no effective changes. O(A).
- */
-function shallowEqualAssignments(a: AssignmentHeader[], b: AssignmentHeader[]): boolean {
-  if (a === b) return true;
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    const x = a[i];
-    const y = b[i];
-    if (
-      x.assignmentId !== y.assignmentId ||
-      x.title !== y.title ||
-      x.startAt !== y.startAt ||
-      x.endAt !== y.endAt ||
-      x.attemptLimit !== y.attemptLimit
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
-/**
  * mergeServerSnapshot
- * Responsibility:
- *   Merge an authoritative server snapshot into the per-doc cache, replacing the student roster
- *   and cell grid while preserving assignment headers that come from Yjs (columns remain driven
- *   by the live document). Normalizes emails defensively and stamps `lastUpdated` for UI hints.
+ * @description
+ *   Merge an authoritative server snapshot into the per-doc cache, **writing all three lanes**:
+ *   `assignments`, `students`, and `grid`. Emails are normalized defensively; `lastUpdated` is
+ *   stamped for UI hints. Since this revision removes Yjs, assignments always come from the server.
+ *   Complexity: O(S + A + C) over snapshot size; cache writes are O(1).
  */
-function mergeServerSnapshot(docId: string, snap: GradebookQueryRes): void {
+function mergeServerSnapshot(docId: string, snap: GradebookQueryRes): void { // update - 7
   _patch(docId, (s) => {
+    // 1) Assignments — now server-authoritative
+    s.assignments = (snap.assignments || []).map((a) => ({
+      assignmentId: a.assignmentId,
+      title: a.title,
+      startAt: a.startAt,
+      endAt: a.endAt,
+      attemptLimit: a.attemptLimit,
+    }));
+
+    // 2) Students (normalized)
     const students = (snap.students || []).map(_normalizeEmail);
+
+    // 3) Grid (sparse matrix)
     const grid: GradebookGrid = {};
     for (const [rawEmail, row] of Object.entries(snap.grades || {})) {
       const email = _normalizeEmail(rawEmail);
@@ -231,16 +197,19 @@ function mergeServerSnapshot(docId: string, snap: GradebookQueryRes): void {
         };
       }
     }
+
+    // 4) Finalize cache state
     s.students = students;
     s.grid = grid;
     s.status = 'ready';
     s.error = null;
     s.lastUpdated = new Date().toISOString();
   });
-  console.log('useGradebook.ts [7304] › merged server snapshot', {
+
+  console.log('useGradebook.ts [9304] › merged server snapshot', { // update - 8
     docId,
-    students: snap.students.length,
-    assignmentsReported: snap.assignments.length,
+    students: snap.students?.length ?? 0,
+    assignments: snap.assignments?.length ?? 0,
   });
 }
 
@@ -249,50 +218,32 @@ function mergeServerSnapshot(docId: string, snap: GradebookQueryRes): void {
  * =================================================================================================*/
 
 export function useGradebook(docId: string): UseGradebookResult {
-  const { selectQuizAssessments } = useResourceContext();
-  const { getGradebook } = useApiContext();
+  const { getGradebook } = useApiContext(); // update - 9 (sole external dependency now)
 
   // Keep a stable reference to docId for logs
   const docRef = useRef(docId);
   docRef.current = docId;
 
   // 1) Subscribe to the per-doc store and keep local state in sync
-  const [tick, setTick] = useState(0);
+  const [, setTick] = useState(0);
   useEffect(() => {
     const unsub = _subscribe(docId, () => setTick((t) => t + 1));
     return () => unsub();
-  }, [docId]);
+  }, [docId]); // update - 10
 
   // 2) Initialize (if needed) so initial render has a value
   useEffect(() => {
     _getOrInit(docId);
-  }, [docId]);
+  }, [docId]); // update - 11
 
   // 3) Derive current snapshot from the cache
-  const snapshot = useMemo(() => _getOrInit(docId), [docId]);
+  const snapshot = useMemo(() => _getOrInit(docId), [docId]); // update - 12
 
-  // 4) Recompute assignment headers whenever Yjs changes (function identity changes on updates)
-  useEffect(() => {
-    const yCards = selectQuizAssessments();
-    const yHeaders = assignmentsFromYjs(yCards);
-
-    _patch(docId, (s) => {
-      if (shallowEqualAssignments(s.assignments, yHeaders)) return;
-      s.assignments = yHeaders;
-      // Note: grid correctness is independent from header source; no need to touch grid here.
-    });
-
-    console.log('useGradebook.ts [7305] › applied Yjs assignments', {
-      docId,
-      count: yHeaders.length,
-    });
-  }, [docId, selectQuizAssessments]);
-
-  // 5) Define refresh (authoritative fetch)
-  const refresh = useCallback(async () => {
+  // 4) Define refresh (authoritative fetch for all lanes)
+  const refresh = useCallback(async () => { // update - 13
     if (!docId) return;
     if (_inFlight.has(docId)) {
-      console.log('useGradebook.ts [7306] › refresh skipped; in flight', { docId });
+      console.log('useGradebook.ts [9306] › refresh skipped; in flight', { docId }); // update - 14
       return;
     }
     _inFlight.add(docId);
@@ -300,28 +251,29 @@ export function useGradebook(docId: string): UseGradebookResult {
       s.status = 'updating';
       s.error = null;
     });
-    console.log('useGradebook.ts [7307] › refresh begin', { docId });
+    console.log('useGradebook.ts [9307] › refresh begin', { docId }); // update - 15
 
     try {
       const res = await getGradebook(docId);
       mergeServerSnapshot(docId, res);
-      console.log('useGradebook.ts [7308] › refresh ok', {
+      console.log('useGradebook.ts [9308] › refresh ok', { // update - 16
         docId,
         students: res.students.length,
+        assignments: res.assignments.length,
       });
     } catch (err: any) {
       _patch(docId, (s) => {
         s.status = 'error';
         s.error = String(err?.message || 'UNKNOWN');
       });
-      console.error('useGradebook.ts [7398] › refresh error', { docId, message: err?.message });
+      console.error('useGradebook.ts [9398] › refresh error', { docId, message: err?.message }); // update - 17
     } finally {
       _inFlight.delete(docId);
     }
   }, [docId, getGradebook]);
 
-  // 6) Optimistic cell write
-  const applyAttemptResult = useCallback(
+  // 5) Optimistic cell write
+  const applyAttemptResult = useCallback( // update - 18
     (email: Email, assignmentId: AssignmentId, scorePct: number, submittedAt?: string) => {
       const nEmail = _normalizeEmail(email);
       const ts = submittedAt || new Date().toISOString();
@@ -335,7 +287,7 @@ export function useGradebook(docId: string): UseGradebookResult {
         s.lastUpdated = ts;
       });
 
-      console.log('useGradebook.ts [7309] › optimistic cell write', {
+      console.log('useGradebook.ts [9309] › optimistic cell write', { // update - 19
         docId,
         email: nEmail,
         assignmentId,
@@ -346,23 +298,16 @@ export function useGradebook(docId: string): UseGradebookResult {
   );
 
   /**
- * upsertAssignmentMeta
- * @description
- *   Inserts or updates a single assignment header within the per-document gradebook cache and
- *   notifies all subscribers. This function is used by authoring flows to reflect server-accepted
- *   metadata immediately, keeping the UI responsive while a subsequent `refresh()` reconciles with
- *   the authoritative backend snapshot. It preserves column order by performing in-place updates
- *   when the `assignmentId` already exists, and appends a new header otherwise. Time complexity is
- *   O(A), where A is the number of assignment columns.
- *
- *   Step-by-step:
- *   1) Look up the target assignment by `assignmentId`.
- *   2) If found, merge the provided fields into the existing header (stable index).
- *   3) If not found, append the header to the end of the list.
- *   4) Emit a cache update via `_patch` to trigger re-rendering for all subscribers.
- *   5) Log a concise, traceable message for observability and debugging.
- */
-  const upsertAssignmentMeta = useCallback(
+   * upsertAssignmentMeta
+   * @description
+   *   Inserts or updates a single assignment header within the per-document gradebook cache and
+   *   notifies all subscribers. This function is used by authoring flows to reflect server-accepted
+   *   metadata immediately, keeping the UI responsive while a subsequent `refresh()` reconciles with
+   *   the authoritative backend snapshot. It preserves column order by performing in-place updates
+   *   when the `assignmentId` already exists, and appends a new header otherwise. Time complexity is
+   *   O(A), where A is the number of assignment columns.
+   */
+  const upsertAssignmentMeta = useCallback( // update - 20
     (header: AssignmentHeader) => {
       _patch(docId, (s) => {
         const idx = s.assignments.findIndex((a) => a.assignmentId === header.assignmentId);
@@ -376,7 +321,7 @@ export function useGradebook(docId: string): UseGradebookResult {
           s.assignments = [...s.assignments, header];
         }
       });
-      console.log('useGradebook.ts [7310] › header upsert', {
+      console.log('useGradebook.ts [9310] › header upsert', { // update - 21
         docId,
         assignmentId: header.assignmentId,
       });
@@ -384,11 +329,11 @@ export function useGradebook(docId: string): UseGradebookResult {
     [docId]
   );
 
-  // 8) Return shallow copies for arrays (mutable per interface)  // update - 1
+  // 6) Return shallow copies for arrays (stable object identity for grid)         // update - 22
   const result: UseGradebookResult = useMemo(
     () => ({
-      assignments: [...snapshot.assignments], // update - 2
-      students: [...snapshot.students],       // update - 3
+      assignments: [...snapshot.assignments], // update - 23
+      students: [...snapshot.students],       // update - 24
       grid: snapshot.grid,
       status: snapshot.status,
       lastUpdated: snapshot.lastUpdated,

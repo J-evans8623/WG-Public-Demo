@@ -96,22 +96,41 @@
   hyphens: auto;
 }
 
-.slideshow-concept-secondary {
-  font-family: 'Crimson Text', serif;
-  font-size: 1rem;
-  color: rgba(44, 62, 80, 0.7);
-  font-weight: 400;
-  margin: 0.5rem 0 0 0;
-  line-height: 1.4;
-  text-align: left;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-wrap: break-word;
-  hyphens: auto;
-  font-style: italic;
+/* update - 4: Improve readability of the secondary title while keeping it subordinate to the concept name */
+.slideshow-concept-secondary { /* update - 4 */
+  /* 1) Typeface: switch to app body sans for clarity at small sizes */ /* update - 4 */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; /* update - 4 */
+
+  /* 2) Size/weight: modest bump + semi-bold for legibility without competing with H1 */ /* update - 4 */
+  font-size: 1.0625rem; /* ~17px; primary remains larger at 1.5rem */ /* update - 4 */
+  font-weight: 500; /* readable, still subordinate to .slideshow-concept-name(600) */ /* update - 4 */
+
+  /* 3) Contrast: darker tone for accessibility while preserving hierarchy hue */ /* update - 4 */
+  color: rgba(44, 62, 80, 0.88); /* update - 4 */
+
+  /* 4) Spacing & rhythm */ /* update - 4 */
+  margin: 0.35rem 0 0 0; /* tighten a bit under the main title */ /* update - 4 */
+  line-height: 1.45; /* update - 4 */
+  letter-spacing: 0.005em; /* micro tracking for readability */ /* update - 4 */
+
+  /* 5) Keep truncation behavior; remove italics to reduce shimmer/blur on LCD */ /* update - 4 */
+  font-style: normal; /* was italic */ /* update - 4 */
+  display: -webkit-box; /* keep multi-line clamp intact */ /* update - 4 */
+  -webkit-line-clamp: 2; /* update - 4 */
+  -webkit-box-orient: vertical; /* update - 4 */
+  overflow: hidden; /* update - 4 */
+  word-wrap: break-word; /* update - 4 */
+  hyphens: auto; /* update - 4 */
 }
+
+/* update - 5: Ensure the secondary title scales down gracefully on small screens */
+@media (max-width: 480px) { /* update - 5 */
+  .slideshow-concept-secondary { /* update - 5 */
+    font-size: 1rem;    /* keep hierarchy on narrow viewports */ /* update - 5 */
+    -webkit-line-clamp: 2; /* maintain two-line clamp */ /* update - 5 */
+  } /* update - 5 */
+}
+
 
 .slideshow-header-actions {
   display: flex;
@@ -641,18 +660,18 @@
 
 /* ===== DISCUSSION MODAL STYLES ===== */
 .slideshow-discussion-form {
-  max-width: 700px !important;
-  width: 95% !important;
-  max-height: 90vh !important;
+  max-width: none !important;
+  width: auto !important;
+  max-height: none !important;
 }
 
 .slideshow-discussion-form .discussion-form {
-  height: auto !important;
+  height: 100% !important;
   max-height: none !important;
 }
 
 .slideshow-discussion-form .discussion-form__form {
-  max-height: 60vh !important;
+  max-height: none !important;
 }
 
 /* ===== RESPONSIVE DESIGN ===== */

@@ -29,7 +29,8 @@
  * @date Current
  */
 
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import { apiService, ApiErrorEvent, ApiResponse, ApiRequestConfig } from '../services/ApiService';
 import { UserFileMetadata, UserFilesResponse } from '@/app/src/types/fileTypes';
 import { insertDedupSorted, updateByIdSorted,
@@ -39,11 +40,6 @@ import DocumentAccessManager from '@/app/studygraph/(studygraph)/components/hook
 import { getFileListCache, setFileListCache, clearFileListCache } from '@/app/studygraph/(studygraph)/services/fileListCache';
 import { gradebookClient, AssignMetaPatchReq, AssignMetaPatchRes, AssignMetaUpsertReq, AssignMetaUpsertRes, GradebookQueryRes, AttemptStartReq, AttemptStartRes, AttemptSubmitReq, AttemptSubmitRes } from '@/app/studygraph/(studygraph)/services/gradebook/gradebookClient';
 
-// Step 1: Define enhanced interfaces for account management
-interface User {
-  email: string;
-  accountType: 'free' | 'premium';
-}
 
 interface AccountStatus {
   email:string,
@@ -103,6 +99,7 @@ interface ApiContextType {
   getGradebook: (docId: string) => Promise<GradebookQueryRes>;
   startAttempt: (req: AttemptStartReq) => Promise<AttemptStartRes>;
   submitAttempt: (req: AttemptSubmitReq) => Promise<AttemptSubmitRes>;
+  userEmail: string;
 }
 
 // Step 4: Create context with comprehensive default values
@@ -131,6 +128,29 @@ export const useAccountStatus = () => {
 };
 
 /**
+ * @function useFileList
+ * @description
+ *   Returns the canonical file list from ApiContext with SWR-like flags. Consumers should treat
+ *   these arrays as read-only and avoid mirroring state locally. The hook is O(1) and avoids
+ *   re-renders beyond state changes in the provider. It also provides `refresh()` to force a
+ *   foreground revalidation when a user action (like delete) requires it.
+ */
+export const useFileList = () => { // update - 1
+  const ctx = useContext(ApiContext); // update - 2
+  if (!ctx) throw new Error('useFileList must be used within ApiProvider'); // update - 3
+  // Expose only the read model + flags + refresh; keep mutations centralized in ApiContext // update - 4
+  return {
+    ownedFiles: (ctx as any)._ownedFiles as UserFileMetadata[] || [], // update - 5
+    sharedFiles: (ctx as any)._sharedFiles as UserFileMetadata[] || [], // update - 6
+    isHydrated: (ctx as any)._isFileListHydrated as boolean, // update - 7
+    isRefreshing: (ctx as any)._isFileListRefreshing as boolean, // update - 8
+    lastUpdatedAt: (ctx as any)._fileListUpdatedAt as number | null, // update - 9
+    lastError: (ctx as any)._fileListError as string | null, // update - 10
+    refresh: ctx.refreshList, // update - 11
+  };
+};
+
+/**
  * ApiProvider
  * @description
  *   Enhanced API context provider that integrates with the centralized EnhancedApiService while
@@ -142,9 +162,12 @@ export const useAccountStatus = () => {
  * @returns Enhanced API context provider with integrated error handling
  */
 export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
-  // Step 6: Traditional state management
-  const [user, setUser] = useState<User | null>(null);
-  const [isGuest, setIsGuest] = useState<boolean>(false);
+  const { data: session, status } = useSession();
+  const normalizedEmail = useMemo(
+    () => (session?.user?.email ? session.user.email.trim().toLowerCase() : ''),
+    [session?.user?.email]
+  );
+  
   const [error, setError] = useState<string | null>(null);
   
   // Step 7: New account status state management
@@ -155,30 +178,40 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
   const [apiError, setApiError] = useState<ApiErrorEvent | null>(null);
   const [isApiRequestActive, setIsApiRequestActive] = useState(false);
   const [activeRequestCount, setActiveRequestCount] = useState(0);
-
+  // File list state and SWR flags (owned by provider; consumed via useFileList)
   const [fileList, setFileList] = useState<{
   ownedFiles: UserFileMetadata[];
   sharedFiles: UserFileMetadata[];
 } | null>(null);
 
   const [isFileListLoading, setIsFileListLoading] = useState(false);
+   const [isFileListRefreshing, setIsFileListRefreshing] = useState<boolean>(false); 
+  const [isFileListHydrated, setIsFileListHydrated] = useState<boolean>(false); 
+  const [fileListUpdatedAt, setFileListUpdatedAt] = useState<number | null>(null); 
+  const [fileListError, setFileListError] = useState<string | null>(null); 
 
   // Step 9: Use refs for cleanup and event handling
   const mountedRef = useRef(true);
-  const requestCountIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
+  const inflightListPromiseRef = useRef<Promise<UserFilesResponse> | null>(null);
   
-    /**
-   * 
-   * @function currentUserEmail
+  
+  /* @function currentUserEmail
    * @description
-   *   Returns the current user's email (lowercased) from AccountStatus when available.
-   *   This is used by file list helpers to resolve the “owned vs shared” bucket when
-   *   role is ambiguous. O(1) time; returns empty string if unavailable.
+   *   Returns the normalized session email (trimmed/lowercased). This is the single source
+   *   of truth for cache keys and bucket resolution. Throws if session isn’t ready, as the
+   *   app must enforce authentication before this provider mounts.
    */
   const currentUserEmail = useCallback((): string => {
-    return (accountStatus?.email ?? '').trim().toLowerCase();
-  }, [accountStatus?.email]);
+    if (status === 'loading') {
+      // Guard against premature calls; callers should wait for mount/session readiness.
+      throw new Error('SESSION_LOADING');
+    }
+    if (!normalizedEmail) {
+      console.error('[ApiContext.tsx][7001] Missing session email. Auth is required.');
+      throw new Error('SESSION_REQUIRED');
+    }
+    return normalizedEmail;
+  }, [normalizedEmail, status]);
 
 
   /**
@@ -263,7 +296,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
       
       // Step 8: Graceful fallback to safe defaults
       const fallbackStatus: AccountStatus = {
-        email: 'unknown',
+        email: normalizedEmail || 'unknown',
         accountType: 'scholar',
         subscriptionTier: 'freemium',
         features: {
@@ -286,7 +319,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
       setIsAccountLoading(false);
       }
     }
-  }, []);
+  }, [normalizedEmail]);
 
 
   /**
@@ -316,17 +349,22 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
    * account data from persisting across sessions.
    */
   const signOut = async () => {
-    console.log('[ApiContext.tsx][1008] Sign out initiated');
+    console.log('[ApiContext.tsx][7008] Sign out initiated');
     try {
-      const prevEmailKey = (accountStatus?.email ?? 'guest').trim().toLowerCase();
-      clearFileListCache(prevEmailKey);
+      
+      const emailKey = normalizedEmail;
+      if (emailKey) {
+        clearFileListCache(emailKey);
+      }
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-      setUser(null);
-      setIsGuest(false);
       setAccountStatus(null);
-      console.log('[ApiContext.tsx][1009] Sign out completed, state cleared');
-    } catch (error) {
-      console.error('[ApiContext.tsx][1010] Logout error:', error);
+      // Clear file list state on sign out
+      setFileList(null);
+      setIsFileListHydrated(false);
+      setFileListUpdatedAt(null);
+      console.log('[ApiContext.tsx][7009] Sign out completed; cache cleared for user', emailKey);
+    } catch (err) {
+      console.error('[ApiContext.tsx][7010] Logout error', err);
     }
   };
 
@@ -409,20 +447,25 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
 
 
 /**
-   * listFiles
-   * Responsibility:
-   *   Return the current user’s file list using a cache-first strategy:
-   *   1) Attempt to serve from a short-lived localStorage cache (O(1));
-   *   2) On miss, fetch from the server, then set state, sync AccessManager, and store in cache.
-   *   This delivers fast home screen loads while keeping a simple path to authoritative data.
+   * @function listFiles
+   * @description
+   *   Cached-first, background revalidation strategy:
+   *   (1) Serve cached results immediately if present and mark as hydrated;
+   *   (2) Always kick a single in-flight network revalidation that updates state and cache;
+   *   (3) If no cache exists, await the first network call before resolving. This design
+   *   guarantees Homescreen renders instantly when cache exists and still converges to the
+   *   authoritative list. Cache/Sync ops are O(1); mapping/merge are O(N).
    */
-  const listFiles = async (): Promise<UserFilesResponse> => {
-    const userKey = currentUserEmail() || 'guest';
+  const listFiles = async (): Promise<UserFilesResponse> => { 
+    const userKey = currentUserEmail(); 
+    setFileListError(null); 
 
     // Step 1 — Try cache (read-through)
     const cached = getFileListCache(userKey);
     if (cached) {
       setFileList(cached);
+      setIsFileListHydrated(true); 
+      setFileListUpdatedAt(Date.now()); 
       try {
         DocumentAccessManager.getInstance().syncFileList([...cached.ownedFiles, ...cached.sharedFiles]);
         console.log('[ApiContext.tsx][7201] listFiles cache hit → hydrated + synced', {
@@ -432,15 +475,53 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
       } catch (e) {
         console.warn('[ApiContext.tsx][7291] listFiles cache sync failed (non-fatal)', e);
       }
-      return cached;
-    }
-    console.log('[ApiContext.tsx][7202] listFiles cache miss → fallback to network', { userKey });
 
-    // Step 2 — Network path (write-through)
+      // Step 2 — Kick background revalidation exactly once 
+      if (!inflightListPromiseRef.current) {
+        console.log('[ApiContext.tsx][7211] revalidate begin (bg)', { userKey }); 
+        setIsFileListRefreshing(true); 
+        inflightListPromiseRef.current = fetchFilesFromServer()
+          .then((data) => {
+            if (!mountedRef.current) return data;
+            setFileList(data);
+            setFileListUpdatedAt(Date.now());
+            setFileListCache(userKey, data);
+            try {
+              DocumentAccessManager.getInstance().syncFileList([...data.ownedFiles, ...data.sharedFiles]);
+            } catch { /* non-fatal */ }
+            console.log('[ApiContext.tsx][7212] revalidate success (bg)', {
+              owned: data.ownedFiles.length,
+              shared: data.sharedFiles.length,
+            }); 
+            return data;
+          })
+          .catch((err) => {
+            console.error('[ApiContext.tsx][7298] revalidate failed (bg)', err);
+            setFileListError(err?.message ?? 'File list refresh failed'); 
+            return cached;
+          })
+          .finally(() => {
+            inflightListPromiseRef.current = null; 
+          });
+      }
+
+      // Return immediately with cached data 
+      return Promise.resolve(cached);
+    }
+
+    console.log('[ApiContext.tsx][7202] listFiles cache miss → fallback to network', { userKey });
+    // Step 3 — No cache, perform network path (write-through) and await once 
     setIsFileListLoading(true);
+    setIsFileListRefreshing(true); 
     try {
-      const data = await fetchFilesFromServer();
+      const promise = inflightListPromiseRef.current ?? fetchFilesFromServer(); 
+      inflightListPromiseRef.current = promise; 
+      const data = await promise; 
+      if (!mountedRef.current) return data; 
+
       setFileList(data);
+      setIsFileListHydrated(true); 
+      setFileListUpdatedAt(Date.now()); 
       try {
         DocumentAccessManager.getInstance().syncFileList([...data.ownedFiles, ...data.sharedFiles]);
         console.log('[ApiContext.tsx][7203] listFiles network success → state+sync', {
@@ -452,18 +533,25 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
       }
       setFileListCache(userKey, data);
       return data;
+    } catch (err:any) {
+      setFileListError(err?.message ?? 'File list load failed'); 
+      throw err;
     } finally {
+      setIsFileListRefreshing(false);
       setIsFileListLoading(false);
+      inflightListPromiseRef.current = null; 
     }
   };
 
 
 const refreshFileList = async (): Promise<void> => {
     setIsFileListLoading(true);
-    const userKey = currentUserEmail() || 'guest';
+    const userKey = currentUserEmail();
+    setIsFileListRefreshing(true); 
     try {
       const data = await fetchFilesFromServer();
       setFileList(data);
+      setFileListUpdatedAt(Date.now()); 
       try {
         DocumentAccessManager.getInstance().syncFileList([...data.ownedFiles, ...data.sharedFiles]);
         console.log('[ApiContext.tsx][7204] refreshList network success → state+sync', {
@@ -475,13 +563,15 @@ const refreshFileList = async (): Promise<void> => {
       }
       // Write-through cache
       setFileListCache(userKey, data);
-    } catch (e) {
+    } catch (e:any) {
+      setFileListError(e?.message ?? 'File list refresh failed'); // update - 49
       console.warn('[ApiContext.tsx][7294] refreshList network failed; preserving current state', e);
       // Optional: fallback to cached data if state is empty and cache exists
       if (!fileList) {
         const cached = getFileListCache(userKey);
         if (cached) {
           setFileList(cached);
+          setIsFileListHydrated(true); // update - 50
           try {
             DocumentAccessManager.getInstance().syncFileList([...cached.ownedFiles, ...cached.sharedFiles]);
             console.log('[ApiContext.tsx][7205] refreshList fallback to cache → state+sync', {
@@ -494,6 +584,7 @@ const refreshFileList = async (): Promise<void> => {
         }
       }
     } finally {
+      setIsFileListRefreshing(false); // update - 51
       setIsFileListLoading(false);
     }
   };
@@ -525,8 +616,10 @@ const refreshFileList = async (): Promise<void> => {
 
       // Write-through cache with the new state after transformation
       try {
-        const userKey = currentUserEmail() || 'guest';
+        const userKey = currentUserEmail();
         setFileListCache(userKey, next);
+        setFileListUpdatedAt(Date.now()); 
+        setIsFileListHydrated(true); 
         console.log('[ApiContext.tsx][7207] applyAndSync → cache stored', { userKey });
       } catch (e) {
         console.warn('[ApiContext.tsx][7297] applyAndSync cache store failed (non-fatal)', e);
@@ -690,6 +783,7 @@ const refreshFileList = async (): Promise<void> => {
           removeFileMeta(hit.fileId);
         }
       }
+       await refreshFileList();
 
       
       console.log('[ApiContext.tsx][1020] File deleted successfully:', fileStorageId);
@@ -899,6 +993,13 @@ const refreshFileList = async (): Promise<void> => {
 
     // Step 9: Auto-fetch account status on mount
 useEffect(() => {
+  if (status === 'loading') return; // wait until session resolves
+    if (status !== 'authenticated' || !normalizedEmail) {
+      console.error('[ApiContext.tsx][7020] ApiProvider mounted without authenticated session');
+      setIsAccountLoading(false);
+      return;
+    }
+    
   const ac = new AbortController();
   setIsAccountLoading(true);
 
@@ -922,7 +1023,18 @@ useEffect(() => {
   })();
 
   return () => ac.abort(); // cancels on unmount or effect re-run
-}, []); // deps as needed
+}, [normalizedEmail, status]); // deps as needed
+
+
+
+useEffect(() => { // update - 57
+    if (status !== 'authenticated' || !normalizedEmail) return;
+    // Call listFiles which will hydrate from cache and revalidate in background 
+    listFiles().catch((e) => {
+      console.warn('[ApiContext.tsx][7299] initial listFiles failed', e); 
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, normalizedEmail]);
 
 
   // Step 10: Expose comprehensive API context value
@@ -962,10 +1074,20 @@ useEffect(() => {
     getGradebook,
     startAttempt,
     submitAttempt,
+    userEmail: normalizedEmail
   };
 
+  // Expose read-only file list state to useFileList via non-API properties (internal surface) 
   return (
-    <ApiContext.Provider value={contextValue}>
+        <ApiContext.Provider value={Object.assign(contextValue, { 
+      _ownedFiles: fileList?.ownedFiles ?? [],
+      _sharedFiles: fileList?.sharedFiles ?? [], 
+      _isFileListHydrated: isFileListHydrated,
+      _isFileListRefreshing: isFileListRefreshing,
+      _fileListUpdatedAt: fileListUpdatedAt,
+      _fileListError: fileListError,
+    })}>
+
       {children}
     </ApiContext.Provider>
   );

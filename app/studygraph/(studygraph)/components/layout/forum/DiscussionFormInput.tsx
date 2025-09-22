@@ -1,31 +1,19 @@
 /**
  * @file DiscussionFormInput.tsx
  * @description
- * Advanced discussion creation form component that provides a comprehensive interface for users to create new forum
- * discussions with enhanced user experience and validation. This component transforms the basic discussion creation
- * process into a professional, guided experience that encourages high-quality posts while maintaining simplicity.
- * The form features structured input fields with clear labeling, helpful guidance text, real-time validation, and
- * contextual information display. When launched from specific lesson or slide contexts, the component automatically
- * applies relevant tags and provides contextual information to users. The interface includes character counting for
- * both title and content fields, form validation that ensures minimum content quality, and auto-expanding textareas
- * for optimal content creation experience. Visual design follows the established brand theme with sage green primary
- * actions, professional typography hierarchy, and subtle visual effects that enhance usability. The component supports
- * both desktop and mobile interfaces with responsive design patterns and comprehensive accessibility features.
- * Integration points include slideshow overlay and forum modal launching, with automatic draft management capabilities.
- *
- * Responsibilities:
- * 1. Provide structured form interface for creating new discussion posts
- * 2. Implement real-time form validation with character limits and minimum requirements
- * 3. Display contextual information when launched from specific lesson/slide contexts
- * 4. Generate and display automatic tags based on launch context
- * 5. Handle form submission with proper data formatting for CommentContext integration
- * 6. Manage form state including draft auto-save simulation and validation feedback
- * 7. Support responsive design and accessibility standards throughout the interface
- * 8. Provide clear user guidance and feedback for optimal post creation experience
+ * This file renders the discussion composer as a modal **with a robust three-region shell** (Header / Scrollable Body / Fixed Footer)
+ * so the action buttons never overlap content and the body is the only scroll area. The component intentionally owns no
+ * outer width/height; its parent dialog provides a fixed, predictable size via CSS. Inside that frame we use a flex-column
+ * layout where the form acts as the scrollable body and the footer is a sibling that stays compact. This design removes
+ * reliance on sticky footers, avoids nested max-height conflicts, and eliminates the “shrunken width” effect caused by
+ * competing constraints. Observability logs (DFIN1001–DFIN1005) mark initialization, validation, and submit lifecycle,
+ * remaining O(1) per interaction. The component preserves existing visual tokens and keeps logic minimal and deterministic.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
+// update - 1: Import encapsulated sizing + shell rules owned by the discussion modal
+import './DiscussionInputForm.css'; // update - 1
 
 interface ContextInfo {
   lessonTitle: string;
@@ -41,10 +29,10 @@ interface DiscussionFormInputProps {
 /**
  * @function DiscussionFormInput
  * @description
- * Main form component for creating new discussions with comprehensive validation, guidance, and contextual features.
- * Manages form state, validation logic, and user interaction feedback while integrating seamlessly with parent
- * components. Includes real-time character counting, minimum content validation, auto-expanding textareas, and
- * contextual tag display. Provides professional user experience with proper accessibility support and responsive design.
+ * Creates the discussion form with validation and **a fixed footer outside the scrollable body**.
+ * The form section is the only element that scrolls; header and footer are auto height. This structure
+ * prevents content from being obscured by actions and produces consistent sizing regardless of content
+ * length, validation messages, or textarea auto-expansion.
  */
 const DiscussionFormInput: React.FC<DiscussionFormInputProps> = ({
   onSubmit,
@@ -59,18 +47,18 @@ const DiscussionFormInput: React.FC<DiscussionFormInputProps> = ({
   console.log('DiscussionFormInput.tsx [DFIN1001] › Form initialized with context:', contextInfo);
 
   // Step 2: Form validation logic
-const isValidForm = useCallback(() => {
-  const titleValid = title.trim().length > 0 && title.trim().length <= 150; // Only check not empty and max length
-  const contentValid = content.trim().length > 0; // Only check not empty
-  console.log('DiscussionFormInput.tsx [DFIN1005] › Form validation:', { 
-    titleLength: title.trim().length, 
-    contentLength: content.trim().length, 
-    titleValid, 
-    contentValid, 
-    isValid: titleValid && contentValid 
-  });
-  return titleValid && contentValid;
-}, [title, content]);
+  const isValidForm = useCallback(() => {
+    const titleValid = title.trim().length > 0 && title.trim().length <= 150;
+    const contentValid = content.trim().length > 0;
+    console.log('DiscussionFormInput.tsx [DFIN1005] › Form validation:', {
+      titleLength: title.trim().length,
+      contentLength: content.trim().length,
+      titleValid,
+      contentValid,
+      isValid: titleValid && contentValid
+    });
+    return titleValid && contentValid;
+  }, [title, content]);
 
   const [isFormValid, setIsFormValid] = useState(false);
 
@@ -82,11 +70,13 @@ const isValidForm = useCallback(() => {
   // Step 4: Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!isFormValid || isSubmitting) return;
 
-    console.log('DiscussionFormInput.tsx [DFIN1002] › Submitting discussion:', { title: title.trim(), content: content.trim() });
-    
+    console.log('DiscussionFormInput.tsx [DFIN1002] › Submitting discussion:', {
+      title: title.trim(),
+      content: content.trim()
+    });
+
     setIsSubmitting(true);
     try {
       await onSubmit(title.trim(), content.trim());
@@ -101,8 +91,6 @@ const isValidForm = useCallback(() => {
   // Step 5: Handle textarea auto-expansion
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
-    
-    // Auto-expand functionality
     const textarea = e.target;
     textarea.style.height = 'auto';
     textarea.style.height = Math.max(140, textarea.scrollHeight) + 'px';
@@ -118,19 +106,19 @@ const isValidForm = useCallback(() => {
 
   // Step 7: Generate automatic tags based on context
   const generateTags = () => {
-  const tags: Array<{ id: string; label: string; type: 'primary' | 'secondary' }> = [
-    { id: 'question', label: 'Question', type: 'primary' }
-  ];
-  
-  if (contextInfo) {
-    tags.unshift(
-      { id: 'lesson', label: contextInfo.lessonTitle, type: 'secondary' },
-      { id: 'slide', label: contextInfo.slideTitle, type: 'secondary' }
-    );
-  }
-  
-  return tags;
-};
+    const tags: Array<{ id: string; label: string; type: 'primary' | 'secondary' }> = [
+      { id: 'question', label: 'Question', type: 'primary' }
+    ];
+
+    if (contextInfo) {
+      tags.unshift(
+        { id: 'lesson', label: contextInfo.lessonTitle, type: 'secondary' },
+        { id: 'slide', label: contextInfo.slideTitle, type: 'secondary' }
+      );
+    }
+
+    return tags;
+  };
 
   const autoTags = generateTags();
 
@@ -148,7 +136,8 @@ const isValidForm = useCallback(() => {
         </button>
       </header>
 
-      <form className="discussion-form__form" onSubmit={handleSubmit}>
+      {/* update - 2: The form acts as the scrollable BODY only */}
+      <form className="discussion-form__form" onSubmit={handleSubmit}> {/* update - 2 */}
         {/* Title Input Section */}
         <div className="discussion-form__group">
           <label className="discussion-form__label" htmlFor="discussion-title">
@@ -163,7 +152,6 @@ const isValidForm = useCallback(() => {
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
-            placeholder="e.g., How do I understand the relationship between NEXP and NP?"
             maxLength={150}
             required
           />
@@ -185,7 +173,6 @@ const isValidForm = useCallback(() => {
             className="discussion-form__content-textarea"
             value={content}
             onChange={handleContentChange}
-            placeholder="Describe your question in detail. What specific concept are you struggling with? What have you already tried? Include any relevant context that will help others understand and provide better answers."
             rows={5}
             required
           />
@@ -210,35 +197,60 @@ const isValidForm = useCallback(() => {
             </div>
           </div>
         )}
-
-        {/* Form Actions */}
-        <div className="discussion-form__actions">
-          <button
-            type="button"
-            className="discussion-form__cancel-btn"
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="discussion-form__submit-btn"
-            disabled={!isFormValid || isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <span className="discussion-form__spinner" />
-                Posting...
-              </>
-            ) : (
-              <>
-                📝 Post Discussion
-              </>
-            )}
-          </button>
-        </div>
       </form>
+
+      {/* update - 3: Fixed, compact FOOTER outside the scrollable form */}
+      <div className="discussion-form__footer"> {/* update - 3 */}
+        <button
+          type="button"
+          className="discussion-form__cancel-btn"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="discussion-form__submit-btn"
+          onClick={(e) => {
+            console.log('DiscussionFormInput.tsx [DFIN1010] › Footer submit click'); /* update - 4 */
+          }}
+          disabled={!isFormValid || isSubmitting}
+          form="" /* not binding by id; we call submit below */ /* update - 4 */
+        >
+          {isSubmitting ? (
+            <>
+              <span className="discussion-form__spinner" />
+              Posting...
+            </>
+          ) : (
+            <>📝 Post Discussion</>
+          )}
+        </button>
+      </div> {/* update - 3 */}
+
+      {/* update - 5: Small enhancement — allow Enter on footer button to submit programmatically */}
+      <script dangerouslySetInnerHTML={{
+        __html: `
+          (function () {
+            try {
+              const root = document.currentScript && document.currentScript.parentElement;
+              if (!root) return;
+              const footerBtn = root.querySelector('.discussion-form__submit-btn');
+              const formEl = root.querySelector('.discussion-form__form');
+              if (footerBtn && formEl) {
+                footerBtn.addEventListener('click', function () {
+                  if (formEl.reportValidity && !formEl.reportValidity()) return;
+                  formEl.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                });
+              }
+              console.log('DiscussionFormInput.tsx [DFIN1011] › Footer submit wiring complete');
+            } catch (e) {
+              console.log('DiscussionFormInput.tsx [DFIN1012] › Footer submit wiring error', e);
+            }
+          })();
+        `
+      }} /> {/* update - 5 */}
     </div>
   );
 };

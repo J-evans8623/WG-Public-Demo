@@ -23,9 +23,9 @@
  ***************************************************************************************/
 
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { useApiContext } from '@/app/src/context/ApiContext';
+import { useApiContext , useFileList} from '@/app/src/context/ApiContext';
 import { UserFileMetadata } from '@/app/src/types/fileTypes';
-import { Plus, FileText, Clock, Star, Trash, Menu, Search, Calendar, Users, Book, Sparkles } from 'lucide-react';
+import { Trash, Calendar, Users, Book, Sparkles } from 'lucide-react';
 import './homeScreenV3.css';
 import { Role } from '../types/access';
 import DocumentAccessManager from './hooks/access/DocumentAccessManager';
@@ -52,6 +52,9 @@ interface HomeScreenProps {
   onCreateNewDocument: () => void;
 }
 
+
+
+
 /**
  * @function HomescreenV3
  * @description
@@ -65,9 +68,8 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
   onCreateNewDocument,
 }) => {
   // Step 1: Initialize API context and state management hooks
-  const { listFiles, deleteFile } = useApiContext();
-  const [ownedFiles, setOwnedFiles] = useState<UserFileMetadata[]>([]);
-  const [sharedFiles, setSharedFiles] = useState<UserFileMetadata[]>([]);
+  const { deleteFile } = useApiContext();
+  const { ownedFiles, sharedFiles, isHydrated, isRefreshing, refresh } = useFileList();
   const [loading, setLoading] = useState(true);
   const [greeting, setGreeting] = useState('');
 
@@ -93,38 +95,10 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
       'Good evening'
     );
     
-    fetchFiles();
     console.log('HomescreenV3.tsx 3002 › Initial setup complete');
   }, []);
 
-  /**
-   * @function fetchFiles
-   * @description
-   *   Retrieves both owned and shared files from the API context, synchronizes
-   *   access records with DocumentAccessManager, and updates component state
-   *   with comprehensive error handling and logging for observability.
-   */
-  const fetchFiles = async () => {
-    console.log('HomescreenV3.tsx 3003 › fetchFiles operation started');
-    try {
-      const { ownedFiles, sharedFiles } = await listFiles();
-      console.log('HomescreenV3.tsx 3004 › API response - owned files:', ownedFiles.length);
-      console.log('HomescreenV3.tsx 3005 › API response - shared files:', sharedFiles.length);
 
-      // Sync access records with DocumentAccessManager
-      const manager = DocumentAccessManager.getInstance();
-      manager.syncFileList([...ownedFiles, ...sharedFiles]);
-      console.log('HomescreenV3.tsx 3006 › DocumentAccessManager sync completed');
-
-      setOwnedFiles(ownedFiles);
-      setSharedFiles(sharedFiles);
-    } catch (err) {
-      console.error('HomescreenV3.tsx 3007 › fetchFiles error occurred:', err);
-    } finally {
-      setLoading(false);
-      console.log('HomescreenV3.tsx 3008 › fetchFiles completed, loading state updated');
-    }
-  };
 
   /**
    * @function handleDeleteFile
@@ -139,7 +113,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
       try {
         await deleteFile(path);
         console.log('HomescreenV3.tsx 3010 › File deletion successful:', path);
-        fetchFiles(); // Refresh file list after deletion
+        await refresh(); // Refresh file list after deletion
         deleteDocBytes(docId);
       } catch (err) {
         console.error('HomescreenV3.tsx 3011 › File deletion error:', err);
@@ -349,7 +323,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
               </div>
               
               <div className="files-content">
-                {loading ? (
+                {!isHydrated ? (
                   <div style={{ textAlign: 'center', padding: '2rem', color: '#6C757D' }}>
                     Loading your files...
                   </div>
@@ -385,7 +359,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                         <div className="file-title">{file.fileName}</div>
                         <div className="file-meta">
                           <span className="file-time">{formatFileTime(file.updatedAt)}</span>
-                          <span className="file-status">Updated</span>
+                          <span className="file-status">{isRefreshing ? 'Refreshing…' : 'Updated'}</span>
                         </div>
                         {activeTab === 'recent' && (
                           <button

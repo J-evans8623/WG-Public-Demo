@@ -1,5 +1,5 @@
 /**
- * @file ROCanvasView.tsx
+ * @file ROCanvasView.tsx (Legacy ReadOnlyVersion)
  * @description
  * Read-Only Canvas View (ROCanvasView) composes the read-only concept-map workspace with the read-only
  * resource pane into a single screen that mirrors the interactive Canvas View's DOM structure, class
@@ -24,15 +24,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import MapRenderer from '@/app/studygraph/(studygraph)/components/layout/ReadOnly/map/MapRenderer';
 import BottomToolbar from '../Canvas/toolbar/BottomToolbar';
-import CanvasHeader from '../Canvas/bottomUtilityBar/RoCanvasHeader';
+import CanvasHeader from '../Canvas/ReadWriteCanvas/CanvasHeader';
 import ROCardDisplay from '@/app/studygraph/(studygraph)/components/layout/ReadOnly/CardDisplay/ROcardDisplay';
 
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 import { useSlideShow } from '@/app/Library/Context/ROSlideShowContext';
 import { usePreorderTraversal } from '@/app/studygraph/(studygraph)/components/hooks/usePreorderTraversal';
-import { useResourceContext } from '@/app/Library/Context/ResourceContext';
-import { useNodesContext } from '@/app/Library/Context/NodesProvider';
+
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { useLessonUnitOrder } from '../../hooks/useLessonUnitOrder';
 import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
@@ -172,6 +171,8 @@ const ROCanvasView: React.FC = () => {
     >
       {/* Step A: Header identical to interactive view, but editing disabled by scoped CSS below */}
       <CanvasHeader
+        // update - 2: pass read-only mode to the unified header
+        mode="readonly" // update - 2
         isSaving={false}
         onMenuToggle={handleMenuToggle}
         onDiscuss={openForum}

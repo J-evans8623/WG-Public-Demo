@@ -50,7 +50,6 @@ import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { LessonsDropdown } from './ReadOnlyDropdown';
 import {  UploadsDropdown } from './DropdownComponents';
-import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
 import './CanvasHeader.css';
 import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';

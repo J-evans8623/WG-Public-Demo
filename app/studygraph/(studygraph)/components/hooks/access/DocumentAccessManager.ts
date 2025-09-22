@@ -125,13 +125,13 @@ class DocumentAccessManager {
     const record = this.accessRecords.get(docId);
     const result = record?.canEdit || false;
     
-    console.log('[DocumentAccessManager.ts][1004] › canEdit query', { 
+   /** console.log('[DocumentAccessManager.ts][1004] › canEdit query', { 
       docId, 
       result, 
       hasRecord: !!record,
       role: record?.role,
       publicEdit: record?.publicEdit 
-    });
+    });  */
     
     return result;
   }
