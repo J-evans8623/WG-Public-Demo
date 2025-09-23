@@ -27,7 +27,7 @@ import '@/app/studygraph/(studygraph)/canvas/Map/NodeGraphOriginal.css'
 import '@/app/studygraph/(studygraph)/components/layout/forum/ForumModal.css'
 import '@/app/studygraph/(studygraph)/components/layout/Canvas/CanvasView.css'
 import './appLayout.css';
-import { documentSession} from '@/app/studygraph/(studygraph)/services/documentSession';
+import { documentSession} from '@/app/studygraph/(studygraph)/services/documentSession/documentSessionv2';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -455,13 +455,13 @@ const handleCreateNewDocument = async () => {
     clearSelection();
     resetPdfState();
 
-    const newDocId = await createNewDocument(); // builds ydoc + seeds metadata + (may upload)
-    manager.recordNewDocument(newDocId, 'Owner');
-    InitializeUserData(newDocId);
+    const newDocmeta = await createNewDocument(); // builds ydoc + seeds metadata + (may upload)
+    manager.recordNewDocument(newDocmeta.docId, 'Owner');
+    InitializeUserData(newDocmeta.docId);
 
     // 🔧 NEW: bootstrap the just-created doc without loadFromFirebase
-    await documentSession.openNewDocument(newDocId, {
-      ydoc,
+    await documentSession.openNewDocument(newDocmeta.docId, {
+      ydoc: newDocmeta.ydoc,
     });
 
     // (Optional) mirror the same readiness wiring used in picker path
@@ -486,7 +486,7 @@ const handleCreateNewDocument = async () => {
       saveReadyUnsubRef.current = () => sSub.unsubscribe();
       lastSubscribedDocRef.current = id;
     };
-    attachReadiness(newDocId);
+    attachReadiness(newDocmeta.docId);
 
     // Existing UI flips (kept)
     setDefaultMap();

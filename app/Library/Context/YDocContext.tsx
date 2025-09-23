@@ -70,7 +70,7 @@ export interface YDocContextType {
   fileName: string;
   docFileID: string | null;
   isInitialized: boolean;
-  createNewDocument: () => Promise<string>;
+  createNewDocument: () => Promise<{ docId: string; ydoc: Y.Doc }>;
   loadData: (
     fileName: string,
     driveFileId: string | undefined,
@@ -395,7 +395,7 @@ const updateVisibility = useCallback((v: 'private' | 'public') => {
    * Creates a new document with default settings.
    * Initializes shared maps, arrays, and sets metadata (internal docFileID and fileName).
    */
-  const createNewDocument = useCallback(async (): Promise<string> => {
+  const createNewDocument = useCallback(async (): Promise<{ docId: string; ydoc: Y.Doc }> => {
     try {
       setIsInitialized(false);
       const newYDoc = new Y.Doc();
@@ -553,7 +553,7 @@ const updateVisibility = useCallback((v: 'private' | 'public') => {
     lastKnownVersionNumberRef.current = version;
 
     refreshList()
-      return newDocId
+      return { docId: newDocId, ydoc: newYDoc };
     } catch (error) {
       console.error('Error creating new document:', error);
       toast.error('Failed to create new document');

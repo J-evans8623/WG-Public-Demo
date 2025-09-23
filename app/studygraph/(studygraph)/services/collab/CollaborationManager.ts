@@ -10,6 +10,7 @@
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { getCookie } from '../../components/utils/cookies';
+import { createOpQueue, awaitProviderClose } from './collabSwitchGuards';
 
 export type CollabStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -54,6 +55,9 @@ class CollaborationManager {
   private retryCountPerDoc = new Map<string, number>();
   private retryResetTimers = new Map<string, NodeJS.Timeout>();
 
+    // Serialized op queue for connect/disconnect sequences
+  private opQueue = createOpQueue('CollabMgr');
+
   private constructor() {
     console.log('CollaborationManager › Singleton instance created');
   }
@@ -65,8 +69,13 @@ class CollaborationManager {
     return CollaborationManager.instance;
   }
 
-  /**
-   * Connect to a document's collaboration channel
+   /* @function connect
+   * @description
+   *   Establishes a collaboration session to a specific document. With this revision, connect
+   *   is fully serialized against any in-flight or pending disconnect via an internal FIFO
+   *   operation queue. Within the queued operation, we first ensure that any existing provider
+   *   is completely torn down (awaiting actual WS close) and then proceed with token fetch and
+   *   provider initialization. The public API remains unchanged for callers. Big-O: O(1) local.
    */
   async connect(
     docId: string, 
@@ -74,80 +83,63 @@ class CollaborationManager {
     visibility: 'private' | 'public' = 'private',
     options: CollaborationOptions = {}
   ): Promise<void> {
-
-
-        // Don't reconnect if already connected to the same doc with same ydoc
-    if (this.currentDocId === docId && this.currentYDoc === ydoc && this.provider) {
-      console.log('CollaborationManager › Already connected to doc:', docId);
-      return;
-    }
-
-    // ================================================================
-    // RETRY LIMIT ENFORCEMENT
-    // ================================================================
-    const currentRetries = this.retryCountPerDoc.get(docId) || 0;
-    if (currentRetries >= this.MAX_RETRY_ATTEMPTS) {
-      const errorMsg = `CollaborationManager › RETRY LIMIT EXCEEDED for doc ${docId} (${currentRetries}/${this.MAX_RETRY_ATTEMPTS} attempts). Blocking further attempts for ${this.RETRY_RESET_INTERVAL / 60000} minutes.`;
-      console.error(errorMsg);
-      this.setStatus('disconnected');
-      throw new Error(`Connection retry limit exceeded (${this.MAX_RETRY_ATTEMPTS} attempts). Please try again later.`);
-    }
-
-    // Increment retry counter for this document
-    this.retryCountPerDoc.set(docId, currentRetries + 1);
-    
-    // Set up reset timer for this document (resets counter after interval)
-    if (!this.retryResetTimers.has(docId)) {
-      const resetTimer = setTimeout(() => {
-        console.log(`CollaborationManager › Resetting retry counter for doc ${docId}`);
-        this.retryCountPerDoc.delete(docId);
-        this.retryResetTimers.delete(docId);
-      }, this.RETRY_RESET_INTERVAL);
-      this.retryResetTimers.set(docId, resetTimer);
-    }
-
-    console.log(`CollaborationManager › Connection attempt ${currentRetries + 1}/${this.MAX_RETRY_ATTEMPTS} for doc: ${docId}`);
-
-
-    console.log('CollaborationManager › Connecting to doc:', docId);
-    
-    // Store options
-    this.options = options;
-    
-    // Disconnect existing connection first
-    this.disconnect();
-    
-    // Update state
-    this.currentDocId = docId;
-    this.currentYDoc = ydoc;
-    this.currentVisibility = visibility;
-    this.triedImmediateFixRef = false;
-    
-    // Set status to connecting
-    this.setStatus('connecting');
-    
-    try {
-      // Reduced backoff for debugging - max 2 seconds instead of 3
-      const connectionDelay = this.isDevMode 
-        ? Math.min((currentRetries) * 500, 2000) 
-        : 0;
-
-      if (connectionDelay > 0) {
-        console.log(`CollaborationManager › Applying connection delay: ${connectionDelay}ms (attempt ${currentRetries + 1})`);
-        await new Promise(resolve => setTimeout(resolve, connectionDelay));
+    // update - 3
+    return this.opQueue.run(async () => {
+      // Step 1: Early success if already connected to the same doc with same ydoc.
+      if (this.currentDocId === docId && this.currentYDoc === ydoc && this.provider) {
+        console.log('[CollaborationManager.ts][8421] › Already connected (same doc/ydoc)'); // update - 4
+        return;
       }
 
-      // Acquire token (cookie shortcut if present)
-      const cookieJwt = getCookie('bm_collab');
-      const tokenBundle = cookieJwt 
-        ? { token: cookieJwt } 
-        : await this.fetchToken(docId);
+      // Step 2: Enforce retry cap per document (serialized under queue).
+      const currentRetries = this.retryCountPerDoc.get(docId) || 0; // update - 5
+      if (currentRetries >= this.MAX_RETRY_ATTEMPTS) {
+        const msg = `CollaborationManager › Retry limit exceeded for doc ${docId} (${currentRetries}/${this.MAX_RETRY_ATTEMPTS})`; // update - 6
+        console.error('[CollaborationManager.ts][8422] › ' + msg);
+        this.setStatus('disconnected'); // update - 7
+        throw new Error(msg);
+      }
+      this.retryCountPerDoc.set(docId, currentRetries + 1); // update - 8
+      if (!this.retryResetTimers.has(docId)) { // update - 9
+        const t = setTimeout(() => {
+          console.log('[CollaborationManager.ts][8423] › Retry counter reset for doc', docId);
+          this.retryCountPerDoc.delete(docId);
+          this.retryResetTimers.delete(docId);
+        }, this.RETRY_RESET_INTERVAL);
+        this.retryResetTimers.set(docId, t);
+      }
 
-      // Establish connection
-      await this.connectWithToken(docId, ydoc, tokenBundle.token);
-      
-      if (!(ydoc as any).__bmHandshakeProbe) {
-        (ydoc as any).__bmHandshakeProbe = true;
+      console.log('[CollaborationManager.ts][8424] › Connect queued → attempt', currentRetries + 1, 'doc:', docId); // update - 10
+
+      // Step 3: Ensure any previous provider is fully closed before proceeding.
+      await awaitProviderClose(this.provider); // update - 11
+      this.provider = null; // update - 12
+
+      // Step 4: Store options & update state for the new connection.
+      this.options = options; // update - 13
+      this.currentDocId = docId; // update - 14
+      this.currentYDoc = ydoc; // update - 15
+      this.currentVisibility = visibility; // update - 16
+      this.triedImmediateFixRef = false; // update - 17
+      this.setStatus('connecting'); // update - 18
+
+      // Step 5: Optional jitter for dev retry visibility.
+      const connectionDelay = this.isDevMode ? Math.min(currentRetries * 500, 2000) : 0; // update - 19
+      if (connectionDelay > 0) {
+        console.log('[CollaborationManager.ts][8425] › Dev delay (ms):', connectionDelay); // update - 20
+        await new Promise((r) => setTimeout(r, connectionDelay)); // update - 21
+      }
+
+      // Step 6: Acquire token (cookie shortcut if available).
+      const cookieJwt = getCookie('bm_collab'); // update - 22
+      const tokenBundle = cookieJwt ? { token: cookieJwt } : await this.fetchToken(docId); // update - 23
+
+      // Step 7: Establish the provider with the token.
+      await this.connectWithToken(docId, ydoc, tokenBundle.token); // update - 24
+
+      // Step 8: Instrumentation probe (kept).
+      if (!(ydoc as any).__bmHandshakeProbe) { // update - 25
+        (ydoc as any).__bmHandshakeProbe = true; // update - 26
         ydoc.on('afterTransaction', (tx: Y.Transaction) => {
           const changedParents = tx.changedParentTypes.size;
           const deletedClients = tx.deleteSet.clients.size;
@@ -161,47 +153,54 @@ class CollaborationManager {
         });
       }
 
-      // Schedule token refresh if needed
-      this.scheduleRefreshIfPossible(tokenBundle);
-      
-      // SUCCESS: Reset retry counter for this document
-      console.log(`CollaborationManager › Connection successful! Resetting retry counter for doc ${docId}`);
-      this.retryCountPerDoc.delete(docId);
-      const resetTimer = this.retryResetTimers.get(docId);
+      // Step 9: Schedule refresh if possible and reset retries on success.
+      this.scheduleRefreshIfPossible(tokenBundle); // update - 27
+      console.log('[CollaborationManager.ts][8426] › Connect success → clearing retry counter for', docId); // update - 28
+      this.retryCountPerDoc.delete(docId); // update - 29
+      const resetTimer = this.retryResetTimers.get(docId); // update - 30
       if (resetTimer) {
-        clearTimeout(resetTimer);
-        this.retryResetTimers.delete(docId);
+        clearTimeout(resetTimer); // update - 31
+        this.retryResetTimers.delete(docId); // update - 32
       }
-      
-    } catch (error) {
-      console.error(`CollaborationManager › Connection failed (attempt ${currentRetries + 1}/${this.MAX_RETRY_ATTEMPTS}):`, error);
-      this.setStatus('disconnected');
-      throw error;
-    }
+    });
   }
 
   /**
-   * Disconnect from current collaboration session
+   * @function disconnect
+   * @description
+   *   Public, fire-and-forget disconnect. Callers do not need to await it. Internally this
+   *   enqueues a teardown on the serialized operation queue to deterministically close the
+   *   active provider (awaiting the actual ‘close’ event with timeout) and then resets state.
+   *   Subsequent `connect()` calls will automatically wait for this teardown to complete.
+   *   Big-O: O(1) local; constant-time operations.
    */
-  disconnect(): void {
-    if (this.currentDocId) {
-      console.log('CollaborationManager › Disconnecting from doc:', this.currentDocId);
+  disconnect(): void { // update - 33
+    const docId = this.currentDocId;
+    if (docId) {
+      console.log('[CollaborationManager.ts][8427] › Disconnect requested for doc:', docId); // update - 34
     }
 
-    // Clear timers
-    this.clearTimers();
-    
-    // Destroy provider
-    this.destroyProvider();
-    
-    // Reset state
-    this.currentDocId = null;
-    this.currentYDoc = null;
-    this.currentVisibility = 'private';
-    this.triedImmediateFixRef = false;
-    
-    // Update status
-    this.setStatus('disconnected');
+    // Step 1: Clear timers immediately to stop refresh churn while teardown is enqueued.
+    this.clearTimers(); // update - 35
+
+    // Step 2: Enqueue the actual close-and-reset work.
+    this.opQueue.run(async () => { // update - 36
+      // 2.1: Await WS close (idempotent; safe if no provider).
+      await awaitProviderClose(this.provider); // update - 37
+
+      // 2.2: Provider pointer is no longer valid.
+      this.provider = null; // update - 38
+
+      // 2.3: Reset state.
+      this.currentDocId = null; // update - 39
+      this.currentYDoc = null; // update - 40
+      this.currentVisibility = 'private'; // update - 41
+      this.triedImmediateFixRef = false; // update - 42
+
+      // 2.4: Publish status.
+      this.setStatus('disconnected'); // update - 43
+      console.log('[CollaborationManager.ts][8428] › Disconnect complete'); // update - 44
+    });
   }
 
   /**

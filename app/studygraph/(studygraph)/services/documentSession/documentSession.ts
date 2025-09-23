@@ -31,7 +31,7 @@ import {
   setDocIdentifiers,
   getPreconditions as cacheGetPreconditions,
   loadDocBytes,
-} from './localCacheStore';
+} from '../localCacheStore';
 import readiness from '@/app/studygraph/(studygraph)/services/DocumentReadinessService'; // update - 26
 
 // ───────────────────────────────────────────────────────────────────────────────
