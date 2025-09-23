@@ -26,7 +26,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import MapRenderer from './Map/MapRenderer';
+import MapRenderer from './Map/MapRendererv2';
 import PDFRenderer from '../PDFRenderer';
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
@@ -55,7 +55,8 @@ import CanvasHeader from './CanvasHeader';
 import CardDisplay from './CardDisplay/CardDisplay';
 import CalendarModal from '../../Calendar/CalendarModal';
 import { PickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
-import { useDocumentAccessMode, isEditReady } from '@/app/studygraph/(studygraph)/components/hooks/access/useDocumentAccessMode';
+import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; // update - 6
+
 
 interface CanvasViewProps {
   handleFileSelect: (meta: PickerFileMeta) => void;
@@ -97,8 +98,8 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
   const [titleDraft, setTitleDraft] = useState(lessonTitle);
 
   /* ───────────────────── DAM-driven mode + readiness  ──────────── */
-  const { mode, status } = useDocumentAccessMode();                             // update - 2
-  const editReady = useMemo(() => isEditReady(mode, status), [mode, status]);   // update - 2
+  const { mode, status } = useAccessSnapshot();                             // update - 2
+  const editReady = useEditReady();  
 
   useEffect(() => {
     if (!isEditingTitle) setTitleDraft(lessonTitle);

@@ -24,7 +24,7 @@ import ReactDOM from 'react-dom';
 import { X, BookmarkIcon, MessageSquare, Brain, Pencil } from 'lucide-react'; // update - 1
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 // update - 2: Use access mode to compute capabilities (and hide Edit entirely in RO)
-import { useDocumentAccessMode, isEditReady } from '@/app/studygraph/(studygraph)/components/hooks/access/useDocumentAccessMode'; // update - 2
+import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; 
 
 // update - 3: Keep helpers but we’ll render legacy DOM/classes.
 import { parseJumpToIndex, makeKeydownHandler, focusInput, autoAdvanceOnAskCompletion } from './OverlayBehaviors'; // update - 3
@@ -65,12 +65,13 @@ const SlideShowOverlay: React.FC = () => {
   } = useSlideShow();
 
   // update - 5: Access mode → capabilities. Edit is only allowed when isEditReady === true.
-  const { mode, status } = useDocumentAccessMode(); // update - 5
+  const { mode, status } = useAccessSnapshot(); // update - 5
+  const editReady = useEditReady(); 
   const caps = useMemo(() => {
-    const canEdit = isEditReady(mode, status);
+    const canEdit = editReady
     // We keep Ask enabled in RW and disabled in RO, but only Edit is *hidden* in RO (per requirement)
     return { canEdit, canAsk: canEdit, canDiscuss: true, canBookmark: true };
-  }, [mode, status]); // update - 5
+  }, [editReady]); // update - 5
 
   const [cueFlipped, setCueFlipped] = useState(false);
   const [askOpen, setAskOpen] = useState(false);

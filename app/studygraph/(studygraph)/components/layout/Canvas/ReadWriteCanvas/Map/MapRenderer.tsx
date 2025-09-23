@@ -32,12 +32,12 @@ import Subtree from '../../Subtree';
 import '@/app/studygraph/(studygraph)/components/layout/hiddenScrollbar.css';
 
 // update - 1: Optional access read for observability only (no behavior changes).
-import { useDocumentAccessMode, isEditReady } from '@/app/studygraph/(studygraph)/components/hooks/access/useDocumentAccessMode'; // update - 1
+import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; 
 
 const MIN_ZOOM = 0.5;
 const VIEWPORT_PADDING = 0.9;
 // ❶ A fixed, generous scroll area so content never becomes unreachable.
-const SCROLL_BED_PX = 10000;
+const SCROLL_BED_PX = 8000;
 
 const MapRenderer: React.FC = () => {
   /**
@@ -61,8 +61,8 @@ const MapRenderer: React.FC = () => {
   const { subtrees } = useSubTreeContext();
 
   // update - 2: Read DAM for telemetry; renderer behavior is unchanged.
-  const { mode, status } = useDocumentAccessMode(); // update - 2
-  const editReady = isEditReady(mode, status);      // update - 2
+  const { mode, status } = useAccessSnapshot(); // update - 2
+  const editReady = useEditReady();     // update - 2
   useEffect(() => {
     console.log('[Canvas/MapRenderer.tsx][9700] mounted in mode:', { mode, status, editReady }); // update - 3
   }, [mode, status, editReady]); // update - 3

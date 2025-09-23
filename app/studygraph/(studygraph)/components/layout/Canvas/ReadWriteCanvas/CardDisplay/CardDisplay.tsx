@@ -30,7 +30,7 @@ import { useSelectionAttachment } from '@/app/Library/Context/SelectionAttachmen
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
 import type { ResourceType } from '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/AddResourceDropdown.tsx';
 import type { ResourceFormInput } from '../../../CardDisplay/types/resourceForm';
-import { useDocumentAccessMode, isEditReady } from '@/app/studygraph/(studygraph)/components/hooks/access/useDocumentAccessMode'; 
+import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; 
 import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/CardDisplay.css'; // Existing styling overrides for panel, header, footer
 
 type Mode = 'note' | 'edit' | 'chat';
@@ -52,8 +52,8 @@ const CardDisplay: React.FC<CardDisplayProps> = ({ mode, setMode, askHandler }) 
    * and editing is permitted. Handlers are O(1) with early returns; rendering preserves CSS hooks.
    */
   // 0) Capability gating — single source of truth (DAM)                                 
-  const { mode: accessMode, status } = useDocumentAccessMode();                        
-  const canEdit = useMemo(() => isEditReady(accessMode, status), [accessMode, status]); 
+  const { mode: accessMode, status } = useAccessSnapshot();                        
+  const canEdit = useEditReady();  
   console.log('[CardDisplay.tsx][5200] capability snapshot', { accessMode, status, canEdit }); 
   // 1) Editing state and EditTab ref
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);

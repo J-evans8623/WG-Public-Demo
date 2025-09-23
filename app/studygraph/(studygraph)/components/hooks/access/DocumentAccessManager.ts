@@ -18,6 +18,18 @@
  *   - Synchronize access state from file lists, document operations, and server responses
  *   - Manage document selection workflow with PENDING/READY status transitions
  *   - Support promise-based waiting for definitive access resolution
+ *
+ * Update rationale:
+ *   This revision introduces a referentially stable snapshot cache used by the React
+ *   `useSyncExternalStore` bridge. Previously, `getSnapshot()` created a fresh object on
+ *   each call, which caused React to perceive spurious changes and re-render indefinitely
+ *   in strict/concurrent modes. We now compute a compact key from the effective state
+ *   (`status | currentDocId | canEdit(current)`), cache the last snapshot object, and
+ *   return the cached reference when the key is unchanged. We also ensure `emit()` is
+ *   invoked only when any of those effective fields change (status, active doc, or the
+ *   effective canEdit for the active doc). This eliminates infinite update loops while
+ *   preserving real-time reactivity. Logging remains purposeful and minimal, with
+ *   4-digit codes enabling quick grep across production logs.
  ***************************************************************************************/
 
 import type { AccessEnvelope } from '@/app/studygraph/(studygraph)/types/access';
@@ -40,6 +52,13 @@ interface AccessRecord {
   timestamp: number;
   source: 'list' | 'create' | 'load' | 'save' | 'download' | 'bootstrap';
 }
+
+/** Public snapshot shape consumed by React bridge. */
+export type AccessSnapshot = {                        
+  mode: 'edit' | 'readonly';                          
+  status: AccessStatus;                               
+  docId: string | null;                             
+};
 
 /**
  * @type AccessStatus
@@ -66,6 +85,76 @@ class DocumentAccessManager {
   private readyPromise: Promise<void> | null = null;
   private readyResolve: (() => void) | null = null;
 
+  // ────────────────────────────────────────────────────────────────────────────
+  // 1) Event-driven subscription bridge for React (Strategy A)                
+  // ────────────────────────────────────────────────────────────────────────────
+  private listeners: Set<() => void> = new Set();
+  private notifyScheduled = false;
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // 2) Snapshot caching for referential stability (fixes infinite re-render)   
+  // ────────────────────────────────────────────────────────────────────────────
+  private lastSnapshot: AccessSnapshot | null = null;                           // update - 9
+  private lastKey: string | null = null;                                        // update - 10
+
+  /**
+   * @function subscribe
+   * @description
+   *   1) Registers a listener that will be invoked whenever the effective DAM state
+   *      changes for the **active document** (docId, mode, or status).
+   *   2) Returns an unsubscribe function.
+   *   3) O(1) add/remove and O(L) notify where L is the number of listeners (small).
+   */
+  subscribe = (listener: () => void): (() => void) => {                         // update - 3
+    this.listeners.add(listener);                                               // update - 3
+    return () => this.listeners.delete(listener);                               // update - 3
+  };
+
+  /**
+   * @function getSnapshot
+   * @description
+   *   Returns a **pure**, side-effect-free snapshot of the current effective access state:
+   *   { mode, status, docId }. This function performs O(1) work: one Map lookup and
+   *   constant-time checks. It now caches the last snapshot and returns the same object
+   *   reference if the effective key hasn't changed, guaranteeing referential stability
+   *   for React's `useSyncExternalStore`. This prevents unnecessary renders and the
+   *   “Maximum update depth exceeded” loop seen when a new object was returned each call.
+   */
+  getSnapshot = (): AccessSnapshot => {                                         // update - 11
+    const docId = this.currentDocId;                                            // update - 11
+    const record = docId ? this.accessRecords.get(docId) : undefined;           // update - 11
+    const canEdit = !!record?.canEdit;                                          // update - 11
+    const mode: 'edit' | 'readonly' = canEdit ? 'edit' : 'readonly';            // update - 11
+    const key = `${this.status}|${docId ?? ''}|${canEdit ? 1 : 0}`;             // update - 11
+
+    if (this.lastKey === key && this.lastSnapshot) {                            // update - 12
+      return this.lastSnapshot;                                                 // update - 12
+    }                                                                           
+    const snap: AccessSnapshot = { mode, status: this.status, docId };          // update - 12
+    this.lastKey = key;                                                         // update - 12
+    this.lastSnapshot = snap;                                                   // update - 12
+    return snap;                                                                // update - 12
+  };
+
+  /**
+   * @function emit
+   * @description
+   *   Schedules a **microtask-coalesced** notification to subscribers. If multiple DAM
+   *   mutations occur inside the same turn, React will receive **one** consolidated event.
+   *   Complexity: O(1) to schedule, O(L) to notify. Contains a concise log for observability.
+   */
+  private emit(): void {
+    if (this.notifyScheduled) return;
+    this.notifyScheduled = true;
+    queueMicrotask(() => {
+      this.notifyScheduled = false;
+      console.log('[DocumentAccessManager.ts][1201] › notifying subscribers');
+      this.listeners.forEach((ln) => {
+        try { ln(); } catch (_e) { /* never throw */ }
+      });
+    });
+  }
+
   /**
    * @method getInstance
    * @description
@@ -91,7 +180,8 @@ class DocumentAccessManager {
    */
   syncFileList(files: UserFileMetadata[]): void {
     console.log('[DocumentAccessManager.ts][1002] › Syncing file list', { count: files.length });
-    
+
+    let affectedCurrent = false;
     // Step 1: Process each file and create/update access records
     files.forEach(file => {
       const record: AccessRecord = {
@@ -105,12 +195,16 @@ class DocumentAccessManager {
       };
 
       // Step 2: Store record with timestamp-based conflict resolution
-      this.updateRecord(file.fileId, record);
+      const changed = this.updateRecord(file.fileId, record);                   // update - 6
+      if (changed && file.fileId === this.currentDocId) {                       // update - 6
+        affectedCurrent = true;                                                 // update - 6
+      }
     });
 
-    console.log('[DocumentAccessManager.ts][1003] › File list sync complete', { 
-      totalRecords: this.accessRecords.size 
+    console.log('[DocumentAccessManager.ts][1003] › File list sync complete', {
+      totalRecords: this.accessRecords.size
     });
+    if (affectedCurrent) this.emit();
   }
 
   /**
@@ -124,15 +218,16 @@ class DocumentAccessManager {
   canEdit(docId: string): boolean {
     const record = this.accessRecords.get(docId);
     const result = record?.canEdit || false;
-    
-   /** console.log('[DocumentAccessManager.ts][1004] › canEdit query', { 
-      docId, 
-      result, 
+
+    console.log('[DocumentAccessManager.ts][1004] › canEdit query', {
+      docId,
+      result,
       hasRecord: !!record,
       role: record?.role,
-      publicEdit: record?.publicEdit 
-    });  */
-    
+      publicEdit: record?.publicEdit,
+      time: Date.now()
+    });
+
     return result;
   }
 
@@ -145,10 +240,10 @@ class DocumentAccessManager {
    *   between document loading and UI rendering decisions.
    */
   async waitForDocumentReady(docId: string): Promise<void> {
-    console.log('[DocumentAccessManager.ts][1005] › Waiting for document ready', { 
-      docId, 
+    console.log('[DocumentAccessManager.ts][1005] › Waiting for document ready', {
+      docId,
       currentStatus: this.status,
-      currentDocId: this.currentDocId 
+      currentDocId: this.currentDocId
     });
 
     // Step 1: If already ready and this is the current doc, return immediately
@@ -176,7 +271,7 @@ class DocumentAccessManager {
     }
   }
 
- /**
+  /**
    * @method selectDocument
    * @description
    *   Initiates document selection workflow by setting status to PENDING and creating
@@ -189,44 +284,52 @@ class DocumentAccessManager {
    *   to READY immediately and resolve any waiter synchronously. This matches the intended
    *   no-network behavior for picker opens, making waitForDocumentReady() effectively O(1).
    */
-  selectDocument(docId: string): void { // update - 2
-    console.log('[DocumentAccessManager.ts][1009] › Selecting document', { 
-      docId, 
+  selectDocument(docId: string): void {
+    console.log('[DocumentAccessManager.ts][1009] › Selecting document', {
+      docId,
       previousStatus: this.status,
-      previousDocId: this.currentDocId 
+      previousDocId: this.currentDocId
     });
 
+    const prevKey = this.lastKey;                                               // update - 13
     this.currentDocId = docId;
 
     // Fast-path: record is already known from file tiles (no backend dependency).
-    const known = this.accessRecords.get(docId); // update - 3
+    const known = this.accessRecords.get(docId);
     if (known) {
-      this.status = 'READY'; // update - 4
+      this.status = 'READY';
       // Resolve any previous waiter immediately (idempotent)
-      if (this.readyResolve) { // update - 5
+      if (this.readyResolve) {
         this.readyResolve();
         this.readyResolve = null;
       }
-      this.readyPromise = null; // update - 6
+      this.readyPromise = null;
       console.log('[DocumentAccessManager.ts][1040] › selectDocument fast-path READY', {
         docId,
         role: known.role,
         canEdit: known.canEdit
       });
-      return; // update - 7
+
+      // Emit if the effective snapshot changed (docId or status or canEdit)     // update - 13
+      if (prevKey !== this.getSnapshotKey()) { this.emit(); }                   // update - 13
+      return;
     }
 
     // Standard path: create a new pending promise to be completed later.
     this.status = 'PENDING';
-    this.readyPromise = new Promise<void>((resolve) => { // update - 8
+    this.readyPromise = new Promise<void>((resolve) => {
       this.readyResolve = resolve;
     });
 
-    console.log('[DocumentAccessManager.ts][1010] › Document selection initiated', { 
-      docId, 
-      status: this.status 
+    console.log('[DocumentAccessManager.ts][1010] › Document selection initiated', {
+      docId,
+      status: this.status
     });
+
+    // Emit because status/docId changed and consumers must reflect loading       // update - 14
+    this.emit();                                                                 // update - 14
   }
+
   /**
    * @method confirmDocumentReady
    * @description
@@ -236,10 +339,10 @@ class DocumentAccessManager {
    *   all access information has been captured and processed.
    */
   confirmDocumentReady(docId: string): void {
-    console.log('[DocumentAccessManager.ts][1011] › Confirming document ready', { 
-      docId, 
+    console.log('[DocumentAccessManager.ts][1011] › Confirming document ready', {
+      docId,
       currentDocId: this.currentDocId,
-      currentStatus: this.status 
+      currentStatus: this.status
     });
 
     // Step 1: Verify this is for the current document
@@ -259,10 +362,12 @@ class DocumentAccessManager {
     }
     this.readyPromise = null;
 
-    console.log('[DocumentAccessManager.ts][1013] › Document confirmed ready', { 
-      docId, 
-      status: this.status 
+    console.log('[DocumentAccessManager.ts][1013] › Document confirmed ready', {
+      docId,
+      status: this.status
     });
+
+    this.emit();                                                                 // update - 15
   }
 
   /**
@@ -292,10 +397,12 @@ class DocumentAccessManager {
     this.currentDocId = docId;
     this.status = 'READY';
 
-    console.log('[DocumentAccessManager.ts][1015] › New document recorded', { 
-      docId, 
-      canEdit: record.canEdit 
+    console.log('[DocumentAccessManager.ts][1015] › New document recorded', {
+      docId,
+      canEdit: record.canEdit
     });
+
+    this.emit();                                                                 // update - 16
   }
 
   /**
@@ -307,11 +414,11 @@ class DocumentAccessManager {
    *   access record with definitive server-side access decisions.
    */
   interceptLoad(docId: string, accessEnvelope: AccessEnvelope): void {
-    console.log('[DocumentAccessManager.ts][1016] › Intercepting load access', { 
-      docId, 
+    console.log('[DocumentAccessManager.ts][1016] › Intercepting load access', {
+      docId,
       role: accessEnvelope.role,
       publicEdit: accessEnvelope.publicEdit,
-      source: accessEnvelope.source 
+      source: accessEnvelope.source
     });
 
     // Step 1: Extract access information from envelope
@@ -326,13 +433,14 @@ class DocumentAccessManager {
     };
 
     // Step 2: Update record with timestamp-based resolution
-    this.updateRecord(docId, record);
-
-    console.log('[DocumentAccessManager.ts][1017] › Load access intercepted', { 
-      docId, 
+    const changed = this.updateRecord(docId, record);                            // update - 17
+    console.log('[DocumentAccessManager.ts][1017] › Load access intercepted', {
+      docId,
       canEdit: record.canEdit,
-      role: record.role 
+      role: record.role
     });
+
+    if (changed && this.currentDocId === docId) { this.emit(); }                 // update - 17
   }
 
   /**
@@ -346,10 +454,10 @@ class DocumentAccessManager {
   interceptSave(docId: string, accessEnvelope?: AccessEnvelope): void {
     if (!accessEnvelope) return;
 
-    console.log('[DocumentAccessManager.ts][1018] › Intercepting save access', { 
-      docId, 
+    console.log('[DocumentAccessManager.ts][1018] › Intercepting save access', {
+      docId,
       role: accessEnvelope.role,
-      source: accessEnvelope.source 
+      source: accessEnvelope.source
     });
 
     // Step 1: Create record from save envelope
@@ -364,12 +472,14 @@ class DocumentAccessManager {
     };
 
     // Step 2: Update with conflict resolution
-    this.updateRecord(docId, record);
+    const changed = this.updateRecord(docId, record);                            // update - 18
 
-    console.log('[DocumentAccessManager.ts][1019] › Save access intercepted', { 
-      docId, 
-      canEdit: record.canEdit 
+    console.log('[DocumentAccessManager.ts][1019] › Save access intercepted', {
+      docId,
+      canEdit: record.canEdit
     });
+
+    if (changed && this.currentDocId === docId) { this.emit(); }                 // update - 18
   }
 
   /**
@@ -412,10 +522,14 @@ class DocumentAccessManager {
    *   Only updates the record if the new information is more recent than existing
    *   data, ensuring that the most current access state is maintained across
    *   overlapping operations and rapid file switching scenarios.
+   *
+   *   Returns:
+   *     true if the stored effective record changed (useful to decide whether to emit),
+   *     false otherwise.
    */
-  private updateRecord(docId: string, newRecord: AccessRecord): void {
+  private updateRecord(docId: string, newRecord: AccessRecord): boolean {
     const existing = this.accessRecords.get(docId);
-    
+
     // Step 1: Apply timestamp-based conflict resolution
     if (existing && existing.timestamp > newRecord.timestamp) {
       console.log('[DocumentAccessManager.ts][1020] › Ignoring stale access record', {
@@ -423,12 +537,15 @@ class DocumentAccessManager {
         existingTimestamp: existing.timestamp,
         newTimestamp: newRecord.timestamp
       });
-      return;
+      return false;
     }
+
+    // Detect effective change that matters to subscribers (mode flips)
+    const beforeCanEdit = existing?.canEdit ?? false;
 
     // Step 2: Update record with newer information
     this.accessRecords.set(docId, newRecord);
-    
+
     console.log('[DocumentAccessManager.ts][1021] › Access record updated', {
       docId,
       canEdit: newRecord.canEdit,
@@ -436,6 +553,8 @@ class DocumentAccessManager {
       source: newRecord.source,
       timestamp: newRecord.timestamp
     });
+
+    return beforeCanEdit !== newRecord.canEdit || !existing;
   }
 
   /**
@@ -459,6 +578,20 @@ class DocumentAccessManager {
 
     // Step 3: All other cases result in read-only access
     return false;
+  }
+
+  /**
+   * @method getSnapshotKey
+   * @description
+   *   Internal helper that computes the current effective snapshot key without mutating
+   *   cache, enabling call sites to decide whether to emit before/after transitions.
+   *   This function performs O(1) work and does not allocate large objects.
+   */
+  private getSnapshotKey(): string {                                             // update - 19
+    const docId = this.currentDocId;                                             // update - 19
+    const record = docId ? this.accessRecords.get(docId) : undefined;            // update - 19
+    const canEdit = !!record?.canEdit;                                           // update - 19
+    return `${this.status}|${docId ?? ''}|${canEdit ? 1 : 0}`;                   // update - 19
   }
 }
 

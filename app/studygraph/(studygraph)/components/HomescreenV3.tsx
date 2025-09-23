@@ -28,7 +28,6 @@ import { UserFileMetadata } from '@/app/src/types/fileTypes';
 import { Trash, Calendar, Users, Book, Sparkles } from 'lucide-react';
 import './homeScreenV3.css';
 import { Role } from '../types/access';
-import DocumentAccessManager from './hooks/access/DocumentAccessManager';
 import { deleteDocBytes } from '../services/localCacheStore';
 /**
  * @type PickerFileMeta
@@ -359,7 +358,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                         <div className="file-title">{file.fileName}</div>
                         <div className="file-meta">
                           <span className="file-time">{formatFileTime(file.updatedAt)}</span>
-                          <span className="file-status">{isRefreshing ? 'Refreshing…' : 'Updated'}</span>
+                
                         </div>
                         {activeTab === 'recent' && (
                           <button

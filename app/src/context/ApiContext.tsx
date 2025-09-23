@@ -39,6 +39,24 @@ import { insertDedupSorted, updateByIdSorted,
 import DocumentAccessManager from '@/app/studygraph/(studygraph)/components/hooks/access/DocumentAccessManager';
 import { getFileListCache, setFileListCache, clearFileListCache } from '@/app/studygraph/(studygraph)/services/fileListCache';
 import { gradebookClient, AssignMetaPatchReq, AssignMetaPatchRes, AssignMetaUpsertReq, AssignMetaUpsertRes, GradebookQueryRes, AttemptStartReq, AttemptStartRes, AttemptSubmitReq, AttemptSubmitRes } from '@/app/studygraph/(studygraph)/services/gradebook/gradebookClient';
+import { useDocumentAccessMode } from '@/app/studygraph/(studygraph)/components/hooks/access/useDocumentAccessMode'; 
+
+type AccessMode = 'edit' | 'readonly'; 
+type AccessStatus = 'PENDING' | 'READY';
+
+
+/**
+ * Narrow context carrying `{mode,status,docId}` for consumers that need the snapshot object.
+ * We intentionally do not co-mingle this with ApiContext to avoid global re-renders.
+ */
+const AccessSnapshotContext = React.createContext<{ mode: AccessMode; status: AccessStatus; docId: string | null } | undefined>(undefined);
+
+
+/**
+ * Tiny boolean context for `editReady`. Keep this separate so a component that only needs the
+ * boolean will not re-render when `mode` or `status` changes but `editReady` remains the same.
+ */
+const EditReadyContext = React.createContext<boolean | undefined>(undefined);
 
 
 interface AccountStatus {
@@ -128,6 +146,43 @@ export const useAccountStatus = () => {
 };
 
 /**
+ * @function useAccessSnapshot
+ * @description
+ *   Read the centralized document access snapshot `{ mode, status, docId }` owned by `ApiProvider`.
+ *   This hook is intentionally narrow: it only triggers re-renders for callers that explicitly opt-in
+ *   to reading access state. By living in a tiny dedicated context, it avoids invalidating unrelated
+ *   `ApiContext` consumers when access changes. O(1) lookups; throws if used outside `ApiProvider`.
+ */
+// update - 2006
+export const useAccessSnapshot = () => {
+  const v = React.useContext(AccessSnapshotContext);
+  if (v === undefined) {
+    throw new Error('useAccessSnapshot must be used within ApiProvider');
+  }
+  return v;
+};
+
+
+
+/**
+ * @function useEditReady
+ * @description
+ *   Read the `editReady` boolean derived by the centralized DAM subscription inside `ApiProvider`. This
+ *   keeps leaf components simple and efficient: they can guard mutating handlers with a single boolean,
+ *   without re-rendering on changes to `mode` or `status` when the boolean didn’t change. The context
+ *   is minimal by design to limit fan-out churn. O(1) lookups; throws if used outside `ApiProvider`.
+ */
+// update - 2007
+export const useEditReady = () => {
+  const v = React.useContext(EditReadyContext);
+  if (v === undefined) {
+    throw new Error('useEditReady must be used within ApiProvider');
+  }
+  return v;
+};
+
+
+/**
  * @function useFileList
  * @description
  *   Returns the canonical file list from ApiContext with SWR-like flags. Consumers should treat
@@ -194,6 +249,20 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
   const mountedRef = useRef(true);
   const inflightListPromiseRef = useRef<Promise<UserFilesResponse> | null>(null);
   
+
+  /**
+   * Centralized DAM subscription: exactly one per app, owned by ApiProvider.
+   * We deliberately read it here and fan-out via tiny contexts below.
+   */
+  const dam = useDocumentAccessMode(); // { mode, status, docId, editReady }
+
+
+  const accessSnapshotValue = useMemo(
+    () => ({ mode: dam.mode as AccessMode, status: dam.status as AccessStatus, docId: dam.docId }),
+    [dam.mode, dam.status, dam.docId]
+  );
+
+
   
   /* @function currentUserEmail
    * @description
@@ -1079,6 +1148,8 @@ useEffect(() => { // update - 57
 
   // Expose read-only file list state to useFileList via non-API properties (internal surface) 
   return (
+    <AccessSnapshotContext.Provider value={accessSnapshotValue}>
+    <EditReadyContext.Provider value={dam.editReady}>  
         <ApiContext.Provider value={Object.assign(contextValue, { 
       _ownedFiles: fileList?.ownedFiles ?? [],
       _sharedFiles: fileList?.sharedFiles ?? [], 
@@ -1090,6 +1161,8 @@ useEffect(() => { // update - 57
 
       {children}
     </ApiContext.Provider>
+     </EditReadyContext.Provider>
+     </AccessSnapshotContext.Provider>
   );
 };
 

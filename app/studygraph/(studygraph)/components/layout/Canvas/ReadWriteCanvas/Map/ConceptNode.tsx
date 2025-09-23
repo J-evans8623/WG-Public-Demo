@@ -48,7 +48,8 @@ import { createPortal } from 'react-dom';
 import TopicGeneratorModal from '../../TopicGeneratorModal';
 import '@/app/studygraph/customTooltip.css'
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
-import { useDocumentAccessMode, isEditReady } from '@/app/studygraph/(studygraph)/components/hooks/access/useDocumentAccessMode'; // update - 1
+import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; 
+
 
 const GENERAL_SELECTED_COLOR = '#3B82F6';
 const CARET_COLOR = '#FF6500';
@@ -79,8 +80,8 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   const { open } = useSlideShow();
 
   // 1) DAM → capability gating (centralized here for both RO/RW)  // update - 2
-  const { mode, status } = useDocumentAccessMode();                // update - 2
-  const canEdit = isEditReady(mode, status);                       // update - 2
+  const { mode, status } = useAccessSnapshot();               // update - 2
+  const canEdit = useEditReady();                  // update - 2
 
   const { title, depth, x, y, childrenNodeIds, isRoot } = node;
   const [isEditing, setIsEditing] = useState(false);

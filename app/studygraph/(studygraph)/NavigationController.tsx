@@ -1,34 +1,31 @@
 /***************************************************************************************
  * @file NavigationController.tsx
  * @description
- *   A smart controller component that dynamically selects between read-only and read/write
- *   navigation panels based on the current document's access control permissions. This
- *   component integrates with the DocumentAccessManager to determine the appropriate
- *   navigation experience for each user's access level. When users have edit permissions,
- *   the full NavigationPanel with creation, editing, and deletion capabilities is rendered.
- *   When users have read-only access, the ReadOnlyNavigationPanel is shown instead,
- *   providing the same visual structure but preventing modification operations. The
- *   controller seamlessly handles the transition between access modes while maintaining
- *   consistent state management and user experience. This approach centralizes access
- *   control logic and ensures that navigation capabilities automatically align with
- *   document permissions without requiring manual coordination across components.
+ *   This smart controller chooses between the read-only and read/write navigation panels.
+ *   Historically, it queried the DocumentAccessManager singleton directly to infer the
+ *   current user capability for the active document. That approach created multiple
+ *   scattered consumers of the access layer and is now deprecated in favor of the
+ *   centralized subscription owned by `ApiProvider`. In this update, the component reads
+ *   a narrow, memoized access snapshot from `useAccessSnapshot()` and a precomputed
+ *   `editReady` boolean from `useEditReady()`. This eliminates duplicate subscriptions,
+ *   avoids unnecessary re-renders, and keeps the `ApiContext` value stable. The visual
+ *   structure and props contract remain unchanged. Focused console logs (file tag plus a
+ *   unique 4-digit code) mark access decisions and selected panel to support production
+ *   debugging. All logic is O(1); rendering complexity remains unchanged.
  *
  * Responsibilities:
- *   - Determine current document access permissions using DocumentAccessManager
- *   - Dynamically select appropriate navigation component (read-only vs read/write)
- *   - Forward all props to the selected navigation component
- *   - Provide centralized access control logic for navigation functionality
- *   - Maintain consistent interface regardless of underlying component selection
- *   - Handle access state transitions smoothly without UI disruption
- *
- * @author System
- * @date Current
+ *   - Consume centralized access state via ApiProvider fan-out contexts.
+ *   - Select the proper navigation panel (read-only vs read/write) based on capability.
+ *   - Forward all props to the chosen panel without altering the interface.
+ *   - Provide concise, high-signal logs for access-driven branching.
+ *   - Preserve existing CSS/DOM structure by delegating to existing panels.
  ***************************************************************************************/
 
 import React from 'react';
 import NavigationPanel from './components/layout/Sidebar/NavigationPanel';
 import ReadOnlyNavigationPanel from './components/layout/ReadOnly/navigation/ReadOnlyNavigationPanel';
-import DocumentAccessManager from './components/hooks/access/DocumentAccessManager';
+// update - 1
+import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; // update - 1
 
 /**
  * The top-level view types that can be displayed.
@@ -55,56 +52,40 @@ interface NavigationControllerProps {
 /**
  * @function NavigationController
  * @description
- *   The main controller component that analyzes current document access permissions
- *   and renders the appropriate navigation panel component. This function serves as
- *   the single point of integration for access-controlled navigation, eliminating
- *   the need for access control logic in parent components.
- *
- * Steps:
- *   1. Retrieve DocumentAccessManager singleton instance
- *   2. Get current document ID and access permissions
- *   3. Determine if user can edit the current document
- *   4. Select and render appropriate navigation component
- *   5. Forward all props to selected component unchanged
- *   6. Provide debug logging for access control decisions
+ *   Selects the appropriate navigation panel for the current access state. It uses the centralized
+ *   `useAccessSnapshot()` hook to obtain `{ mode, status, docId }` and the precomputed `useEditReady()`
+ *   to decide if the user can perform write actions. When `editReady` is true, the read/write
+ *   NavigationPanel is rendered; otherwise the read-only variant is shown. All props are forwarded
+ *   unchanged to preserve the existing interface. This strategy avoids duplicate access subscriptions,
+ *   keeps reactivity narrow, and ensures consistent access gating. Time complexity is O(1); no lists
+ *   or heavy computations are performed here.
  */
 const NavigationController: React.FC<NavigationControllerProps> = (props) => {
-  console.log('NavigationController.tsx 3001 › Controller rendering with props', {
+  console.log('[NavigationController.tsx][3101] render', {
     currentView: props.currentView,
-    isManuallyOpen: props.isManuallyOpen
+    isManuallyOpen: props.isManuallyOpen ?? null,
   });
 
-  // Step 1: Get DocumentAccessManager singleton instance
-  const manager = DocumentAccessManager.getInstance();
-  
-  // Step 2: Retrieve current document context
-  const currentDocId = manager.getCurrentDocId();
-  const status = manager.getStatus();
-  
-  console.log('NavigationController.tsx 3002 › Access context retrieved', {
-    currentDocId,
-    status
+  // update - 2
+  const { mode, status, docId } = useAccessSnapshot(); // update - 2
+  // update - 3
+  const editReady = useEditReady(); // update - 3
+
+  console.log('[NavigationController.tsx][3102] access snapshot', {
+    docId,
+    mode,
+    status,
+    editReady,
   });
 
-  // Step 3: Determine edit capability for access control decision
-  let canEdit = false;
-  if (currentDocId) {
-    canEdit = manager.canEdit(currentDocId);
-    console.log('NavigationController.tsx 3003 › Access permissions determined', {
-      docId: currentDocId,
-      canEdit,
-      hasRecord: manager.hasRecord(currentDocId)
-    });
-  } else {
-    console.log('NavigationController.tsx 3004 › No current document, defaulting to read-only');
-  }
+  // update - 4
+  const canEdit = editReady; // single source of truth (provider-precomputed) // update - 4
 
-  // Step 4: Select appropriate navigation component based on access control
   if (canEdit) {
-    console.log('NavigationController.tsx 3005 › Rendering read/write NavigationPanel');
+    console.log('[NavigationController.tsx][3103] rendering RW NavigationPanel', { docId });
     return <NavigationPanel {...props} />;
   } else {
-    console.log('NavigationController.tsx 3006 › Rendering read-only NavigationPanel');
+    console.log('[NavigationController.tsx][3104] rendering RO NavigationPanel', { docId });
     return <ReadOnlyNavigationPanel {...props} />;
   }
 };
