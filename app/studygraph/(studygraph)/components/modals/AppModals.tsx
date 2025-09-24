@@ -20,9 +20,10 @@ import '@/app/studygraph/(studygraph)/components/modals/modalStyles.css'
 import { useAccountStatus } from '@/app/src/context/ApiContext';
 import { generateAILesson } from '@/app/Library/utils/aiServiceApi';
 import { modalEventManager } from '@/app/src/services/modalEventManager';
+import { getModal } from '@/app/studygraph/(studygraph)/components/modals/ModalRegistry';
 
 // Modal types and props interfaces
-export type ModalType = 'subscribe' | 'rateLimit' | 'fileUpload' | 'lessonGeneration';
+export type ModalType = 'subscribe' | 'rateLimit' | 'fileUpload' | 'lessonGeneration' |'loadingOverlay';
 
 interface BaseModalProps {
   onClose: () => void;
@@ -597,6 +598,12 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
  */
 export const createModal = (type: ModalType, props: any) => {
   console.log('[AppModals.tsx][5020] Creating modal of type with enhanced context:', type);
+
+  const externalFactory = getModal(type as string);
+  if (externalFactory) {
+    console.log('[AppModals.tsx][5030] External modal factory found via registry', { type });
+    return externalFactory(props);
+  }
   
   switch (type) {
     case 'subscribe':

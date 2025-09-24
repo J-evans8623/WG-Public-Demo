@@ -42,7 +42,7 @@ import { StudySession } from '@/app/Library/Definitions/CalendarDefinitions';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useBlockStudySession } from '@/app/studygraph/(studygraph)/components/hooks/calendar/useBlockStudySession';
-import readiness from '@/app/studygraph/(studygraph)/services/DocumentReadinessService';
+import readiness from '@/app/studygraph/(studygraph)/services/documentReadiness/DocumentReadinessService';
 
 interface SlideShowContextValue {
   // Active slides (selection-based or override)

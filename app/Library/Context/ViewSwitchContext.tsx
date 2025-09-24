@@ -24,7 +24,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 
-type ViewType = 'conceptMap' | 'pdf';
+export type ViewType = 'conceptMap' | 'pdf';
 
 interface ViewSwitchContextProps {
   // View switching functionality

@@ -36,7 +36,7 @@ import {
 import { CalendarService } from '@/app/src/services/calendar/CalendarService';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { CalendarApi } from '@/app/src/services/calendar/CalendarApi'; // Step 2 uses the thin API
-import readiness from '@/app/studygraph/(studygraph)/services/DocumentReadinessService';
+import readiness from '@/app/studygraph/(studygraph)/services/documentReadiness/DocumentReadinessService';
 
 /**
  * Internal context (do not export directly).

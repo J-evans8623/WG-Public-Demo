@@ -32,7 +32,7 @@ import {
   getPreconditions as cacheGetPreconditions,
   loadDocBytes,
 } from '../localCacheStore';
-import readiness from '@/app/studygraph/(studygraph)/services/DocumentReadinessService'; // update - 26
+import readiness from '@/app/studygraph/(studygraph)/services/documentReadiness/DocumentReadinessService'; // update - 26
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Types

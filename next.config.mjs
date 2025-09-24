@@ -9,6 +9,16 @@
  */
 
 const nextConfig = {
+  // Configure remote image hosts for Next.js <Image /> (Google avatars)  // update - 1
+  images: {                                                               // update - 2
+    remotePatterns: [                                                     // update - 3
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },       // update - 4
+      { protocol: "https", hostname: "lh4.googleusercontent.com" },       // update - 5
+      { protocol: "https", hostname: "lh5.googleusercontent.com" },       // update - 6
+      { protocol: "https", hostname: "lh6.googleusercontent.com" },       // update - 7
+    ],
+  },                                                                      // update - 8
+
   /** ────────────────────────────────────────────────────────────────────
    *  Webpack customisation
    *  ──────────────────────────────────────────────────────────────────── */

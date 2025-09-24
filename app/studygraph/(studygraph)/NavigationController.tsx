@@ -27,6 +27,7 @@ import ReadOnlyNavigationPanel from './components/layout/ReadOnly/navigation/Rea
 // update - 1
 import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; // update - 1
 
+
 /**
  * The top-level view types that can be displayed.
  */

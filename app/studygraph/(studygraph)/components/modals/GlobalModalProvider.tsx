@@ -25,6 +25,7 @@
 'use client';
 
 import React, { createContext, useContext, useMemo } from 'react';
+import '@/app/studygraph/(studygraph)/components/modals/registerLoadingOverlay';
 import { useModalManager } from '@/app/studygraph/(studygraph)/components/modals/AppModals';
 
 type GlobalModalContextValue = {

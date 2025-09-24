@@ -71,8 +71,9 @@ import { useCollaborationManager } from './services/collab/useCollaborationManag
 import DocumentAccessManager from './components/hooks/access/DocumentAccessManager';
 import { LoadingAnimation } from './LoadingAnimation';
 import { CalendarProvider } from '@/app/Library/Context/CalendarContext';
-import readiness from '@/app/studygraph/(studygraph)/services/DocumentReadinessService';
-import { GlobalModalProvider } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
+import readiness from '@/app/studygraph/(studygraph)/services/documentReadiness/DocumentReadinessService';
+import { GlobalModalProvider, useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
+import { OptimisticInitController } from './services/documentReadiness/OptimisticInitController';
 
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
@@ -119,6 +120,13 @@ const AppLayoutContent: React.FC = () => {
   const { clearHistory } = useUndoRedo();  
   const {clearSelection} = useNodeSelection();
   const access = useAccessLayer();
+
+  const { showModal, hideModal } = useGlobalModal();
+  const initControllerRef = useRef<OptimisticInitController | null>(null);
+  if (!initControllerRef.current) {
+    initControllerRef.current = new OptimisticInitController();
+    console.log('[AppLayout.tsx][7601] OptimisticInitController instantiated');
+  }
   
   
 
@@ -217,6 +225,25 @@ useEffect(() => {
     clearSelection();
     resetPdfState();
 
+
+    try {
+      const ctl = initControllerRef.current!;
+      const { requestId } = ctl.begin({
+        docId,
+        mode: 'redeem',
+        setActiveView,
+        setCurrentView,
+        setDefaultMap,
+        LoadUserData,
+        showModal,
+        hideModal,
+      });
+      ctl.bindHide(hideModal);
+      console.log('[AppLayout.tsx][7602] Optimistic init started (redeem)', { docId, requestId });
+    } catch (e) {
+      console.warn('[AppLayout.tsx][7691] Optimistic init failed to start (redeem path)', e);
+    }
+
     // Step 3: Load document with proper error handling and status management
    const loadDocument = async () => {
   try {
@@ -232,7 +259,6 @@ useEffect(() => {
      // (Step 1.1) Subscribe to readiness transitions for this doc (Phase 3)
           //            We navigate to 'map' on RENDER_READY to show cached content,
           //            and run user data loading on SAVE_READY.
-          // update - 9
           const attachReadiness = (id: string) => {
             // Clean up prior subscriptions
             renderReadyUnsubRef.current?.();
@@ -240,7 +266,7 @@ useEffect(() => {
 
             // Render-Ready subscription
             const rSub = readiness.renderReady$(id).subscribe((s) => {
-              console.log('[AppLayout.tsx][4401] renderReady$ event', s); // update - 10
+              console.log('[AppLayout.tsx][4401] renderReady$ event', s); 
               if (s.phase === 'RENDER_READY' || s.phase === 'SAVE_READY') {
                 // Navigate to map and paint cached content immediately
                 setActiveView('conceptMap');
@@ -254,7 +280,7 @@ useEffect(() => {
 
             // Save-Ready subscription
             const sSub = readiness.saveReady$(id).subscribe((s) => {
-              console.log('[AppLayout.tsx][4402] saveReady$ event', s); // update - 11
+              console.log('[AppLayout.tsx][4402] saveReady$ event', s); 
               if (s.phase === 'SAVE_READY') {
                 // Load per-user data only when authoritative doc is ready
                 LoadUserData(id);
@@ -280,10 +306,6 @@ useEffect(() => {
     // (Step 3) Load user data for the document
     LoadUserData(docId);
 
-    // (Step 4) Navigate to map view
-    setActiveView('conceptMap');
-    setCurrentView('map');
-
     console.log('AppLayout.tsx 7003 › Document landing completed successfully', { docId });
   } catch (error) {
     console.error('AppLayout.tsx 7004 › Document load failed', { docId, error });
@@ -299,7 +321,7 @@ useEffect(() => {
     router.replace('/studygraph');
 
   }
-}, [searchParams, clearHistory, clearSelection, resetPdfState, loadFromFirebase, setActiveView, router, LoadUserData, ydoc, collabConnect, collabDisconnect, getVisibility]);
+}, [searchParams, clearHistory, clearSelection, resetPdfState, loadFromFirebase, setActiveView, router, LoadUserData, ydoc, collabConnect, collabDisconnect, getVisibility, setDefaultMap, showModal, hideModal]);
 
 
   /**
@@ -376,13 +398,33 @@ useEffect(() => {
       // Step 1: Initialize access manager workflow
     const manager = DocumentAccessManager.getInstance();
     manager.selectDocument(meta.docId);
-    await manager.waitForDocumentReady(meta.docId);
+    
 
 
     console.log('AppLayout.tsx 8202 › Access manager workflow initiated');
       clearHistory(); 
       clearSelection();
       resetPdfState();
+
+
+      // update - 64: Begin optimistic init (select) BEFORE openDocument
+      try {
+        const ctl = initControllerRef.current!;
+        const { requestId } = ctl.begin({
+          docId: meta.docId,
+          mode: 'select',
+          setActiveView,
+          setCurrentView,
+          setDefaultMap,
+          LoadUserData,
+          showModal,
+          hideModal,
+        });
+        ctl.bindHide(hideModal);
+        console.log('[AppLayout.tsx][7603] Optimistic init started (select)', { docId: meta.docId, requestId });
+      } catch (e) {
+        console.warn('[AppLayout.tsx][7692] Optimistic init failed to start (select path)', e);
+      }
 
       access.selectDoc(meta.docId, meta.role ? { role: meta.role } : undefined);
       if (meta.role) {
@@ -401,7 +443,10 @@ useEffect(() => {
       await documentSession.openDocument(meta.docId, {
   ydoc,
   loadFromFirebase,
+  
 });
+await manager.waitForDocumentReady(meta.docId);
+
 
 
 // Step 3: Attach readiness subscriptions for this doc
@@ -459,10 +504,33 @@ const handleCreateNewDocument = async () => {
     manager.recordNewDocument(newDocmeta.docId, 'Owner');
     InitializeUserData(newDocmeta.docId);
 
+
+    // update - 65: Begin optimistic init (create) BEFORE openNewDocument
+    try {
+      const ctl = initControllerRef.current!;
+      const { requestId } = ctl.begin({
+        docId: newDocmeta.docId,
+        mode: 'create',
+        setActiveView,
+        setCurrentView,
+        setDefaultMap,
+        LoadUserData,
+        showModal,
+        hideModal,
+      });
+      ctl.bindHide(hideModal);
+      console.log('[AppLayout.tsx][7604] Optimistic init started (create)', { docId: newDocmeta.docId, requestId });
+    } catch (e) {
+      console.warn('[AppLayout.tsx][7693] Optimistic init failed to start (create path)', e);
+    }
+
+
     // 🔧 NEW: bootstrap the just-created doc without loadFromFirebase
     await documentSession.openNewDocument(newDocmeta.docId, {
       ydoc: newDocmeta.ydoc,
     });
+
+
 
     // (Optional) mirror the same readiness wiring used in picker path
     const attachReadiness = (id: string) => {

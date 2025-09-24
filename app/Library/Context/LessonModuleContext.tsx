@@ -219,25 +219,34 @@ const addConceptMap = useCallback(
     return maps.map(cm => cm.id);
   }, [lessonModuleYMap]);
 
-  /**
-   * updateConceptMapTitle
-   * Updates the title property of an existing concept map.
-   *
-   * @param conceptMapId - The id of the concept map to update.
-   * @param newTitle - The new title.
-   */
-  const updateConceptMapTitle = useCallback((conceptMapId: string, newTitle: string) => {
+// update - 1
+/**
+ * updateConceptMapTitle
+ * Updates the title property of an existing concept map.
+ *
+ * @param conceptMapId - The id of the concept map to update.
+ * @param newTitle - The new title.
+ */
+const updateConceptMapTitle = useCallback(
+  (conceptMapId: string, newTitle: string) => {
     const conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any>;
-    if (conceptMapsYArray) {
-      const maps = conceptMapsYArray.toArray();
-      const index = maps.findIndex((cm: any) => cm.id === conceptMapId);
-      if (index !== -1) {
-        const updatedMap = { ...maps[index], title: newTitle };
-        conceptMapsYArray.delete(index, 1);
-        conceptMapsYArray.insert(index, [updatedMap]);
-      }
-    }
-  }, [lessonModuleYMap]);
+    if (!conceptMapsYArray) return; // update - 1
+
+    // Wrap in a Yjs transaction and tag with LOCAL_ORIGIN so autosave triggers
+    ydoc.transact(() => { // update - 1
+      const maps = conceptMapsYArray.toArray(); // update - 1
+      const index = maps.findIndex((cm: any) => cm.id === conceptMapId); // update - 1
+      if (index === -1) return; // update - 1
+
+      const prev = maps[index]; // update - 1
+      const updatedMap = { ...prev, title: newTitle }; // update - 1
+      conceptMapsYArray.delete(index, 1); // update - 1
+      conceptMapsYArray.insert(index, [updatedMap]); // update - 1
+    }, LOCAL_ORIGIN); // update - 1
+  },
+  [lessonModuleYMap, ydoc] // update - 1
+);
+
 
   /**
    * updateLessonModule
@@ -259,24 +268,36 @@ const addConceptMap = useCallback(
     }
   }, [lessonModuleYMap]);
 
-  const deleteConceptMap = useCallback((conceptMapId: string) => {
-    const conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any>;
-    if (conceptMapsYArray) {
-      const maps = conceptMapsYArray.toArray();
-      const index = maps.findIndex((cm: any) => cm.id === conceptMapId);
-      if (index !== -1) {
-        conceptMapsYArray.delete(index, 1);
-        // Clear the namespaced nodes map for the deleted lesson module.
-        const nodesKey = `nodes:${conceptMapId}`;
-        const nodesMap = ydoc.getMap(nodesKey);
-        nodesMap.clear();
-        if (activeConceptMapId === conceptMapId) {
-          const newActive = maps[0]?.id || '';
-          setActiveConceptMapId(newActive);
-        }
+
+const deleteConceptMap = useCallback(
+  (conceptMapId: string) => {
+    const conceptMapsYArray = lessonModuleYMap.get('conceptMaps') as Y.Array<any>; // update - 1
+    if (!conceptMapsYArray) return; // update - 1
+
+    ydoc.transact(() => { // update - 1
+      const maps = conceptMapsYArray.toArray(); // update - 1
+      const index = maps.findIndex((cm: any) => cm.id === conceptMapId); // update - 1
+      if (index === -1) return; // update - 1
+
+      // 1) Remove the concept map entry // update - 1
+      conceptMapsYArray.delete(index, 1); // update - 1
+
+      // 2) Clear the namespaced nodes map for the deleted lesson module // update - 1
+      const nodesKey = `nodes:${conceptMapId}`; // update - 1
+      const nodesMap = ydoc.getMap(nodesKey); // update - 1
+      nodesMap.clear(); // update - 1
+
+      // 3) If the deleted map was active, pick a new active (first remaining) // update - 1
+      if (activeConceptMapId === conceptMapId) { // update - 1
+        const remaining = conceptMapsYArray.toArray(); // update - 1
+        const newActive = remaining[0]?.id || ''; // update - 1
+        setActiveConceptMapId(newActive); // update - 1
       }
-    }
-  }, [lessonModuleYMap, ydoc, activeConceptMapId]);
+    }, LOCAL_ORIGIN); // update - 1
+  },
+  [lessonModuleYMap, ydoc, activeConceptMapId, setActiveConceptMapId] // update - 1
+);
+
 
   /**
    * isMapEmpty

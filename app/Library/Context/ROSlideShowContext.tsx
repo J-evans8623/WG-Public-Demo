@@ -28,7 +28,7 @@ import { PickerFileMeta, StudySession } from '../Definitions/CalendarDefinitions
 import { useYDoc } from './YDocContext';
 import { useUserData } from './UserDataContext';
 import { useBlockStudySession } from '@/app/studygraph/(studygraph)/components/hooks/calendar/useBlockStudySession';
-import readiness from '@/app/studygraph/(studygraph)/services/DocumentReadinessService';
+import readiness from '@/app/studygraph/(studygraph)/services/documentReadiness/DocumentReadinessService';
 
 interface SlideShowContextValue {
   // The array of slides currently being displayed (override or ordered resources)
