@@ -43,6 +43,7 @@ import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useBlockStudySession } from '@/app/studygraph/(studygraph)/components/hooks/calendar/useBlockStudySession';
 import readiness from '@/app/studygraph/(studygraph)/services/documentReadiness/DocumentReadinessService';
+import { getLastViewedSlide, setLastViewedSlide } from '@/app/studygraph/(studygraph)/services/localCacheStore';
 
 interface SlideShowContextValue {
   // Active slides (selection-based or override)
@@ -152,6 +153,46 @@ export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children 
   // Compute active slides (override takes precedence)
   const slides = overrideSlides !== null ? overrideSlides : defaultSlides;
 
+
+  /**
+ * @function resumeIndexFor (new)
+ * @description
+ *   Given a slide array and a docId, attempt to locate the index of the previously
+ *   viewed slide. O(1) to read last id + O(N) worst-case to scan the provided slides.
+ *
+ *   Steps:
+ *    1) Guard: require docFileID; read lastViewedSlideId (O(1)).
+ *    2) If none, return 0 (default start).
+ *    3) Scan slides for matching id; if found return index; else return 0.
+ */
+const resumeIndexFor = useCallback((arr: ResourceCard[]): number => {
+  // 1) Read last id (doc-bound)
+  if (!docFileID) return 0;
+  const lastId = getLastViewedSlide(docFileID);
+  // 2) No persisted id → start at 0
+  if (!lastId) return 0;
+  // 3) Find in current deck (O(N) only on open)
+  const found = arr.findIndex(s => s.id === lastId);
+  return found >= 0 ? found : 0;
+}, [docFileID]);
+
+
+  /**
+ * @function persistLastSlide (new)
+ * @description
+ *   Write the current slide ID into the cache for the active document. O(1).
+ *
+ *   Steps:
+ *    1) Guard: require docFileID and slide.
+ *    2) Write {docId -> lastViewedSlideId, lastViewedAt} via local cache helper.
+ */
+const persistLastSlide = useCallback((slide: ResourceCard | null) => {
+  // 1) Guard
+  if (!docFileID || !slide) return;
+  // 2) Write
+  setLastViewedSlide(docFileID, slide.id);
+}, [docFileID]);
+
   /**
    * @function synchronizeOverrideSlides
    * @description
@@ -204,49 +245,65 @@ export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [overrideSlides, resources, synchronizeOverrideSlides]);
 
-  /**
-   * @function open
-   * @description
-   * Opens the slideshow using the default selection-based deck, positioning the index at either:
-   * (a) the resource with the provided `resourceId`, or (b) the first resource in a node’s resources
-   * when `nodeId=true`. If the resource from the node is not present in the current selection deck, the
-   * provider switches to override mode by prepending the node’s resources to the selection-based list.
-   * Time complexity is O(N) only for the index lookup/merge; otherwise O(1).
-   */
-  const open = useCallback(
-    (resourceId: string, nodeId: boolean = false) => {
-      console.log('[SlideShowContext.tsx][7010] › Opening slideshow for resource:', resourceId, 'nodeId mode:', nodeId);
-      let idx: number = -1;
+/**
+ * @function open
+ * @description
+ *   Opens slideshow targeting a resource or a node’s first resource. Now resumes
+ *   when default deck is used; override path remains unchanged.                  // update - 3
+ *
+ *   Steps:
+ *    1) Resolve target index in current slides (resource or node).
+ *    2) If node not in selection, create merged override and start at 0.
+ *    3) Otherwise set index to found idx (no resume needed because explicit target),
+ *       and open.
+ *    4) When resourceId is not found and not node, fall back to resume on default.
+ */
+const open = useCallback(                                                       // update - 3
+  (resourceId: string, nodeId: boolean = false) => {
+    console.log('[SlideShowContext.tsx][7010] › Opening slideshow for resource:', resourceId, 'nodeId mode:', nodeId);
+    let idx: number = -1;
 
-      if (nodeId) {
-        const resourceCards = selectResources(resourceId);
-        if (resourceCards.length === 0) {
-          console.log('[SlideShowContext.tsx][7011] › No resources found for node:', resourceId);
-          return;
-        }
-        idx = slides.findIndex((r) => r.id === resourceCards[0].id);
-        if (idx < 0) {
-          const merged = [...resourceCards, ...defaultSlides];
-          console.log('[SlideShowContext.tsx][7012] › Switching to override mode with merged slides, count:', merged.length);
-          setOverrideSlides(merged);
-          setCurrentIndex(0);
-          setIsOpen(true);
-          return;
-        }
-      } else {
-        idx = slides.findIndex((r) => r.id === resourceId);
+    if (nodeId) {
+      const resourceCards = selectResources(resourceId);
+      if (resourceCards.length === 0) {
+        console.log('[SlideShowContext.tsx][7011] › No resources found for node:', resourceId);
+        return;
       }
+      idx = slides.findIndex((r) => r.id === resourceCards[0].id);
+      if (idx < 0) {
+        const merged = [...resourceCards, ...defaultSlides];
+        console.log('[SlideShowContext.tsx][7012] › Switching to override mode with merged slides, count:', merged.length);
+        setOverrideSlides(merged);
+        setCurrentIndex(0);
+        setIsOpen(true);
+        return;
+      }
+    } else {
+      idx = slides.findIndex((r) => r.id === resourceId);
+    }
 
-      if (idx >= 0) {
-        console.log('[SlideShowContext.tsx][7013] › Found slide at index:', idx);
-        setCurrentIndex(idx);
+    if (idx >= 0) {
+      console.log('[SlideShowContext.tsx][7013] › Found slide at index:', idx);
+      setCurrentIndex(idx);
+      setIsOpen(true);
+    } else {
+      // 4) Fallback: open current resolved slides using resume index
+      if (slides.length > 0) {
+        console.log('[SlideShowContext.tsx][7013.1] › Target not found; falling back to resume index'); // update - 3
+        const start = resumeIndexFor(slides);                                   // update - 3
+        setCurrentIndex(start);
         setIsOpen(true);
       } else {
         console.log('[SlideShowContext.tsx][7014] › Slide not found in current slides');
       }
-    },
-    [slides, defaultSlides, selectResources]
-  );
+    }
+  },
+  [slides, defaultSlides, selectResources, resumeIndexFor]                      // update - 3
+);
+
+  
+
+
 
   /**
    * @function openSelectedSlides
@@ -262,21 +319,27 @@ export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [slides]);
 
-  /**
-   * @function openCustom
-   * @description
-   * Replaces the deck with the caller-provided slides. When slides are present, opens the overlay
-   * and starts at index 0. This is O(1) for state flips and O(N) only for any future sync passes.
-   */
-  const openCustom = useCallback((slidesToShow: ResourceCard[]) => {
-    console.log('[SlideShowContext.tsx][7016] › Opening custom slideshow with slides, count:', slidesToShow.length);
-    setOverrideSlides(slidesToShow);
-    if (slidesToShow.length > 0) {
-      setCurrentIndex(0);
-      setIsOpen(true);
-    }
-  }, []);
-
+/**
+ * @function openCustom
+ * @description
+ *   Replaces the deck with caller-provided slides and opens the overlay.
+ *   Now attempts to resume from last-viewed slide for the active doc.  // update - 1
+ *
+ *   Steps:
+ *    1) Set override slides.
+ *    2) If there are slides: compute start index via resumeIndexFor(arr).
+ *    3) Set index and open.
+ */
+const openCustom = useCallback((slidesToShow: ResourceCard[]) => {              // update - 1
+  console.log('[SlideShowContext.tsx][7016] › Opening custom slideshow with slides, count:', slidesToShow.length);
+  setOverrideSlides(slidesToShow);
+  if (slidesToShow.length > 0) {
+    // 2) compute resume index
+    const start = resumeIndexFor(slidesToShow);                                 // update - 1
+    setCurrentIndex(start);
+    setIsOpen(true);
+  }
+}, [resumeIndexFor]);  
   /**
    * @function resetToSelection
    * @description
@@ -288,38 +351,45 @@ export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children 
     setOverrideSlides(null);
   }, []);
 
-  /**
-   * @function close
-   * @description
-   * Closes the overlay and clears the override deck to avoid stale state. O(1).
-   */
-  const close = useCallback(() => {
-    console.log('[SlideShowContext.tsx][7018] › Closing slideshow and clearing overrides');
-    setIsOpen(false);
-    resetToSelection();
-  }, [resetToSelection]);
+                        // update - 6
 
-  /**
-   * @function gotoNext
-   * @description
-   * Moves the slideshow forward a single slide, clamping at the final slide. O(1).
-   */
-  const gotoNext = useCallback(() => {
-    const next = Math.min(currentIndex + 1, slides.length - 1);
-    console.log('[SlideShowContext.tsx][7019] › Going to next slide, index:', currentIndex, '->', next);
-    setCurrentIndex(next);
-  }, [currentIndex, slides.length]);
 
-  /**
-   * @function gotoPrev
-   * @description
-   * Moves the slideshow backward a single slide, clamping at zero. O(1).
-   */
-  const gotoPrev = useCallback(() => {
-    const prev = Math.max(currentIndex - 1, 0);
-    console.log('[SlideShowContext.tsx][7020] › Going to previous slide, index:', currentIndex, '->', prev);
-    setCurrentIndex(prev);
-  }, [currentIndex]);
+/**
+ * @function gotoNext
+ * @description
+ *   Move forward one slide (clamped). Persist last slide after computing next.   // update - 4
+ *
+ *   Steps:
+ *    1) Compute next index (clamped).
+ *    2) Persist next slide id (if any).
+ *    3) Set current index.
+ */
+const gotoNext = useCallback(() => {                                            // update - 4
+  const next = Math.min(currentIndex + 1, slides.length - 1);                   // 1
+  const nextSlide = slides[next];                                               // 2
+  if (nextSlide) persistLastSlide(nextSlide);                                   // update - 4
+  console.log('[SlideShowContext.tsx][7019] › Going to next slide, index:', currentIndex, '->', next);
+  setCurrentIndex(next);                                                        // 3
+}, [currentIndex, slides, persistLastSlide]);                                   // update - 4
+
+/**
+ * @function gotoPrev
+ * @description
+ *   Move backward one slide (clamped). Persist last slide after computing prev.  // update - 5
+ *
+ *   Steps:
+ *    1) Compute prev index (clamped).
+ *    2) Persist prev slide id (if any).
+ *    3) Set current index.
+ */
+const gotoPrev = useCallback(() => {                                            // update - 5
+  const prev = Math.max(currentIndex - 1, 0);                                   // 1
+  const prevSlide = slides[prev];                                               // 2
+  if (prevSlide) persistLastSlide(prevSlide);                                   // update - 5
+  console.log('[SlideShowContext.tsx][7020] › Going to previous slide, index:', currentIndex, '->', prev);
+  setCurrentIndex(prev);                                                        // 3
+}, [currentIndex, slides, persistLastSlide]);                                   // update - 5
+
 
   /**
    * @function currentSlide
@@ -476,6 +546,45 @@ export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children 
     generateRevision,
     openCustom,
   ]);
+
+
+  /**
+ * @function close
+ * @description
+ *   Close overlay and clear override. Persist the current slide before closing.  // update - 6
+ *
+ *   Steps:
+ *    1) Persist current slide (if any).
+ *    2) Close overlay (isOpen=false).
+ *    3) Reset to selection to avoid stale overrides.
+ */
+const close = useCallback(() => {                                               // update - 6
+  // 1) Persist current slide on exit
+  persistLastSlide(currentSlide);                                               // update - 6
+  console.log('[SlideShowContext.tsx][7018] › Closing slideshow and clearing overrides');
+  // 2) Close
+  setIsOpen(false);
+  // 3) Clear override
+  resetToSelection();
+}, [resetToSelection, currentSlide, persistLastSlide]);  
+
+
+
+/**
+ * @effect Persist whenever the computed currentSlide changes while the overlay is open. (new)
+ * @description
+ *   This makes persistence robust even if navigation is triggered externally.
+ *
+ *   Steps:
+ *    1) When isOpen && currentSlide change, write to cache (O(1)).
+ */
+useEffect(() => {
+  if (!isOpen) return;
+  persistLastSlide(currentSlide);
+}, [isOpen, currentSlide, persistLastSlide]);
+
+
+
 
   const value = useMemo(
     () => ({

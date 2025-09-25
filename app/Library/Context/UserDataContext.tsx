@@ -58,6 +58,9 @@ interface UserDataContextValue {
   isBookmarked: (resourceId: string) => boolean;
    getBookmarkSlidesForLesson: (lessonId: string) => ResourceCard[];
   currentDocId:string | null;
+  getSeenCount: (postId: string) => number;        
+  markThreadSeen: (postId: string, count: number) => void;
+  clearSeenForDeleted: (postId: string) => void;
 }
 
 const UserDataContext = createContext<UserDataContextValue | undefined>(
@@ -302,6 +305,7 @@ const LoadUserData = useCallback(
       const data = (await resp.json()) as RevisionMetaData;
       data.GlobalQuizAttempts = data.GlobalQuizAttempts ?? 0;
       data.bookmarks = data.bookmarks ?? [];
+      data.seenRecord = data.seenRecord?? {};
 
       // SET CONTEXT STATE HERE
       setuserRevisionData(data);
@@ -358,6 +362,7 @@ async function InitializeUserData(documentID:string): Promise<RevisionMetaData> 
     },
     GlobalQuizAttempts:0,
      bookmarks: [],
+     seenRecord: {},
   };
 
   // save and return
@@ -540,6 +545,66 @@ const recordQuizSession = useCallback(() => {
 
 
   /**
+ * @function getSeenCount
+ * @purpose
+ *  O(1) read helper for the arithmetic layer.
+ *  Steps:
+ *   1) Return seenRecord[postId] if it exists, else 0.
+ */
+const getSeenCount = useCallback((postId: string): number => {
+  // Step 1: defensive lookups
+  const sr = userRevisionData?.seenRecord ?? {};
+  return sr[postId] ?? 0;
+}, [userRevisionData]);
+
+/**
+ * @function markThreadSeen
+ * @purpose
+ *  Record that the user has seen the thread up to `count` items (post + replies).
+ *  Steps:
+ *   1) If no user data yet, bail.
+ *   2) Upsert seenRecord[postId] = count in a single state update.
+ *   3) Flip the revision "updated" flag so existing save cadence persists it.
+ */
+const markThreadSeen = useCallback((postId: string, count: number) => {
+  // Step 1
+  if (!userRevisionData) return;
+
+  // Step 2
+  setuserRevisionData(prev => {
+    if (!prev) return prev;
+    const next = {
+      ...prev,
+      seenRecord: { ...(prev.seenRecord ?? {}), [postId]: count },
+    };
+    return next;
+  });
+
+  // Step 3
+  setupdatedRivisionCard(true);
+}, [userRevisionData, setupdatedRivisionCard]);
+
+
+  /**
+ * @function clearSeenForDeleted
+ * @purpose
+ *  Keep seenRecord compact by removing entries for deleted posts.
+ *  Steps:
+ *   1) If post key exists, delete it in a single state update.
+ *   2) Mark data updated to follow normal persistence flow.
+ */
+const clearSeenForDeleted = useCallback((postId: string) => {
+  if (!userRevisionData?.seenRecord || !(postId in userRevisionData.seenRecord)) return;
+
+  setuserRevisionData(prev => {
+    if (!prev?.seenRecord) return prev;
+    const { [postId]: _omit, ...rest } = prev.seenRecord;
+    return { ...prev, seenRecord: rest };
+  });
+  setupdatedRivisionCard(true);
+}, [userRevisionData, setupdatedRivisionCard]);
+
+  /**
    * @function getBookmarkSlidesForLesson
    * @description
    *   Collects and returns an array of fully‑formed ResourceCard objects
@@ -576,6 +641,9 @@ const recordQuizSession = useCallback(() => {
       isBookmarked,
       getBookmarkSlidesForLesson,
        currentDocId,
+       getSeenCount,
+      markThreadSeen,
+      clearSeenForDeleted,
       }}
     >
       {children}

@@ -26,7 +26,7 @@
 
 import React, { useMemo } from 'react';
 import { MessageSquare } from 'lucide-react';
-
+import "./ForumPost.css"
 export interface Tag {
   id: string;
   label: string;
@@ -40,6 +40,7 @@ export interface ForumPostData {
   author: string;
   timeAgo: string;
   replyCount: number;
+   unseenCount?: number;
 }
 
 interface ForumPostProps {
@@ -104,7 +105,7 @@ const ForumPost: React.FC<ForumPostProps> = ({ post, onPostClick }) => {
       onKeyDown={handleKeyDown}
     >
       {/* Post Header with Tags */}
-      <div className="forum-post__header">
+      <div className="forum-post__header forum-post__header--has-badge">
         <div className="forum-post__tags">
           {post.tags
             .filter(tag => tag.label && tag.label.trim() !== '')
@@ -117,7 +118,16 @@ const ForumPost: React.FC<ForumPostProps> = ({ post, onPostClick }) => {
               </span>
             ))}
         </div>
-      </div>
+       {typeof post.unseenCount === 'number' && post.unseenCount > 0 && (
+    <span
+      className="forum-post__badge forum-post__badge--amber"
+      aria-label={`${post.unseenCount} new ${post.unseenCount === 1 ? 'message' : 'messages'}`}
+    >
+      {post.unseenCount > 19 ? '19+' : post.unseenCount} {/* update - 4 */}
+    </span>
+  )}
+</div>
+      
 
       {/* Post Title */}
       <h3 className="forum-post__title">

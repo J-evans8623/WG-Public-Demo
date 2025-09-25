@@ -31,6 +31,10 @@ import * as Y from 'yjs';
 import { v4 as uuidv4 } from 'uuid';
 import { useYDoc } from './YDocContext';
 import { useSession } from "next-auth/react";
+import { useUserData } from '@/app/Library/Context/UserDataContext';
+import { computeUnseen, isDirty } from '../utils/notifications/NotificationUtils';
+import { LOCAL_ORIGIN } from '../Definitions/Definitions';
+
 
 ///////////////////////
 // Type Definitions //
@@ -61,6 +65,7 @@ export interface Post extends Comment {
   lessonTitle: string;
   lessonTitleId: string;
   subtopicTitle: string;
+  postTitle:string;
   resourceId: string;
   id: string;
   replies: Comment[];
@@ -84,6 +89,7 @@ interface CommentsContextType {
     lessonTitleId: string;
     subtopicTitle: string;
     body: string;
+    postTitle:string,
     resourceId: string;
   }): void;
 
@@ -102,6 +108,12 @@ interface CommentsContextType {
   isForumOpen: boolean;
   isComposerOpen:boolean;
   activeConcept:string|null;
+  getPostItemCount(postId: string): number;  
+  getUnseenCount(postId: string): number;    
+  // Actions
+  markThreadViewed(postId: string): void;    
+  // Aggregates
+  getDirtyThreadTotal(): number;             
   
 }
 
@@ -127,7 +139,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [isComposerOpen, setComposerOpen] = useState(false);
   const [isForumOpen, setForumOpen] = useState(false);
   const [activeConcept, setActiveConcept] = useState<string | null>(null);
-  
+  const { getSeenCount, markThreadSeen, clearSeenForDeleted} = useUserData();
 
 
   useEffect(() => {
@@ -157,12 +169,14 @@ const addPost = useCallback(
     lessonTitle,
     lessonTitleId,
     subtopicTitle,
+    postTitle,
     body,
     resourceId,
   }: {
     lessonTitle: string
     lessonTitleId: string
     subtopicTitle: string
+    postTitle:string
     body: string
     resourceId: string
   }) => {
@@ -176,12 +190,13 @@ const addPost = useCallback(
       lessonTitleId,
       subtopicTitle,
       resourceId,
+      postTitle,
       replies: [],
     }
     ydoc.transact(() => {
       postsRoot.set(newPost.id, newPost)
       console.log(`CommentsContext › addPost ${newPost.id}`)
-    })
+    }, LOCAL_ORIGIN)
   },
   [ydoc, postsRoot, authorUID]
 )
@@ -209,7 +224,7 @@ const addComment = useCallback(
     ydoc.transact(() => {
       postsRoot.set(postId, updated)
       console.log(`CommentsContext › addComment ${newComment.id}`)
-    })
+    }, LOCAL_ORIGIN)
   },
   [ydoc, postsRoot, authorUID]
 )
@@ -221,13 +236,14 @@ const addComment = useCallback(
    * in a Yjs transaction. Logs the deletion event.
    */
 const deletePost = useCallback(
-  (postId: string) => {
-    if (!postsRoot.has(postId)) return
-    ydoc.transact(() => postsRoot.delete(postId))
-    console.log(`CommentsContext › deletePost ${postId}`)
-  },
-  [ydoc, postsRoot]
-)
+    (postId: string) => {
+      if (!postsRoot.has(postId)) return;
+      ydoc.transact(() => postsRoot.delete(postId), LOCAL_ORIGIN);
+      clearSeenForDeleted(postId); // update - 4
+      console.log(`CommentsContext › deletePost ${postId}`);
+    },
+    [ydoc, postsRoot, clearSeenForDeleted]
+  );
   /**
    * @function getCommentCount
    * @description
@@ -237,6 +253,88 @@ const getCommentCount = useCallback(
   (postId: string) => posts.get(postId)?.replies.length ?? 0,
   [posts]
 )
+
+
+
+ /**
+   * @function getPostItemCount
+   * @purpose
+   *  Return the canonical "size" of a thread (post itself + replies).
+   *  Steps:
+   *   1) Look up post in local map.
+   *   2) If missing, return 0 (defensive).
+   *   3) Otherwise return 1 + number of replies.
+   */
+  const getPostItemCount = useCallback((postId: string): number => {
+    // Step 1
+    const p = posts.get(postId);
+    // Step 2
+    if (!p) return 0;
+    // Step 3
+    return 1 + (p.replies?.length ?? 0);
+  }, [posts]);
+
+
+
+
+  /**
+   * @function getUnseenCount
+   * @purpose
+   *  O(1) computation of unseen items for a thread.
+   *  Steps:
+   *   1) Read currentCount via getPostItemCount.
+   *   2) Read seenCount from UserDataContext.
+   *   3) Return computeUnseen(currentCount, seenCount).
+   */
+  const getUnseenCount = useCallback((postId: string): number => {
+    // Step 1
+    const current = getPostItemCount(postId);
+    // Step 2
+    const seen = getSeenCount(postId);
+    // Step 3
+    return computeUnseen(current, seen);
+  }, [getPostItemCount, getSeenCount]);
+
+
+
+/**
+   * @function markThreadViewed
+   * @purpose
+   *  Mark everything currently in the thread as seen.
+   *  Steps:
+   *   1) Compute current size with getPostItemCount.
+   *   2) Persist seenCount via markThreadSeen(postId, size).
+   */
+  const markThreadViewed = useCallback((postId: string) => {
+    // Step 1
+    const size = getPostItemCount(postId);
+    // Step 2
+    if (size > 0) markThreadSeen(postId, size);
+  }, [getPostItemCount, markThreadSeen]);
+
+
+
+  /**
+   * @function getDirtyThreadTotal
+   * @purpose
+   *  Count how many threads have unseen > 0 (for the header badge).
+   *  Steps:
+   *   1) Iterate visible posts.
+   *   2) Compute unseen per post via getUnseenCount.
+   *   3) Count those with isDirty(unseen).
+   */
+  const getDirtyThreadTotal = useCallback((): number => {
+    // Step 1
+    let total = 0;
+    for (const [postId] of posts.entries()) {
+      // Step 2
+      const unseen = getUnseenCount(postId);
+      // Step 3
+      if (isDirty(unseen)) total++;
+    }
+    return total;
+  }, [posts, getUnseenCount]); 
+  
 
 
   // ── UI Controls ───────────────────────────────────────────────────────────────
@@ -267,6 +365,10 @@ const getCommentCount = useCallback(
         isForumOpen,
         isComposerOpen,
         activeConcept,
+        getPostItemCount,
+        getUnseenCount,
+        markThreadViewed,
+        getDirtyThreadTotal,
       }}
     >
       {children}

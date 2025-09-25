@@ -54,7 +54,7 @@ const ForumModal: React.FC<ForumModalProps> = ({
 }) => {
   // Step 1: Initialize context hooks and state management
   const commentsApi = useComments();
-  const { posts, addPost } = commentsApi;
+  const { posts, addPost, getUnseenCount } = commentsApi;
   const currentUserId = (commentsApi as any)?.currentUserId ?? null;
 
   // Step 2: Component state for modal behavior and UI interactions
@@ -139,6 +139,7 @@ const ForumModal: React.FC<ForumModalProps> = ({
       lessonTitleId: 'forum',
       subtopicTitle: 'General',
       body: content,
+      postTitle:title,
       resourceId: initialSlideId || 'general',
     });
     setFormOpen(false);
@@ -178,7 +179,7 @@ const ForumModal: React.FC<ForumModalProps> = ({
                   className="forum-modal__start-btn"
                   onClick={handleStartDiscussion}
                 >
-                  + Start Discussion
+                  Start Discussion
                 </button>
               )}
               <button
@@ -253,10 +254,11 @@ const ForumModal: React.FC<ForumModalProps> = ({
                       key={post.id}
                       post={{
                         id: post.id,
-                        title: post.body.slice(0, 100) + (post.body.length > 100 ? '...' : ''),
+                        title: post.postTitle,
                         author: post.authorUID,
                         timeAgo: formatDistanceToNow(new Date(post.ts), { addSuffix: true }),
                         replyCount: post.replies.length,
+                        unseenCount: getUnseenCount(post.id),
                         tags: [
                           { id: post.lessonTitleId, label: post.lessonTitle, type: 'primary' },
                           { id: 'subtopic', label: post.subtopicTitle, type: 'secondary' },

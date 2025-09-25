@@ -76,7 +76,7 @@ interface CanvasViewProps {
 export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFileSelect }) => {
   /* ───────────────────────────── Context hooks ──────────────────────────── */
   const { dispatch: zoomDispatch, zoomLevel } = useZoomContext();
-  const { activeConceptMapId, getLessonModule, updateConceptMapTitle } = useLessonModule();
+  const { activeConceptMapId, getLessonModule, updateConceptMapTitle, generatingLessonStatus, generatedLessons, setGeneratingLessonStatus, setActiveConceptMapId, clearGeneratedLesson } = useLessonModule();
   const { activeView, selectedPdfUrl } = useViewSwitch();
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
   const { openCustom } = useSlideShow();
@@ -211,6 +211,20 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
   }, [editReady, mode, status, redo]);                                          // update - 5
 
   /* ───────────────────────────── Render ──────────────────────────────── */
+
+  // Select generated lesson
+  useEffect(() => {
+    if (generatingLessonStatus === "completed"){
+      if (generatedLessons.length > 0){
+      setActiveConceptMapId(generatedLessons[0])
+      clearGeneratedLesson()
+      }
+      setGeneratingLessonStatus("idle")
+    }
+
+  },[clearGeneratedLesson, generatedLessons, generatingLessonStatus, setActiveConceptMapId, setGeneratingLessonStatus])
+
+
   return (
     <div
       className={`flex-1 flex flex-col map-canvas map-border rounded-md relative ${colorTheme}`}

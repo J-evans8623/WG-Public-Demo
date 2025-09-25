@@ -674,7 +674,7 @@ const handleCreateNewDocument = async () => {
         </div>
       )}
       {currentView === 'map' && (
-        <SlideShowProvider>
+       
           
         <div className="flex-1 flex">
           {/* Version History Panel (when open) */}
@@ -727,7 +727,7 @@ const handleCreateNewDocument = async () => {
               </>
             ) }
         </div>
-        </SlideShowProvider>
+        
       )}
       {currentView === 'user' && (
         <div className="flex-1">
@@ -779,6 +779,7 @@ export const AppLayout: React.FC = () => {
       <ApiProvider>
       <GlobalModalProvider>
         <AccessLayerProvider>
+           
         <YDocProvider>
           <CalendarProvider>
           <ViewSwitchProvider>
@@ -800,7 +801,9 @@ export const AppLayout: React.FC = () => {
                                 <SelectionAttachmentProvider>
                                 <ChatHistoryProvider>
                                   <SearchProvider>
+                                    <SlideShowProvider>
                                 <AppLayoutContent />
+                                </SlideShowProvider>
                                 <SelectionAttachmentHandler />
                                 <div id="modal-root" />
                                 <SearchModal></SearchModal>

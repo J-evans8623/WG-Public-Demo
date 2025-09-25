@@ -1,0 +1,86 @@
+/* Critical styles moved to a CSS Module so page.tsx can be a Server Component (no styled-jsx). */
+
+.pageRoot {
+  background-color: #FFFBEF;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.mainContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  max-width: 360px;
+  width: 100%;
+  padding: 0 1rem;
+}
+
+.wordmark {
+  font-size: 3rem;
+  font-weight: 600;
+  color: #8B0000;
+  text-align: center;
+}
+
+.subtitle {
+  font-size: 1.125rem;
+  color: #2C3E50;
+  text-align: center;
+  margin-top: -1rem;
+}
+
+.googleBtn {
+  background-color: #6C8EBF;
+  color: #ffffff;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  width: 100%;
+  max-width: 320px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.googleBtn:hover {
+  background-color: #5a7aa8;
+}
+.googleBtn:focus {
+  outline: 2px solid #6C8EBF;
+  outline-offset: 2px;
+}
+
+.schoolLink {
+  color: #5B8C5A;
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+.schoolLink:hover {
+  text-decoration: underline;
+}
+.schoolLink:focus {
+  outline: 2px solid #5B8C5A;
+  outline-offset: 2px;
+}
+
+.footer {
+  position: fixed;
+  bottom: 1rem;
+  font-size: 0.75rem;
+  color: #666;
+}
+.footer a {
+  color: #666;
+  text-decoration: none;
+}
+.footer a:hover {
+  text-decoration: underline;
+}
+.footer a:focus {
+  outline: 2px solid #666;
+  outline-offset: 2px;
+}

@@ -217,3 +217,60 @@
 }
 
 
+/* ==========================================================================
+ * Button badge (Discuss) — absolute in top-right
+ * Responsibility: render a compact, high-contrast counter that “kisses” the
+ * button’s corner without affecting layout. Works with any label/icon combo.
+ * Steps:
+ * 1) Make the button a positioning context (.btn--has-badge).
+ * 2) Absolutely place a circular badge in the top-right (.btn-badge).
+ * 3) Use a halo border matching --surface for separation.
+ * ========================================================================== */
+
+/* update - 1 */
+.btn--has-badge {                 /* Step 1: create positioning context */
+  position: relative;
+}
+
+/* update - 1 */
+.btn-badge {                      /* Step 2: absolute top-right badge */
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(45%, -45%);     /* nudge outward to “kiss” the corner */
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;                       /* fits 2–3 digits; collapses for 1 */
+  border-radius: 999px;                 /* perfect circle/pill */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 11px/1 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: #fff;
+  background: var(--accent-amber-500, #f59e0b);  /* default amber with token hook */
+  border: 2px solid var(--surface, #FFFFFF);     /* Step 3: halo that matches header bg */
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  z-index: 1;                                  /* sit above icon/label */
+}
+
+/* update - 1: semantic color modifier, if you prefer class-based theming */
+.btn-badge--amber {
+  background: var(--accent-amber-500, #f59e0b);
+}
+
+/* update - 2: motion-friendly, respects user preference */
+@media (prefers-reduced-motion: no-preference) {
+  .btn-badge {
+    transition: transform 120ms ease, opacity 120ms ease;
+  }
+  .btn--has-badge .btn-badge { opacity: 1; }
+}
+
+/* update - 3: optional high-contrast mode tweaks (if you theme with CSS vars) */
+@media (forced-colors: active) {
+  .btn-badge {
+    border: 1px solid CanvasText;
+    color: Canvas;
+    background: CanvasText;
+  }
+}

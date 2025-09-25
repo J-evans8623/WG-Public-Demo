@@ -25,7 +25,7 @@
  * 8. Maintain responsive design for optimal viewing across different screen sizes
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
 import { useComments } from '@/app/Library/Context/CommentContext';
@@ -46,7 +46,7 @@ interface DiscussionThreadProps {
  */
 const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) => {
   // Step 1: Initialize context and state management
-  const { posts, addComment } = useComments();
+  const { posts, addComment, markThreadViewed, getPostItemCount } = useComments();
   const [replyText, setReplyText] = useState('');
   const [isComposing, setIsComposing] = useState(false);
 
@@ -77,16 +77,33 @@ const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) =
     };
   }, [post]);
 
-  // Step 4: Handle reply submission
-  const handleSubmitReply = useCallback(() => {
-    const trimmedReply = replyText.trim();
-    if (!trimmedReply) return;
+  
+  // after you submit a reply, also mark as viewed so your own reply isn't "unseen" ──
+const handleSubmitReply = useCallback(() => {
+  const trimmedReply = replyText.trim();
+  if (!trimmedReply) return;
 
-    console.log('DiscussionThread.tsx [DTHR1004] › Submitting reply to post:', postId);
-    addComment(postId, trimmedReply);
-    setReplyText('');
-    setIsComposing(false);
-  }, [replyText, postId, addComment]);
+  console.log('DiscussionThread.tsx [DTHR1004] › Submitting reply to post:', postId);
+  addComment(postId, trimmedReply);
+  setReplyText('');
+  setIsComposing(false);
+
+  // Step 1: after add, recompute and mark seen
+  const size = getPostItemCount(postId);
+  markThreadViewed(postId);
+  console.log('DiscussionThread.tsx [DTHR1102] › markThreadViewed after own reply', { postId, size });
+}, [replyText, postId, addComment, getPostItemCount, markThreadViewed]); 
+
+
+  // ── update - 3: mark the thread as viewed on mount and whenever it grows while open ──
+useEffect(() => {
+  // Step 1: if post exists, compute current size
+  const size = getPostItemCount(postId);
+  // Step 2: persist "seen up to now" so badges clear predictably
+  if (size > 0) markThreadViewed(postId);
+  console.log('DiscussionThread.tsx [DTHR1101] › markThreadViewed on open/grow', { postId, size });
+  // Re-run when reply count changes
+}, [postId, getPostItemCount, markThreadViewed, post?.replies.length])
 
   if (!post) {
     console.log('DiscussionThread.tsx [DTHR1002] › Post not found:', postId);
@@ -137,7 +154,7 @@ const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) =
         <div className="discussion-thread__post-header">
           <div className="discussion-thread__post-title-row">
             <h1 className="discussion-thread__post-title">
-              {post.body.length > 100 ? `${post.body.slice(0, 100)}...` : post.body}
+              {post.postTitle}
             </h1>
             <span className="discussion-thread__post-badge">Question</span>
           </div>
@@ -169,16 +186,13 @@ const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) =
                 }, 100);
               }}
             >
-              💬 Reply to Post
+               Reply
             </button>
             <div className="discussion-thread__engagement-stats">
               <div className="discussion-thread__stat-item">
-                <span>👀</span>
-                <span>{viewCount} views</span>
+
               </div>
               <div className="discussion-thread__stat-item">
-                <span>💬</span>
-                <span>{replyCount} replies</span>
               </div>
             </div>
           </div>

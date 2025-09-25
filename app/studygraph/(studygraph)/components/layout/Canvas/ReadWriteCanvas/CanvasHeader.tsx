@@ -46,6 +46,7 @@ import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { UnifiedLessonsDropdown, UnifiedUploadsDropdown } from './DropDownMenu'; // update - 2
 
 import '@/app/studygraph/(studygraph)/components/layout/Canvas/bottomUtilityBar/CanvasHeader.css';
+import { useComments } from '@/app/Library/Context/CommentContext';
 
 export type UnifiedHeaderMode = 'edit' | 'readonly';
 
@@ -96,6 +97,18 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   const { activeConceptMapId, getLessonModule, updateConceptMapTitle } = useLessonModule();
   const { getVisibility } = useYDoc();
   const { isPanelExpanded, togglePanel } = useViewSwitch();
+  const { getDirtyThreadTotal } = useComments();
+  
+const dirtyCount = getDirtyThreadTotal();
+
+
+// update - 7: Compute an accessible aria-label for the Discuss button
+const discussAriaLabel = React.useMemo(() => {
+  // Step 1: Clamp large numbers to "99+"
+  const labelCount = dirtyCount > 19 ? '19+' : String(dirtyCount);
+  // Step 2: Build a concise, screen-reader friendly label
+  return dirtyCount > 0 ? `Discuss, ${labelCount} new` : 'Discuss';
+}, [dirtyCount]);
 
   // 1.1 Determine privacy state and current title
   const isPrivate = getVisibility() === 'private';
@@ -230,15 +243,22 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
       {/* Right cluster: action buttons */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => {
-            console.log('[CanvasHeader.tsx][7110] Discuss clicked');
-            onDiscuss();
-          }}
-          className="btn btn--border"
-          title="Discuss"
-        >
-          <MessageCircle size={16} /> Discuss
-        </button>
+  onClick={() => {
+    console.log('[CanvasHeader.tsx][7110] Discuss clicked');
+    onDiscuss();
+  }}
+  className="btn btn--border btn--has-badge"   // update - 9
+  title="Discuss"
+  aria-label={discussAriaLabel}                 // (optional a11y we added earlier)
+>
+  <MessageCircle size={16} /> Discuss
+  {dirtyCount > 0 && (
+    <span className="btn-badge btn-badge--amber" aria-hidden="true">
+      {dirtyCount > 19 ? '19+' : dirtyCount}
+    </span>
+  )}
+</button>
+
 
         <button
           onClick={() => {

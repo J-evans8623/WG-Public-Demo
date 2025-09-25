@@ -24,6 +24,7 @@ import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { parseConceptMap } from './parseConceptMap';
 import { v4 as uuidv4 } from 'uuid';
+import { set } from 'mongoose';
 
 export function useLessonModuleMapper(): void {
   // Retrieve lesson modules from LessonDataContext.
@@ -33,6 +34,8 @@ export function useLessonModuleMapper(): void {
     addConceptMap,
     addLoadingLesson,
     removeLoadingLesson,
+    setGeneratedLessons,
+    setGeneratingLessonStatus
   } = useLessonModule();
   const { updateNodeTitle, setGeneratedNodes, getRootNode } = useNodesContext();
   const { createResource } = useCardCrudOperations();
@@ -55,7 +58,8 @@ export function useLessonModuleMapper(): void {
   );
 
   useEffect(() => {
-    // Iterate over each lesson module in the LessonDataContext.
+    setGeneratingLessonStatus('generating');
+        // Iterate over each lesson module in the LessonDataContext.
     lessonModuleList.forEach(async (lessonModule, fileId) => {
       // Check if lessonModule contains an array of lessonModules.
       if (lessonModule && lessonModule.lessonModules && Array.isArray(lessonModule.lessonModules)) {
@@ -64,7 +68,7 @@ export function useLessonModuleMapper(): void {
           const singleLessonModule = lessonModule.lessonModules[i];
           console.log(`useLessonModule mapper, here is a single lesson module for reference ${singleLessonModule}`)
           // Generate a unique id by combining the fileId with a UUID.
-          const uniqueId = `${fileId}-${uuidv4()}`;
+          const uniqueId = `map-${uuidv4()}`;
           console.log(`[useLessonModuleMapper] Processing lesson module with uniqueId: ${uniqueId}`);
           addLoadingLesson(uniqueId);
           try {
@@ -78,7 +82,8 @@ export function useLessonModuleMapper(): void {
                   console.log(`[useLessonModuleMapper] Updated file name to: ${mapTitle}`);
                 }
               } 
-            const newMap = addConceptMap(mapTitle, uniqueId);
+            const newMap = addConceptMap(mapTitle, uniqueId); 
+            setGeneratedLessons((prev) => [...prev, uniqueId]);
             // Parse the lesson module using parseConceptMap.
             await parseConceptMap(
               singleLessonModule,
@@ -99,9 +104,11 @@ export function useLessonModuleMapper(): void {
               summary: undefined,
             });
           } catch (error) {
+            setGeneratingLessonStatus('error');
             console.error(`Error processing lesson module for id ${uniqueId}:`, error);
           } finally {
             removeLoadingLesson(uniqueId);
+            setGeneratingLessonStatus("completed")
           }
         }
       } else {
@@ -131,8 +138,10 @@ export function useLessonModuleMapper(): void {
           });
         } catch (error) {
           console.error(`Error processing lesson module for file ${fileId}:`, error);
+          setGeneratingLessonStatus("error")
         } finally {
           removeLoadingLesson(fileId);
+          setGeneratingLessonStatus("completed")
         }
       }
     });
@@ -146,5 +155,5 @@ export function useLessonModuleMapper(): void {
       );
       clearLessonModuleList();
     }
-  }, [lessonModuleList, addConceptMap, updateLessonModule, updateNodeTitle, wrappedSetNodes, wrappedSetSubtrees, createResource, subtrees, getRootNode, docFileID, addLoadingLesson, removeLoadingLesson, clearLessonModuleList, getFileName, updateFileName]);
+  }, [lessonModuleList, addConceptMap, updateLessonModule, updateNodeTitle, wrappedSetNodes, wrappedSetSubtrees, createResource, subtrees, getRootNode, docFileID, addLoadingLesson, removeLoadingLesson, clearLessonModuleList, getFileName, updateFileName, setGeneratingLessonStatus, setGeneratedLessons]);
 }

@@ -130,6 +130,7 @@
   background: var(--calendar-gray-200);
   border-radius: var(--calendar-radius-lg);
   overflow: hidden;
+  grid-auto-rows: var(--calendar-row-height, 120px);
   max-width: 100%;
 }
 
@@ -146,12 +147,15 @@
 .calendar-day-cell {
   background: var(--calendar-bg-secondary);
   min-height: 70px;
+  max-height: 120px;
+  height:100%;
   padding: var(--calendar-space-2);
   position: relative;
   display: flex;
   flex-direction: column;
   transition: all var(--calendar-transition-fast);
   cursor: pointer;
+  overflow: hidden;
 }
 
 .calendar-day-cell:hover {

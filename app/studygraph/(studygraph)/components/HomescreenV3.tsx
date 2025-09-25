@@ -29,6 +29,11 @@ import { Trash, Calendar, Users, Book, Sparkles } from 'lucide-react';
 import './homeScreenV3.css';
 import { Role } from '../types/access';
 import { deleteDocBytes } from '../services/localCacheStore';
+
+import ReactDOM from 'react-dom';
+import CalendarModal from '@/app/studygraph/(studygraph)/components/layout/Calendar/CalendarModal'; 
+import type { PickerFileMeta as CalendarPickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
+
 /**
  * @type PickerFileMeta
  * @description
@@ -81,6 +86,55 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
     title: string;
     description: string;
   } | null>(null);
+
+
+  /**
+ * @function openCalendarModal
+ * @description
+ *   Opens the study planner (CalendarModal) from Homescreen quick action.
+ *   Mirrors CanvasView’s logging and modal-wiring approach for consistency.
+ */
+const openCalendarModal = () => {
+  // Step 1: Log intent with file-scoped tag for observability
+  console.log('HomescreenV3.tsx [4001] › Opening calendar modal via Quick Action');
+
+  // Step 2: Flip local visibility boolean
+  setIsCalendarModalOpen(true);
+};
+
+/**
+ * @function closeCalendarModal
+ * @description
+ *   Closes the study planner modal and restores page scrolling if needed.
+ */
+const closeCalendarModal = () => {
+  // Step 1: Log close intent
+  console.log('HomescreenV3.tsx [4002] › Closing calendar modal');
+
+  // Step 2: Reset local state
+  setIsCalendarModalOpen(false);
+};
+
+/* ─────────────────────── Calendar modal state ──────────────────────────── */
+const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
+
+/**
+ * @effect Scroll lock while CalendarModal is open (optional UX parity)
+ * @description
+ *   Prevent background scroll when the overlay is visible. Cleans up on close.
+ */
+useEffect(() => {
+  // Step 1: Lock scroll on open
+  if (isCalendarModalOpen) {
+    document.body.style.overflow = 'hidden';
+  }
+
+  // Step 2: Cleanup / unlock on close or unmount
+  return () => {
+    document.body.style.overflow = '';
+  };
+}, [isCalendarModalOpen]);
+
 
   // Step 4: Initialize component on mount
   useEffect(() => {
@@ -262,24 +316,25 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
             <div className="actions-card">
               <div className="actions-grid">
                 <div className="action-tile" onClick={onCreateNewDocument}>
+                  <Book className="action-icon" />
+                  <div className="action-title">New Notebook</div>
+                  <div className="action-desc">Create fresh notes</div>
+                </div>
+              {/* update - 1: wire calendar quick action to open CalendarModal */}
+    <div className="action-tile" onClick={openCalendarModal}>
+      <Calendar className="action-icon" />
+      <div className="action-title">View Study Planner</div>
+      <div className="action-desc">Organize schedule</div>
+    </div>
+                <div className="action-tile" onClick={onCreateNewDocument}>
                   <Sparkles className="action-icon" />
                   <div className="action-title">Generate Lesson</div>
                   <div className="action-desc">AI-powered creation</div>
-                </div>
-                <div className="action-tile emphasized">
-                  <Calendar className="action-icon" />
-                  <div className="action-title">View Study Planner</div>
-                  <div className="action-desc">Organize schedule</div>
                 </div>
                 <div className="action-tile">
                   <Users className="action-icon" />
                   <div className="action-title">Start Study Group</div>
                   <div className="action-desc">Collaborate</div>
-                </div>
-                <div className="action-tile" onClick={onCreateNewDocument}>
-                  <Book className="action-icon" />
-                  <div className="action-title">New Notebook</div>
-                  <div className="action-desc">Create fresh notes</div>
                 </div>
               </div>
             </div>
@@ -462,6 +517,26 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
           </div>
         </div>
       )}
+
+
+      {/* Calendar Modal Portal (mirrors CanvasView pattern) */}
+{isCalendarModalOpen &&
+  ReactDOM.createPortal(
+    <CalendarModal
+      isOpen={isCalendarModalOpen}
+      onClose={closeCalendarModal}
+      onFileSelect={(meta: CalendarPickerFileMeta) => {
+        // Step 1: Log the selection for traceability
+        console.log('HomescreenV3.tsx [4003] › Calendar selected file', meta);
+
+        // Step 2: Forward to parent handler to trigger file switch/navigation
+        onFileSelect(meta);
+      }}
+    />,
+    document.body
+  )
+}
+
     </div>
   );
 };

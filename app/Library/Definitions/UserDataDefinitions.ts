@@ -135,7 +135,11 @@ export interface RevisionMetaData {
   previousGlobalAverage?: number;
   /** Per‐lesson averages at start of last session */
   previousLessonAverages?: Record<string, number>;
-
+  /**
+   * Map of postId → last seen item count for that thread.
+   * The count includes the post itself (1) + replies seen at the time.
+   */
+  seenRecord?: Record<string, number>;
   bookmarks: Bookmark[];
 }
 

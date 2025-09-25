@@ -38,7 +38,10 @@
 export type CacheIndexEntry = {
   lastAccessed: number;                                
   storageGeneration?: string | null;                   
-  versionNumber?: number | null;                       
+  versionNumber?: number | null; 
+   /** ID of the last viewed slide for this doc (optional, persisted). */
+  lastViewedSlideId?: string | null;   
+    lastViewedAt?: number | null;                   
 };
 
 /** The full index value stored at localStorage["__doc_cache_index__"]. */
@@ -448,4 +451,78 @@ export function touchDocEntry(docId: string): void {
 export function docIdFromStoragePath(fileStorageId: string): string {          
   const m = fileStorageId.match(/^documents\/(.+)\.bloomdocx$/);
   return m ? m[1] : fileStorageId;
+}
+
+
+
+
+/**
+ * @function setLastViewedSlide (new)
+ * @description
+ *   Upsert the last viewed slide for a document into the existing index. O(1).
+ *   We also refresh lastAccessed to keep this doc hot for the tiny LRU policy.
+ *
+ *   Steps:
+ *    1) Load index (O(1)).
+ *    2) Upsert { lastViewedSlideId, lastViewedAt, lastAccessed } under docId.
+ *    3) Persist index (O(1)).
+ */
+export function setLastViewedSlide(docId: string, slideId: string, at?: number): void {
+  // 1) Load index
+  const idx = getIndex();
+
+  // 2) Upsert fields on the per-doc row
+  const now = typeof at === 'number' ? at : Date.now();
+  idx[docId] = {
+    ...(idx[docId] || {}),
+    lastViewedSlideId: slideId,
+    lastViewedAt: now,
+    lastAccessed: now,
+  };
+
+  // 3) Save
+  setIndex(idx);
+  console.log('[localCacheStore.ts][4101] setLastViewedSlide (doc, slide, at)=', docId, slideId, now);
+}
+
+
+/**
+ * @function getLastViewedSlide (new)
+ * @description
+ *   Returns the last viewed slideId for a given document from the index, or null. O(1).
+ *
+ *   Steps:
+ *    1) Load index (O(1)).
+ *    2) Read doc row; if missing or empty, return null.
+ *    3) Return slide id or null.
+ */
+export function getLastViewedSlide(docId: string): string | null {
+  // 1) Load
+  const idx = getIndex();
+  // 2) Read
+  const rec = idx[docId];
+  // 3) Return (normalize to null)
+  return rec?.lastViewedSlideId ?? null;
+}
+
+/**
+ * @function clearLastViewedSlide (new)
+ * @description
+ *   Removes only the "last viewed slide" fields for a document. Non-destructive to other fields. O(1).
+ *
+ *   Steps:
+ *    1) Load index (O(1)).
+ *    2) If doc row exists, delete only lastViewedSlideId/lastViewedAt.
+ *    3) Persist index (O(1)).
+ */
+export function clearLastViewedSlide(docId: string): void {
+  // 1) Load
+  const idx = getIndex();
+  // 2) Mutate row carefully
+  if (idx[docId]) {
+    delete idx[docId].lastViewedSlideId;
+    delete idx[docId].lastViewedAt;
+    setIndex(idx);
+    console.log('[localCacheStore.ts][4102] clearLastViewedSlide (doc)=', docId);
+  }
 }

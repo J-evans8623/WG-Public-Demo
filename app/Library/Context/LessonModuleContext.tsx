@@ -43,6 +43,8 @@ export interface LessonModule {
   conceptMaps: ConceptMap[];
 }
 
+type generatingLessonStatus = 'idle' | 'generating' | 'completed' | 'error';
+
 export interface LessonModuleContextType {
   activeConceptMapId: string;
   setActiveConceptMapId: (id: string) => void;
@@ -59,6 +61,11 @@ export interface LessonModuleContextType {
   addLoadingLesson: (moduleId: string) => void;
   removeLoadingLesson: (moduleId: string) => void;
   setDefaultMap: () => void;
+  generatedLessons: Array<string>;
+  setGeneratedLessons: React.Dispatch<React.SetStateAction<Array<string>>>;
+  generatingLessonStatus: generatingLessonStatus;
+  setGeneratingLessonStatus: React.Dispatch<React.SetStateAction<generatingLessonStatus>>;
+  clearGeneratedLesson: () => void;
 }
 
 const LessonModuleContext = createContext<LessonModuleContextType | undefined>(undefined);
@@ -69,6 +76,8 @@ export const LessonModuleProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const lessonModuleYMap = ydoc.getMap('lessonModule');
   // Default active concept map is "map-1"
   const [activeConceptMapId, setActiveConceptMapId] = useState('map-1');
+  const[generatedLessons, setGeneratedLessons] = useState<Array<string>>(new Array());
+  const [generatingLessonStatus, setGeneratingLessonStatus] = useState<generatingLessonStatus>('idle');
 
   // Reactive state for the lesson module.
   const [lessonModuleState, setLessonModuleState] = useState<LessonModule>(() => {
@@ -202,11 +211,18 @@ const addConceptMap = useCallback(
 
       createdNodesMap = nodesMap;
     }, LOCAL_ORIGIN);
+    
 
     return { id: newId, nodesMap: createdNodesMap };
   },
   [lessonModuleYMap, ydoc]
 );
+
+
+
+  const clearGeneratedLesson = useCallback(() => {
+     setGeneratedLessons([]);
+   }, [])
 
   /**
    * getExistingLessonModules
@@ -377,6 +393,11 @@ const setDefaultMap = useCallback(() => {
         addLoadingLesson,
         removeLoadingLesson,
         setDefaultMap,
+        generatedLessons,
+        setGeneratedLessons,
+        generatingLessonStatus,
+        setGeneratingLessonStatus, 
+        clearGeneratedLesson
       }}
     >
       {children}

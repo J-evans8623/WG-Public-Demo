@@ -213,7 +213,7 @@ const DiscussionFormInput: React.FC<DiscussionFormInputProps> = ({
           type="submit"
           className="discussion-form__submit-btn"
           onClick={(e) => {
-            console.log('DiscussionFormInput.tsx [DFIN1010] › Footer submit click'); /* update - 4 */
+            handleSubmit(e); /* update - 4 */
           }}
           disabled={!isFormValid || isSubmitting}
           form="" /* not binding by id; we call submit below */ /* update - 4 */

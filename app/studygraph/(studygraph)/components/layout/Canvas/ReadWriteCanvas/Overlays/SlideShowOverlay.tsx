@@ -174,7 +174,8 @@ const SlideShowOverlay: React.FC = () => {
       lessonTitleId: currentSlide.nodeId || 'node',
       subtopicTitle: currentSlide.title || 'Current Slide',
       resourceId: currentSlide.id,
-      body: `${title}\n\n${content}`,
+      postTitle: title,
+      body: `${content}`,
     });
     setComposerOpen(false);
   };

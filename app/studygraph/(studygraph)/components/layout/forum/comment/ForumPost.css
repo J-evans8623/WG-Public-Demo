@@ -90,3 +90,35 @@
 @media (max-width:640px){
   .forum-card__footer{ flex-direction:column; align-items:flex-start; gap:.5rem; }
 }
+
+
+/* update - 3: make the header the positioning context */
+.forum-post__header--has-badge,
+.forum-post__header {
+  position: relative;
+}
+
+/* update - 3: same badge geometry as the Discuss button */
+.forum-post__badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(45%, -45%);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 11px/1 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: #fff;
+  background: var(--accent-amber-500, #f59e0b);
+  border: 2px solid var(--surface, #FFFFFF);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  z-index: 1;
+  opacity: 1;                         /* force visible (override any hover styles) */
+  visibility: visible;                /* force visible */
+  pointer-events: none  
+}
+.forum-post__badge--amber { background: var(--accent-amber-500, #f59e0b); }
