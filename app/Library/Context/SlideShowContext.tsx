@@ -65,7 +65,7 @@ interface SlideShowContextValue {
   gotoPrev: () => void;
 
   // Override deck management
-  openCustom: (slidesToShow: ResourceCard[]) => void;
+  openCustom: (slidesToShow: ResourceCard[], resumeSlide?:boolean) => void;
   resetToSelection: () => void;
 
   // Convenience: open the currently resolved slides from selection
@@ -330,12 +330,17 @@ const open = useCallback(                                                       
  *    2) If there are slides: compute start index via resumeIndexFor(arr).
  *    3) Set index and open.
  */
-const openCustom = useCallback((slidesToShow: ResourceCard[]) => {              // update - 1
+const openCustom = useCallback((slidesToShow: ResourceCard[], resumeSlide = true) => {              // update - 1
   console.log('[SlideShowContext.tsx][7016] › Opening custom slideshow with slides, count:', slidesToShow.length);
   setOverrideSlides(slidesToShow);
-  if (slidesToShow.length > 0) {
+  if (slidesToShow.length > 0 && resumeSlide) {
     // 2) compute resume index
     const start = resumeIndexFor(slidesToShow);                                 // update - 1
+    setCurrentIndex(start);
+    setIsOpen(true);
+  }
+  else if (slidesToShow.length > 0 && !resumeSlide) {
+    const start = 0;                                 // update - 1
     setCurrentIndex(start);
     setIsOpen(true);
   }
@@ -509,7 +514,7 @@ const gotoPrev = useCallback(() => {                                            
               throw new Error('No slides generated for session - empty content collection');
             }
 
-            openCustom(generatedSlides);
+            openCustom(generatedSlides, false);
             console.log('[SlideShowContext.tsx][6033] › Session launched successfully with', generatedSlides.length, 'slides');
             setSessionLaunchState({ type: 'IDLE' });
             break;
