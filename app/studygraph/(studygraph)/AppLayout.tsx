@@ -70,7 +70,7 @@ import { RefreshModal } from './components/access/RefreshModal';;
 import { useCollaborationManager } from './services/collab/useCollaborationManager';
 import DocumentAccessManager from './components/hooks/access/DocumentAccessManager';
 import { LoadingAnimation } from './LoadingAnimation';
-import { CalendarProvider } from '@/app/Library/Context/CalendarContext';
+import { CalendarProvider } from '@/app/Library/Context/CalendarContextv2';
 import readiness from '@/app/studygraph/(studygraph)/services/documentReadiness/DocumentReadinessService';
 import { GlobalModalProvider, useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
 import { OptimisticInitController } from './services/documentReadiness/OptimisticInitController';

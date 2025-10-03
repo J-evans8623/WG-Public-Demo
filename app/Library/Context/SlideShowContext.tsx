@@ -94,6 +94,7 @@ type SessionLaunchState =
 
 const SlideShowContext = createContext<SlideShowContextValue | undefined>(undefined);
 
+
 /**
  * @function SlideShowProvider
  * @description
@@ -499,7 +500,19 @@ const gotoPrev = useCallback(() => {                                            
               }
               generatedSlides = generateBlockSession(request.sessionData.targetLessonUnits);
               console.log('[SlideShowContext.tsx][6030] › Generated', generatedSlides.length, 'block session slides');
-            } else {
+            }
+            else if (request.sessionData.type === 'revision-block'){
+                
+              console.log('[SlideShowContext.tsx][6029] › Generating block session with', request.sessionData.targetLessonUnits.length, 'units');
+              if (!request.sessionData.targetLessonUnits || request.sessionData.targetLessonUnits.length === 0) {
+                throw new Error('No lesson units provided for block session');
+              }
+              const revision = generateBlockSession(request.sessionData.targetLessonUnits);
+              generatedSlides = revision.filter(card => card.type !== 'note');
+              console.log('[SlideShowContext.tsx][6030] › Generated', generatedSlides.length, 'block session slides');
+            
+            }
+            else {
               console.log('[SlideShowContext.tsx][6031] › Generating revision session');
               const revision = generateRevision();
               if (revision) {

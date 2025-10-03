@@ -22,16 +22,17 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import AIService from "../services/aiServiceV2";
-import { lessonPrompt, predefinedPrompts, buildSubtreePromptV2, buildSubtreePrompt,  buildQuestionCountInstruction, getQuizSystemPrompt } from "../config/predefined-prompts";
-import { lessonSchema, subtreeSchemaV3, topicSchema, subtreeSchemaV4, EnrichedPrimary, Citation } from "../schemas/lessonSchema";
+import AIService from "../services/aiService";
+import { lessonPrompt, predefinedPrompts, buildSubtreePromptV2, buildSubtreePrompt,  buildQuestionCountInstruction, getQuizSystemPrompt, buildSubtreePromptV22 } from "../config/predefined-prompts";
+import { subtreeSchemaV3OpenAI as subtreeSchemaV3 } from '../schemas/openai/subtreeSchemaV3.openai';
+import { lessonSchema, topicSchema, subtreeSchemaV4, EnrichedPrimary, Citation } from "../schemas/lessonSchema";
 import { MatchingQuizSchema, MultipleChoiceSchema, FillInBlankSchema, TrueFalseSchema } from "../schemas/quizSchema";
 import { LessonModule } from "../services/TextPreprocessing/LessonModuleServiceV2";
 import { getTextContext } from '@/app/src/services/TextPreprocessing/QuestionContextService';
 import { QAschema } from '@/app/src/schemas/QASchema';
 import { formatLessonMetadata } from "../services/TextPreprocessing/MetaDataFormatter";
 import { formatSyllabusForPrompt, PrimaryForPrompt } from './formatSyllabus';
-
+import UsageTracker from '../services/UsageTracker'; 
 
 
 class AIController {
@@ -406,7 +407,7 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
    *   - secondary_subtopic: ...[]
    *   - quiz: matching_quiz object
    */
-  public static async generateSubtreeLessonV3(roots: any[], mainTopic:string, LessonText:string, wordcount:number): Promise<{
+  public static async generateSubtreeLessonV3(roots: any[], mainTopic:string, LessonText:string, wordcount:number,  usageTracker?: UsageTracker  ): Promise<{
   primary_subtopics: EnrichedPrimary[];
 }> {
     const aiService = this.getAIService();
@@ -425,7 +426,7 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
       LessonOutline: s.LessonOutline,
     }))
   };
-    syllabus+= formatSyllabusForPrompt(primary) + '\n ######## \n';
+    syllabus+= formatSyllabusForPrompt(primary);
     })
       
 
@@ -434,14 +435,16 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
   //const syllabusBlock = formatSyllabusForPrompt(primary);
   console.log(`[aiController 444442] ${JSON.stringify(syllabus)} `);
     // System prompt to guide structured subtree output
-  const systemPrompt = buildSubtreePromptV2(mainTopic, syllabus, roots.length, wordcount);
+  const systemPrompt = buildSubtreePromptV22(mainTopic, syllabus, roots.length, wordcount);
+  const uploadContents = `######## Start of User provided textbook material ######### ${LessonText}  ############ End of user provided textbook material########`
 
 
     // Perform the structured call
     const response = (await aiService.generateStructuredOutput(
       { name: subtreeSchemaV3.name, schema: subtreeSchemaV3.schema, strict: subtreeSchemaV3.strict },
-      LessonText,
-      systemPrompt
+      uploadContents,
+      systemPrompt,
+      { stream: false, tracker: usageTracker }  
     ) ) as any;
 
     const {

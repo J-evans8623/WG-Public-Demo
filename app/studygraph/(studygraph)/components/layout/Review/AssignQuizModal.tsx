@@ -58,6 +58,7 @@ interface AssignQuizModalProps {
   onCreate: (payload: CreateQuizPayload) => void;
   defaultOpenDropdown?: boolean;
   isEducator:boolean;
+   onCreated?: (args: { assignmentId: string }) => void;
 }
 
 /**
@@ -155,7 +156,8 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
   onClose,
   onCreate,
   defaultOpenDropdown = false,
-  isEducator,     
+  isEducator,
+  onCreated,     
 }) => {
 
   const { createQuizAssignmentCard } = useResourceContext();
@@ -227,121 +229,125 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
     quizTypeChosen: Boolean(quizType),
   });
 
+
   /**
-   * handleCreate
-   * @description
-   *   Executes the full flow:
-   *     A) generate quiz (shared generator)
-   *     B) create Yjs quizAssessment card (inline binding)
-   *     C) upsert assignment meta to BFF
-   *     D) gradebook nudge + refresh
-   *   Emits precise logs at each checkpoint. Complexity is dominated by network latency; local work is O(1).
-   */
-  const handleCreate = async () => {
-    if (!canCreate) {
-      console.log('[AssignQuizModal.tsx][9320] create blocked - invalid state', {
-        isEducator, chosenLesson, quizTitle, quizType, startDateStr, startTime, endDateStr, endTime,
-        attempts, numQuestions, datesValid, attemptsValid, questionsValid, titleValid, submitting,
-      });
-      return;
-    }
+ * handleCreate
+ * @description
+ *   Executes the full flow:
+ *   generate quiz → add Yjs card (inline binding) → assign-meta upsert → gradebook nudge + refresh
+ *   and then notifies parent (onCreate + onCreated) before closing.
+ * @notes
+ *   (update - 105) Now also emits `onCreated({ assignmentId })` so parent can focus/select the row.
+ */
+const handleCreate = async () => {
+  // Step 1: Preconditions & validation ------------------------------------------------------------
+  if (!canCreate) {
+    console.log('[AssignQuizModal.tsx][9320] create blocked - invalid state', {
+      isEducator, chosenLesson, quizTitle, quizType, startDateStr, startTime, endDateStr, endTime,
+      attempts, numQuestions, datesValid, attemptsValid, questionsValid, titleValid, submitting,
+    });
+    return;
+  }
 
-    setSubmitting(true);
-    const payload: CreateQuizPayload = {
-      lessonId: chosenLesson,
-      title: quizTitle.trim(),
-      quizType: quizType as QuizType,
-      startAtISO: startDateObj!.toISOString(),
-      endAtISO: endDateObj!.toISOString(),
-      attempts,
-      numQuestions,
-    };
-    console.log('[AssignQuizModal.tsx][9321] submitting payload', payload);
+  setSubmitting(true);
 
-    try {
-      // A) Generate quiz using the shared generator
-      const apiQuizType = mapQuizTypeToApiValue(payload.quizType);
-      console.log('[AssignQuizModal.tsx][9413] generateQuiz begin', { docId, lessonId: payload.lessonId, apiQuizType, questionCount: payload.numQuestions });
-
-      const quizResponse = await api.createQuiz(
-        payload.lessonId,
-        [apiQuizType],
-        docId,
-        payload.numQuestions
-      );
-      console.log('[AssignQuizModal.tsx][9414] generateQuiz ok');
-      
-      // B) Parse → inline binding (canonical spec via shared parser)
-      //    We feed parser with the service payload data (or raw) and the chosen mapId.
-
-
-      const parsedResource = parseQuizResponse((quizResponse as any)?.data ?? quizResponse, payload.lessonId);
-      if (!parsedResource) {
-        console.error('[AssignQuizModal.tsx][9422] parseQuizResponse returned null');
-        throw new Error('Failed to parse quiz response');
-      }
-
-      // B) Create a Yjs global quizAssessment card with INLINE binding
-      //    We provide `mapId` so the resource is stored under the correct concept map.
-       const inlineBinding: QuizBinding = { //  (decisive inline-only binding)
-        mode: 'inline',
-        spec: {
-          quizType: parsedResource.content.quizType,
-          quizContent: parsedResource.content.quizContent,
-        },
-      };
-
-      console.log('[AssignQuizModal.tsx][9452] inline binding prepared', {
-        mode: inlineBinding.mode,
-        qtype: inlineBinding.spec.quizType,
-        qlen: inlineBinding.spec.quizContent?.length ?? 0,
-      });
-
-      const yjsCard = await createQuizAssignmentCard({
-        mapId: payload.lessonId,
-        title: payload.title,
-        binding: inlineBinding,
-        window: { startAt: payload.startAtISO, endAt: payload.endAtISO },
-        attemptLimit: payload.attempts,
-      });
-      console.log('[AssignQuizModal.tsx][9415] Yjs quizAssessment created', { assignmentId: yjsCard.assignmentId });
-
-      // C) Persist meta to the BFF (server authority)
-      const savedHeader = await api.assignMetaUpsert({
-        docId,
-        assignmentId: yjsCard.assignmentId,
-        title: payload.title,
-        startAt: payload.startAtISO,
-        endAt: payload.endAtISO,
-        attemptLimit: payload.attempts,
-      });
-
-      // AssignMetaUpsertRes is { saved: { assignmentId, title, startAt, endAt, attemptLimit, ... } }
-      const saved = (savedHeader as any).saved ?? savedHeader; // tolerant to prior shapes
-
-      // D) Nudge gradebook header and refresh
-      upsertAssignmentMeta({
-        assignmentId: saved.assignmentId,
-        title: saved.title,
-        startAt: saved.startAt,
-        endAt: saved.endAt,
-        attemptLimit: saved.attemptLimit,
-      });
-      console.log('[AssignQuizModal.tsx][9416] Gradebook header nudged');
-      console.log('[AssignQuizModal.tsx][9417] Gradebook refreshed');
-
-      // Notify host (original callback contract preserved)
-      onCreate(payload);
-
-      // Close on success
-      onClose();
-    } catch (err: any) {
-      console.error('[AssignQuizModal.tsx][9498] create flow failed', { message: err?.message });
-      // You could surface a toast here; keeping console-only per instructions.
-    } finally {
-      setSubmitting(false);
-    }
+  // Step 2: Build payload -------------------------------------------------------------------------
+  const payload: CreateQuizPayload = {
+    lessonId: chosenLesson,
+    title: quizTitle.trim(),
+    quizType: quizType as QuizType,
+    startAtISO: startDateObj!.toISOString(),
+    endAtISO: endDateObj!.toISOString(),
+    attempts,
+    numQuestions,
   };
+  console.log('[AssignQuizModal.tsx][9321] submitting payload', payload);
+
+  try {
+    // Step 3: Generate quiz via API (shared generator) -------------------------------------------
+    const apiQuizType = mapQuizTypeToApiValue(payload.quizType);
+    console.log('[AssignQuizModal.tsx][9413] generateQuiz begin', {
+      docId, lessonId: payload.lessonId, apiQuizType, questionCount: payload.numQuestions,
+    });
+    const quizResponse = await api.createQuiz(
+      payload.lessonId,
+      [apiQuizType],
+      docId,
+      payload.numQuestions
+    );
+    console.log('[AssignQuizModal.tsx][9414] generateQuiz ok');
+
+    // Step 4: Parse response → create inline binding ---------------------------------------------
+    const parsedResource = parseQuizResponse((quizResponse as any)?.data ?? quizResponse, payload.lessonId);
+    if (!parsedResource) {
+      console.error('[AssignQuizModal.tsx][9422] parseQuizResponse returned null');
+      throw new Error('Failed to parse quiz response');
+    }
+
+    const inlineBinding: QuizBinding = {
+      mode: 'inline',
+      spec: {
+        quizType: parsedResource.content.quizType,
+        quizContent: parsedResource.content.quizContent,
+      },
+    };
+    console.log('[AssignQuizModal.tsx][9452] inline binding prepared', {
+      mode: inlineBinding.mode,
+      qtype: inlineBinding.spec.quizType,
+      qlen: inlineBinding.spec.quizContent?.length ?? 0,
+    });
+
+    // Step 5: Create Yjs quizAssessment card (authoritative assignmentId origin) ------------------
+    const yjsCard = await createQuizAssignmentCard({
+      mapId: payload.lessonId,
+      title: payload.title,
+      binding: inlineBinding,
+      window: { startAt: payload.startAtISO, endAt: payload.endAtISO },
+      attemptLimit: payload.attempts,
+    });
+    console.log('[AssignQuizModal.tsx][9415] Yjs quizAssessment created', {
+      assignmentId: yjsCard.assignmentId,
+    });
+
+    // Step 6: Persist meta to BFF (server authority) ----------------------------------------------
+    const savedHeader = await api.assignMetaUpsert({
+      docId,
+      assignmentId: yjsCard.assignmentId,
+      title: payload.title,
+      startAt: payload.startAtISO,
+      endAt: payload.endAtISO,
+      attemptLimit: payload.attempts,
+    });
+    const saved = (savedHeader as any).saved ?? savedHeader; // backward-compatible unwrapping
+
+    // Step 7: Nudge gradebook header (local cache) ------------------------------------------------
+    upsertAssignmentMeta({
+      assignmentId: saved.assignmentId,
+      title: saved.title,
+      startAt: saved.startAt,
+      endAt: saved.endAt,
+      attemptLimit: saved.attemptLimit,
+    });
+    console.log('[AssignQuizModal.tsx][9416] Gradebook header nudged');
+    console.log('[AssignQuizModal.tsx][9417] Gradebook refreshed');
+
+    // Step 8: Notify consumers --------------------------------------------------------------------
+    // 8a) Keep legacy callback (telemetry / analytics / side-effects)
+    onCreate(payload);
+
+    // 8b) NEW: inform parent of the authoritative id so it can select/focus the new row
+    onCreated?.({ assignmentId: yjsCard.assignmentId }); // (update - 105)
+
+    // Step 9: Close modal on success --------------------------------------------------------------
+    onClose();
+  } catch (err: any) {
+    console.error('[AssignQuizModal.tsx][9498] create flow failed', { message: err?.message });
+    // Optional: toast/UX error handling can be added here.
+  } finally {
+    // Step 10: Always clear submitting flag -------------------------------------------------------
+    setSubmitting(false);
+  }
+};
 
 
 function handleFix() {

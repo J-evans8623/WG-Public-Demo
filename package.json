@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev  -H 0.0.0.0 -p 3000",
     "build": "next build",
     "build:scripts": "tsc -p tsconfig.scripts.json",
     "prestart": "npm run build:scripts && node dist/setSchema.js",

@@ -37,6 +37,15 @@ import { CalendarService } from '@/app/src/services/calendar/CalendarService';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { CalendarApi } from '@/app/src/services/calendar/CalendarApi'; // Step 2 uses the thin API
 import readiness from '@/app/studygraph/(studygraph)/services/documentReadiness/DocumentReadinessService';
+import {
+  computeAnchorDate,
+  computeExtensionStart,
+  mergeAppendOnly,
+  countAdditionalUnits,
+} from '@/app/src/services/calendar/RollingWindowUtil';
+import type { StudyPlan, StudyPlanIndex } from '@/app/src/services/calendar/StudyPlanCore';
+import { sliceByDateRange, indexPlan } from '@/app/src/services/calendar/StudyPlanCore';
+import { NotebooksApi } from '@/app/src/services/calendar/NotebooksApi';
 
 /**
  * Internal context (do not export directly).
@@ -58,7 +67,8 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   // 1) Core state (React = only source of truth)
   // ────────────────────────────────────────────────────────────────────────────
   const [selectedNotebooks, setSelectedNotebooks] = useState<string[]>([]);
-  const [currentMonth, setCurrentMonth] = useState<CalendarMonth | null>(null);
+  const [plan, setPlan] = useState<StudyPlan | null>(null);
+const [planIndex, setPlanIndex] = useState<StudyPlanIndex>({});
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);         // Generation/regeneration
   const [error, setError] = useState<string | null>(null);   // User-visible error
@@ -76,6 +86,47 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   // YDoc inputs for global version monitoring
   const { docFileID, version: currentDocVersion } = useYDoc();
   const [renderReady, setRenderReady] = useState(false);
+  //const { ownedFiles } = useFileList();
+
+  const currentMonth = useMemo(() => {
+  if (!plan) return null;
+
+  // 1) compute visible month window
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0);
+
+  const startKey = `${start.getFullYear()}-${String(month + 1).padStart(2, '0')}-01`;
+  const endKey   = `${end.getFullYear()}-${String(month + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+
+  // 2) slice from canonical plan
+  const days = sliceByDateRange(plan, startKey, endKey);
+
+  // 3) adapt to legacy CalendarMonth shape
+  return {
+    year,
+    month,
+    dailyPlans: days.map(d => ({
+      date: new Date(d.date),
+      sessions: d.sessions,
+      subjectSummary: d.subjectSummary,
+      totalDuration: d.totalDuration,
+      completedSessions: d.completedSessions,
+    })),
+    monthlySummary: {
+      totalSessions: days.reduce((m, d) => m + d.sessions.length, 0),
+      totalStudyTime: days.reduce((m, d) => m + d.totalDuration, 0),
+      activeNotebooks: Array.from(
+        days.reduce((acc, d) => {
+          d.sessions.forEach(s => acc.add(s.notebookMeta.fileId));
+          return acc;
+        }, new Set<string>())
+      ),
+      completionRate: 0,
+    },
+  };
+}, [plan, currentDate]);
 
 useEffect(() => {
   if (!docFileID) {
@@ -99,7 +150,7 @@ useEffect(() => {
   return () => sub.unsubscribe();
 }, [docFileID]);
 
-// update - 4 (optional alias to minimize edits below—lets you keep existing guards)
+//(optional alias to minimize edits below—lets you keep existing guards)
 const isInitialized = renderReady;
 
   // Default schedule config (local-first)
@@ -107,7 +158,7 @@ const isInitialized = renderReady;
     unitsPerBlockSession: 3,
     revisionsPerLesson: 2,
     startDate: new Date(),
-    daysPerWeek: [1, 2, 3, 4, 5],
+    daysPerWeek: [1, 2, 3, 4, 5,6,7],
     subjectsPerDay: 3,
     preferredTimeSlots: ['morning', 'afternoon', 'evening'],
     maxSessionsPerDay: 6,
@@ -118,7 +169,7 @@ const isInitialized = renderReady;
   // ────────────────────────────────────────────────────────────────────────────
   const calendarService = useMemo(() => new CalendarService(), []);
   const api = useMemo(() => new CalendarApi(), []); // Thin network-only client
-
+  const notebooksApi = useMemo(() => new NotebooksApi(), []);
   // ────────────────────────────────────────────────────────────────────────────
   // 3) Helpers
   // ────────────────────────────────────────────────────────────────────────────
@@ -163,8 +214,9 @@ const isInitialized = renderReady;
   const persistAllOptimistic = useCallback(async (overrides?: Partial<CalendarData>) => {
     const payload: CalendarData = {
       selectedNotebooks,
+      plan,
+      planIndex,
       scheduleConfig,
-      currentMonth,
       completedSessions,
       lastUpdated: new Date(),
       version: '2.0',
@@ -179,67 +231,66 @@ const isInitialized = renderReady;
       console.warn('[CalendarContext.tsx][9103] › persistAllOptimistic saveAll() failed:', err);
       setError('Failed to sync calendar changes. Your local state is safe; will retry on next change.');
     }
-  }, [api, selectedNotebooks, scheduleConfig, currentMonth, completedSessions]);
+  }, [selectedNotebooks, plan, planIndex, scheduleConfig, completedSessions, api]);
 
-  /**
-   * @function lazyHydrateFromBackend
-   * @description
-   *   Local-first hydration that only runs once, and only when the context is effectively empty (no selected
-   *   notebooks and no current month). If the backend has data, we normalize it and set state slices in one pass.
-   *   If empty, we keep rendering from local defaults and skip network work. Complexity is O(N) for the month.
-   */
-  const lazyHydrateFromBackend = useCallback(async () => {
-    if (hasHydrated) return;
+/**
+ * @function lazyHydrateFromBackend
+ * @description
+ *   One-time hydration; respects canonical plan storage.
+ *  
+ */
+const lazyHydrateFromBackend = useCallback(async () => {
+  if (hasHydrated) return;
 
-    const isEmpty = selectedNotebooks.length === 0 && !currentMonth;
-    if (!isEmpty) {
-      console.log('[CalendarContext.tsx][9104] › Hydration skipped (state not empty)');
+  const isEmpty = selectedNotebooks.length === 0 && !plan;
+  if (!isEmpty) {
+    console.log('[CalendarContext.tsx][9104] › Hydration skipped (state not empty)');
+    setHasHydrated(true);
+    return;
+  }
+
+  try {
+    console.log('[CalendarContext.tsx][9105] › lazyHydrateFromBackend loadAll() begin');
+    setHydrating(true);
+    const data = await api.loadAll();
+
+    if (!data) {
+      console.log('[CalendarContext.tsx][9106] › No server data, staying local-first');
       setHasHydrated(true);
+      setHydrating(false);
       return;
     }
 
-    try {
-      console.log('[CalendarContext.tsx][9105] › lazyHydrateFromBackend loadAll() begin');
-      setHydrating(true);
-      const data = await api.loadAll();
+    setSelectedNotebooks(data.selectedNotebooks ?? []);
+    if (data.scheduleConfig) setScheduleConfig(data.scheduleConfig);
+    if (data.plan) setPlan(data.plan);
+    if (data.planIndex) setPlanIndex(data.planIndex);
+    if (Array.isArray(data.completedSessions)) setCompletedSessions(data.completedSessions);
 
-      if (!data) {
-        console.log('[CalendarContext.tsx][9106] › No server data, staying local-first');
-        setHasHydrated(true);
-        setHydrating(false);
-        return;
-      }
-
-      // Dates should be already deserialized by CalendarApi (Step 1 responsibility).
-      setSelectedNotebooks(data.selectedNotebooks ?? []);
-      if (data.scheduleConfig) setScheduleConfig(data.scheduleConfig);
-      if (data.currentMonth) setCurrentMonth(data.currentMonth);
-      if (Array.isArray(data.completedSessions)) setCompletedSessions(data.completedSessions);
-
-      // Initialize version tracking map if we received a month
-      if (data.currentMonth && (data.selectedNotebooks?.length ?? 0) > 0) {
-        const versionMap = new Map<string, NotebookVersionState>();
-        (data.selectedNotebooks ?? []).forEach(id => {
-          versionMap.set(id, {
-            notebookId: id,
-            trackedVersion: 'unknown',
-            currentVersion: 'unknown',
-            needsUpdate: false,
-            lastChecked: new Date(),
-          });
+    // Initialize version tracking if any selection exists
+    if ((data.selectedNotebooks?.length ?? 0) > 0) {
+      const versionMap = new Map<string, NotebookVersionState>();
+      (data.selectedNotebooks ?? []).forEach(id => {
+        versionMap.set(id, {
+          notebookId: id,
+          trackedVersion: 'unknown',
+          currentVersion: 'unknown',
+          needsUpdate: false,
+          lastChecked: new Date(),
         });
-        setNotebookVersions(versionMap);
-      }
-
-      console.log('[CalendarContext.tsx][9107] › Hydration success');
-    } catch (err) {
-      console.warn('[CalendarContext.tsx][9108] › Hydration failed:', err);
-      // Don’t throw; keep local-first defaults
-    } finally {
-      setHasHydrated(true);
-      setHydrating(false);
+      });
+      setNotebookVersions(versionMap);
     }
-  }, [api, hasHydrated, selectedNotebooks.length, currentMonth]);
+
+    console.log('[CalendarContext.tsx][9107] › Hydration success (plan-based)');
+  } catch (err) {
+    console.warn('[CalendarContext.tsx][9108] › Hydration failed:', err);
+  } finally {
+    setHasHydrated(true);
+    setHydrating(false);
+  }
+}, [api, hasHydrated, selectedNotebooks.length, plan]);
+
 
   // ────────────────────────────────────────────────────────────────────────────
   // 4) Dynamic extension flows (global version monitoring)
@@ -248,9 +299,18 @@ const isInitialized = renderReady;
   /**
    * @function extendCalendarSchedule
    * @description
-   *   Computes an extension that appends/merges new sessions for an updated notebook while preserving the
-   *   existing schedule. It generates from the next day after the last scheduled sessions. Time complexity is
-   *   O(D_ext + S_ext) for the extension month plus O(D log D) to re-sort merged days (D is small).
+   *   Computes an append-only extension for an updated notebook: we start the generation
+   *   strictly after the last scheduled day and merge only the future sessions for the
+   *   target notebook, preserving history untouched.
+   *   
+   *
+   *   Algorithm (high level):
+   *   1) Load current metas and swap in the updated notebook.
+   *   2) Short-circuit if no additional lesson units were added.
+   *   3) Compute extension start (day after last scheduled session).
+   *   4) Generate extension month from that start date.
+   *   5) Append-only merge (target notebook sessions strictly after cutoff).
+   *   6) Recompute monthly summary and return the extended calendar.
    */
   const extendCalendarSchedule = useCallback(async (
     updatedNotebook: any,
@@ -258,11 +318,9 @@ const isInitialized = renderReady;
   ): Promise<CalendarMonth | null> => {
     if (!currentMonth) return null;
 
-    console.log('[CalendarContext.tsx][9201] › Extending schedule for updated notebook');
-
+    // Step 1: Gather current notebook metas and swap-in the updated meta
     const allNotebookIds = selectedNotebooks;
-    const currentNotebooks = await calendarService.getNotebookDetails(allNotebookIds);
-
+    const currentNotebooks = await notebooksApi.details(allNotebookIds);
     const updatedNotebooks = currentNotebooks.map(nb =>
       nb.fileId === updatedNotebook.fileId ? updatedNotebook : nb
     );
@@ -272,220 +330,105 @@ const isInitialized = renderReady;
       throw new Error('Original notebook not found for comparison');
     }
 
-    const additionalUnits = updatedNotebook.lessonUnits.length - originalNotebook.lessonUnits.length;
+    // Step 2: Short-circuit if no net new units (append-only rule requires growth)
+    const additionalUnits = countAdditionalUnits(originalNotebook, updatedNotebook);
     console.log('[CalendarContext.tsx][9202] › Additional lesson units:', additionalUnits);
-
     if (additionalUnits <= 0) {
       console.log('[CalendarContext.tsx][9203] › No new content; no extension required');
       return currentMonth;
     }
 
-    // Find last study day with sessions to start extension after
-    const lastDayWithSessions = Math.max(
-      ...currentMonth.dailyPlans
-        .filter(plan => plan.sessions.length > 0)
-        .map(plan => plan.date.getDate())
-    );
-    console.log('[CalendarContext.tsx][9204] › Last day with sessions:', lastDayWithSessions);
+    // Step 3: Compute strict extension start (day after last scheduled)
+    const extensionStartDate = computeExtensionStart(currentMonth);
+    console.log('[CalendarContext.tsx][9204] › Extension start date:', extensionStartDate.toDateString());
 
-    const extensionStartDate = new Date(currentMonth.year, currentMonth.month, lastDayWithSessions + 1);
+    // Step 4: Generate extension using the existing service (API unchanged)
     const extensionMonth = await calendarService.generateMonthlyCalendar(
       updatedNotebooks,
       scheduleConfig,
       extensionStartDate
     );
 
-    // Merge extension sessions targeting the updated notebook
-    const mergedDailyPlans = [...currentMonth.dailyPlans];
-    extensionMonth.dailyPlans.forEach(newPlan => {
-      const existingIdx = mergedDailyPlans.findIndex(
-        plan => plan.date.toDateString() === newPlan.date.toDateString()
-      );
-
-      const newSessionsForTarget = newPlan.sessions.filter(
-        s => s.notebookMeta.fileId === updatedNotebook.fileId
-      );
-
-      if (newSessionsForTarget.length === 0) return;
-
-      if (existingIdx >= 0) {
-        const existing = mergedDailyPlans[existingIdx];
-        mergedDailyPlans[existingIdx] = {
-          ...existing,
-          sessions: [...existing.sessions, ...newSessionsForTarget],
-          totalDuration:
-            existing.totalDuration +
-            newSessionsForTarget.reduce((sum, s) => sum + s.metadata.estimatedDuration, 0),
-          subjectSummary: {
-            ...existing.subjectSummary,
-            ...newPlan.subjectSummary,
-          },
-        };
-      } else {
-        mergedDailyPlans.push(newPlan);
-      }
+    // Step 5: Append-only merge for the *target* notebook — numbered steps inside mergeAppendOnly
+    const mergedDailyPlans = mergeAppendOnly({
+      existing: currentMonth,
+      extension: extensionMonth,
+      targetNotebookId: updatedNotebook.fileId,
     });
 
+    // Step 6: Recompute monthly summary and return a new month object
     const updatedSummary = computeMonthlySummary(mergedDailyPlans);
     const extendedCalendar: CalendarMonth = {
       ...currentMonth,
-      dailyPlans: mergedDailyPlans.sort((a, b) => a.date.getTime() - b.date.getTime()),
+      dailyPlans: mergedDailyPlans,
       monthlySummary: updatedSummary,
     };
 
-    console.log('[CalendarContext.tsx][9205] › Extension merged; total days:', extendedCalendar.dailyPlans.length);
+    console.log('[CalendarContext.tsx][9205] › Extension merged (append-only); days:', extendedCalendar.dailyPlans.length);
     return extendedCalendar;
-  }, [calendarService, computeMonthlySummary, currentMonth, scheduleConfig, selectedNotebooks]);
+  }, [calendarService, computeMonthlySummary, currentMonth, notebooksApi, scheduleConfig, selectedNotebooks]);
 
-  /**
-   * @function triggerScheduleExtension
-   * @description
-   *   Runs the extension flow for a single notebook when its version changes. It updates the month in memory
-   *   first, then persists optimistically. Complexity is driven by extendCalendarSchedule (O(D + S)).
-   */
-  const triggerScheduleExtension = useCallback(async (notebookId: string, newVersion: string) => {
-    if (!currentMonth || extensionInProgress) {
-      console.log('[CalendarContext.tsx][9301] › Skip extension: no month or already running');
-      return;
-    }
-
-    console.log('[CalendarContext.tsx][9302] › Trigger extension for notebook:', notebookId);
-    setExtensionInProgress(true);
-    setError(null);
-
-    try {
-      const updatedNotebooks = await calendarService.getNotebookDetails([notebookId]);
-      if (updatedNotebooks.length === 0) throw new Error('Updated notebook details not found');
-
-      const updatedNotebook = updatedNotebooks[0];
-      console.log('[CalendarContext.tsx][9303] › Updated notebook units:', updatedNotebook.lessonUnits.length);
-
-      const extendedMonth = await extendCalendarSchedule(updatedNotebook, newVersion);
-      if (extendedMonth) {
-        setCurrentMonth(extendedMonth);
-
-        // Mark as synchronized in version map
-        setNotebookVersions(prev => {
-          const map = new Map(prev);
-          const vs = map.get(notebookId);
-          if (vs) {
-            map.set(notebookId, {
-              ...vs,
-              trackedVersion: newVersion,
-              needsUpdate: false,
-              lastChecked: new Date(),
-            });
-          }
-          return map;
-        });
-
-        // Persist full state optimistically
-        await persistAllOptimistic({ currentMonth: extendedMonth });
-        console.log('[CalendarContext.tsx][9304] › Extension persisted');
-      }
-    } catch (err) {
-      console.error('[CalendarContext.tsx][9305] › Extension failed:', err);
-      setError(err instanceof Error ? err.message : 'Failed to extend schedule');
-    } finally {
-      setExtensionInProgress(false);
-    }
-  }, [calendarService, currentMonth, extendCalendarSchedule, extensionInProgress, persistAllOptimistic]);
 
 /**
- * @function monitorActiveDocumentVersion
+ * @function triggerScheduleExtension
  * @description
- *   Watches the active doc’s version and decides whether to (a) initialize version tracking,
- *   (b) normalize tracking when no month exists (so we don’t loop), or (c) flag a delta and
- *   trigger an extension exactly once when a month exists. This prevents an infinite update loop
- *   where we kept setting needsUpdate while there was no calendar to extend. Time complexity O(1).
+ *   When a notebook content grows, extend the canonical plan append-only.
+ *   // update - 2
  */
-const monitorActiveDocumentVersion = useCallback(() => {
-  if (!docFileID || !isInitialized || !selectedNotebooks.includes(docFileID)) return;
+const triggerScheduleExtension = useCallback(async (notebookId: string, newVersion: string) => {
+  if (!plan || extensionInProgress) {
+    console.log('[CalendarContext.tsx][9301] › Skip extension: no plan or already running');
+    return;
+  }
 
-  const currentVer = currentDocVersion?.toString?.() ?? 'unknown';
-  console.log('[CalendarContext.tsx][9401] › Monitor active doc:', docFileID, 'v=', currentVer);
+  console.log('[CalendarContext.tsx][9302] › Trigger plan extension for notebook:', notebookId);
+  setExtensionInProgress(true);
+  setError(null);
 
-  const existing = notebookVersions.get(docFileID);
+  try {
+    const updatedNotebooks = await notebooksApi.details([notebookId]);
+    if (updatedNotebooks.length === 0) throw new Error('Updated notebook details not found');
 
-  // 1) No month yet → nothing to extend. Normalize tracking once and exit.
-  if (!currentMonth) {
-    const needsNormalize =
-      !existing ||
-      existing.trackedVersion !== currentVer ||
-      existing.currentVersion !== currentVer ||
-      existing.needsUpdate === true;
+    const metasForAll = await notebooksApi.details(selectedNotebooks);
+    const merged = metasForAll.map(nb => nb.fileId === notebookId ? updatedNotebooks[0] : nb);
 
-    if (needsNormalize) {
-      setNotebookVersions(prev => {
-        const map = new Map(prev);
-        map.set(docFileID, {
-          notebookId: docFileID,
-          trackedVersion: currentVer,   // track to current version so we don't loop
-          currentVersion: currentVer,
+    const horizonDays = Math.max(plan.horizonDays ?? 120, 120);
+
+    const { plan: extendedPlan, planIndex: newIndex } = await calendarService.extendStudyPlan({
+      plan,
+      notebooks: merged,
+      config: scheduleConfig,
+      horizonDays,
+    });
+
+    setPlan(extendedPlan);
+    setPlanIndex(newIndex);
+
+    // Update tracking map
+    setNotebookVersions(prev => {
+      const map = new Map(prev);
+      const vs = map.get(notebookId);
+      if (vs) {
+        map.set(notebookId, {
+          ...vs,
+          trackedVersion: newVersion,
           needsUpdate: false,
           lastChecked: new Date(),
         });
-        return map;
-      });
-      console.log('[CalendarContext.tsx][9404] › Normalized version tracking (no month); no extension needed');
-    }
-    return; // IMPORTANT: don’t attempt extension without a month
-  }
-
-  // 2) Month exists → detect a true change, flag once, and trigger extension.
-  if (existing) {
-    const changed = existing.trackedVersion !== currentVer;
-    if (changed && !existing.needsUpdate) {
-      console.log('[CalendarContext.tsx][9402] › Version change:', existing.trackedVersion, '→', currentVer);
-      setNotebookVersions(prev => {
-        const map = new Map(prev);
-        map.set(docFileID, {
-          ...existing,
-          currentVersion: currentVer,
-          needsUpdate: true,
-          lastChecked: new Date(),
-        });
-        return map;
-      });
-      // Kick extension; triggerScheduleExtension is already guarded internally.
-      triggerScheduleExtension(docFileID, currentVer);
-    }
-  } else {
-    // 3) Month exists, but we have no tracking yet: initialize to currentVer.
-    setNotebookVersions(prev => {
-      const map = new Map(prev);
-      map.set(docFileID, {
-        notebookId: docFileID,
-        trackedVersion: currentVer,
-        currentVersion: currentVer,
-        needsUpdate: false,
-        lastChecked: new Date(),
-      });
+      }
       return map;
     });
-    console.log('[CalendarContext.tsx][9403] › Initialized tracking for active doc');
+
+    await persistAllOptimistic({ plan: extendedPlan, planIndex: newIndex });
+    console.log('[CalendarContext.tsx][9304] › Plan extension persisted');
+  } catch (err) {
+    console.error('[CalendarContext.tsx][9305] › Plan extension failed:', err);
+    setError(err instanceof Error ? err.message : 'Failed to extend plan');
+  } finally {
+    setExtensionInProgress(false);
   }
-}, [
-  currentDocVersion,
-  currentMonth,
-  docFileID,
-  isInitialized,
-  selectedNotebooks,
-  notebookVersions,
-  triggerScheduleExtension,
-]);
+}, [plan, extensionInProgress, notebooksApi, selectedNotebooks, calendarService, scheduleConfig, persistAllOptimistic]);
 
-
-// Fire the monitor when the doc or its version changes, or when a month becomes available.
-useEffect(() => {
-  monitorActiveDocumentVersion();
-}, [monitorActiveDocumentVersion]);
-
-
-  // Run monitor on relevant changes
-  useEffect(() => {
-    monitorActiveDocumentVersion();
-  }, [monitorActiveDocumentVersion]);
 
   // ────────────────────────────────────────────────────────────────────────────
   // 5) Notebooks loading (no caching here; pure network)
@@ -500,7 +443,7 @@ useEffect(() => {
   const refreshNotebooks = useCallback(async () => {
     console.log('[CalendarContext.tsx][9501] › Refresh notebooks');
     try {
-      const notebooks = await calendarService.getAvailableNotebooks();
+      const notebooks = await notebooksApi.list();
       const notebooksWithColors = notebooks.map((nb, i) => ({
         ...nb,
         color: NOTEBOOK_COLORS[i % NOTEBOOK_COLORS.length],
@@ -511,7 +454,7 @@ useEffect(() => {
       console.error('[CalendarContext.tsx][9503] › Failed to refresh notebooks:', err);
       setError('Failed to load available notebooks');
     }
-  }, [calendarService]);
+  }, [notebooksApi]);
 
   // Run notebook list load on mount (independent of hydration)
   useEffect(() => {
@@ -590,10 +533,10 @@ useEffect(() => {
           dailyPlans: prunedPlans,
           monthlySummary: updatedSummary,
         };
-        setCurrentMonth(nextMonth);
+        // outdated setCurrentMonth(nextMonth);
 
         // Persist full state optimistically
-        persistAllOptimistic({ selectedNotebooks: updated, currentMonth: nextMonth }).catch(() => void 0);
+        persistAllOptimistic({ selectedNotebooks: updated}).catch(() => void 0);
       } else {
         // Persist just the selection change
         persistAllOptimistic({ selectedNotebooks: updated }).catch(() => void 0);
@@ -637,107 +580,85 @@ useEffect(() => {
     });
   }, [persistAllOptimistic]);
 
-  /**
-   * @function generateSchedule
-   * @description
-   *   Generates the month from selected notebooks and config. Updates state immediately and persists
-   *   optimistically. Also initializes version tracking for all selected notebooks. Complexity O(N) to load
-   *   notebook details and O(D + S) to generate the month.
-   */
-  const generateSchedule = useCallback(async () => {
-    console.log('[CalendarContext.tsx][9702] › Generate schedule for', selectedNotebooks.length, 'notebooks');
+/**
+ * @function generateSchedule
+ * @description
+ *   Builds the canonical StudyPlan once with a rolling horizon; no month recomputes.
+ *   
+ */
+const generateSchedule = useCallback(async () => {
+  console.log('[CalendarContext.tsx][9702] › Generate canonical plan for', selectedNotebooks.length, 'notebooks');
 
-    if (selectedNotebooks.length === 0) {
-      setError('Please select at least one notebook for scheduling');
-      console.warn('[CalendarContext.tsx][9703] › No notebooks selected');
-      return;
-    }
+  if (selectedNotebooks.length === 0) {
+    setError('Please select at least one notebook for scheduling');
+    console.warn('[CalendarContext.tsx][9703] › No notebooks selected');
+    return;
+  }
 
-    setIsLoading(true);
-    setError(null);
+  setIsLoading(true);
+  setError(null);
 
-    try {
-      const metas = await calendarService.getNotebookDetails(selectedNotebooks);
-      if (metas.length === 0) throw new Error('No valid notebook metadata found');
+  try {
+    // 1) Load metas and colorize
+    const metas = await notebooksApi.details(selectedNotebooks);
+    if (metas.length === 0) throw new Error('No valid notebook metadata found');
+    const colored = metas.map((m, i) => ({ ...m, color: NOTEBOOK_COLORS[i % NOTEBOOK_COLORS.length] }));
 
-      const colored = metas.map((m, i) => ({ ...m, color: NOTEBOOK_COLORS[i % NOTEBOOK_COLORS.length] }));
-      const month = await calendarService.generateMonthlyCalendar(colored, scheduleConfig, currentDate);
+    // 2) Safe anchor
+    const anchor = computeAnchorDate({ now: new Date(), config: scheduleConfig });
 
-      setCurrentMonth(month);
+    // 3) Build canonical plan with a rolling horizon (defaults to 120 days)
+    const horizonDays = 120;
+    const { plan: newPlan, planIndex: newIndex } = await calendarService.generateStudyPlan({
+      notebooks: colored,
+      config: scheduleConfig,
+      anchor,
+      horizonDays,
+    });
 
-      // Initialize tracking for all selected notebooks
-      const versionMap = new Map<string, NotebookVersionState>();
-      colored.forEach(nb => {
-        const currentVersion = nb.fileId === docFileID && isInitialized
-          ? currentDocVersion.toString()
-          : nb.version ?? 'unknown';
-        versionMap.set(nb.fileId, {
-          notebookId: nb.fileId,
-          trackedVersion: currentVersion,
-          currentVersion,
-          needsUpdate: false,
-          lastChecked: new Date(),
-        });
+    setPlan(newPlan);
+    setPlanIndex(newIndex);
+
+    // 4) Initialize version tracking
+    const versionMap = new Map<string, NotebookVersionState>();
+    colored.forEach(nb => {
+      const currentVersion = nb.fileId === docFileID && isInitialized
+        ? currentDocVersion.toString()
+        : nb.version ?? 'unknown';
+      versionMap.set(nb.fileId, {
+        notebookId: nb.fileId,
+        trackedVersion: currentVersion,
+        currentVersion,
+        needsUpdate: false,
+        lastChecked: new Date(),
       });
-      setNotebookVersions(versionMap);
+    });
+    setNotebookVersions(versionMap);
 
-      // Persist full state optimistically
-      await persistAllOptimistic({ currentMonth: month });
-      console.log('[CalendarContext.tsx][9704] › Generate schedule success');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to generate schedule';
-      console.error('[CalendarContext.tsx][9705] › Generate schedule error:', msg);
-      setError(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [
-    calendarService,
-    currentDate,
-    currentDocVersion,
-    docFileID,
-    isInitialized,
-    persistAllOptimistic,
-    scheduleConfig,
-    selectedNotebooks,
-  ]);
+    // 5) Persist canonical envelope
+    await persistAllOptimistic({ plan: newPlan, planIndex: newIndex });
+    console.log('[CalendarContext.tsx][9704] › Canonical plan generated & persisted');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to generate plan';
+    console.error('[CalendarContext.tsx][9705] › Generate plan error:', msg);
+    setError(msg);
+  } finally {
+    setIsLoading(false);
+  }
+}, [calendarService, currentDocVersion, docFileID, isInitialized, notebooksApi, persistAllOptimistic, scheduleConfig, selectedNotebooks]);
 
-  /**
-   * @function regenerateMonth
-   * @description
-   *   Regenerates a specific month based on current selection and config. Updates state immediately, then
-   *   persists optimistically. Complexity O(N + D + S).
-   */
-  const regenerateMonth = useCallback(async (year: number, monthIndex: number) => {
-    console.log('[CalendarContext.tsx][9706] › Regenerate month', { year, monthIndex });
 
-    if (selectedNotebooks.length === 0) {
-      console.warn('[CalendarContext.tsx][9707] › No notebooks selected for regeneration');
-      return;
-    }
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const targetDate = new Date(year, monthIndex, 1);
-      const metas = await calendarService.getNotebookDetails(selectedNotebooks);
-      const colored = metas.map((m, i) => ({ ...m, color: NOTEBOOK_COLORS[i % NOTEBOOK_COLORS.length] }));
-
-      const monthData = await calendarService.generateMonthlyCalendar(colored, scheduleConfig, targetDate);
-      setCurrentMonth(monthData);
-      setCurrentDate(targetDate);
-
-      await persistAllOptimistic({ currentMonth: monthData });
-      console.log('[CalendarContext.tsx][9708] › Regeneration success');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to regenerate month';
-      console.error('[CalendarContext.tsx][9709] › Regeneration error:', msg);
-      setError(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [calendarService, persistAllOptimistic, scheduleConfig, selectedNotebooks]);
+/**
+ * @function regenerateMonth
+ * @description
+ *   No-op recompute; just move the visible window (pure slicing).
+ *   // update - 2
+ */
+const regenerateMonth = useCallback(async (year: number, monthIndex: number) => {
+  console.log('[CalendarContext.tsx][9706] › Re-slice month', { year, monthIndex });
+  setCurrentDate(new Date(year, monthIndex, 1));
+}, [setCurrentDate]);
 
   /**
    * @function navigateMonth
@@ -749,35 +670,35 @@ useEffect(() => {
     if (direction === 'prev') next.setMonth(next.getMonth() - 1);
     else next.setMonth(next.getMonth() + 1);
     setCurrentDate(next);
-    regenerateMonth(next.getFullYear(), next.getMonth());
-  }, [currentDate, regenerateMonth]);
+  }, [currentDate]);
 
   // ────────────────────────────────────────────────────────────────────────────
   // 8) Session helpers & completion (optimistic)
   // ────────────────────────────────────────────────────────────────────────────
 
-  /**
-   * @function createSessionLauncher
-   * @description
-   *   Prepares the PickerFileMeta for a given session id so callers can switch files/launch slides.
-   *   Complexity O(D + S) in worst case to scan sessions across the month.
-   */
-  const createSessionLauncher = useCallback((sessionId: string): PickerFileMeta | null => {
-    if (!currentMonth) return null;
-    for (const daily of currentMonth.dailyPlans) {
-      const session = daily.sessions.find(s => s.id === sessionId);
-      if (session) {
-        return {
-          docId: session.notebookMeta.fileId,
-          fileStorageId: session.notebookMeta.filePath,
-          fileName: session.notebookMeta.fileName,
-          role: undefined,
-          updatedAt: session.notebookMeta.lastUpdated.toISOString(),
-        };
-      }
+/**
+ * @function createSessionLauncher
+ * @description
+ *   Prepare PickerFileMeta by scanning canonical plan (multi-month).
+ * 
+ */
+const createSessionLauncher = useCallback((sessionId: string): PickerFileMeta | null => {
+  if (!plan) return null;
+  for (const d of plan.days) {
+    const s = d.sessions.find(x => x.id === sessionId);
+    if (s) {
+      return {
+        docId: s.notebookMeta.fileId,
+        fileStorageId: s.notebookMeta.filePath,
+        fileName: s.notebookMeta.fileName,
+        role: undefined,
+        updatedAt: s.notebookMeta.lastUpdated.toISOString(),
+      };
     }
-    return null;
-  }, [currentMonth]);
+  }
+  return null;
+}, [plan]);
+
 
   /**
    * @function markSessionCompleted
@@ -809,54 +730,70 @@ useEffect(() => {
     });
   }, [persistAllOptimistic]);
 
-  /**
-   * @function getDailyPlan
-   * @description
-   *   Finds the day matching the given date. Complexity O(D) for the number of days in the month.
-   */
-  const getDailyPlan = useCallback((date: Date) => {
-    if (!currentMonth) return null;
-    const key = date.toDateString();
-    return currentMonth.dailyPlans.find(p => p.date.toDateString() === key) ?? null;
-  }, [currentMonth]);
+  
+/**
+ * @function getDailyPlan
+ * @description
+ *   Return the legacy DailyStudyPlan-like shape for a specific date via planIndex.
+ *   // update - 3
+ 
+const getDailyPlan = useCallback((date: Date) => {
+  if (!plan) return null;
+  const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+  const idx = planIndex[key];
+  if (idx == null) return null;
+  const d = plan.days[idx];
+  return {
+    date: new Date(d.date),
+    sessions: d.sessions,
+    subjectSummary: d.subjectSummary,
+    totalDuration: d.totalDuration,
+    completedSessions: d.completedSessions,
+  };
+}, [plan, planIndex]);
 
-  /**
-   * @function getSessionsForDay
-   * @description
-   *   Returns all sessions for a given date from the current month. Complexity O(D) via getDailyPlan.
-   */
-  const getSessionsForDay = useCallback((date: Date) => {
-    const plan = getDailyPlan(date);
-    return plan ? plan.sessions : [];
-  }, [getDailyPlan]);
 
-  /**
+ * @function getSessionsForDay
+ * @description
+ *   Returns sessions for a given date via planIndex.
+ *   // update - 3
+
+const getSessionsForDay = useCallback((date: Date) => {
+  const dp = getDailyPlan(date);
+  return dp ? dp.sessions : [];
+}, [getDailyPlan]);
+
+
+
    * @function getTodaysPlan
    * @description
    *   Shortcut for today’s plan. Complexity O(D).
-   */
   const getTodaysPlan = useCallback(() => {
     return getDailyPlan(new Date());
   }, [getDailyPlan]);
 
-  /**
-   * @function clearSchedule
-   * @description
-   *   Clears all in-memory state immediately, and calls `api.clearAll()` to drop remote state. This is the
-   *   only destructive flow. Complexity O(1).
-   */
-  const clearSchedule = useCallback(() => {
-    console.log('[CalendarContext.tsx][9901] › Clear schedule');
-    setSelectedNotebooks([]);
-    setCurrentMonth(null);
-    setCompletedSessions([]);
-    setError(null);
-    setNotebookVersions(new Map());
-    api.clearAll().catch(err => {
-      console.warn('[CalendarContext.tsx][9902] › clearAll() failed:', err);
-      setError('Failed to clear server calendar; local state cleared.');
-    });
-  }, [api]);
+  */
+
+/**
+ * @function clearSchedule
+ * @description
+ *   Clears plan + related state; remote wipe via API.
+ *   // update - 2
+ */
+const clearSchedule = useCallback(() => {
+  console.log('[CalendarContext.tsx][9901] › Clear schedule (plan-based)');
+  setSelectedNotebooks([]);
+  setPlan(null);
+  setPlanIndex({});
+  setCompletedSessions([]);
+  setError(null);
+  setNotebookVersions(new Map());
+  api.clearAll().catch(err => {
+    console.warn('[CalendarContext.tsx][9902] › clearAll() failed:', err);
+    setError('Failed to clear server calendar; local state cleared.');
+  });
+}, [api]);
+
 
   // ────────────────────────────────────────────────────────────────────────────
   // 9) One-time lazy hydration (local-first)
@@ -901,11 +838,6 @@ useEffect(() => {
     createSessionLauncher,
     markSessionCompleted,
     markSessionIncomplete,
-
-    // Utils
-    getDailyPlan,
-    getSessionsForDay,
-    getTodaysPlan,
     notebookVersions,
   }), [
     availableNotebooks,
@@ -916,9 +848,6 @@ useEffect(() => {
     error,
     extensionInProgress,
     generateSchedule,
-    getDailyPlan,
-    getSessionsForDay,
-    getTodaysPlan,
     hydrating,
     isLoading,
     navigateMonth,

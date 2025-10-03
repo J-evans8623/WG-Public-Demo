@@ -12,6 +12,7 @@
  */
 
 import { GoogleGenAI, Type } from "@google/genai";
+import UsageTracker from "../services/UsageTracker";
 
 export interface JSONSchemaValidation {
   name: string;
@@ -30,6 +31,7 @@ export interface JSONSchemaValidation {
 
 export interface GenerateOptions {
   stream?: boolean;
+  tracker?: UsageTracker;
 }
 
 class AIService {
@@ -57,22 +59,12 @@ class AIService {
       { schema: jsonSchema.name, stream: !!options.stream }
     );
 
+    const modelName = "gemini-2.5-flash";
+
     const convertedSchema = this.convertSchemaToTypeEnums(jsonSchema.schema);
 
     return this.retryWithBackoff(async () => {
-      if (options.stream) {
-        const stream = await this.ai.models.generateContentStream({
-          model: "gemini-2.5-flash",
-          contents: [{ role: "user", parts: [{ text: userInput }] }],
-          config: {
-            systemInstruction: [systemPrompt],
-            responseMimeType: "application/json",
-            responseSchema: convertedSchema,
-          },
-        });
-        console.log("[aiServiceV2.ts][1004] Streaming generation initiated");
-        return stream;
-      } else {
+
         const response = await this.ai.models.generateContent({
           model: "gemini-2.5-flash",
           contents: [{ role: "user", parts: [{ text: userInput }] }],
@@ -82,6 +74,15 @@ class AIService {
             responseSchema: convertedSchema,
           },
         });
+
+        const usageMeta = (response as any).usageMetadata;
+        if (options.tracker) {
+          try {
+            options.tracker.addCallUsageGeminiForModel(modelName, usageMeta);;
+          } catch (e) {
+            console.warn("[aiServiceV2.ts][1002] Failed to record usage in tracker:", e);
+          }
+        }
 
         // 1002: log raw response for debugging
          console.log("[aiServiceV2.ts][1002] Raw API response:", response);
@@ -115,7 +116,7 @@ class AIService {
             }`
           );
         }
-      }
+      
     });
   }
 

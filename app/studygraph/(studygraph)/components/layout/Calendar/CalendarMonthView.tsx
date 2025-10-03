@@ -35,7 +35,7 @@ import {
   X,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { useCalendar } from '@/app/Library/Context/CalendarContext';
+import { useCalendar } from '@/app/Library/Context/CalendarContextv2';
 import {
   CalendarDayProps,
   PickerFileMeta,
@@ -67,7 +67,6 @@ const CalendarMonthView: React.FC<
     currentMonth,
     currentDate,
     navigateMonth,
-    getDailyPlan,
     isLoading,
     error,
     createSessionLauncher,
@@ -104,6 +103,42 @@ const CalendarMonthView: React.FC<
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
     };
   }, []);
+
+
+/**
+   * @function createDailyPlansMap
+   * @description
+   *   Creates a Map for O(1) lookups of daily plans by date string.
+   *   This replaces the getDailyPlan() context method and ensures we only
+   *   display data that passed through the proper date range slicing.
+   */
+  const dailyPlansMap = useMemo(() => {
+    if (!currentMonth?.dailyPlans) return new Map();
+
+    const map = new Map();
+    currentMonth.dailyPlans.forEach(plan => {
+      const key = `${plan.date.getFullYear()}-${String(plan.date.getMonth() + 1).padStart(2, '0')}-${String(plan.date.getDate()).padStart(2, '0')}`;
+      map.set(key, plan);
+    });
+    
+    console.log('[CalendarMonthView.tsx][2015] › Created daily plans map with', map.size, 'entries');
+    return map;
+  }, [currentMonth?.dailyPlans]);
+
+
+
+   /**
+   * @function getDailyPlanFromMap
+   * @description
+   *   Replaces context.getDailyPlan() with map-based lookup from pre-sliced data.
+   *   Ensures we only return plans that belong to the current month view.
+   *   // update - 1
+   */
+  const getDailyPlanFromMap = useCallback((date: Date) => {
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    return dailyPlansMap.get(key) || null;
+  }, [dailyPlansMap]);
+
 
   /**
    * @function handleSessionClick
@@ -250,41 +285,56 @@ const CalendarMonthView: React.FC<
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   }, []);
 
-  /**
-   * @function generateCalendarDays
-   * @description
-   *   Produces a fixed 6x7 grid (42 cells) including leading/trailing days. This logic is
-   *   unchanged and is not related to the UX fixes for tooltip/popover.
-   */
-  const generateCalendarDays = useCallback(() => {
-    if (!currentMonth) return [];
 
-    const year = currentMonth.year;
-    const month = currentMonth.month;
+/**
+ * @function generateCalendarDays
+ * @description
+ *   Builds a fixed 6x7 grid with correct leading/trailing days.
+ *   Fix: correct previous-month day count (month, 0) and normalize times to midnight.
+ */
+const generateCalendarDays = useCallback(() => {
+  if (!currentMonth) return [];
 
-    const firstDay = new Date(year, month, 1);
-    const firstDayOfWeek = firstDay.getDay();
+  const year = currentMonth.year;
+  const month = currentMonth.month; // 0-based
 
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
+  // Always use local midnight to avoid DST rollover surprises.
+  const mk = (y: number, m: number, d: number) => {
+    const dt = new Date(y, m, d);
+    dt.setHours(0, 0, 0, 0);
+    return dt;
+  };
 
-    const prevMonth = new Date(year, month - 1, 0);
-    const daysInPrevMonth = prevMonth.getDate();
+  const firstDay = mk(year, month, 1);
+  const firstDayOfWeek = firstDay.getDay(); // 0=Sun..6=Sat
 
-    const calendarDays: Date[] = [];
+  const lastDay = mk(year, month + 1, 0);
+  const daysInMonth = lastDay.getDate();
 
-    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-      calendarDays.push(new Date(year, month - 1, daysInPrevMonth - i));
-    }
-    for (let day = 1; day <= daysInMonth; day++) {
-      calendarDays.push(new Date(year, month, day));
-    }
-    const remainingDays = 42 - calendarDays.length;
-    for (let day = 1; day <= remainingDays; day++) {
-      calendarDays.push(new Date(year, month + 1, day));
-    }
-    return calendarDays;
-  }, [currentMonth]);
+  // ✅ Correct: last day of *previous* month is (month, 0), not (month - 1, 0)
+  const daysInPrevMonth = mk(year, month, 0).getDate();
+
+  const calendarDays: Date[] = [];
+
+  // Leading cells from previous month
+  for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+    calendarDays.push(mk(year, month - 1, daysInPrevMonth - i));
+  }
+
+  // Current month
+  for (let day = 1; day <= daysInMonth; day++) {
+    calendarDays.push(mk(year, month, day));
+  }
+
+  // Trailing cells from next month
+  const remaining = 42 - calendarDays.length;
+  for (let day = 1; day <= remaining; day++) {
+    calendarDays.push(mk(year, month + 1, day));
+  }
+
+  return calendarDays;
+}, [currentMonth]);
+
 
   // Loading & error states (unchanged)
   if (isLoading) {
@@ -322,7 +372,7 @@ const CalendarMonthView: React.FC<
   const today = new Date();
 
   return (
-    <div className="calendar-month-view calendar-container relative">
+    <div className="calendar-month-view calendar-container relative" key={`${currentMonth.year}-${currentMonth.month}`}>
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <button
@@ -355,7 +405,7 @@ const CalendarMonthView: React.FC<
         ))}
 
         {calendarDays.map((date) => {
-          const dailyPlan = getDailyPlan(date);
+          const dailyPlan =  getDailyPlanFromMap(date);
           const isCurrentDay = date.toDateString() === today.toDateString();
           const isCurrentMonth = date.getMonth() === currentMonth.month;
 

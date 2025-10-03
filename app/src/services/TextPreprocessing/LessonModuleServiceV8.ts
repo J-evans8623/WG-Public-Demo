@@ -24,7 +24,7 @@ import {
 } from './LessonModuleTypes';
 import AIController                       from '../../controllers/aiController';
 import { callWithRetry } from './callWithRetry';
-
+import UsageTracker from '../../services/UsageTracker'; 
 
 interface PrimaryNode {
   title: string; // primary subtopic title goes here
@@ -60,7 +60,8 @@ async function structuralPass(
   segmentText: string[],
   documentID: string,
   fileId: string,
-  pageCount: number
+  pageCount: number,
+   usageTracker?: UsageTracker  
 ): Promise<BatchedResult> {
   console.log('[LessonModuleServiceV7.ts][3001] structuralPass START');
   // fire-and-forget persistence
@@ -74,7 +75,7 @@ async function structuralPass(
 
   // single Gemini call for syllabus + metadata
   console.log('[LessonModuleServiceV7.ts][3002] Calling generateBatchedUnitSyllabus', { topicAmount, max });
-  const batched = await generateBatchedUnitSyllabus(segmentText.join("\n\n"), topicAmount, pageCount);
+  const batched = await generateBatchedUnitSyllabus(segmentText.join("\n\n"), topicAmount, pageCount,  usageTracker);
   console.log(
     '[LessonModuleServiceV7.ts][3003] Received batched syllabus',
     { title: batched.LessonTitle, count: batched.unit_syllabus.length }
@@ -122,7 +123,8 @@ export async function generateLessonFromSegment(
   segment      : string[],
   documentID   : string,
   sourceFileId : string,
-  pageCount    : number
+  pageCount    : number,
+  usageTracker?: UsageTracker 
 ): Promise<unknown /* lessonSchema */> {
 
 console.log('[LessonModuleServiceV7.ts][6001] START generateLessonFromSegment', {
@@ -132,7 +134,7 @@ console.log('[LessonModuleServiceV7.ts][6001] START generateLessonFromSegment', 
 
   /* 2️⃣  Build primary / secondary stubs                       */
   console.time('v4fast-structural');
-  const { metadata, nodes } = await structuralPass(segment, documentID, sourceFileId, pageCount);
+  const { metadata, nodes } = await structuralPass(segment, documentID, sourceFileId, pageCount, usageTracker);
 
   // batch enrichment
   console.log('[LessonModuleServiceV7.ts][3006] Calling AIController.generateSubtreeLesson', {
@@ -169,7 +171,7 @@ console.log('[LessonModuleServiceV7.ts][6001] START generateLessonFromSegment', 
 
     // Invoke V3 on this single-node slice
     return callWithRetry(() =>
-      AIController.generateSubtreeLessonV3([node], metadata.LessonTitle, LessonSegment, maxWordCount)
+      AIController.generateSubtreeLessonV3([node], metadata.LessonTitle, LessonSegment, maxWordCount,  usageTracker)
     );
 });
 

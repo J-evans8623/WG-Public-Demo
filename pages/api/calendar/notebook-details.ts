@@ -16,10 +16,9 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
-import { loadDocumentFile, listUserFiles } from '@/app/src/services/firebase';
-import { generateLessonUnits } from '@/app/Library/utils/calendar/lessoUnitExtractor';
+import {  listUserFiles } from '@/app/src/services/firebase';
 import { LessonUnit, NotebookMeta } from '@/app/Library/Definitions/CalendarDefinitions';
-import * as Y from 'yjs';
+
 
 interface NotebookDetailsRequest {
   fileIds: string[];
@@ -77,7 +76,8 @@ export default async function handler(
         fileName: file.fileName,
         filePath: file.fileStoragePath,
         lastUpdated: file.timestamp,
-        lessonUnitsMeta: (file as any).lessonUnitsMeta
+        lessonUnitsMeta: (file as any).lessonUnitsMeta,
+        color: file.color
       }));
 
     console.log('[notebook-details.ts][7006] › Found', accessibleFileIds.length, 'accessible files');
@@ -102,38 +102,13 @@ export default async function handler(
             filePath: fileInfo.filePath,
             fileName: fileInfo.fileName,
             lessonUnits: lessonUnits,
+            color: fileInfo.color,
             lastUpdated: new Date(fileInfo.lastUpdated.seconds ? fileInfo.lastUpdated.seconds * 1000 : fileInfo.lastUpdated),
             version: `${fileInfo.lessonUnitsMeta.lastUpdated?.seconds || Date.now()}`,
           });
-        } else {
-          console.log('[notebook-details.ts][7008] › Loading and extracting lesson units for', fileInfo.fileName);
-          
-          // Step 8: Load document file and extract lesson units
-          const fileBuffer = await loadDocumentFile(fileInfo.filePath);
-          const ydoc = new Y.Doc();
-          Y.applyUpdate(ydoc, fileBuffer);
-          
-          // Step 9: Extract lesson units from Y.Doc
-          const lessonUnits = generateLessonUnits(ydoc);
-          
-          if (lessonUnits.length > 0) {
-            notebooks.push({
-              fileId: fileInfo.fileId,
-              filePath: fileInfo.filePath,
-              fileName: fileInfo.fileName,
-              lessonUnits: lessonUnits,
-              lastUpdated: new Date(fileInfo.lastUpdated.seconds ? fileInfo.lastUpdated.seconds * 1000 : fileInfo.lastUpdated),
-              version: `${Date.now()}`, // Current timestamp as version
-            });
-            
-            console.log('[notebook-details.ts][7009] › Extracted', lessonUnits.length, 'lesson units from', fileInfo.fileName);
-          } else {
-            console.log('[notebook-details.ts][7010] › No lesson units found in', fileInfo.fileName);
-          }
-        }
+        } 
       } catch (fileError) {
         console.error('[notebook-details.ts][7011] › Error processing file', fileInfo.fileName, ':', fileError);
-        // Continue processing other files
       }
     }
 

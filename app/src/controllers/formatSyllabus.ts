@@ -32,15 +32,14 @@ Lesson Outline: ${LessonOutline}`;
 (No secondary subtopics.)`;
   }
 
-  const secondaries = secondary_topics
-    .map(sec => 
+  const secondaries = secondary_topics.map(sec => 
 `- ${sec.title}
     • Learning Objectives: ${sec.Learning_Objectives}
     • Lesson Outline: ${sec.LessonOutline}`)
-    .join(`\n\n`);
+    .join(`\n ######################################################## \n`);
 
   return `${header}
-
+###########################################################
 Secondary Subtopics:
 ${secondaries}`;
 }

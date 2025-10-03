@@ -24,6 +24,14 @@ import {
   DailyStudyPlan,
 } from '@/app/Library/Definitions/CalendarDefinitions';
 import { chunkLessonUnits } from '@/app/Library/utils/calendar/lessoUnitExtractor';
+import {
+  StudyPlan,
+  StudyPlanIndex,
+  buildInitialPlan,
+  extendPlan,
+  indexPlan,
+  sliceByDateRange,
+} from '@/app/src/services/calendar/StudyPlanCore';
 
 /**
  * Learning set structure for managing grouped notebooks in cyclical scheduling.
@@ -48,6 +56,11 @@ interface SessionSchedulingContext {
   lessonChunkSchedule: Map<string, Map<number, number>>; // notebookId -> chunkIndex -> day scheduled
   pendingRevisions: Map<number, PendingRevision[]>; // day -> pending revision sessions
   interleaveSchedule: Map<string, number[]>; // notebookId -> array of interleave session days
+    /** NEW: per-notebook LB progression counter (times this notebook got an LB) */
+  perNotebookLbCount: Map<string, number>;
+
+  /** NEW: global lookup for notebook meta by id (lets us materialize RBs regardless of active set) */
+  notebookById: Map<string, NotebookMeta>;
 }
 
 /**
@@ -76,6 +89,7 @@ interface LessonCompletionState {
 
 export class CalendarService {
 
+
   /**
    * Retrieves lightweight notebook summaries for calendar selection interface.
    * Fetches basic metadata without full lesson unit details to optimize initial loading performance.
@@ -84,6 +98,7 @@ export class CalendarService {
     console.log('[CalendarService.ts][6001] › Fetching available notebooks for calendar selection');
     
     try {
+      // Please use api context here instead
       const response = await fetch('/api/files/list', {
         method: 'GET',
         credentials: 'include',
@@ -151,7 +166,7 @@ export class CalendarService {
       console.warn('[CalendarService.ts][6006] › No file IDs provided for notebook details');
       return [];
     }
-    
+    // We need to implement a check cache first logic then fall back to network call...
     try {
       const response = await fetch('/api/calendar/notebook-details', {
         method: 'POST',
@@ -187,46 +202,115 @@ export class CalendarService {
     }
   }
 
+
   /**
-   * Generates a complete monthly calendar with daily study plans based on notebook metadata 
-   * and enhanced configuration using learning sets, cyclical distribution, and staggered session scheduling.
-   */
-  async generateMonthlyCalendar(
-    notebooks: NotebookMeta[], 
-    config: ScheduleConfig, 
-    targetDate: Date
-  ): Promise<CalendarMonth> {
-    console.log('[CalendarService.ts][6010] › Generating monthly calendar for', notebooks.length, 'notebooks');
-    
-    if (notebooks.length === 0) {
-      console.warn('[CalendarService.ts][6011] › No notebooks provided for calendar generation');
-      return this.createEmptyMonth(targetDate);
-    }
+ * @method generateStudyPlan
+ * @purpose
+ *   Build a canonical StudyPlan with a rolling horizon and deterministic IDs.
+ * @steps
+ *   1) Use this.generateMonthlyCalendar as the month-level strategy.
+ *   2) Delegate to StudyPlanCore.buildInitialPlan (injects stable IDs).
+ *   3) Return { plan, planIndex } for persistence + O(1) lookups.
+ */
+// update - 11
+public async generateStudyPlan(params: {
+  notebooks: NotebookMeta[];
+  config: ScheduleConfig;
+  anchor: Date;
+  horizonDays: number;
+}): Promise<{ plan: StudyPlan; planIndex: StudyPlanIndex }> {
+  const plan = await buildInitialPlan({
+    anchorDate: params.anchor,
+    horizonDays: params.horizonDays,
+    notebooks: params.notebooks,
+    config: params.config,
+    // Use an arrow to preserve `this`
+    strategy: async (nb, cfg, targetDate) => {
+      const month = await this.generateMonthlyCalendar(nb, cfg, targetDate);
+      return month.dailyPlans; // StudyPlanCore expects an array of DailyStudyPlan
+    },
+  });
 
-    const year = targetDate.getFullYear();
-    const month = targetDate.getMonth();
-    
-    // Step 1: Phase 1 - Create learning sets using ceiling division
-    const learningSets = this.createLearningSets(notebooks, config);
-    console.log('[CalendarService.ts][6012] › Created', learningSets.length, 'learning sets');
+  return { plan, planIndex: indexPlan(plan) };
+}
 
-    // Step 2: Phase 2 & 3 - Generate cyclical schedule with staggered session scheduling
-    const dailyPlans = this.generateStaggeredSchedule(learningSets, config, year, month);
-    console.log('[CalendarService.ts][6013] › Generated', dailyPlans.length, 'daily plans with staggered scheduling');
+/**
+ * @method extendStudyPlan
+ * @purpose
+ *   Append-only plan growth beyond the last planned day; never edits history.
+ * @steps
+ *   1) Use this.generateMonthlyCalendar as the month-level strategy.
+ *   2) Delegate to StudyPlanCore.extendPlan.
+ *   3) Return { plan, planIndex }.
+ */
+// update - 11
+public async extendStudyPlan(params: {
+  plan: StudyPlan;
+  notebooks: NotebookMeta[];
+  config: ScheduleConfig;
+  horizonDays: number;
+}): Promise<{ plan: StudyPlan; planIndex: StudyPlanIndex }> {
+  const newPlan = await extendPlan({
+    basePlan: params.plan,
+    notebooks: params.notebooks,
+    config: params.config,
+    horizonDays: params.horizonDays,
+    strategy: async (nb, cfg, targetDate) => {
+      const month = await this.generateMonthlyCalendar(nb, cfg, targetDate);
+      return month.dailyPlans;
+    },
+  });
 
-    // Step 3: Calculate monthly summary
-    const monthlySummary = this.calculateMonthlySummary(dailyPlans, notebooks);
-
-    const calendarMonth: CalendarMonth = {
-      year,
-      month,
-      dailyPlans,
-      monthlySummary,
-    };
-
-    console.log('[CalendarService.ts][6014] › Monthly calendar generation completed with staggered session scheduling');
-    return calendarMonth;
+  return { plan: newPlan, planIndex: indexPlan(newPlan) };
+}
+  
+/**
+ * @method generateMonthlyCalendar
+ * @purpose
+ *   Produce one month of DailyStudyPlan using existing LS/RB/ILR behavior.
+ * @steps
+ *   1) Guard empty input → return createEmptyMonth(targetDate).
+ *   2) Build learning sets (Phase 1).
+ *   3) Generate staggered schedule (Phase 2 & 3).
+ *   4) Calculate monthly summary and return CalendarMonth.
+ */
+// update - 11
+public async generateMonthlyCalendar(
+  notebooks: NotebookMeta[],
+  config: ScheduleConfig,
+  targetDate: Date
+): Promise<CalendarMonth> {
+  if (!notebooks || notebooks.length === 0) {
+    return this.createEmptyMonth(targetDate);
   }
+
+  const year = targetDate.getFullYear();
+  const month = targetDate.getMonth();
+  const startDay = targetDate.getDate();
+
+  // 2) Phase 1
+  const learningSets = this.createLearningSets(notebooks, config);
+
+  // 3) Phase 2 & 3
+  const dailyPlans = this.generateStaggeredSchedule(
+    learningSets,
+    config,
+    year,
+    month,
+    startDay
+  );
+
+  // 4) Summary
+  const monthlySummary = this.calculateMonthlySummary(dailyPlans, notebooks);
+
+  return {
+    year,
+    month,
+    dailyPlans,
+    monthlySummary,
+  };
+}
+
 
   /**
    * Phase 1: Creates learning sets by grouping notebooks using ceiling division algorithm.
@@ -282,94 +366,106 @@ export class CalendarService {
    * Combines cyclical learning set assignment with sophisticated revision timing management,
    * implementing +1 day offsets for revision blocks and +3 day offsets for interleaved sessions.
    */
-  private generateStaggeredSchedule(
-    learningSets: LearningSet[],
-    config: ScheduleConfig,
-    year: number,
-    month: number
-  ): DailyStudyPlan[] {
-    console.log('[CalendarService.ts][6019] › Phase 2&3: Generating staggered schedule with', learningSets.length, 'learning sets');
-    
-    const dailyPlans: DailyStudyPlan[] = [];
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
-    // Step 1: Initialize comprehensive scheduling context for staggered session management
-    const schedulingContext: SessionSchedulingContext = {
-      completedLessons: new Map(),
-      lastRevisionDay: new Map(),
-      interleaveStartDay: new Map(),
-      lessonChunkSchedule: new Map(),
-      pendingRevisions: new Map(),
-      interleaveSchedule: new Map(),
-    };
 
-    // Step 2: Pre-populate scheduling context with notebook structures
-    learningSets.forEach(learningSet => {
-      learningSet.notebooks.forEach(notebook => {
-        schedulingContext.completedLessons.set(notebook.fileId, new Set());
-        schedulingContext.lastRevisionDay.set(notebook.fileId, new Map());
-        schedulingContext.lessonChunkSchedule.set(notebook.fileId, new Map());
-        schedulingContext.interleaveSchedule.set(notebook.fileId, []);
-      });
-    });
+private generateStaggeredSchedule(
+  learningSets: LearningSet[],
+  config: ScheduleConfig,
+  year: number,
+  month: number,
+  startDay: number = 1
+): DailyStudyPlan[] {
+  console.log('[CalendarService.ts][6019] › Phase 2&3: Generating staggered schedule with', learningSets.length, 'learning sets');
 
-    let studyDayCounter = 0;
-    
-    // Step 3: First pass - Schedule all block learning sessions and plan revision sequences
-    for (let day = 1; day <= daysInMonth; day++) {
-      const currentDate = new Date(year, month, day);
-      const dayOfWeek = currentDate.getDay();
-      
-      if (config.daysPerWeek.includes(dayOfWeek)) {
-        const learningSetIndex = studyDayCounter % learningSets.length;
-        const assignedLearningSet = learningSets[learningSetIndex];
-        
-        console.log('[CalendarService.ts][6020] › Day', day, 'processing learning set', assignedLearningSet.id);
-        
-        // Step 4: Schedule block learning sessions and plan staggered revisions
-        this.scheduleBlockLearningWithRevisions(
-          assignedLearningSet,
-          studyDayCounter,
-          day,
-          config,
-          schedulingContext
-        );
-        
-        studyDayCounter++;
-      }
+  const dailyPlans: DailyStudyPlan[] = [];
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // ── 1) Build scheduling context with global notebook lookup + counters
+  const context: SessionSchedulingContext = {
+    completedLessons: new Map(),
+    lastRevisionDay: new Map(),
+    interleaveStartDay: new Map(),
+    lessonChunkSchedule: new Map(),
+    pendingRevisions: new Map(),
+    interleaveSchedule: new Map(),
+
+    // NEW
+    perNotebookLbCount: new Map(),
+    notebookById: new Map(),
+  };
+
+  // ── 2) Preload context maps for every notebook across all learning sets
+  for (const set of learningSets) {
+    for (const nb of set.notebooks) {
+      context.completedLessons.set(nb.fileId, new Set());
+      context.lastRevisionDay.set(nb.fileId, new Map());
+      context.lessonChunkSchedule.set(nb.fileId, new Map());
+      context.interleaveSchedule.set(nb.fileId, []);
+      context.perNotebookLbCount.set(nb.fileId, 0); // NEW
+      context.notebookById.set(nb.fileId, nb);      // NEW
     }
-
-    console.log('[CalendarService.ts][6021] › Completed block learning scheduling, processing', schedulingContext.pendingRevisions.size, 'revision days');
-
-    studyDayCounter = 0;
-
-    // Step 5: Second pass - Create daily plans with all session types
-    for (let day = 1; day <= daysInMonth; day++) {
-      const currentDate = new Date(year, month, day);
-      const dayOfWeek = currentDate.getDay();
-      
-      if (config.daysPerWeek.includes(dayOfWeek)) {
-        const learningSetIndex = studyDayCounter % learningSets.length;
-        const assignedLearningSet = learningSets[learningSetIndex];
-        
-        // Step 6: Create comprehensive daily plan with all session types
-        const dailyPlan = this.createStaggeredDailyPlan(
-          currentDate,
-          assignedLearningSet,
-          config,
-          studyDayCounter,
-          day,
-          schedulingContext
-        );
-        
-        dailyPlans.push(dailyPlan);
-        studyDayCounter++;
-      }
-    }
-    
-    console.log('[CalendarService.ts][6022] › Phase 2&3 complete: Generated', dailyPlans.length, 'daily plans with staggered scheduling');
-    return dailyPlans;
   }
+
+  let studyDayCounter = 0;
+  const isSingleSetMode = learningSets.length < 2;
+
+  // ── 3) First pass: schedule LBs (and enqueue RB/ILR windows) day-by-day
+  for (let day = startDay; day <= daysInMonth; day++) {
+    const currentDate = new Date(year, month, day);
+    const dow = currentDate.getDay();
+
+    // 3.1 Respect allowed weekdays
+    if (!config.daysPerWeek.includes(dow)) continue;
+
+    // 3.2 Choose set by cycle (okay even in single-set)
+    const learningSetIndex = studyDayCounter % learningSets.length;
+    const assignedSet = learningSets[learningSetIndex];
+
+    // 3.3 SINGLE-SET SPACING:
+    //     If there's effectively one set, we alternate LB days and RB-only days.
+    //     - Even studyDayCounter: LB day (schedule blocks)
+    //     - Odd  studyDayCounter: RB-only day (do not schedule new LBs)
+    const isRbOnlyDay = isSingleSetMode && (studyDayCounter % 2 === 1);
+
+    if (!isRbOnlyDay) {
+      // 3.4 Schedule block LBs for this set; enqueue RBs(+1) and ILR(+3 after last RB)
+      this.scheduleBlockLearningWithRevisions(
+        assignedSet,
+        studyDayCounter,
+        day,
+        config,
+        context
+      );
+    }
+
+    studyDayCounter++;
+  }
+
+  // ── 4) Second pass: materialize day objects (LBs + all pending RBs/ILRs)
+  studyDayCounter = 0;
+  for (let day = startDay; day <= daysInMonth; day++) {
+    const currentDate = new Date(year, month, day);
+    const dow = currentDate.getDay();
+    if (!config.daysPerWeek.includes(dow)) continue;
+
+    const learningSetIndex = studyDayCounter % learningSets.length;
+    const assignedSet = learningSets[learningSetIndex];
+
+    const dailyPlan = this.createStaggeredDailyPlan(
+      currentDate,
+      assignedSet,
+      config,
+      studyDayCounter,
+      day,
+      context
+    );
+
+    dailyPlans.push(dailyPlan);
+    studyDayCounter++;
+  }
+
+  return dailyPlans;
+}
+
 
 /**
  * Schedules block learning sessions and plans corresponding revision sequences with proper timing offsets.
@@ -385,82 +481,83 @@ private scheduleBlockLearningWithRevisions(
 ): void {
   console.log('[CalendarService.ts][6023] › Scheduling block learning and revisions for day', currentDay, 'study index', studyDayIndex);
 
-  learningSet.notebooks.forEach(notebook => {
+  // Step 1: For each notebook in the set, determine its next chunk via per-notebook LB count
+  for (const notebook of learningSet.notebooks) {
     const sessionChunks = chunkLessonUnits(notebook.lessonUnits, config.unitsPerBlockSession);
     const notebookSchedule = context.lessonChunkSchedule.get(notebook.fileId)!;
     const revisionSchedule = context.lastRevisionDay.get(notebook.fileId)!;
-    
-    // Step 1: Determine which chunk should be scheduled for this study day
-    // Fixed: Remove undefined variable reference
-    const notebookLearningDayIndex = Math.floor(studyDayIndex / learningSet.notebooks.length);
-    
-    if (notebookLearningDayIndex < sessionChunks.length) {
-      const chunkIndex = notebookLearningDayIndex;
-      const targetChunk = sessionChunks[chunkIndex];
-      
-      console.log('[CalendarService.ts][6024] › Scheduling chunk', chunkIndex, 'for notebook', notebook.fileName, 'on day', currentDay);
-      
-      // Step 2: Record block learning session scheduling
-      notebookSchedule.set(chunkIndex, currentDay);
-      
-      // Step 3: Schedule revision blocks with +1 day offsets
-      for (let revisionIndex = 0; revisionIndex < config.revisionsPerLesson; revisionIndex++) {
-        const revisionDay = currentDay + 1 + revisionIndex;
-        
-        // Step 4: Create pending revision entry
-        if (!context.pendingRevisions.has(revisionDay)) {
-          context.pendingRevisions.set(revisionDay, []);
-        }
-        
-        context.pendingRevisions.get(revisionDay)!.push({
-          notebookId: notebook.fileId,
-          chunkIndex,
-          revisionIndex,
-          sessionType: 'revision-block',
-          targetDay: revisionDay,
-          lessonUnits: targetChunk,
-        });
-        
-        // Step 5: Track last revision day for interleaved scheduling
-        revisionSchedule.set(chunkIndex, revisionDay);
-        
-        console.log('[CalendarService.ts][6025] › Scheduled revision', revisionIndex, 'for chunk', chunkIndex, 'on day', revisionDay);
+
+    // 1.1 Determine next chunk index for this notebook:
+    //     Use the per-notebook LB progression counter (decoupled from set size)
+    const lbCount = context.perNotebookLbCount.get(notebook.fileId) ?? 0;
+    const chunkIndex = lbCount;
+
+    // 1.2 Stop if we’ve exhausted all chunks for this notebook
+    if (chunkIndex >= sessionChunks.length) continue;
+
+    const targetChunk = sessionChunks[chunkIndex];
+
+    // Step 2: Record that this chunk is learned today
+    notebookSchedule.set(chunkIndex, currentDay);
+    context.perNotebookLbCount.set(notebook.fileId, lbCount + 1);
+
+    console.log('[CalendarService.ts][6024] › Scheduling chunk', chunkIndex, 'for notebook', notebook.fileName, 'on day', currentDay);
+
+    // Step 3: Enqueue RBs at day+1, day+2, ... depending on revisionsPerLesson
+    for (let revisionIndex = 0; revisionIndex < config.revisionsPerLesson; revisionIndex++) {
+      const revisionDay = currentDay + 1 + revisionIndex;
+
+      if (!context.pendingRevisions.has(revisionDay)) {
+        context.pendingRevisions.set(revisionDay, []);
       }
-      
-      // Step 6: Check for lesson completion and schedule interleaved sessions
-      if (chunkIndex === sessionChunks.length - 1) {
-        const lastRevisionDay = Math.max(...Array.from(revisionSchedule.values()));
-        const interleaveStartDay = lastRevisionDay + 3;
-        
-        context.interleaveStartDay.set(notebook.fileId, interleaveStartDay);
-        
-        // Step 7: Schedule interleaved sessions (3 * number of lessons in notebook)
-        const interleaveCount = sessionChunks.length * 3;
-        const interleaveSchedule = context.interleaveSchedule.get(notebook.fileId)!;
-        
-        for (let i = 0; i < interleaveCount; i++) {
-          const interleaveDay = interleaveStartDay + (i * 3);
-          interleaveSchedule.push(interleaveDay);
-          
-          // Step 8: Schedule interleaved revision sessions
-          if (!context.pendingRevisions.has(interleaveDay)) {
-            context.pendingRevisions.set(interleaveDay, []);
-          }
-          
-          context.pendingRevisions.get(interleaveDay)!.push({
-            notebookId: notebook.fileId,
-            chunkIndex: -1, // Special marker for interleaved sessions
-            revisionIndex: i,
-            sessionType: 'revision-interleaved',
-            targetDay: interleaveDay,
-            lessonUnits: [], // Will use all notebook lessons
-          });
-          
-          console.log('[CalendarService.ts][6026] › Scheduled interleaved session', i, 'for notebook', notebook.fileName, 'on day', interleaveDay);
+
+      context.pendingRevisions.get(revisionDay)!.push({
+        notebookId: notebook.fileId,
+        chunkIndex,
+        revisionIndex,
+        sessionType: 'revision-block',
+        targetDay: revisionDay,
+        lessonUnits: targetChunk, // exact LB units carried forward
+      });
+
+      // Track the last RB day for this chunk (used to anchor ILR later)
+      revisionSchedule.set(chunkIndex, revisionDay);
+
+      console.log('[CalendarService.ts][6025] › Scheduled revision', revisionIndex, 'for chunk', chunkIndex, 'on day', revisionDay);
+    }
+
+    // Step 4: If this was the final chunk, schedule ILR starting +3 days after the last RB
+    if (chunkIndex === sessionChunks.length - 1) {
+      // 4.1 Compute last RB day over all chunks in this notebook
+      const lastRevisionDay = Math.max(...Array.from(revisionSchedule.values()));
+      const interleaveStartDay = lastRevisionDay + 3;
+      context.interleaveStartDay.set(notebook.fileId, interleaveStartDay);
+
+      // 4.2 Count = 3 × number of chunks (existing rule)
+      const interleaveCount = sessionChunks.length * 3;
+      const ilrDays = context.interleaveSchedule.get(notebook.fileId)!;
+
+      for (let i = 0; i < interleaveCount; i++) {
+        const interleaveDay = interleaveStartDay + (i * 3);
+        ilrDays.push(interleaveDay);
+
+        if (!context.pendingRevisions.has(interleaveDay)) {
+          context.pendingRevisions.set(interleaveDay, []);
         }
+
+        context.pendingRevisions.get(interleaveDay)!.push({
+          notebookId: notebook.fileId,
+          chunkIndex: -1, // sentinel for ILR
+          revisionIndex: i,
+          sessionType: 'revision-interleaved',
+          targetDay: interleaveDay,
+          lessonUnits: [], // ILR uses all notebook lessons in the session creator
+        });
+
+        console.log('[CalendarService.ts][6026] › Scheduled interleaved session', i, 'for notebook', notebook.fileName, 'on day', interleaveDay);
       }
     }
-  });
+  }
 }
 
 /**
@@ -477,84 +574,88 @@ private createStaggeredDailyPlan(
   context: SessionSchedulingContext
 ): DailyStudyPlan {
   console.log('[CalendarService.ts][6027] › Creating staggered daily plan for', date.toDateString(), 'day', currentDay);
-  
+
   const sessions: StudySession[] = [];
   let totalDuration = 0;
   const subjectSummary: any = {};
-  
-  // Step 1: Add block learning sessions for current learning set
+
+  // Step 1: Add LBs that are scheduled for today (unchanged behavior)
   learningSet.notebooks.forEach((notebook, notebookIndex) => {
     const sessionChunks = chunkLessonUnits(notebook.lessonUnits, config.unitsPerBlockSession);
     const notebookSchedule = context.lessonChunkSchedule.get(notebook.fileId)!;
-    
-    // Step 2: Check if this notebook has a block learning session scheduled for today
+
     for (const [chunkIndex, scheduledDay] of notebookSchedule.entries()) {
       if (scheduledDay === currentDay) {
         const targetChunk = sessionChunks[chunkIndex];
-        
+
         const session = this.createBlockSession(
           notebook,
           targetChunk,
           date,
           `block-${notebook.fileId}-${chunkIndex}-${currentDay}`
         );
-        
+
         session.timeSlot = config.preferredTimeSlots[notebookIndex % config.preferredTimeSlots.length];
         sessions.push(session);
         totalDuration += session.metadata.estimatedDuration;
-        
+
         this.updateSubjectSummary(subjectSummary, notebook, 1, targetChunk.length, notebookIndex);
-        
         console.log('[CalendarService.ts][6028] › Added block learning session for', notebook.fileName, 'chunk', chunkIndex);
         break;
       }
     }
   });
-  
-  // Step 3: Add pending revision sessions for current day
+
+  // Step 2: Add ALL pending revisions for today (UNSCOPED to the active learning set)
   const pendingRevisions = context.pendingRevisions.get(currentDay) || [];
   let revisionSessionCount = 0;
-  
-  pendingRevisions.forEach(revision => {
-    // Fixed: Correct notebook lookup logic
-    const notebook = this.findNotebookInLearningSet(learningSet, revision.notebookId);
-    
-    if (notebook) {
-      let session: StudySession;
-      
-      if (revision.sessionType === 'revision-interleaved') {
-        // Step 4: Create interleaved revision session using all notebook lessons
-        session = this.createInterleavedRevisionSession(
-          notebook,
-          date,
-          `interleaved-${revision.notebookId}-${revision.revisionIndex}-${currentDay}`
-        );
-      } else {
-        // Step 5: Create block revision session for specific lesson chunk
-        session = this.createRevisionBlockSession(
-          notebook,
-          revision.lessonUnits,
-          date,
-          `revision-${revision.notebookId}-${revision.chunkIndex}-${revision.revisionIndex}-${currentDay}`
-        );
-      }
-      
-      // Step 6: Assign time slot offset for revision sessions
-      const baseTimeSlotIndex = sessions.length % config.preferredTimeSlots.length;
-      session.timeSlot = config.preferredTimeSlots[baseTimeSlotIndex];
-      
-      sessions.push(session);
-      totalDuration += session.metadata.estimatedDuration;
-      
-      this.updateSubjectSummary(subjectSummary, notebook, 1, revision.lessonUnits.length, revisionSessionCount);
-      revisionSessionCount++;
-      
-      console.log('[CalendarService.ts][6029] › Added', revision.sessionType, 'session for', notebook.fileName);
+
+  for (const revision of pendingRevisions) {
+    // 2.1 Resolve notebook meta globally (do not restrict to today's set)
+    const notebook = context.notebookById.get(revision.notebookId);
+    if (!notebook) continue;
+
+    let session: StudySession;
+
+    // 2.2 Create the correct session type
+    if (revision.sessionType === 'revision-interleaved') {
+      session = this.createInterleavedRevisionSession(
+        notebook,
+        date,
+        `interleaved-${revision.notebookId}-${revision.revisionIndex}-${currentDay}`
+      );
+    } else {
+      session = this.createRevisionBlockSession(
+        notebook,
+        revision.lessonUnits, // exact LB units
+        date,
+        `revision-${revision.notebookId}-${revision.chunkIndex}-${revision.revisionIndex}-${currentDay}`
+      );
     }
-  });
-  
+
+    // 2.3 Assign a time slot that follows after the LBs added above
+    const baseTimeSlotIndex = sessions.length % config.preferredTimeSlots.length;
+    session.timeSlot = config.preferredTimeSlots[baseTimeSlotIndex];
+
+    // 2.4 Aggregate
+    sessions.push(session);
+    totalDuration += session.metadata.estimatedDuration;
+
+    // Note: For ILR we pass unitCount based on session internals; here we use lessonUnits length for RBs
+    this.updateSubjectSummary(
+      subjectSummary,
+      notebook,
+      1,
+      revision.lessonUnits.length,
+      revisionSessionCount
+    );
+
+    revisionSessionCount++;
+    console.log('[CalendarService.ts][6029] › Added', revision.sessionType, 'session for', notebook.fileName);
+  }
+
   console.log('[CalendarService.ts][6030] › Created daily plan with', sessions.length, 'total sessions, duration:', totalDuration, 'minutes');
-  
+
   return {
     date: new Date(date),
     sessions,
@@ -563,6 +664,7 @@ private createStaggeredDailyPlan(
     completedSessions: [],
   };
 }
+
 
   /**
    * Creates a block-style study session for initial learning of lesson unit content.

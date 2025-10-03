@@ -155,6 +155,11 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
 
   /* ────────────────────── Slideshow & flashcards ───────────────────────── */
   const handleViewAllSlides = () => openCustom(UnitOrderSlides);
+  const handleReviewUnit = () => {
+    // Show cue cards and quizzes only
+    const assessmentSlides = UnitOrderSlides.filter(card => card.type !== 'note');
+    openCustom(assessmentSlides);
+  }
   const handleViewFlashCards = () => {
     const reviewInfo = getReviewNode();
     const reviewId = reviewInfo.exist ? reviewInfo.id : null;
@@ -331,7 +336,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
             isOpen
             onClose={closeReviewModal}
             onSelectInterleaved={handleInterleavedReview}
-            onSelectUnit={() => console.log('[CanvasView.tsx][3012] › Unit review selected')}
+            onSelectUnit={handleReviewUnit}
           />,
           document.body
         )}

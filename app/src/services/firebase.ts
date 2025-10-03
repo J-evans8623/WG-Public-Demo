@@ -21,7 +21,7 @@
 import admin from 'firebase-admin';
 import { publishRevokeAllNonOwner, publishRevokeUser } from '../utils/revocationBus';
 import { UserFileMetadata } from '../types/fileTypes';
-import { CalendarData,} from '@/app/Library/Definitions/CalendarDefinitions';
+import { CalendarData, StudySession,} from '@/app/Library/Definitions/CalendarDefinitions';
 import {readAclSnapshot as cacheReadAclSnapshot,   
   readRole as cacheReadRole,               
   bumpAclVersion } from './redisCache/aclCache';
@@ -75,6 +75,45 @@ export interface FirebaseService {
   storeRefreshToken(userId: string, refreshToken: string): Promise<void>;
   getRefreshToken(userId: string): Promise<string | null>;
 }
+
+
+
+/**
+ * @function ensureDate
+ * @purpose
+ *   Normalize any input (Date | string | number | Timestamp-like) to a Date.
+ * @steps
+ *   1) If Date → return.
+ *   2) If Firestore Timestamp-like → call .toDate().
+ *   3) If string/number → new Date(), with NaN guard.
+ *   4) Fallback → new Date() (now).
+ */
+function ensureDate(v: unknown): Date { // update - 3
+  if (v instanceof Date) return v;
+  if (v && typeof (v as any).toDate === 'function') return (v as any).toDate();
+  if (typeof v === 'string' || typeof v === 'number') {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? new Date() : d;
+  }
+  return new Date();
+}
+
+/**
+ * @function ts
+ * @purpose Convert any date-like value to Firestore Timestamp via ensureDate.
+ */
+const ts = (v: unknown) => admin.firestore.Timestamp.fromDate(ensureDate(v));
+
+/**
+ * @function toDate
+ * @purpose Convert Timestamp/number/string → Date safely.
+ */
+const toDate = (v: any): Date => { // update - 1
+  if (!v) return new Date();
+  if (v instanceof Date) return v;
+  if (v?.toDate) return v.toDate();
+  return new Date(v);
+};
 
 /**
  * FirestoreFirebaseService implements FirebaseService using Firestore.
@@ -963,192 +1002,175 @@ export async function getLatestFileIdentifiers(docId: string): Promise<{
 
 
 /**
- * Stores enhanced user calendar data in Firestore with complete structure support.
- * Handles CalendarMonth serialization, enhanced ScheduleConfig, and session completion
- * tracking while maintaining proper timestamp management and version control.
+ * @function storeCalendarData
+ * @responsibility
+ *   Persist only the canonical calendar envelope to Firestore:
+ *   { selectedNotebooks, scheduleConfig, completedSessions, lastUpdated, version, plan, planIndex }.
+ * @steps
+ *   1) Resolve the canonical doc: users/{uid}/calendar/current
+ *   2) Build a wire payload converting all Date-like values → Firestore Timestamps
+ *      - scheduleConfig.startDate
+ *      - plan.days[*].date
+ *      - plan.days[*].sessions[*].date
+ *      - plan.days[*].sessions[*].notebookMeta.lastUpdated
+ *   3) set(..., { merge: true }) to avoid clobbering future fields
  */
-export async function storeCalendarData(
-  userId: string, 
-  calendarData: CalendarData
-): Promise<void> {
-  console.log('[firebase.ts][9101] › Storing enhanced calendar data for user:', userId);
-  
-  try {
-    const docRef = firestore.collection('users').doc(userId).collection('calendar').doc('current');
-    
-    // Step 1: Serialize enhanced calendar data with proper timestamp handling for complex structures
-    const serializedData = {
-      selectedNotebooks: calendarData.selectedNotebooks,
-      scheduleConfig: {
-        unitsPerBlockSession: calendarData.scheduleConfig.unitsPerBlockSession,
-        revisionsPerLesson: calendarData.scheduleConfig.revisionsPerLesson,
-        startDate: admin.firestore.Timestamp.fromDate(calendarData.scheduleConfig.startDate),
-        daysPerWeek: calendarData.scheduleConfig.daysPerWeek,
-        // Step 2: Serialize enhanced configuration fields
-        subjectsPerDay: calendarData.scheduleConfig.subjectsPerDay,
-        preferredTimeSlots: calendarData.scheduleConfig.preferredTimeSlots,
-        maxSessionsPerDay: calendarData.scheduleConfig.maxSessionsPerDay,
-      },
-      // Step 3: Serialize CalendarMonth with nested DailyStudyPlan structures
-      currentMonth: calendarData.currentMonth ? {
-        year: calendarData.currentMonth.year,
-        month: calendarData.currentMonth.month,
-        dailyPlans: calendarData.currentMonth.dailyPlans.map(plan => ({
-          date: admin.firestore.Timestamp.fromDate(plan.date),
-          sessions: plan.sessions.map(session => ({
-            id: session.id,
-            date: admin.firestore.Timestamp.fromDate(session.date),
-            notebookMeta: {
-              fileId: session.notebookMeta.fileId,
-              filePath: session.notebookMeta.filePath,
-              fileName: session.notebookMeta.fileName,
-              lessonUnits: session.notebookMeta.lessonUnits,
-              lastUpdated: admin.firestore.Timestamp.fromDate(session.notebookMeta.lastUpdated),
-              version: session.notebookMeta.version,
-              color: session.notebookMeta.color,
-            },
-            targetLessonUnits: session.targetLessonUnits,
-            type: session.type,
-            sessionConfig: session.sessionConfig,
-            metadata: session.metadata,
-            timeSlot: session.timeSlot,
+// update - 3
+export async function storeCalendarData(uid: string, data: CalendarData): Promise<void> {
+  const ref = firestore.collection('users').doc(uid).collection('calendar').doc('current');
+
+  const wire = {
+    selectedNotebooks: data.selectedNotebooks ?? [],
+    scheduleConfig: data.scheduleConfig
+      ? {
+          ...data.scheduleConfig,
+          startDate: ts(data.scheduleConfig.startDate),
+        }
+      : null,
+    completedSessions: data.completedSessions ?? [],
+    lastUpdated: ts(data.lastUpdated ?? new Date()),
+    version: data.version ?? '2.0',
+
+    plan: data.plan
+      ? {
+          ...data.plan,
+          days: data.plan.days.map(d => ({
+            ...d,
+            // (PlanDay.date may be string|Date|Timestamp → normalize)
+            date: ts(d.date as any),
+            sessions: d.sessions.map((s: StudySession) => ({
+              ...s,
+              date: ts(s.date as any),
+              notebookMeta: {
+                ...s.notebookMeta,
+                lastUpdated: ts(s.notebookMeta.lastUpdated as any),
+              },
+            })),
           })),
-          subjectSummary: plan.subjectSummary,
-          totalDuration: plan.totalDuration,
-          completedSessions: plan.completedSessions,
-        })),
-        monthlySummary: calendarData.currentMonth.monthlySummary,
-      } : null,
-      // Step 4: Handle session completion tracking
-      completedSessions: calendarData.completedSessions,
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-      version: calendarData.version,
-    };
-    
-    await docRef.set(serializedData);
-    console.log('[firebase.ts][9102] › Enhanced calendar data stored successfully with monthly structure');
-    
-  } catch (error) {
-    console.error('[firebase.ts][9103] › Error storing enhanced calendar data:', error);
-    throw new Error('Failed to store enhanced calendar data');
-  }
+        }
+      : null,
+
+    // Index is a plain object map (string → number); store as-is
+    planIndex: data.planIndex ?? {},
+  };
+
+  await ref.set(wire, { merge: true });
+  console.log('[firebase.ts][3201] › storeCalendarData ok', {
+    uid,
+    days: data.plan?.days.length ?? 0,
+    indexKeys: Object.keys(data.planIndex ?? {}).length,
+  });
 }
 
 /**
- * Loads enhanced user calendar data from Firestore with proper deserialization.
- * Reconstructs CalendarMonth structures, enhanced ScheduleConfig, and session completion
- * tracking while handling version compatibility and providing comprehensive defaults.
+ * @function loadCalendarData
+ * @responsibility
+ *   Load the plan-based envelope from Firestore and rehydrate Date fields.
+ * @returns CalendarData | null when not found.
+ * @steps
+ *   1) Resolve users/{uid}/calendar/current
+ *   2) If missing → return null
+ *   3) Normalize scalars (selectedNotebooks, completedSessions, version)
+ *   4) Rehydrate scheduleConfig.startDate, plan.days[*].date, session dates, and notebookMeta.lastUpdated
+ *   5) Return the canonical CalendarData object
  */
-export async function loadCalendarData(userId: string): Promise<CalendarData | null> {
-  console.log('[firebase.ts][9104] › Loading enhanced calendar data for user:', userId);
-  
-  try {
-    const docRef = firestore.collection('users').doc(userId).collection('calendar').doc('current');
-    const snapshot = await docRef.get();
-    
-    if (!snapshot.exists) {
-      console.log('[firebase.ts][9105] › No calendar data found for user:', userId);
-      return null;
-    }
-    
-    const data = snapshot.data() as any;
-    
-    // Step 1: Deserialize enhanced calendar data with comprehensive date reconstruction
-    const deserializedData: CalendarData = {
-      selectedNotebooks: data.selectedNotebooks || [],
-      scheduleConfig: {
-        unitsPerBlockSession: data.scheduleConfig?.unitsPerBlockSession || 3,
-        revisionsPerLesson: data.scheduleConfig?.revisionsPerLesson || 2,
-        startDate: data.scheduleConfig?.startDate instanceof admin.firestore.Timestamp 
-          ? data.scheduleConfig.startDate.toDate()
-          : new Date(data.scheduleConfig?.startDate || Date.now()),
-        daysPerWeek: data.scheduleConfig?.daysPerWeek || [1, 2, 3, 4, 5],
-        // Step 2: Deserialize enhanced configuration fields with defaults
-        subjectsPerDay: data.scheduleConfig?.subjectsPerDay || 3,
-        preferredTimeSlots: data.scheduleConfig?.preferredTimeSlots || ['morning', 'afternoon', 'evening'],
-        maxSessionsPerDay: data.scheduleConfig?.maxSessionsPerDay || 6,
-      },
-      // Step 3: Deserialize CalendarMonth with nested DailyStudyPlan structures
-      currentMonth: data.currentMonth ? {
-        year: data.currentMonth.year,
-        month: data.currentMonth.month,
-        dailyPlans: (data.currentMonth.dailyPlans || []).map((plan: any) => ({
-          date: plan.date instanceof admin.firestore.Timestamp 
-            ? plan.date.toDate()
-            : new Date(plan.date),
-          sessions: (plan.sessions || []).map((session: any) => ({
-            id: session.id,
-            date: session.date instanceof admin.firestore.Timestamp
-              ? session.date.toDate()
-              : new Date(session.date),
-            notebookMeta: {
-              fileId: session.notebookMeta.fileId,
-              filePath: session.notebookMeta.filePath,
-              fileName: session.notebookMeta.fileName,
-              lessonUnits: session.notebookMeta.lessonUnits || [],
-              lastUpdated: session.notebookMeta.lastUpdated instanceof admin.firestore.Timestamp
-                ? session.notebookMeta.lastUpdated.toDate()
-                : new Date(session.notebookMeta.lastUpdated),
-              version: session.notebookMeta.version,
-              color: session.notebookMeta.color,
-            },
-            targetLessonUnits: session.targetLessonUnits || [],
-            type: session.type,
-            sessionConfig: session.sessionConfig || { unitCount: 0 },
-            metadata: session.metadata || { 
-              sessionTitle: '', 
-              estimatedDuration: 0, 
-              topicTitles: [] 
-            },
-            timeSlot: session.timeSlot,
-          })),
-          subjectSummary: plan.subjectSummary || {},
-          totalDuration: plan.totalDuration || 0,
-          completedSessions: plan.completedSessions || [],
-        })),
-        monthlySummary: data.currentMonth.monthlySummary || {
-          totalSessions: 0,
-          totalStudyTime: 0,
-          activeNotebooks: [],
-          completionRate: 0,
-        },
-      } : null,
-      // Step 4: Handle session completion tracking deserialization
-      completedSessions: data.completedSessions || [],
-      lastUpdated: data.lastUpdated instanceof admin.firestore.Timestamp
-        ? data.lastUpdated.toDate()
-        : new Date(data.lastUpdated || Date.now()),
-      version: data.version || '2.0',
-    };
-    
-    console.log('[firebase.ts][9106] › Enhanced calendar data loaded successfully, currentMonth exists:', !!deserializedData.currentMonth);
-    return deserializedData;
-    
-  } catch (error) {
-    console.error('[firebase.ts][9107] › Error loading enhanced calendar data:', error);
+// update - 3
+export async function loadCalendarData(uid: string): Promise<CalendarData | null> {
+  const ref = firestore.collection('users').doc(uid).collection('calendar').doc('current');
+  const snap = await ref.get();
+  if (!snap.exists) {
+    console.log('[firebase.ts][3211] › loadCalendarData: no document', { uid });
     return null;
   }
+
+  const raw = snap.data() ?? {};
+
+  // 3) Scalars
+  const selectedNotebooks = Array.isArray(raw.selectedNotebooks) ? raw.selectedNotebooks : [];
+  const completedSessions = Array.isArray(raw.completedSessions) ? raw.completedSessions : [];
+  const version = typeof raw.version === 'string' ? raw.version : '2.0';
+
+  // 4) scheduleConfig
+  const sc = raw.scheduleConfig ?? null;
+  const scheduleConfig = sc
+    ? {
+        ...sc,
+        startDate: toDate(sc.startDate),
+      }
+    : null;
+
+  // 4) plan (rehydrate nested dates)
+  const planRaw = raw.plan ?? null;
+  const plan = planRaw
+    ? {
+        ...planRaw,
+        days: Array.isArray(planRaw.days)
+          ? planRaw.days.map((d: any) => ({
+              ...d,
+              date: toDate(d.date),
+              sessions: Array.isArray(d.sessions)
+                ? d.sessions.map((s: any) => ({
+                    ...s,
+                    date: toDate(s.date),
+                    notebookMeta: {
+                      ...s.notebookMeta,
+                      lastUpdated: toDate(s.notebookMeta?.lastUpdated),
+                    },
+                  }))
+                : [],
+            }))
+          : [],
+      }
+    : null;
+
+  // 4) index
+  const planIndex = (raw.planIndex && typeof raw.planIndex === 'object') ? raw.planIndex : {};
+
+  const lastUpdated = toDate(raw.lastUpdated ?? new Date());
+
+  const out: CalendarData = {
+    selectedNotebooks,
+    scheduleConfig: scheduleConfig ?? {
+      unitsPerBlockSession: 3,
+      revisionsPerLesson: 2,
+      startDate: new Date(),
+      daysPerWeek: [1, 2, 3, 4, 5],
+      subjectsPerDay: 3,
+      preferredTimeSlots: ['morning', 'afternoon', 'evening'],
+      maxSessionsPerDay: 6,
+    },
+    completedSessions,
+    lastUpdated,
+    version,
+    plan,
+    planIndex,
+  };
+
+  console.log('[firebase.ts][3212] › loadCalendarData ok', {
+    uid,
+    days: out.plan?.days.length ?? 0,
+    indexKeys: Object.keys(out.planIndex ?? {}).length,
+  });
+
+  return out;
 }
 
 /**
- * Clears all enhanced calendar data for a user from Firestore including monthly structures.
- * Provides comprehensive reset functionality while maintaining user document structure
- * and ensuring proper cleanup of complex calendar configurations and monthly data.
+ * @function clearCalendarData
+ * @responsibility
+ *   Remove the persisted calendar envelope for a user.
+ * @steps
+ *   1) Resolve users/{uid}/calendar/current
+ *   2) Delete the document
+ *   3) Log a concise confirmation
  */
-export async function clearCalendarData(userId: string): Promise<void> {
-  console.log('[firebase.ts][9108] › Clearing enhanced calendar data for user:', userId);
-  
-  try {
-    const docRef = firestore.collection('users').doc(userId).collection('calendar').doc('current');
-    await docRef.delete();
-    
-    console.log('[firebase.ts][9109] › Enhanced calendar data cleared successfully');
-    
-  } catch (error) {
-    console.error('[firebase.ts][9110] › Error clearing enhanced calendar data:', error);
-    throw new Error('Failed to clear enhanced calendar data');
-  }
+// update - 3
+export async function clearCalendarData(uid: string): Promise<void> {
+  const ref = firestore.collection('users').doc(uid).collection('calendar').doc('current');
+  await ref.delete();
+  console.log('[firebase.ts][3221] › clearCalendarData ok', { uid });
 }
+
 
 /**
  * update - 18
@@ -1166,86 +1188,3 @@ export async function readDocBytesById(docId: string): Promise<Uint8Array> { // 
   return new Uint8Array(buf);                                                // update - 18
 }
 
-/**
- * Updates specific fields in enhanced user calendar data without overwriting the entire document.
- * Handles partial updates for CalendarMonth structures, enhanced configuration changes,
- * and session completion updates while preserving complex nested data integrity.
- */
-export async function updateCalendarData(
-  userId: string, 
-  updates: Partial<CalendarData>
-): Promise<void> {
-  console.log('[firebase.ts][9111] › Updating enhanced calendar data for user:', userId);
-  
-  try {
-    const docRef = firestore.collection('users').doc(userId).collection('calendar').doc('current');
-    
-    const updateData: any = {
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-    };
-    
-    // Step 1: Handle selectedNotebooks updates
-    if (updates.selectedNotebooks) {
-      updateData.selectedNotebooks = updates.selectedNotebooks;
-    }
-    
-    // Step 2: Handle enhanced scheduleConfig updates with proper serialization
-    if (updates.scheduleConfig) {
-      updateData.scheduleConfig = {
-        unitsPerBlockSession: updates.scheduleConfig.unitsPerBlockSession,
-        revisionsPerLesson: updates.scheduleConfig.revisionsPerLesson,
-        startDate: updates.scheduleConfig.startDate instanceof Date
-          ? admin.firestore.Timestamp.fromDate(updates.scheduleConfig.startDate)
-          : admin.firestore.Timestamp.fromDate(new Date(updates.scheduleConfig.startDate)),
-        daysPerWeek: updates.scheduleConfig.daysPerWeek,
-        subjectsPerDay: updates.scheduleConfig.subjectsPerDay,
-        preferredTimeSlots: updates.scheduleConfig.preferredTimeSlots,
-        maxSessionsPerDay: updates.scheduleConfig.maxSessionsPerDay,
-      };
-    }
-    
-    // Step 3: Handle CalendarMonth updates with nested structure serialization
-    if (updates.currentMonth !== undefined) {
-      if (updates.currentMonth === null) {
-        updateData.currentMonth = null;
-      } else {
-        updateData.currentMonth = {
-          year: updates.currentMonth.year,
-          month: updates.currentMonth.month,
-          dailyPlans: updates.currentMonth.dailyPlans.map(plan => ({
-            date: admin.firestore.Timestamp.fromDate(plan.date),
-            sessions: plan.sessions.map(session => ({
-              ...session,
-              date: admin.firestore.Timestamp.fromDate(session.date),
-              notebookMeta: {
-                ...session.notebookMeta,
-                lastUpdated: admin.firestore.Timestamp.fromDate(session.notebookMeta.lastUpdated),
-              },
-            })),
-            subjectSummary: plan.subjectSummary,
-            totalDuration: plan.totalDuration,
-            completedSessions: plan.completedSessions,
-          })),
-          monthlySummary: updates.currentMonth.monthlySummary,
-        };
-      }
-    }
-    
-    // Step 4: Handle session completion tracking updates
-    if (updates.completedSessions) {
-      updateData.completedSessions = updates.completedSessions;
-    }
-    
-    // Step 5: Handle version updates
-    if (updates.version) {
-      updateData.version = updates.version;
-    }
-    
-    await docRef.update(updateData);
-    console.log('[firebase.ts][9112] › Enhanced calendar data updated successfully');
-    
-  } catch (error) {
-    console.error('[firebase.ts][9113] › Error updating enhanced calendar data:', error);
-    throw new Error('Failed to update enhanced calendar data');
-  }
-}

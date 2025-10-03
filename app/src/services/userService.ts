@@ -36,6 +36,8 @@ import {
   cacheReadUserUsage,
   bumpUserVersion,
 } from './redisCache/userCache';
+import { computeLessonLimitState } from './redisCache/rateLogic';
+
 
 // Step 1: Core type definitions (preserved from original)
 export type AccountType = 'scholar' | 'educator';
@@ -513,13 +515,15 @@ static async updateSubscriptionTier(
       this.getUserUsage(normalizedEmail)
     ]);
     
-    const now = admin.firestore.Timestamp.now();
-    
+     const nowTs = admin.firestore.Timestamp.now();
+  const nowMs = nowTs.toMillis();
+  const nowDate = new Date(nowMs);
+
     if (action === 'upload') {
       // Step 12: File upload rate limiting (existing logic)
       const limits = RATE_LIMITS[userProfile.subscriptionTier];
       const periodStart = this.ensureTimestamp(userUsage.rateLimits.currentPeriodStart);
-      const daysSincePeriodStart = (now.toMillis() - periodStart.toMillis()) / (1000 * 60 * 60 * 24);
+      const daysSincePeriodStart = (nowMs - periodStart.toMillis()) / (1000 * 60 * 60 * 24);
       
       if (daysSincePeriodStart >= 1) {
         // Reset daily limits
@@ -531,47 +535,51 @@ static async updateSubscriptionTier(
       console.log('[userService.ts][7014] Upload rate limit check - Allowed:', allowed, 'Current:', userUsage.rateLimits.dailyUploads, 'Limit:', limits.dailyUploads);
       return allowed;
       
-    } else if (action === 'lessonGeneration') {
-      // Step 13: NEW - Lesson generation rate limiting for premium accounts
-      if (userProfile.subscriptionTier === 'freemium') {
-        // Freemium users use demo credits, not rate limits
-        return userUsage.demoCredits.remaining > 0;
-      }
-      
-      // Premium accounts use rate limits
-      const lessonLimits = RATE_LIMITS.premium.lessonGeneration[userProfile.accountType];
-      const lessonTracking = userUsage.rateLimits.lessonGeneration;
-      
-      // Check if periods need reset
-      const hoursSinceHourlyStart = (now.toMillis() - lessonTracking.hourlyPeriodStart.toMillis()) / (1000 * 60 * 60);
-      const daysSinceMonthlyStart = (now.toMillis() - lessonTracking.monthlyPeriodStart.toMillis()) / (1000 * 60 * 60 * 24);
-      
-      // Reset hourly if needed (every hour)
-      if (hoursSinceHourlyStart >= 1) {
-        await this.resetRateLimits(normalizedEmail, 'lessonGenerationHourly');
-        lessonTracking.hourlyCount = 0; // Update local copy for this check
-      }
-      
-      // Reset monthly if needed (every 30 days)
-      if (daysSinceMonthlyStart >= 30) {
-        await this.resetRateLimits(normalizedEmail, 'lessonGenerationMonthly');
-        lessonTracking.monthlyCount = 0; // Update local copy for this check
-      }
-      
-      // Check both hourly and monthly limits
-      const hourlyAllowed = lessonTracking.hourlyCount < lessonLimits.hourlyLimit;
-      const monthlyAllowed = lessonTracking.monthlyCount < lessonLimits.monthlyLimit;
-      const allowed = hourlyAllowed && monthlyAllowed;
-      
-      console.log('[userService.ts][7015] Lesson generation rate limit check - Allowed:', allowed, 
-        'Hourly:', lessonTracking.hourlyCount, '/', lessonLimits.hourlyLimit,
-        'Monthly:', lessonTracking.monthlyCount, '/', lessonLimits.monthlyLimit);
-      
-      return allowed;
+    } if (action === 'lessonGeneration') {
+    // (1) Freemium: governed by demo credits (unchanged behavior)
+    if (userProfile.subscriptionTier === 'freemium') {
+      return userUsage.demoCredits.remaining > 0;
     }
-    
-    throw new Error(`Unsupported action type: ${action}`);
+
+    // (2) Compute state using canonical math
+    const tracking = {
+      hourlyCount: userUsage.rateLimits.lessonGeneration.hourlyCount,
+      monthlyCount: userUsage.rateLimits.lessonGeneration.monthlyCount,
+      hourlyPeriodStart: userUsage.rateLimits.lessonGeneration.hourlyPeriodStart,
+      monthlyPeriodStart: userUsage.rateLimits.lessonGeneration.monthlyPeriodStart,
+    };
+    let state = computeLessonLimitState(nowDate, userProfile.accountType, userProfile.subscriptionTier, tracking);
+
+    // (3) If windows have actually elapsed, perform authoritative resets to “heal” storage
+    //     Note: computeLessonLimitState already treats expired windows as 0 effective,
+    //     but we update Firestore starts so future writes/reads align.
+    if (nowDate >= state.hourlyResetAt) {
+      await this.resetRateLimits(normalizedEmail, 'lessonGenerationHourly');
+    }
+    if (nowDate >= state.monthlyResetAt) {
+      await this.resetRateLimits(normalizedEmail, 'lessonGenerationMonthly');
+    }
+
+    // (4) Recompute once after potential resets to decide final allow/deny
+    if (nowDate >= state.hourlyResetAt || nowDate >= state.monthlyResetAt) {
+      const freshUsage = await this.getUserUsage(normalizedEmail);
+      const tracking2 = {
+        hourlyCount: freshUsage.rateLimits.lessonGeneration.hourlyCount,
+        monthlyCount: freshUsage.rateLimits.lessonGeneration.monthlyCount,
+        hourlyPeriodStart: freshUsage.rateLimits.lessonGeneration.hourlyPeriodStart,
+        monthlyPeriodStart: freshUsage.rateLimits.lessonGeneration.monthlyPeriodStart,
+      };
+      state = computeLessonLimitState(nowDate, userProfile.accountType, userProfile.subscriptionTier, tracking2);
+    }
+
+    // (5) Eligible now if retryAfterSec==0 and not exceeded
+    const allowed = !(state.isHourlyExceeded || state.isMonthlyExceeded);
+    console.log('[userService.ts][7016] Lesson generation allow?', { allowed, hourlyRemaining: state.hourlyRemaining, monthlyRemaining: state.monthlyRemaining });
+    return allowed;
   }
+
+  throw new Error(`Unsupported action type: ${action}`);
+}
   
 /**
    * incrementUsageCounter (Enhanced with secondary services support)

@@ -18,7 +18,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { Search, BookOpen, Clock, RefreshCw, Check, Trash } from 'lucide-react';
-import { useCalendar } from '@/app/Library/Context/CalendarContext';
+import { useCalendar } from '@/app/Library/Context/CalendarContextv2';
 import { NotebookSummary } from '@/app/Library/Definitions/CalendarDefinitions';
 import './calendar-theme.css';
 
@@ -157,30 +157,6 @@ const NotebookSelector: React.FC<NotebookSelectorProps> = ({
   return (
     <div className="calendar-container space-y-4">
       
-      {/* Step 4: Enhanced Search and Actions Header with HomescreenV3 styling */}
-      <div className="files-header-top" style={{ marginBottom: '16px' }}>
-        <div className="files-title">Select Notebooks for Calendar</div>
-        <div className="files-search">
-          <input
-            type="text"
-            className="files-search-input"
-            placeholder="Search notebooks..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            disabled={loading}
-          />
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            className="calendar-btn-icon"
-            title="Refresh notebook list"
-            aria-label="Refresh available notebooks"
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      </div>
-
       {/* Step 5: Enhanced Selection Summary with HomescreenV3 card styling */}
       {selectedNotebooks.length > 0 && (
         <div className="actions-card" style={{ background: '#F8FBF8', borderColor: '#5B8C5A' }}>
@@ -190,9 +166,13 @@ const NotebookSelector: React.FC<NotebookSelectorProps> = ({
               {selectedNotebooks.length} notebook{selectedNotebooks.length !== 1 ? 's' : ''} selected for calendar planning
             </p>
           </div>
+
+          
           
           {/* Step 6: Selected notebook indicators with file-tile styling */}
           <div className="flex flex-wrap gap-2 mt-2">
+
+            
             {selectedNotebooks.slice(0, 5).map(notebookId => {
               const notebook = notebooks.find(n => n.fileId === notebookId);
               if (!notebook) return null;
@@ -232,7 +212,30 @@ const NotebookSelector: React.FC<NotebookSelectorProps> = ({
             )}
           </div>
         </div>
+
       )}
+            {/* Step 4: Enhanced Search and Actions Header with HomescreenV3 styling */}
+      <div className="files-header-top" style={{ marginBottom: '16px' }}>
+        <div className="files-search">
+          <input
+            type="text"
+            className="files-search-input"
+            placeholder="Search notebooks..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            disabled={loading}
+          />
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="calendar-btn-icon"
+            title="Refresh notebook list"
+            aria-label="Refresh available notebooks"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+      </div>
 
       {/* Step 7: Enhanced Loading State with HomescreenV3 styling */}
       {loading && (

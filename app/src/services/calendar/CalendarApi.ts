@@ -25,9 +25,35 @@ import {
   StudySession,
   ScheduleConfig,
 } from '@/app/Library/Definitions/CalendarDefinitions';
+import type { StudyPlan, StudyPlanIndex } from '@/app/src/services/calendar/StudyPlanCore';
 
 /** Accept full or partial payloads on save to enable incremental writes if desired. */
 export type CalendarApiPayload = Partial<CalendarData>;
+
+
+
+/**
+ * @function ensureDate
+ * @purpose Same semantics as in firebase.ts but local to this module.
+ */
+function ensureDate(v: unknown): Date { // update - 3
+  if (v instanceof Date) return v;
+  if (v && typeof (v as any).toDate === 'function') return (v as any).toDate();
+  if (typeof v === 'string' || typeof v === 'number') {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? new Date() : d;
+  }
+  return new Date();
+}
+
+/**
+ * @function toIso
+ * @purpose Convert any date-like value to ISO string deterministically.
+ */
+function toIso(v: unknown): string { // update - 3
+  return ensureDate(v).toISOString();
+}
+
 
 /**
  * @function serializeScheduleConfig
@@ -69,85 +95,62 @@ function deserializeScheduleConfig(raw: any): ScheduleConfig | null {
 }
 
 /**
- * @function serializeMonth
- * @description
- *   Converts a CalendarMonth into a JSON-safe structure:
- *   - All Date fields (month daily plan dates and session dates) are transformed into ISO strings.
- *   - notebookMeta.lastUpdated is serialized to ISO.
- *   This enables a clean, deterministic wire format for storage and retrieval across environments.
+ * @function serializePlan
+ * @purpose Convert a StudyPlan into a JSON-safe payload with ISO dates (day/session/meta).
+ * @steps
+ *   1) Null → null
+ *   2) Day: date → ISO via toIso
+ *   3) Session: date → ISO; notebookMeta.lastUpdated → ISO
  */
-function serializeMonth(month: CalendarMonth | null): any {
-  if (!month) return null;
+// update - 2
+function serializePlan(plan: StudyPlan | null): any {
+  if (!plan) return null;
   return {
-    year: month.year,
-    month: month.month,
-    dailyPlans: month.dailyPlans.map((plan) => ({
-      ...plan,
-      date: plan.date instanceof Date ? plan.date.toISOString() : plan.date,
-      sessions: plan.sessions.map((s) => ({
+    ...plan,
+    days: plan.days.map(d => ({
+      ...d,
+      date: toIso(d.date as any),
+      sessions: d.sessions.map(s => ({
         ...s,
-        date: s.date instanceof Date ? s.date.toISOString() : s.date,
-        notebookMeta: {
-          ...s.notebookMeta,
-          lastUpdated:
-            s.notebookMeta.lastUpdated instanceof Date
-              ? s.notebookMeta.lastUpdated.toISOString()
-              : s.notebookMeta.lastUpdated,
-        },
+        date: toIso(s.date as any),
+        notebookMeta: { ...s.notebookMeta, lastUpdated: toIso(s.notebookMeta.lastUpdated as any) },
       })),
     })),
-    monthlySummary: month.monthlySummary,
   };
 }
+
 
 /**
- * @function deserializeMonth
- * @description
- *   Reconstructs a CalendarMonth from its serialized JSON form. It:
- *   - Converts all day and session `date` strings back into Date objects.
- *   - Restores `notebookMeta.lastUpdated` as a Date.
- *   - Preserves monthlySummary verbatim.
- *   If the input is malformed, throws an Error so callers can surface a user-friendly message.
+ * @function deserializePlan
+ * @purpose
+ *   Convert a serialized StudyPlan back to rich objects with Date instances.
+ * @steps
+ *   1) If falsy → return null.
+ *   2) Validate array-ness of days.
+ *   3) Hydrate Date fields on day/date and session/date + notebookMeta.lastUpdated.
  */
-function deserializeMonth(raw: any): CalendarMonth | null {
+function deserializePlan(raw: any): StudyPlan | null { // update - 1
   if (!raw) return null;
-  if (
-    typeof raw.year !== 'number' ||
-    typeof raw.month !== 'number' ||
-    !Array.isArray(raw.dailyPlans)
-  ) {
-    throw new Error('Invalid month payload');
-  }
-
-  const dailyPlans: DailyStudyPlan[] = raw.dailyPlans.map((plan: any) => {
-    if (!plan) throw new Error('Invalid daily plan entry');
-    const date = new Date(plan.date);
-    const sessions: StudySession[] = Array.isArray(plan.sessions)
-      ? plan.sessions.map((s: any) => ({
-          ...s,
-          date: new Date(s.date),
-          notebookMeta: {
-            ...s.notebookMeta,
-            lastUpdated: new Date(s?.notebookMeta?.lastUpdated ?? Date.now()),
-          },
-        }))
-      : [];
-
-    return {
-      ...plan,
-      date,
-      sessions,
-    };
-  });
+  if (!Array.isArray(raw.days)) throw new Error('Invalid StudyPlan payload: days missing');
 
   return {
-    year: raw.year,
-    month: raw.month,
-    dailyPlans,
-    monthlySummary: raw.monthlySummary,
+    ...raw,
+    days: raw.days.map((d: any) => ({
+      ...d,
+      date: new Date(d.date),
+      sessions: Array.isArray(d.sessions)
+        ? d.sessions.map((s: any) => ({
+            ...s,
+            date: new Date(s.date),
+            notebookMeta: {
+              ...s.notebookMeta,
+              lastUpdated: new Date(s.notebookMeta.lastUpdated),
+            },
+          }))
+        : [],
+    })),
   };
 }
-
 /**
  * @class CalendarApi
  * @description
@@ -167,35 +170,26 @@ export class CalendarApi {
 
   /**
    * @method loadAll
-   * @description
-   *   Fetches the entire calendar payload from the backend and converts it into rich, typed data
-   *   suitable for direct use in React state. Dates for month, daily plans, sessions, and config
-   *   are rehydrated as `Date` instances. On any non-2xx response, throws an Error; callers should
-   *   catch and surface a user-friendly message. Time complexity is O(N) where N is the number of
-   *   sessions in the month due to nested deserialization.
+   * @purpose
+   *   Fetch canonical payload: { plan, planIndex, scalars }.
+   * @steps
+   *   1) GET JSON.
+   *   2) Deserialize scheduleConfig and plan.
+   *   3) Return typed CalendarData with defaults for missing scalars.
    */
-  async loadAll(): Promise<CalendarData> {
-    console.log('[CalendarApi.ts][9001] › GET loadAll() start →', this.endpoint);
-    const res = await fetch(this.endpoint, {
-      method: 'GET',
-      credentials: 'include',
-    });
-
-    if (!res.ok) {
-      const msg = `Load failed: ${res.status} ${res.statusText}`;
-      console.error('[CalendarApi.ts][9002] › GET loadAll() error:', msg);
-      throw new Error(msg);
-    }
+  async loadAll(): Promise<CalendarData> { // update - 2
+    console.log('[CalendarApi.ts][9101] GET /persist (plan) start');
+    const res = await fetch(this.endpoint, { method: 'GET', credentials: 'include' });
+    if (!res.ok) throw new Error(`Load failed: ${res.status} ${res.statusText}`);
 
     const raw = await res.json();
-
     const scheduleConfig = deserializeScheduleConfig(raw?.scheduleConfig ?? null);
-    const currentMonth = raw?.currentMonth ? deserializeMonth(raw.currentMonth) : null;
+    const plan = deserializePlan(raw?.plan ?? null);
+    const planIndex: StudyPlanIndex = raw?.planIndex ?? {};
 
     const payload: CalendarData = {
       selectedNotebooks: Array.isArray(raw?.selectedNotebooks) ? raw.selectedNotebooks : [],
       scheduleConfig: scheduleConfig ?? {
-        // sane defaults if backend returns nothing
         unitsPerBlockSession: 3,
         revisionsPerLesson: 2,
         startDate: new Date(),
@@ -204,39 +198,38 @@ export class CalendarApi {
         preferredTimeSlots: ['morning', 'afternoon', 'evening'],
         maxSessionsPerDay: 6,
       },
-      currentMonth,
       completedSessions: Array.isArray(raw?.completedSessions) ? raw.completedSessions : [],
       lastUpdated: raw?.lastUpdated ? new Date(raw.lastUpdated) : new Date(),
       version: String(raw?.version ?? '2.0'),
+      plan,
+      planIndex,
     };
 
-    console.log(
-      '[CalendarApi.ts][9003] › GET loadAll() ok: notebooks=%d, sessions=%d',
-      payload.selectedNotebooks.length,
-      payload.currentMonth?.monthlySummary?.totalSessions ?? 0
-    );
+    console.log('[CalendarApi.ts][9102] GET /persist ok → days=%d indexKeys=%d',
+      plan?.days?.length ?? 0, Object.keys(planIndex || {}).length);
     return payload;
   }
 
   /**
    * @method saveAll
-   * @description
-   *   Persists the provided calendar payload to the backend. This method accepts a partial payload
-   *   to support incremental syncs, but callers typically pass the complete in-memory state. Date
-   *   objects are serialized to ISO strings across the structure (config startDate, month, daily
-   *   plans, sessions, and notebook metadata timestamps). Throws an Error on non-2xx responses to
-   *   allow the caller to decide on retry/backoff. Time complexity is O(N) with N = sessions count.
+   * @purpose
+   *   Persist canonical payload with Dates serialized.
+   * @steps
+   *   1) Build body with scalars + serializeScheduleConfig + serializePlan.
+   *   2) PUT → /persist.
+   *   3) Throw on non-2xx.
    */
-  async saveAll(payload: CalendarApiPayload): Promise<void> {
-    console.log('[CalendarApi.ts][9004] › PUT saveAll() start →', this.endpoint);
+  async saveAll(payload: Partial<CalendarData>): Promise<void> { // update - 2
+    console.log('[CalendarApi.ts][9103] PUT /persist (plan) start');
 
     const body = {
       selectedNotebooks: payload.selectedNotebooks ?? [],
       scheduleConfig: serializeScheduleConfig(payload.scheduleConfig ?? null),
-      currentMonth: serializeMonth(payload.currentMonth ?? null),
       completedSessions: payload.completedSessions ?? [],
       lastUpdated: (payload.lastUpdated ?? new Date()).toISOString(),
       version: payload.version ?? '2.0',
+      plan: serializePlan(payload.plan ?? null),
+      planIndex: payload.planIndex ?? {},
     };
 
     const res = await fetch(this.endpoint, {
@@ -246,37 +239,16 @@ export class CalendarApi {
       body: JSON.stringify(body),
     });
 
-    if (!res.ok) {
-      const msg = `Save failed: ${res.status} ${res.statusText}`;
-      console.error('[CalendarApi.ts][9005] › PUT saveAll() error:', msg);
-      throw new Error(msg);
-    }
-
-    console.log('[CalendarApi.ts][9006] › PUT saveAll() ok');
+    if (!res.ok) throw new Error(`Save failed: ${res.status} ${res.statusText}`);
+    console.log('[CalendarApi.ts][9104] PUT /persist ok');
   }
 
   /**
    * @method clearAll
-   * @description
-   *   Issues a DELETE to the backend to remove all stored calendar data for the current user.
-   *   This is typically used by a “Reset Calendar” flow or as part of a migration. The method
-   *   makes no attempt to clear local state (that is CalendarContext’s job), keeping concerns
-   *   well separated. On error, throws so the UI can surface an appropriate message.
+   * @purpose DELETE persisted calendar state.
    */
-  async clearAll(): Promise<void> {
-    console.log('[CalendarApi.ts][9007] › DELETE clearAll() start →', this.endpoint);
-
-    const res = await fetch(this.endpoint, {
-      method: 'DELETE',
-      credentials: 'include',
-    });
-
-    if (!res.ok) {
-      const msg = `Clear failed: ${res.status} ${res.statusText}`;
-      console.error('[CalendarApi.ts][9008] › DELETE clearAll() error:', msg);
-      throw new Error(msg);
-    }
-
-    console.log('[CalendarApi.ts][9009] › DELETE clearAll() ok');
+  async clearAll(): Promise<void> { // update - 2
+    const res = await fetch(this.endpoint, { method: 'DELETE', credentials: 'include' });
+    if (!res.ok) throw new Error(`Clear failed: ${res.status} ${res.statusText}`);
   }
 }

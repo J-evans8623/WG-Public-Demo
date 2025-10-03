@@ -203,7 +203,7 @@ Lesson outline Guideline :
 
 1. Please specify the bloom’s taxonomy level that learning objectives and lesson is supposed to target and then include a brief 100 word summary of what the lesson entails. Begin your lesson outline summary with the following phrase “This lesson targets the [ insert the bloom taxonomy level here] level of the blooms taxonomy. This lesson is about [continue your explanation of the lesson here] “ 
 
-Eg :
+Example :
 
  "lessonOutline": "This lesson targets the Understand level of the Bloom taxonomy. This lesson is about tracing how cells extract usable energy from glucose through the four sequential stages of glycolysis, pyruvate oxidation, the citric-acid cycle, and oxidative phosphorylation. Students will follow the fate of carbon atoms, compare substrate-level versus oxidative ATP synthesis, and examine the roles of NAD⁺, FAD, and the proton-motive force in driving chemiosmosis. The lesson will link each stage’s inputs, outputs, and cellular locations, clarifying how electron transfer is coupled to ATP yield and highlighting points where metabolic pathways intersect with respiration."
 

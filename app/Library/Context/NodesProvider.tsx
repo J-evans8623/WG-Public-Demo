@@ -323,6 +323,8 @@ const createNewNode = useCallback(
     if (!parent) return;
     const depth = (parent.depth || 0) + 1;
 
+    
+
     // 3) Build base node
     let newNode: ConceptNode = {
       id: newId,
@@ -334,6 +336,10 @@ const createNewNode = useCallback(
       isRoot: false,
       depth,
     };
+
+    if (depth === 1) {
+      newNode.lessonOrder = String(parent.childrenNodeIds.length + 1);
+    }
 
     // 4) If primary and missing lessonOrder, assign based on current root child count
     const rootId = getRootNode();

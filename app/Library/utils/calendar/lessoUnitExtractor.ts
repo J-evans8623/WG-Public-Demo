@@ -64,6 +64,7 @@ export function generateLessonUnits(ydoc: Y.Doc): LessonUnit[] {
       primaryConceptNodeID: node.id,
       parentTitle: cm.title,
       mapID: cm.id,
+      LessonOrder: Number(node.lessonOrder!),
     }));
 
     console.log('[lessonUnitExtractor.ts][1007] › Units created for map:', units.length);

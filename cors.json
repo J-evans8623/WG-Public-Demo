@@ -1,6 +1,6 @@
 [
   {
-    "origin": ["http://localhost:3000"],
+    "origin": ["http://localhost:3000", "http://192.168.2.18:3000"],
     "method": ["GET","HEAD","PUT","OPTIONS"],
     "responseHeader": ["Content-Type","Content-Length","Authorization","Access-Control-Allow-Credentials"],
     "maxAgeSeconds": 3600

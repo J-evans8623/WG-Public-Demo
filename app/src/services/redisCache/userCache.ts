@@ -179,10 +179,22 @@ export async function readValidationResult(
 /**
  * writeValidationResult
  * @description
- *   Stores a composite validation result for a brief period keyed by (service,email,ver). Callers
- *   should only write this after producing a final decision. Time complexity is O(1).
+ *   Stores a composite validation result for a brief period keyed by (service,email,ver).
+ *   UPDATED (Phase 2): If the result is a **denial** and a `retryAfter` (seconds) is provided,
+ *   we cap the TTL by that value so the cached denial cannot outlive the real wait window.
+ *   "Allow" results continue to use the base TTL for performance.
+ *
+ * Algorithm (serverless-safe):
+ *   1) Determine base TTL from policy (CACHE_TTL.VALIDATION_RESULT).
+ *   2) If value.allowed === false and a finite value.retryAfter is present:
+ *      2.1) ttl = min(baseTTL, retryAfter)
+ *   3) If denial but retryAfter is missing/invalid:
+ *      3.1) ttl = min(baseTTL, SHORT_DENIAL_TTL)  // defensive fallback (keeps denials short)
+ *   4) If allowed:
+ *      4.1) ttl = baseTTL
+ *   5) Write with SETEX and log the effective ttl.
  */
-export async function writeValidationResult(
+export async function writeValidationResult( // update - 2003
   service: string,
   email: string,
   ver: number,
@@ -190,10 +202,35 @@ export async function writeValidationResult(
 ): Promise<void> {
   const client = getRedis();
   const key = validationResultKey(ver, service, email);
+
   try {
-    await client.setex(key, CACHE_TTL.VALIDATION_RESULT, JSON.stringify(value));
-    console.log('lib/userCache.ts [6623] validation SET', { service, email, ver, ttl: CACHE_TTL.VALIDATION_RESULT });
+    // (1) Load base policy TTL (sec)
+    const baseTtl = CACHE_TTL.VALIDATION_RESULT;
+
+    // (2) Define a short fallback TTL (sec) for denials when retryAfter is absent/invalid.
+    //     Keep tiny to avoid masking re-eligibility: 60–120s works well.
+    const SHORT_DENIAL_TTL = 120;
+
+    // (3) Compute effective TTL
+    let ttl: number = baseTtl;
+
+    if (value && value.allowed === false) {
+      // (3.1) Prefer caller-provided retryAfter when valid; otherwise use short denial TTL.
+      const ra = Number(value.retryAfter);
+      if (Number.isFinite(ra) && ra > 0) {
+        // Bound by base to avoid excessively long pins and add a floor of 1 second.
+        ttl = Math.max(1, Math.min(baseTtl, Math.floor(ra)));
+      } else {
+        ttl = Math.max(1, Math.min(baseTtl, SHORT_DENIAL_TTL));
+      }
+    }
+
+    // (4) Persist to Redis
+    await client.setex(key, ttl, JSON.stringify(value));
+    console.log('lib/userCache.ts [6623] validation SET (Phase 2)', { service, email, ver, ttl, allowed: value?.allowed });
   } catch (e) {
-    console.warn('lib/userCache.ts [6624] validation write failed (non-fatal)', { service, email, err: (e as Error)?.message });
+    console.warn('lib/userCache.ts [6624] validation write failed (non-fatal)', {
+      service, email, err: (e as Error)?.message
+    });
   }
 }

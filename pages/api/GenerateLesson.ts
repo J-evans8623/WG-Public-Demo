@@ -39,6 +39,7 @@ import { validatePremiumAccess } from '@/app/src/services/validatePremiumAccess'
 import { UserService } from '@/app/src/services/userService';
 import { v4 as uuidv4 } from 'uuid';
 import pdfParse from 'pdf-parse';
+import UsageTracker from '@/app/src/services/UsageTracker';
 
 /**
  * NextApiRequestWithFile
@@ -157,6 +158,8 @@ export default async function handler(
 ) {
   try {
     console.log('[GenerateLesson.ts][4003] Enhanced lesson generation request received');
+    const runId = uuidv4();
+    const usage = new UsageTracker(runId, 'mixed'); 
     
     // Step 2: Validate HTTP method
     if (req.method !== 'POST') {
@@ -324,7 +327,7 @@ export default async function handler(
     // Step 13: Generate lesson modules concurrently (preserved from original)
     console.time('[GenerateLesson.ts][4017] Lesson generation timer');
     const lessonPromises = textSegments.modules.map((segment) =>
-      generateLessonFromSegment(extractedTextArray, segment, documentID, fileId, moduleSize)
+      generateLessonFromSegment(extractedTextArray, segment, documentID, fileId, moduleSize, usage)
     );
     const generatedLessons = await Promise.all(lessonPromises);
     console.timeEnd('[GenerateLesson.ts][4017] Lesson generation timer');
@@ -384,6 +387,8 @@ export default async function handler(
       lessonCount: generatedLessons.length,
       subscriptionTier: validation.userStatus.profile.subscriptionTier
     });
+
+    usage.toConsoleSummaryMulti(); 
     
     res.status(200).json(responseData);
     

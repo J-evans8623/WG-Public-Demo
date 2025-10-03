@@ -13,8 +13,10 @@
  */
 
 import AIService from '../aiServiceV2';
-import { unitSyllabusArray, unitSyllabusPromptV2 } from './utils/syllabusSchemav2';
+import {  unitSyllabusPromptV2, unitSyllabusArray  } from './utils/syllabusSchemav2';
+//import { unitSyllabusArrayOpenAI as unitSyllabusArray } from '../../schemas/openai/unitSyllabus.openai';
 import OpenAI from 'openai';
+import UsageTracker from '../UsageTracker';
 
 // ─── Initialize AI services ─────────────────────────────────────────────────────
 const aiService = new AIService();
@@ -50,6 +52,7 @@ export async function generateBatchedUnitSyllabus(
   fullText: string,
   topicAmount: string,
   max: number,
+  usageTracker?: UsageTracker
 ): Promise<BatchedSyllabus> {
   console.log('[aiTextPreProcessingV32.ts][2003] generateBatchedUnitSyllabus START', { topicAmount, max });
 
@@ -57,7 +60,8 @@ export async function generateBatchedUnitSyllabus(
   const raw: any = await aiService.generateStructuredOutput(
     { name: unitSyllabusArray.name, schema: unitSyllabusArray.schema, strict: unitSyllabusArray.strict },
     fullText,
-    prompt
+    prompt,
+    { stream: false, tracker: usageTracker }
   );
   console.log('[aiTextPreProcessingV32.ts][2004] generateBatchedUnitSyllabus RAW', raw);
 

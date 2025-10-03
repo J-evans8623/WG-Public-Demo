@@ -12,7 +12,7 @@
  *   4-digit codes for observability. Rendering the list is O(N); all other interactions are O(1).
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import '@/app/studygraph/(studygraph)/components/modals/modalStyles.css';
 import './ReviewModalSystem.css';
 import AssignQuizModal, {
@@ -24,7 +24,7 @@ import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import QuizOverlay from '../Canvas/ReadWriteCanvas/Overlays/QuizOverlay';
 import type { QuizAssessmentResource, QuizBinding } from '@/app/Library/Definitions/Definitions'; 
 import GradebookModal from './GradebookModal';
-
+import './AssessmentLayout.css';
 
 export interface AssessmentTabProps {
   onCreateAssignedQuiz?: () => void;
@@ -95,6 +95,9 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
 }) => {
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [isGradebookOpen, setIsGradebookOpen] = useState(false);
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
+  type OverlayMode = 'assessment' | 'preview';
+const [overlayMode, setOverlayMode] = useState<OverlayMode>('assessment');
 
   // Section: Data sources (gradebook + yjs fallback) 
   const { selectQuizAssessments } = useResourceContext();
@@ -104,8 +107,8 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
   const [overlayTitle, setOverlayTitle] = useState('');
   const [overlayType, setOverlayType] = useState<any>('multipleChoice');
   const [overlayData, setOverlayData] = useState<any[]>([]);
-  const [activeAttemptId, setActiveAttemptId] = useState<string | null>(null);
-  const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null);
+  const [ attemptId, setattemptId] = useState<string | null>(null);
+
 
   
   // Role gating (pessimistic): only show actions when explicitly educator
@@ -217,7 +220,9 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
         setOverlayType(local.quizType);
         setOverlayData(local.quizContent);
         setOverlayAttemptsRemaining(Number(res?.remainingAttempts ?? 0));
+        setOverlayMode('assessment');
         setOverlayOpen(true);
+        setattemptId(res.attemptId);
 
         console.log('[AssessmentTab.tsx][8602] startAttempt ok', {
           attemptId: res.attemptId,
@@ -258,7 +263,7 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
         // The overlay submits via attemptId path only; if it ever changes to
         // let parent submit, you’d need to plumb attemptId through local state.
         // Currently, the overlay itself calls back to us and the server keeps the attempt context.
-        await submitAttempt({ docId, attemptId: (undefined as any), scorePct, clientMeta: { clientTs: new Date().toISOString() } } as any);
+        await submitAttempt({ docId,  attemptId, scorePct, clientMeta: { clientTs: new Date().toISOString() } } as any);
         // ^^^^^ Note:
         // If you want parent-owned submission, store the attemptId in state at start time
         // and pass it here. Otherwise, keep overlay-owned submission (recommended).
@@ -268,7 +273,7 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
         console.log('[AssessmentTab.tsx][8604] gradebook refreshed after submit');
       }
     },
-    [docId, submitAttempt]
+    [ attemptId, docId, submitAttempt]
   );
 
 
@@ -321,9 +326,70 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
     return <span style={chipStyle}>Max attempts: {limit}</span>;
   };
 
-  return (
-    <div>
-      {/* Primary actions — strict: render ONLY for confirmed Educators (no placeholders). */} 
+// --- snippet: AssessmentTab.tsx (derived selected row) ---
+const selectedRow = useMemo(                           // (update - 1105)
+  () => rows.find(r => r.id === selectedAssignmentId) ?? null,
+  [rows, selectedAssignmentId]
+);
+
+
+/**
+ * handlePreviewSelected
+ * @description
+ *   Opens the selected quiz in **Preview** mode (non-graded). Pulls inline spec from Yjs.
+ *   Steps:
+ *   1) Guard if nothing is selected.
+ *   2) Resolve the inline spec for the assignment.
+ *   3) If not found, surface a lightweight warning.
+ *   4) Otherwise, populate overlay state and open with `isAssessment=false`.
+ */
+const handlePreviewSelected = useCallback(() => {      // (update - 1104)
+  // 1) Guard
+  if (!selectedAssignmentId) return;
+  // 2) Resolve inline spec (O(1) lookup)
+  const local = getInlineSpecForAssignment(selectedAssignmentId);
+  // 3) Warn if missing
+  if (!local) {
+    setAttemptsFooterWarn('Unable to preview: quiz content not found.');
+    return;
+  }
+  // 4) Populate overlay for Preview
+  setOverlayTitle(local.title);
+  setOverlayType(local.quizType);
+  setOverlayData(local.quizContent);
+  setOverlayMode('preview');
+  setOverlayOpen(true);
+}, [selectedAssignmentId, getInlineSpecForAssignment]);
+
+
+/**
+ * focusSelectedRow
+ * @description
+ *   When `selectedAssignmentId` changes (e.g., after creation) and the row exists,
+ *   scroll it into view and move focus for immediate visual confirmation.
+ *   Steps:
+ *   1) Guard when nothing is selected.
+ *   2) Query the DOM for the row using a data attribute.
+ *   3) Scroll to center and focus it.
+ */
+useEffect(() => {                                      // (update - 1103)
+  // 1) Guard
+  if (!selectedAssignmentId) return;
+  // 2) Query for the row
+  const el = document.querySelector(
+    `[data-assignment-id="${selectedAssignmentId}"]`
+  ) as HTMLElement | null;
+  // 3) Scroll & focus
+  if (el) {
+    el.scrollIntoView({ block: 'center' });
+    el.focus?.();
+  }
+}, [selectedAssignmentId, rows]); // re-evaluate when list changes
+
+
+ return (
+    <div className="assessment-layout">
+      {/* Primary actions — strict: render ONLY for confirmed Educators (no placeholders). */}
       {isEducator && (
         <div className="button-section" style={{ justifyContent: 'flex-start', gap: 16, marginTop: 0 }}>
           <button className="btn btn-primary" onClick={openCreateQuiz}>
@@ -335,7 +401,7 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
         </div>
       )}
 
-      {/* Assigned quizzes list (parent body owns scrolling) */}
+      {/* Assigned quizzes list */}
       <div style={{ marginTop: 16 }}>
         {rows.length === 0 ? (
           <div className="modal-subtext" style={{ textAlign: 'left' }}>
@@ -347,9 +413,9 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
               <li
                 key={q.id}
                 className="radio-option"
-                role='button'
+                role="button"
                 tabIndex={0}
-                onClick={()=> handleOpenQuiz(q.id)}
+                onClick={() => setSelectedAssignmentId(q.id)}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -358,6 +424,8 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
                   padding: 14,
                   cursor: inFlightStartId ? 'wait' : 'pointer',
                   opacity: inFlightStartId && inFlightStartId === q.id ? 0.7 : 1,
+                  outline: selectedAssignmentId === q.id ? '2px solid rgba(91,140,90,0.35)' : 'none',
+                  borderRadius: 10,
                 }}
                 aria-label={`Open ${q.title} (${q.status})`}
               >
@@ -392,7 +460,7 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
         )}
       </div>
 
-       {/* Contextual amber warning for blocked starts */} {/* update - 1017 */}
+      {/* Contextual amber warning for blocked starts */} {/* update - 1017 */}
       {attemptsFooterWarn && (
         <div className="rms-warn" role="status" aria-live="polite" style={{ marginTop: 8 }}>
           <div className="rms-warn-left">
@@ -401,26 +469,55 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
         </div>
       )}
 
-      {/* Footer */}
-      <div className="button-section" style={{ marginTop: 24 }}>
-        <button className="btn btn-cancel" onClick={onClose}>
-          Close
-        </button>
+      {/* Footer (anchored) */}
+      <div className="button-section assessment-layout__footer">
+
+        {/* Educator-only Preview (non-graded) */} {/* (update - 1108) */}
+        {isEducator && (
+          <button
+            className={`btn ${selectedRow ? 'btn-secondary' : 'btn-disabled'}`}
+            onClick={handlePreviewSelected}
+            disabled={!selectedRow}
+            aria-disabled={!selectedRow}
+            style={{ marginLeft: 'auto' }}
+          >
+            Preview
+          </button>
+        )}
+
+        {/* Scholar path: explicit Start (graded) */} {/* (update - 1109) */}
+        {!isEducator && (
+          <button
+            className={`btn ${
+              selectedRow && selectedRow.status === 'open' && !inFlightStartId ? 'btn-primary' : 'btn-disabled'
+            }`}
+            onClick={() => selectedAssignmentId && handleOpenQuiz(selectedAssignmentId)}
+            disabled={!selectedRow || selectedRow.status !== 'open' || !!inFlightStartId}
+            aria-disabled={!selectedRow || selectedRow.status !== 'open' || !!inFlightStartId}
+            style={{ marginLeft: 'auto' }}
+          >
+            {inFlightStartId ? 'Starting…' : 'Start quiz'}
+          </button>
+        )}
       </div>
 
-      {/* Create Quiz Modal — mounting still guarded by click path; extra safety if rendered */}
-      {isCreateModalOpen && isEducator && ( 
+      {/* Portals/overlays remain unchanged … */}
+      {isCreateModalOpen && isEducator && (
         <AssignQuizModal
           isOpen
           onClose={handleCreateQuizClose}
           onCreate={handleCreateQuizSubmit}
-          defaultOpenDropdown           // unchanged pass-through
-          isEducator={!!isEducator} // unchanged pass-through
+          defaultOpenDropdown
+          isEducator={!!isEducator}
+          onCreated={({ assignmentId }) => {
+            setSelectedAssignmentId(assignmentId);
+            setCreateModalOpen(false);
+            console.log('[AssessmentTab.tsx][1110] onCreated received; selected new assignment', { assignmentId });
+          }}
         />
       )}
 
-      {/* Gradebook Modal — only mount when explicitly opened by an Educator */}
-      {isGradebookOpen && isEducator && ( 
+      {isGradebookOpen && isEducator && (
         <GradebookModal
           isOpen
           onClose={() => {
@@ -430,26 +527,25 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
           docId={docId}
         />
       )}
+
       {overlayOpen && (
         <QuizOverlay
           isOpen
           onClose={() => {
             setOverlayOpen(false);
-            setActiveAttemptId(null);
-            setActiveAssignmentId(null);
             setAttemptsFooterWarn(null);
-            console.log('[AssessmentTab.tsx][8605] overlay closed'); 
+            console.log('[AssessmentTab.tsx][8605] overlay closed');
           }}
           quizType={overlayType}
           title={overlayTitle}
           quizData={overlayData}
-          onSubmitResults={submitResults}
-          isAssessment={true}
-          attemptsRemaining={overlayAttemptsRemaining}
+          isAssessment={overlayMode === 'assessment'}
+          onSubmitResults={overlayMode === 'assessment' ? submitResults : undefined}
+          attemptsRemaining={overlayMode === 'assessment' ? overlayAttemptsRemaining : undefined}
         />
       )}
-    </div>    
+    </div>
   );
-};
+}
 
 export default AssessmentTab;

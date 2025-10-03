@@ -10,6 +10,8 @@
  *   study planning with enhanced session grouping capabilities for better daily study organization.
  */
 
+import type { ScheduleConfig, DayOfWeek } from '@/app/studygraph/(studygraph)/components/layout/Calendar/study-planner/models/Configuration.ts';
+
 /**
  * Atomic lesson unit representing a single primary subtopic from a concept map.
  * This is the fundamental scheduling unit for the calendar system, containing
@@ -24,6 +26,7 @@ export interface LessonUnit {
   parentTitle: string;
   /** Concept map identifier where this lesson unit originates */
   mapID: string;
+  LessonOrder:number;
 }
 
 /**
@@ -45,7 +48,7 @@ export interface NotebookMeta {
   /** Version hash for detecting stale metadata */
   version: string;
   /** Color code for visual distinction in calendar */
-  color?: string;
+  color: string;
 }
 
 /**
@@ -84,7 +87,7 @@ export interface StudySession {
   type: 'block' | 'revision-block' | 'revision-interleaved';
   /** Configuration parameters for session generation */
   sessionConfig: {
-    /** Number of lesson units included in this session */
+    /** Number of lesson units included in this session default 3 */
     unitCount: number;
   };
   /** Calculated display and estimation metadata */
@@ -100,27 +103,7 @@ export interface StudySession {
   timeSlot?: 'morning' | 'afternoon' | 'evening';
 }
 
-/**
- * Enhanced configuration parameters for schedule generation algorithm.
- * Controls how lesson units are grouped into sessions, distributed across
- * time periods, and balanced across multiple subjects per day.
- */
-export interface ScheduleConfig {
-  /** Number of lesson units per block-style study session */
-  unitsPerBlockSession: number;
-  /** Number of revision sessions to schedule per lesson block */
-  revisionsPerLesson: number;
-  /** Starting date for schedule generation */
-  startDate: Date;
-  /** Array of weekday numbers (0=Sunday) when sessions can be scheduled */
-  daysPerWeek: number[];
-  /** NEW: Number of different subjects to study per day */
-  subjectsPerDay: number;
-  /** NEW: Preferred time slots for daily sessions */
-  preferredTimeSlots: ('morning' | 'afternoon' | 'evening')[];
-  /** NEW: Maximum sessions per day across all subjects */
-  maxSessionsPerDay: number;
-}
+
 
 /**
  * Daily study plan containing all sessions scheduled for a specific date.
@@ -192,6 +175,8 @@ export interface CalendarContextType {
   availableNotebooks: NotebookSummary[];
   
   // Calendar Navigation
+  planStartDate: Date;
+   setPlanStartDate: (date: Date) => void;
   currentDate: Date;
   setCurrentDate: (date: Date) => void;
   navigateMonth: (direction: 'prev' | 'next') => void;
@@ -215,9 +200,9 @@ export interface CalendarContextType {
   markSessionIncomplete: (sessionId: string) => void;
   
   // Utility
-  getDailyPlan: (date: Date) => DailyStudyPlan | null;
-  getSessionsForDay: (date: Date) => StudySession[];
-  getTodaysPlan: () => DailyStudyPlan | null;
+  //getDailyPlan: (date: Date) => DailyStudyPlan | null;
+  //getSessionsForDay: (date: Date) => StudySession[];
+  //getTodaysPlan: () => DailyStudyPlan | null;
   notebookVersions: Map<string, NotebookVersionState>
 
 }
@@ -254,7 +239,6 @@ export interface LessonUnitsMeta {
 export interface CalendarData {
   selectedNotebooks: string[];
   scheduleConfig: ScheduleConfig;
-  currentMonth: CalendarMonth | null;
   completedSessions: string[];
   lastUpdated: Date;
   version: string;

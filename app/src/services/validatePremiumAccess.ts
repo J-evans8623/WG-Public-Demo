@@ -34,9 +34,13 @@ import {
   writeValidationResult,
 } from './redisCache/userCache';
 import { fixedWindowTry } from './redisCache/rateGate';
+import { computeLessonLimitState , toDate} from './redisCache/rateLogic';
 
 // Step 1: Define service types for validation routing
 export type ServiceType = 'lessonGeneration' | 'askAssistant' | 'exploreTopic' | 'createQuiz';
+
+
+
 
 // Step 2: Define comprehensive user status interface for single-call optimization
 export interface ComprehensiveUserStatus {
@@ -52,6 +56,9 @@ export interface ComprehensiveUserStatus {
         monthlyCount: number;
         hourlyRemaining: number;
         monthlyRemaining: number;
+        // expose canonical period starts for the shared helper
+        hourlyPeriodStart?: Date;  
+        monthlyPeriodStart?: Date;
       };
       secondaryServices: {
         windowCount: number;
@@ -160,10 +167,8 @@ export async function validatePremiumAccess(
  * getComprehensiveUserStatus
  * @description
  *   Optimized function that retrieves complete user profile and usage data in a single Firebase transaction.
- *   This implementation reduces database calls from 3-4 individual requests to 1 batch operation, providing
- *   significant performance improvements. The function computes all rate limit remaining values and window
- *   resets in memory to avoid additional database operations. Time complexity is O(1) with Firebase batch
- *   read optimization ensuring consistent sub-100ms response times under normal load conditions.
+ *   UPDATED (Phase 1): Adds **read-time rollover** for lesson generation hourly/monthly windows so that
+ *   effective counts go to 0 immediately after expiry—without writing to Firestore.
  * @param email - User email address for data retrieval
  * @returns Promise resolving to comprehensive user status with computed rate limit information
  */
@@ -176,18 +181,45 @@ async function getComprehensiveUserStatus(email: string): Promise<ComprehensiveU
     UserService.getUserUsage(email)
   ]);
 
+   // Step 2: Establish a single "now" for consistent math.
   const now = new Date();
 
-  // Step 9: Compute lesson generation rate limit status
+  // Step 3: Resolve limits (0/0 for freemium to keep math simple).
   const lessonRateLimits = userProfile.subscriptionTier === 'premium'
     ? PREMIUM_LESSON_RATE_LIMITS[userProfile.accountType]
     : { hourlyLimit: 0, monthlyLimit: 0 };
 
+  // Step 4: Snapshot lesson tracking; provide safe defaults if missing.
+  const lg = userUsage.rateLimits.lessonGeneration || {
+    hourlyCount: 0,
+    monthlyCount: 0,
+    hourlyPeriodStart: admin.firestore.Timestamp.fromDate(now),
+    monthlyPeriodStart: admin.firestore.Timestamp.fromDate(now),
+  };
+
+  // Step 5: Normalize period starts → Date.
+  const hourlyStart  = toDate(lg.hourlyPeriodStart);
+  const monthlyStart = toDate(lg.monthlyPeriodStart);
+
+  // Step 6: Define window durations (ms).
+  const HOUR_MS   = 60 * 60 * 1000;
+  const DAYS_30_MS = 30 * 24 * 60 * 60 * 1000;
+
+  // Step 7: Detect expirations based on elapsed time.
+  const hourlyExpired  = (now.getTime() - hourlyStart.getTime())  >= HOUR_MS;
+  const monthlyExpired = (now.getTime() - monthlyStart.getTime()) >= DAYS_30_MS;
+
+  // Step 8: Compute **effective** counts (0 if expired).
+  const effectiveHourlyCount  = hourlyExpired  ? 0 : (lg.hourlyCount  || 0);
+  const effectiveMonthlyCount = monthlyExpired ? 0 : (lg.monthlyCount || 0);
+
   const lessonStatus = {
-    hourlyCount: userUsage.rateLimits.lessonGeneration?.hourlyCount || 0,
-    monthlyCount: userUsage.rateLimits.lessonGeneration?.monthlyCount || 0,
-    hourlyRemaining: Math.max(0, lessonRateLimits.hourlyLimit - (userUsage.rateLimits.lessonGeneration?.hourlyCount || 0)),
-    monthlyRemaining: Math.max(0, lessonRateLimits.monthlyLimit - (userUsage.rateLimits.lessonGeneration?.monthlyCount || 0))
+    hourlyCount: effectiveHourlyCount,
+    monthlyCount: effectiveMonthlyCount,
+    hourlyRemaining: Math.max(0, lessonRateLimits.hourlyLimit  - effectiveHourlyCount),
+    monthlyRemaining: Math.max(0, lessonRateLimits.monthlyLimit - effectiveMonthlyCount),
+    hourlyPeriodStart: hourlyStart,
+    monthlyPeriodStart: monthlyStart,
   };
 
   // Step 10: Compute secondary services rate limit status
@@ -297,64 +329,71 @@ function validateFreemiumAccess(
  * @param serviceType - Type of service being validated for appropriate limit checking
  * @returns Validation result with rate limit enforcement and retry timing information
  */
-function validatePremiumRateLimits(
+function validatePremiumRateLimits( // update - 1011
   userStatus: ComprehensiveUserStatus,
   serviceType: ServiceType
 ): ValidationResult {
   console.log('[validatePremiumAccess.ts][1010] Validating premium rate limits for service:', serviceType);
 
-  // Step 13: Validate lesson generation rate limits
   if (serviceType === 'lessonGeneration') {
-    const limits = userStatus.usage.rateLimits.lessonGeneration;
-    
-    if (limits.hourlyRemaining <= 0 || limits.monthlyRemaining <= 0) {
-      const isHourlyExceeded = limits.hourlyRemaining <= 0;
-      const retryAfter = isHourlyExceeded ? 3600 : 86400; // 1 hour or 1 day
-      
+    // (1) Build tracking payload for the pure helper
+    const tracking = {
+      hourlyCount: userStatus.usage.rateLimits.lessonGeneration.hourlyCount,
+      monthlyCount: userStatus.usage.rateLimits.lessonGeneration.monthlyCount,
+      hourlyPeriodStart: userStatus.usage.rateLimits.lessonGeneration.hourlyPeriodStart,
+      monthlyPeriodStart: userStatus.usage.rateLimits.lessonGeneration.monthlyPeriodStart,
+    };
+
+    // (2) Compute unified state (no I/O)
+    const state = computeLessonLimitState(
+      new Date(),
+      userStatus.profile.accountType,
+      userStatus.profile.subscriptionTier,
+      tracking
+    );
+
+    // (3) If exceeded, use precise retryAfter (caps micro-cache TTL upstream)
+    if (state.isMonthlyExceeded || state.isHourlyExceeded) {
+      const isMonthly = state.isMonthlyExceeded;
       console.log('[validatePremiumAccess.ts][1011] Premium lesson generation rate limit exceeded', {
-        hourlyRemaining: limits.hourlyRemaining,
-        monthlyRemaining: limits.monthlyRemaining
+        hourlyRemaining: state.hourlyRemaining, monthlyRemaining: state.monthlyRemaining, retryAfterSec: state.retryAfterSec
       });
 
       return {
         allowed: false,
         errorCode: 'RATE_LIMIT_EXCEEDED',
-        errorMessage: `Rate limit exceeded for lesson generation. ${isHourlyExceeded ? 'Hourly' : 'Monthly'} limit reached.`,
-        retryAfter,
+        errorMessage: `Rate limit exceeded for lesson generation. ${isMonthly ? 'Monthly' : 'Hourly'} limit reached.`,
+        retryAfter: Math.max(1, state.retryAfterSec),
         upgradeRequired: false,
-        userStatus
+        userStatus, // unchanged shape; UI may read remaining fields already present
       };
     }
-  } else {
-    // Step 14: Validate secondary services rate limits
-    const limits = userStatus.usage.rateLimits.secondaryServices;
-    
-    if (limits.windowRemaining <= 0) {
-      const retryAfter = Math.ceil((limits.windowResetAt.getTime() - Date.now()) / 1000);
-      
-      console.log('[validatePremiumAccess.ts][1012] Premium secondary service rate limit exceeded', {
-        windowRemaining: limits.windowRemaining,
-        retryAfter
-      });
 
-      return {
-        allowed: false,
-        errorCode: 'RATE_LIMIT_EXCEEDED',
-        errorMessage: `Rate limit exceeded for ${getServiceDisplayName(serviceType)}. Please try again in ${Math.ceil(retryAfter / 60)} minutes.`,
-        retryAfter,
-        upgradeRequired: false,
-        userStatus
-      };
-    }
+    // (4) Allowed
+    return { allowed: true, userStatus };
+  }
+
+  // Secondary-services branch unchanged
+  const limits = userStatus.usage.rateLimits.secondaryServices;
+  if (limits.windowRemaining <= 0) {
+    const retryAfter = Math.ceil((limits.windowResetAt.getTime() - Date.now()) / 1000);
+    console.log('[validatePremiumAccess.ts][1012] Premium secondary service rate limit exceeded', {
+      windowRemaining: limits.windowRemaining, retryAfter
+    });
+    return {
+      allowed: false,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+      errorMessage: `Rate limit exceeded for ${getServiceDisplayName(serviceType)}. Please try again in ${Math.ceil(retryAfter / 60)} minutes.`,
+      retryAfter,
+      upgradeRequired: false,
+      userStatus
+    };
   }
 
   console.log('[validatePremiumAccess.ts][1013] Premium service access allowed');
-
-  return {
-    allowed: true,
-    userStatus
-  };
+  return { allowed: true, userStatus };
 }
+
 
 /**
  * getServiceDisplayName

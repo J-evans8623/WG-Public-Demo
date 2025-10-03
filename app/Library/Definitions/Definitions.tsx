@@ -219,28 +219,6 @@ export interface BaseResource {
   mapId:string;
 }
 
-/***
- * 
- * v1 shows the legacy versions of the resources which are now depricated.
- *
-
- * Interface for CueCard resources.
- *
-export interface CueCardResourcev1 extends BaseResource {
-  type: 'cueCard';
-  content: Descendant[];
-}
-
-
- * Interface for Picture resources.
- *
-export interface PictureResourcev1 extends BaseResource {
-  type: 'picture';
-  imageUrl: string;        // File object stored in ResourceContext
-  description?: Descendant[];
-}
-
-*/
 
 export interface CueCardResource extends BaseResource {
   type: 'cueCard' ;

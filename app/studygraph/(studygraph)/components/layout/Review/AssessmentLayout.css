@@ -1,0 +1,29 @@
+/**
+ * @file AssessmentLayout.css
+ * @responsibility
+ *   Keep the Assessment tab self-contained and ensure the footer pins to the bottom
+ *   without inflating the overall modal height.
+ *
+ * Change summary (update - 1203):
+ *   1) Reduce the base min-height and make it responsive with clamp() so short states
+ *      don't feel tall on desktop or crowded on small screens.
+ *   2) Remove the hard "inherit 100%" rule from `.rms-body > .assessment-layout`
+ *      that previously forced the tab to track `.rms-shell` (min-height:460px).
+ *   3) Keep the footer anchoring with margin-top:auto.
+ */
+
+.assessment-layout {
+  /* 1) Flex column to allow the footer to push down */
+  display: flex;
+  flex-direction: column;
+
+  /* 1) New responsive floor: between 220px and 340px, scaling with viewport height */
+  min-height: clamp(220px, 28vh, 340px);
+}
+
+/* 3) Footer stays at the bottom of the column when there is spare space */
+.assessment-layout__footer.button-section {
+  margin-top: auto !important;
+}
+
+
