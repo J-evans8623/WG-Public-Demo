@@ -77,7 +77,7 @@ export default async function handler(
         filePath: file.fileStoragePath,
         lastUpdated: file.timestamp,
         lessonUnitsMeta: (file as any).lessonUnitsMeta,
-        color: file.color
+        colorCode: file.colorCode
       }));
 
     console.log('[notebook-details.ts][7006] › Found', accessibleFileIds.length, 'accessible files');
@@ -102,7 +102,7 @@ export default async function handler(
             filePath: fileInfo.filePath,
             fileName: fileInfo.fileName,
             lessonUnits: lessonUnits,
-            color: fileInfo.color,
+            colorCode: fileInfo.colorCode,
             lastUpdated: new Date(fileInfo.lastUpdated.seconds ? fileInfo.lastUpdated.seconds * 1000 : fileInfo.lastUpdated),
             version: `${fileInfo.lessonUnitsMeta.lastUpdated?.seconds || Date.now()}`,
           });

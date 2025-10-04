@@ -93,6 +93,20 @@ function fromTS(v: any): Date {
   return isNaN(d.getTime()) ? new Date() : d;
 }
 
+
+/**
+ * @function resolveCalendarPath
+ * @purpose Return the canonical Storage path for the user’s single calendar blob.
+ * // update - 1
+ * @steps
+ *   1) Validate uid (string, non-empty).
+ *   2) Return `calendars/{uid}.v1.json`.
+ */
+export function resolveCalendarPath(uid: string): string {
+  if (!uid || typeof uid !== 'string') throw new Error('resolveCalendarPath: invalid uid');
+  return `calendars/${uid}.v1.json`;
+}
+
 /**
  * @function encodeSession
  * @purpose Session → Firestore-safe session with Timestamps.
@@ -225,74 +239,68 @@ function decodeOutput(w: StudyPlanOutputWire): StudyPlanOutput {
 
 // ---------- Public adapter API ----------
 
+
 /**
- * @function storeStudyPlan
- * @description Persist the new plan envelope for a user.
+ * @function generateCalendarDownloadUrl
+ * @purpose Mint a time-limited signed READ URL for the user’s calendar blob.
+ * // update - 1
  * @steps
- *   1) Build wire: encodeOutput + attach UI fields and lastUpdated.
- *   2) Write to users/{uid}/calendar/current (merge).
+ *   1) Compute canonical path via resolveCalendarPath(uid).
+ *   2) Use Admin bucket to create a v4 signed URL (action=read, 5 min TTL).
+ *   3) Return { downloadUrl, path }.
  */
-export async function storeStudyPlan(uid: string, params: {
-  studyPlan: StudyPlanOutput;
-  selectedNotebooks: string[];
-  completedSessions: string[];
-}): Promise<void> {
-  const ref = firestore.collection('users').doc(uid).collection('calendar').doc('current');
-
-  const wire: PersistedCalendarWire = {
-    studyPlan: encodeOutput(params.studyPlan),
-    selectedNotebooks: params.selectedNotebooks ?? [],
-    completedSessions: params.completedSessions ?? [],
-    lastUpdated: toTS(new Date()),
-    version: 'new-1',
-  };
-
-  await ref.set(wire, { merge: true });
-  console.log('[SPFB 1101] storeStudyPlan ok', { uid, sessions: wire.studyPlan?.sessions.length ?? 0 });
+export async function generateCalendarDownloadUrl(uid: string): Promise<{ downloadUrl: string; path: string }> {
+  const path = resolveCalendarPath(uid);
+  const file = admin.storage().bucket().file(path);
+  const [downloadUrl] = await file.getSignedUrl({
+    version: 'v4',
+    action: 'read',
+    expires: Date.now() + 5 * 60 * 1000,
+  });
+  return { downloadUrl, path };
 }
 
-/**
- * @function loadStudyPlan
- * @description Load the new plan envelope, converting back to runtime objects.
- * @steps
- *   1) Read users/{uid}/calendar/current; if missing → defaults.
- *   2) Decode studyPlan if present; return normalized result.
- */
-export async function loadStudyPlan(uid: string): Promise<{
-  studyPlan: StudyPlanOutput | null;
-  selectedNotebooks: string[];
-  completedSessions: string[];
-  lastUpdated: Date | null;
-  version: 'new-1' | null;
-}> {
-  const ref = firestore.collection('users').doc(uid).collection('calendar').doc('current');
-  const snap = await ref.get();
 
-  if (!snap.exists) {
-    console.log('[SPFB 1201] loadStudyPlan empty', { uid });
-    return { studyPlan: null, selectedNotebooks: [], completedSessions: [], lastUpdated: null, version: null };
+/**
+ * @function generateCalendarUploadUrl
+ * @purpose Mint a time-limited signed WRITE URL for the user’s calendar blob.
+ * // update - 1
+ * @steps
+ *   1) Compute canonical path via resolveCalendarPath(uid).
+ *   2) Use Admin bucket to create a v4 signed URL (action=write, 5 min TTL) requiring
+ *      Content-Type: application/json for integrity.
+ *   3) Return { uploadUrl, path }.
+ */
+export async function generateCalendarUploadUrl(uid: string): Promise<{ uploadUrl: string; path: string }> {
+  const path = resolveCalendarPath(uid);
+  const file = admin.storage().bucket().file(path);
+  const [uploadUrl] = await file.getSignedUrl({
+    version: 'v4',
+    action: 'write',
+    expires: Date.now() + 5 * 60 * 1000,
+    contentType: 'application/json',
+  });
+  return { uploadUrl, path };
+}
+
+
+/**
+ * @function deleteCalendar
+ * @purpose Permanently delete the user’s calendar blob from Storage.
+ * // update - 1
+ * @steps
+ *   1) Compute canonical path.
+ *   2) Attempt server-side delete; ignore 404-like errors.
+ *   3) Return void.
+ */
+export async function deleteCalendar(uid: string): Promise<void> {
+  const path = resolveCalendarPath(uid);
+  const file = admin.storage().bucket().file(path);
+  try {
+    await file.delete();
+  } catch (e: any) {
+    // Gracefully ignore missing file
+    const code = e?.code ?? e?.statusCode;
+    if (code !== 404 && code !== 412) throw e;
   }
-
-  const raw = snap.data() as PersistedCalendarWire;
-  const decoded = {
-    studyPlan: raw.studyPlan ? decodeOutput(raw.studyPlan) : null,
-    selectedNotebooks: Array.isArray(raw.selectedNotebooks) ? raw.selectedNotebooks : [],
-    completedSessions: Array.isArray(raw.completedSessions) ? raw.completedSessions : [],
-    lastUpdated: raw.lastUpdated ? fromTS(raw.lastUpdated) : null,
-    version: raw.version ?? null,
-  };
-  console.log('[SPFB 1202] loadStudyPlan ok', { uid, sessions: decoded.studyPlan?.sessions.length ?? 0 });
-  return decoded;
-}
-
-/**
- * @function clearStudyPlan
- * @description Delete the persisted plan envelope (non-destructive to other user docs).
- * @steps
- *   1) Delete users/{uid}/calendar/current.
- */
-export async function clearStudyPlan(uid: string): Promise<void> {
-  const ref = firestore.collection('users').doc(uid).collection('calendar').doc('current');
-  await ref.delete();
-  console.log('[SPFB 1301] clearStudyPlan ok', { uid });
 }

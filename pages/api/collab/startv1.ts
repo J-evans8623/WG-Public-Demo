@@ -93,17 +93,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Step 6: Block collaboration for read-only users
-    if (userRole === 'Viewer') {
-      /*console.log('pages/api/collab/startv1.ts [6009] › Access denied - read-only permissions', { 
-        docId, 
-        email, 
-        role: userRole 
-      });*/
-      res.setHeader('Cache-Control', 'no-store');
-      return res.status(403).json({ error: 'Read-only access - collaboration not permitted' });
-    }
-
     // Step 7: Auto-add document owners to editors list to prevent lockout
     if (userRole === 'Owner') {
       try {

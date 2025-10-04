@@ -44,6 +44,7 @@ import {
 } from '@/app/Library/Definitions/CalendarDefinitions';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import './calendar-theme.css';
+ import SessionContextMenuPortal from './SessionContextMenuPortal';
 
 interface CalendarMonthViewProps {
   onFileSelect: (meta: PickerFileMeta) => void;
@@ -70,6 +71,9 @@ const CalendarMonthView: React.FC<
     isLoading,
     error,
     createSessionLauncher,
+   markSessionCompleted,
+   markSessionIncomplete,
+   completedSessions,
   } = useCalendar();
   const { requestSessionLaunch } = useSlideShow();
 
@@ -95,6 +99,45 @@ const CalendarMonthView: React.FC<
   // 3) Hover intent timers (guard flicker)
   const showTimerRef = useRef<number | null>(null);
   const hideTimerRef = useRef<number | null>(null);
+
+
+
+    /**
+   * @function completedSet/useMemo
+   * @description O(1) membership checks for completed sessions.
+   * @steps
+   *  1) Build a Set from the read-only array exposed by context.
+   *  2) Use in render paths to style and in menu logic to toggle.
+   */
+  const completedSet = useMemo(() => new Set(completedSessions), [completedSessions]);
+
+  /**
+   * @function openContextMenu
+   * @description Orchestrates right-click menu on a session.
+   * // update - 1
+   * @steps
+   *  1) Prevent default context menu & stop propagation.
+   *  2) Hide tooltip and popover to avoid overlay stacking.
+   *  3) Store target session  pointer coordinates.
+   */
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    session: StudySession | null;
+    position: { x: number; y: number };
+  }>({ visible: false, session: null, position: { x: 0, y: 0 } });
+
+  const openContextMenu = useCallback((session: StudySession, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setTooltip((prev) => ({ ...prev, visible: false }));     // Step 2
+    setSessionPopover((prev) => ({ ...prev, visible: false })); // Step 2
+    setContextMenu({ visible: true, session, position: { x: e.clientX, y: e.clientY } }); // Step 3
+  }, []);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu({ visible: false, session: null, position: { x: 0, y: 0 } });
+  }, []);
+
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -420,6 +463,8 @@ const generateCalendarDays = useCallback(() => {
               onSessionHover={handleSessionHover}
               onDayClick={handleDayClick}
               onShowMoreSessions={handleShowMoreSessions}
+              onSessionContextMenu={(s, e) => openContextMenu(s, e)}   // update - 2
+              isCompleted={(id) => completedSet.has(id)}   
             />
           );
         })}
@@ -441,8 +486,25 @@ const generateCalendarDays = useCallback(() => {
           position={sessionPopover.position}
           onClose={handleClosePopover}
           onSessionClick={(s) => handleSessionClick(s)}
+          onSessionContextMenu={(s, e) => openContextMenu(s, e)} 
+          isCompleted={(id:string) => completedSet.has(id)}      
         />
+
+        
       )}
+
+      {contextMenu.visible && contextMenu.session && (
+   <SessionContextMenuPortal
+     position={contextMenu.position}
+     checked={completedSet.has(contextMenu.session.id)}
+     onToggle={() => {
+       const id = contextMenu.session!.id;
+       if (completedSet.has(id)) markSessionIncomplete(id);
+       else markSessionCompleted(id);
+     }}
+     onClose={closeContextMenu}
+   />)}
+
     </div>
   );
 };
@@ -461,7 +523,10 @@ const CalendarDayCell: React.FC<
       sessions: StudySession[],
       date: Date,
       event: React.MouseEvent
+      
     ) => void;
+    onSessionContextMenu: (session: StudySession, e: React.MouseEvent) => void; // update - 2
+    isCompleted: (id: string) => boolean;   
   }
 > = ({
   date,
@@ -472,6 +537,8 @@ const CalendarDayCell: React.FC<
   onSessionHover,
   onDayClick,
   onShowMoreSessions,
+  onSessionContextMenu,
+  isCompleted, 
 }) => {
   const dayNumber = date.getDate();
   const sessions = dailyPlan?.sessions || [];
@@ -505,6 +572,8 @@ const CalendarDayCell: React.FC<
               console.log('[CalendarDayCell][2019] › Hover leave → schedule hide');
               onSessionHover(session, e, false);
             }}
+            onContextMenu={(e) => onSessionContextMenu(session, e)} // update - 1
+            completed={isCompleted(session.id)}     
           />
         ))}
 
@@ -545,7 +614,9 @@ const SessionChip: React.FC<{
   onClick: (e: React.MouseEvent) => void;
   onMouseEnter: (e: React.MouseEvent) => void;
   onMouseLeave: (e: React.MouseEvent) => void;
-}> = ({ session, onClick, onMouseEnter, onMouseLeave }) => {
+  onContextMenu: (e: React.MouseEvent) => void;
+  completed?: boolean; 
+}> = ({  session, onClick, onMouseEnter, onMouseLeave, onContextMenu, completed  }) => {
   const getSessionIcon = (type: string) => {
     switch (type) {
       case 'block':
@@ -564,13 +635,12 @@ const SessionChip: React.FC<{
 
   const subjectName = getSubjectName(session.notebookMeta.fileName);
   const sessionIcon = getSessionIcon(session.type);
-  const backgroundColor = session.notebookMeta.color || '#6B7280';
+  const backgroundColor = session.notebookMeta.colorCode ;
 
-  console.log('[SessionChip][2013] › Color for', subjectName, ':', backgroundColor);
 
   return (
     <div
-      className="calendar-session-label"
+      className={`calendar-session-label ${completed ? 'calendar-session-completed' : ''}`}
       style={{ backgroundColor }}
       onClick={(e) => {
         console.log('[SessionChip][2014] › Chip click → session:', session.id);
@@ -583,6 +653,7 @@ const SessionChip: React.FC<{
       onMouseLeave={(e) => {
         onMouseLeave(e);
       }}
+      onContextMenu={(e) => { onContextMenu(e); }}
     >
       <span className="calendar-session-icon">{sessionIcon}</span>
       <span className="calendar-session-subject">{subjectName}</span>
@@ -603,7 +674,9 @@ const SessionPopoverPortal: React.FC<{
   position: { x: number; y: number };
   onClose: () => void;
   onSessionClick: (session: StudySession) => void;
-}> = ({ sessions, date, position, onClose, onSessionClick }) => {
+  onSessionContextMenu: (session: StudySession, e: React.MouseEvent) => void; // update - 1
+ isCompleted: (id: string) => boolean;   
+}> = ({ sessions, date, position, onClose, onSessionClick, onSessionContextMenu, isCompleted  }) => {
   const ref = useRef<HTMLDivElement>(null);
 
   // Click-outside to close
@@ -651,19 +724,25 @@ const SessionPopoverPortal: React.FC<{
 
         <div className="max-h-64 overflow-y-auto">
           <div className="p-2 space-y-2">
-            {sessions.map((session) => (
+            {sessions.map((session) => {
+               const completed = isCompleted(session.id);
+               return (
               <button
+              
                 key={session.id}
                 onClick={() => {
                   console.log('[SessionPopover][2012] › Session clicked in popover:', session.id);
                   onSessionClick(session);
+
+                
                 }}
+                 onContextMenu={(e) => onSessionContextMenu(session, e)}
                 className="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
               >
                 <div className="flex items-start space-x-3">
                   <div
                     className="w-4 h-4 rounded-full flex-shrink-0 mt-0.5"
-                    style={{ backgroundColor: session.notebookMeta.color || '#6B7280' }}
+                    style={{ backgroundColor: session.notebookMeta.colorCode}}
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
@@ -694,7 +773,8 @@ const SessionPopoverPortal: React.FC<{
                   </div>
                 </div>
               </button>
-            ))}
+               );
+           })}
           </div>
         </div>
 

@@ -355,7 +355,7 @@ export class StudyPlanOrchestrator {
    * @description
    * Creates a `NotebookProgress` for every notebook, deriving lesson progress entries from
    * parsed lessons and computing the interleaved quota (3 × lesson count). The method also
-   * stores a small snapshot of notebook metadata (id, name, color) to support session
+   * stores a small snapshot of notebook metadata (id, name, colorCode) to support session
    * enrichment without repeated lookups. Runs in O(N) overall where N is the total number
    * of lessons across notebooks, and performs no I/O or external side effects.
    */
@@ -397,7 +397,7 @@ export class StudyPlanOrchestrator {
         notebookMetaSnapshot: {
           fileId: nb.fileId,
           fileName: nb.fileName,
-          color: nb.color,
+          colorCode: nb.colorCode,
         },
       });
     }

@@ -186,11 +186,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // [B] Extract the requested lesson (Y.Doc → lesson object)
-      console.log('[aiServiceLayer.ts][3010B] Extracting lesson for quiz generation', { fileID, selectedLessonId });
-      const lessons = await extractLessonsFromDocId(fileID, { mapIds: [selectedLessonId] });
-      const extractedLesson = lessons?.[0] as ExtractedLesson | undefined;
-
-      if (!extractedLesson) {
+      // This branch is only activated if no export data is sent
+      if (! req.body.exportData) {
+        const lessons = await extractLessonsFromDocId(fileID, { mapIds: [selectedLessonId] });
+        const extractedLesson = lessons?.[0] as ExtractedLesson | undefined;
+              if (!extractedLesson) {
         console.log('[aiServiceLayer.ts][3010C] No lesson returned for given map id', { fileID, selectedLessonId });
         return res.status(404).json({
           error: 'LESSON_NOT_FOUND',
@@ -198,22 +198,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           service: 'createQuiz',
         });
       }
+      
+      // [D] Attach extracted lesson context + normalized count to req.body for controller
+      (req.body as any).extractedLesson = extractedLesson;
+      (req.body as any).exportData = formatExportDataFromExtractedLesson(extractedLesson);
+
+      }
+      
+      
+
 
       // [C] Normalize/cap questionCount (shared generator, caps for Scholars)
       const requestedCountRaw = Number(body.questionCount);
       const requestedCount = Number.isFinite(requestedCountRaw) && requestedCountRaw > 0 ? Math.floor(requestedCountRaw) : 10;
       const normalizedQuestionCount = Math.max(1, Math.min(requestedCount, 10));
 
-      // [D] Attach extracted lesson context + normalized count to req.body for controller
-      (req.body as any).extractedLesson = extractedLesson;
-      (req.body as any).exportData = formatExportDataFromExtractedLesson(extractedLesson);
       (req.body as any).questionCount = normalizedQuestionCount;
 
-      console.log('[aiServiceLayer.ts][3010D] Lesson extracted & questionCount normalized', {
-        lessonId: extractedLesson.lessonId,
-        topics: extractedLesson.topics.length,
-        normalizedQuestionCount,
-      });
+
 
       // [E] Delegate to controller
       processingResult = await processAIServiceRequest(

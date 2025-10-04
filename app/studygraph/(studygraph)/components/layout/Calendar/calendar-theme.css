@@ -843,3 +843,49 @@
 .animate-spin {
   animation: calendar-spin 1s linear infinite;
 }
+
+
+/* ===== Completed Session Styling ===== */
+ .calendar-session-completed {
+   opacity: 0.45;
+   text-decoration: line-through;
+   filter: grayscale(0.2);
+ }
+ .calendar-session-label.calendar-session-completed:hover {
+   transform: none;                /* neutralize hover lift */
+   box-shadow: none;               /* no hover shadow */
+ }
+
+/* ===== Context Menu ===== */
+ .calendar-context-menu {
+   background: var(--calendar-bg-secondary);
+   border: 1px solid var(--calendar-gray-200);
+   border-radius: var(--calendar-radius-md);
+   box-shadow: var(--calendar-shadow-lg);
+   min-width: 220px;
+   padding: 4px;
+ }
+ .calendar-context-menu-item {
+   width: 100%;
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   padding: 8px 10px;
+   background: transparent;
+   border: none;
+   cursor: pointer;
+   border-radius: var(--calendar-radius-sm);
+   transition: background var(--calendar-transition-fast);
+   color: var(--calendar-text-primary);
+   text-align: left;
+ }
+ .calendar-context-menu-item:hover {
+   background: var(--calendar-gray-50);
+ }
+ .calendar-context-menu-checkbox {
+   width: 14px;
+   height: 14px;
+ }
+ .calendar-context-menu-label {
+   font-size: var(--calendar-text-sm);
+ }

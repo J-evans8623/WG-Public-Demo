@@ -599,7 +599,6 @@ export class EnhancedApiService extends EventTarget {
       /** Optional content to base quiz on */
       exportData?: string;
       /** Optional focused selection from the document */
-      textSelection?: string;
     },
     config: ApiRequestConfig = {}
   ): Promise<ApiResponse> {
@@ -611,7 +610,6 @@ export class EnhancedApiService extends EventTarget {
       lessonId,
       topicIds,
       exportData,
-      textSelection,
     } = params || ({} as any);
 
     // 2) Resolve topicIds from lessonId when necessary (single-quiz assumption upstream)
@@ -627,7 +625,6 @@ export class EnhancedApiService extends EventTarget {
     if (resolvedTopicIds.length > 0) payload.topicIds = resolvedTopicIds;
     if (typeof questionCount === 'number') payload.questionCount = questionCount;
     if (typeof exportData === 'string') payload.exportData = exportData;
-    if (typeof textSelection === 'string') payload.textSelection = textSelection;
 
     console.log('[enhancedApiService.ts][7413] createQuiz payload shaped', {
       fileID,
@@ -636,7 +633,6 @@ export class EnhancedApiService extends EventTarget {
       hasLessonId: !!lessonId,
       questionCount: questionCount ?? null,
       hasExportData: typeof exportData === 'string' && exportData.length > 0,
-      hasTextSelection: typeof textSelection === 'string' && textSelection.length > 0,
     });
 
     // 4) Dispatch request through the unified request pipeline

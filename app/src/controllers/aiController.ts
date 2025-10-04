@@ -232,90 +232,96 @@ public static async generateLesson(lessonModule: LessonModule): Promise<LessonMo
   }
 
 /**
-   * handleQuizTool
-   * @description
-   *   Simplified quiz generation endpoint. Treats any incoming array of quiz types as a single quiz
-   *   request by honoring only the first type. Builds an authoritative system prompt with
-   *   getQuizSystemPrompt(quizType, questionCount), passes lesson/user text as the user input, and
-   *   selects the JSON schema by type. Composite behavior can be added later exclusively in the
-   *   prompts module without expanding controller complexity. Time complexity is O(1).
-   */
-  public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): Promise<void> { // update - 2
-    try {
-      console.log('[aiController.ts][5312] Quiz generation request received');
-      const {
-        quizTypes,
-        fileID,
-        exportData,
-        textSelection,
-        questionCount
-      } = req.body;
+ * handleQuizTool (update - 4)
+ * @purpose
+ *   Deprecate `textSelection` and make `exportData` the single source of context.
+ *   - Always build `userInput` from `exportData`.
+ *   - If `textSelection` is present, log a deprecation notice and ignore it.
+ *   - Keep schema selection, system prompt, and response shape unchanged.
+ *
+ * @steps
+ *   1) Parse request body and validate required fields.
+ *   2) Emit a one-line deprecation log if `textSelection` is provided.
+ *   3) Normalize quiz type and question count.
+ *   4) Choose JSON schema by quiz type.
+ *   5) Build system prompt and user input (from exportData only).
+ *   6) Call AI service to generate structured output and return it.
+ *   7) Handle and report errors.
+ */
+public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): Promise<void> { // update - 4
+  try {
+    console.log('[aiController.ts][5312] Quiz generation request received');
+    const {
+      quizTypes,
+      fileID,
+      exportData,      
+      questionCount
+    } = req.body;
 
-      // 1) Validate minimal inputs
-      if (!fileID || !exportData || !Array.isArray(quizTypes) || quizTypes.length === 0) {
-        console.log('[aiController.ts][5313] Missing parameters for quiz generation', {
-          hasFile: !!fileID, hasExport: !!exportData, typesLen: Array.isArray(quizTypes) ? quizTypes.length : 0
-        });
-        res.status(400).json({
-          error: 'MISSING_PARAMETERS',
-          message: 'fileID, exportData, and at least one quiz type are required.',
-          service: 'createQuiz'
-        });
-        return;
-      }
-
-      // 2) Honor only the first quiz type
-      const firstType: string = String(quizTypes[0] || 'multipleChoice').trim();
-      const qty = Math.max(1, Math.floor(Number.isFinite(Number(questionCount)) ? Number(questionCount) : 10));
-
-      // 3) Determine schema by type (strategy preserved)
-      const typeToSchema: Record<string, { name: string; schema: any; strict?: boolean }> = {
-        multipleChoice: MultipleChoiceSchema,
-        matching:       MatchingQuizSchema,
-        FIB:            FillInBlankSchema,
-        'true-false':   TrueFalseSchema
-      };
-      const chosenSchema = typeToSchema[firstType] || MultipleChoiceSchema;
-
-      // 4) Build authoritative system prompt
-      const systemPrompt = getQuizSystemPrompt(firstType, qty); // update - 3
-
-      // 5) Build user input (the content to base the quiz on)
-      const userInput = `Context:\n${textSelection ? textSelection : exportData}`;
-
-      // update - 3: Ensure strict is a concrete boolean to satisfy JSONSchemaValidation
-      const schemaForCall = {
-        name: chosenSchema.name,
-        schema: chosenSchema.schema,
-        strict: chosenSchema.strict ?? true
-      };
-
-      console.log('[aiController.ts][5314] Quiz config', {
-        fileID,
-        firstType,
-        questionCount: qty,
-        schema: schemaForCall.name || 'unknown'
+    // Step 1 — Validate minimal inputs
+    if (!fileID || !exportData || !Array.isArray(quizTypes) || quizTypes.length === 0) {
+      console.log('[aiController.ts][5313] Missing parameters for quiz generation', {
+        hasFile: !!fileID, hasExport: !!exportData, typesLen: Array.isArray(quizTypes) ? quizTypes.length : 0
       });
-
-      // 6) Call the model for structured output
-      const aiService = AIController.getAIService();
-      const structuredResponse = await aiService.generateStructuredOutput(
-        schemaForCall, // update - 3
-        userInput,
-        systemPrompt
-      );
-
-      console.log('[aiController.ts][5315] Quiz generation complete');
-      res.status(200).json(structuredResponse);
-    } catch (error) {
-      console.error('[aiController.ts][5394] Quiz generation failed', error);
-      res.status(500).json({
-        error: 'QUIZ_GENERATION_FAILED',
-        message: 'Failed to generate quiz content.',
+      res.status(400).json({
+        error: 'MISSING_PARAMETERS',
+        message: 'fileID, exportData, and at least one quiz type are required.',
         service: 'createQuiz'
       });
+      return;
     }
+
+
+    // Step 3 — Normalize type & quantity
+    const firstType: string = String(quizTypes[0] || 'multipleChoice').trim();
+    const qty = Math.max(1, Math.floor(Number.isFinite(Number(questionCount)) ? Number(questionCount) : 10));
+
+    // Step 4 — Schema selection (unchanged)
+    const typeToSchema: Record<string, { name: string; schema: any; strict?: boolean }> = {
+      multipleChoice: MultipleChoiceSchema,
+      matching:       MatchingQuizSchema,
+      FIB:            FillInBlankSchema,
+      'true-false':   TrueFalseSchema
+    };
+    const chosenSchema = typeToSchema[firstType] || MultipleChoiceSchema;
+
+    // Step 5 — Prompts & input (ALWAYS from exportData)
+    const systemPrompt = getQuizSystemPrompt(firstType, qty);
+    const userInput = `Context:\n${exportData}`; // update - 4
+
+    const schemaForCall = {
+      name: chosenSchema.name,
+      schema: chosenSchema.schema,
+      strict: chosenSchema.strict ?? true
+    };
+
+    console.log('[aiController.ts][5314] Quiz config', {
+      fileID,
+      firstType,
+      questionCount: qty,
+      schema: schemaForCall.name || 'unknown'
+    });
+
+    // Step 6 — Structured output
+    const aiService = AIController.getAIService();
+    const structuredResponse = await aiService.generateStructuredOutput(
+      schemaForCall,
+      userInput,
+      systemPrompt
+    );
+
+    console.log('[aiController.ts][5315] Quiz generation complete');
+    res.status(200).json(structuredResponse);
+  } catch (error) {
+    console.error('[aiController.ts][5394] Quiz generation failed', error);
+    res.status(500).json({
+      error: 'QUIZ_GENERATION_FAILED',
+      message: 'Failed to generate quiz content.',
+      service: 'createQuiz'
+    });
   }
+}
+
 
   /**
    * generateSubtreeLesson

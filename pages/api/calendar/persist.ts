@@ -1,85 +1,63 @@
 /**
  * @file pages/api/calendar/persist.ts
  * @responsibility
- *   Auth-protected REST endpoint (GET/POST/DELETE) that persists **only**:
- *     - studyPlan (new StudyPlanService output, incl. state)
- *     - selectedNotebooks (string[])
- *     - completedSessions (string[])
- *   Excludes legacy plan/index and scheduleConfig. Delegates storage to StudyPlanFB.
+ *   Phase 1: convert to a URL-minting surface (no big bodies).
+ *   - GET    → { downloadUrl, path }
+ *   - POST   → { uploadUrl,  path }
+ *   - DELETE → { ok: true }  (server-side delete)
+ *   All calendar Storage logic lives in StudyPlanFB.ts.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
-import type { StudyPlanOutput } from '@/app/studygraph/(studygraph)/components/layout/Calendar/study-planner';
-import { storeStudyPlan, loadStudyPlan, clearStudyPlan  } from '@/app/src/services/studyplanfb/StudyPlanFB';
+import {
+  generateCalendarDownloadUrl,
+  generateCalendarUploadUrl,
+  deleteCalendar,
+} from '@/app/src/services/studyplanfb/StudyPlanFB';
 
 /**
  * @function handler
  * @description
- *   Dispatches GET/POST/DELETE for the new calendar persistence surface.
- *   Update - 1
+ *   Mint signed URLs for calendar persistence or delete the blob.
+ *   // update - 2
  * @steps
- *   1) Authenticate via `authenticateRequest`.
- *   2) GET    → loadStudyPlan(uid) and return JSON (Dates pre-serialized in adapter).
- *   3) POST   → validate minimal payload, then storeStudyPlan(uid, payload).
- *   4) DELETE → clearStudyPlan(uid).
- *   5) On error → structured 500 with concise 4-digit code.
+ *   1) Authenticate and derive uid from session (owner-only).
+ *   2) GET    → generateCalendarDownloadUrl(uid) → return { downloadUrl, path }.
+ *   3) POST   → generateCalendarUploadUrl(uid)  → return { uploadUrl,  path }.
+ *   4) DELETE → deleteCalendar(uid)             → return { ok: true }.
+ *   5) Else   → 405.
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await authenticateRequest(req, res);
-  if (!session) return; // authenticateRequest already handled response
+  if (!session) return;
 
   const uid = session.user.email!;
   try {
     if (req.method === 'GET') {
-      const data = await loadStudyPlan(uid);
-      // Adapter returns runtime Dates; we can safely JSON.stringify them — clients treat as strings.
-      return res.status(200).json({
-        studyPlan: data.studyPlan,
-        selectedNotebooks: data.selectedNotebooks,
-        completedSessions: data.completedSessions,
-      });
+      const out = await generateCalendarDownloadUrl(uid);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json(out);
     }
 
     if (req.method === 'POST') {
-      const body = req.body ?? {};
-      // Minimal defensive validation (runtime-check shape without deep cost)
-      const hasPlan =
-        body &&
-        body.studyPlan &&
-        Array.isArray(body.studyPlan.sessions) &&
-        body.studyPlan.planMetadata &&
-        body.studyPlan.state;
-
-      if (!hasPlan) {
-        console.log('[PRST 2001] invalid_payload');
-        return res.status(400).json({ error: 'Invalid studyPlan payload' });
-      }
-
-      // Narrowed types for storage
-      const payload: {
-        studyPlan: StudyPlanOutput;
-        selectedNotebooks: string[];
-        completedSessions: string[];
-      } = {
-        studyPlan: body.studyPlan,
-        selectedNotebooks: Array.isArray(body.selectedNotebooks) ? body.selectedNotebooks : [],
-        completedSessions: Array.isArray(body.completedSessions) ? body.completedSessions : [],
-      };
-
-      await storeStudyPlan(uid, payload);
-      return res.status(200).json({ ok: true });
+      const out = await generateCalendarUploadUrl(uid);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json(out);
     }
 
     if (req.method === 'DELETE') {
-      await clearStudyPlan(uid);
+      await deleteCalendar(uid);
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json({ ok: true });
     }
 
     res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(405).json({ error: 'Method Not Allowed' });
   } catch (err: any) {
-    console.error('[PRST 5001] unhandled_error', { message: err?.message });
+    console.error('[calendar/persist][5001] fatal', { uid, msg: err?.message });
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }

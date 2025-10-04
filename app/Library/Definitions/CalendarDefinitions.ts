@@ -48,7 +48,7 @@ export interface NotebookMeta {
   /** Version hash for detecting stale metadata */
   version: string;
   /** Color code for visual distinction in calendar */
-  color: string;
+  colorCode: string;
 }
 
 /**
@@ -66,7 +66,7 @@ export interface NotebookSummary {
   /** Last modification timestamp for sorting and display */
   lastUpdated: Date;
   /** Color code for visual distinction */
-  color?: string;
+  colorCode: string;
 }
 
 /**
@@ -121,7 +121,7 @@ export interface DailyStudyPlan {
       notebookName: string;
       sessionCount: number;
       totalUnits: number;
-      color: string;
+      colorCode: string;
     };
   };
   /** Total estimated study time for the day in minutes */
@@ -198,7 +198,7 @@ export interface CalendarContextType {
   createSessionLauncher: (sessionId: string) => PickerFileMeta | null;
   markSessionCompleted: (sessionId: string) => void;
   markSessionIncomplete: (sessionId: string) => void;
-  
+  completedSessions:string[],
   // Utility
   //getDailyPlan: (date: Date) => DailyStudyPlan | null;
   //getSessionsForDay: (date: Date) => StudySession[];

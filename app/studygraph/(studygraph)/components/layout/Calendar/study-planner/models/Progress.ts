@@ -87,5 +87,5 @@ export interface NotebookProgress {
   /** Interleaved revision progress for the entire notebook. */
   interleavedRevisionProgress: InterleavedRevisionProgress;
   /** Cached copy of essential notebook metadata for convenience/debug (optional). */
-  notebookMetaSnapshot?: Pick<NotebookMeta, 'fileId' | 'fileName' | 'color'>;
+  notebookMetaSnapshot?: Pick<NotebookMeta, 'fileId' | 'fileName' | 'colorCode'>;
 }

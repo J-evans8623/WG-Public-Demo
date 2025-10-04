@@ -73,7 +73,7 @@ function groupSessionsIntoMonth(studyPlan: StudyPlanOutput, anchorDate: Date): C
           notebookName: s.notebookMeta.fileName,
           sessionCount: 0,
           totalUnits: 0,
-          color: s.notebookMeta.color,
+          colorCode: s.notebookMeta.colorCode,
         };
       }
       subjectSummary[id].sessionCount += 1;
@@ -121,6 +121,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [saveNeeded, setSaveNeeded] =useState(false);
 
   // Version tracking (unchanged conceptually)
   const [notebookVersions, setNotebookVersions] = useState<Map<string, NotebookVersionState>>(new Map());
@@ -200,13 +201,12 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
    * @description Load list of notebooks for selection UI.
    * @steps
    *  1) GET list() via NotebooksApi.
-   *  2) Assign colors deterministically in UI (if not present).
    */
   const refreshNotebooks = useCallback(async () => {
     try {
       const notebooks = await notebooksApi.list();
-      const withColors = notebooks.map((n, i) => ({ ...n, color: NOTEBOOK_COLORS[i % NOTEBOOK_COLORS.length] }));
-      setAvailableNotebooks(withColors);
+      //const withColors = notebooks.map((n, i) => ({ ...n, color: NOTEBOOK_COLORS[i % NOTEBOOK_COLORS.length] }));
+      setAvailableNotebooks(notebooks);
     } catch (e) {
       setError('Failed to load notebooks');
     }
@@ -238,10 +238,10 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
         });
       }
       // persist only if plan exists (avoid POST with null plan)
-      void persistOptimistic();
+      setSaveNeeded(true);
       return next;
     });
-  }, [currentDocVersion, docFileID, persistOptimistic]);
+  }, [currentDocVersion, docFileID]);
 
   /**
    * @function deselectNotebook
@@ -254,10 +254,10 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
       setNotebookVersions(m => {
         const mm = new Map(m); mm.delete(id); return mm;
       });
-      void persistOptimistic();
+      setSaveNeeded(true)
       return next;
     });
-  }, [persistOptimistic]);
+  }, []);
 
 /**
    * @function updateScheduleConfig
@@ -297,12 +297,11 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
     setIsLoading(true); setError(null);
     try {
       const metas = await notebooksApi.details(selectedNotebooks);
-      const colored = metas.map((m, i) => ({ ...m, color: m.color ?? NOTEBOOK_COLORS[i % NOTEBOOK_COLORS.length] }));
-      const out = service.generateStudyPlan(colored, scheduleConfig, planStartDate);
+      const out = service.generateStudyPlan(metas, scheduleConfig, planStartDate);
       setStudyPlan(out);
       // initialize versions
       const map = new Map<string, NotebookVersionState>();
-      colored.forEach(nb => {
+      metas.forEach(nb => {
         map.set(nb.fileId, {
           notebookId: nb.fileId,
           trackedVersion: nb.version ?? 'unknown',
@@ -373,10 +372,10 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
     setCompletedSessions(prev => {
       if (prev.includes(sessionId)) return prev;
       const next = [...prev, sessionId];
-      void persistOptimistic();
+      setSaveNeeded(true)
       return next;
     });
-  }, [persistOptimistic]);
+  }, []);
 
   /**
    * @function markSessionIncomplete
@@ -388,10 +387,20 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
   const markSessionIncomplete = useCallback((sessionId: string) => {
     setCompletedSessions(prev => {
       const next = prev.filter(id => id !== sessionId);
-      void persistOptimistic();
+      setSaveNeeded(true);
       return next;
     });
-  }, [persistOptimistic]);
+  }, []);
+
+
+  // "Autosave mechanism"
+
+  useEffect(()=>{
+    if (saveNeeded) {
+      void persistOptimistic();
+      setSaveNeeded(false)
+    }
+  },[persistOptimistic, saveNeeded])
 
   /**
    * @function clearSchedule
@@ -443,10 +452,11 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
     createSessionLauncher,
     markSessionCompleted,
     markSessionIncomplete,
+    completedSessions,
 
     // utilities
     notebookVersions,
-  }), [selectedNotebooks, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, notebookVersions]);
+  }), [selectedNotebooks,completedSessions, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, notebookVersions]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
@@ -461,8 +471,3 @@ export function useCalendar(): CalendarContextType {
   return ctx;
 }
 
-// Palette used when backend doesn’t provide colors
-const NOTEBOOK_COLORS = [
-  '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444',
-  '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1',
-];

@@ -77,16 +77,14 @@ const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
 
   // Local state management
   const [topicRequest, setTopicRequest] = useState('');
-  const [mergeOption, setMergeOption] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('');
-
+ const mergeOption = true;
   // Reset form whenever opened
   useEffect(() => {
     if (isOpen) {
       setTopicRequest('');
-      setMergeOption(true);
       setError(null);
       setIsLoading(false);
       setSelectedNodeId('');
@@ -293,7 +291,6 @@ const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
             type="checkbox"
             className="h-4 w-4 text-blue-600 border-gray-300 rounded"
             checked={mergeOption}
-            onChange={e => setMergeOption(e.target.checked)}
             disabled={isLoading}
           />
           <label htmlFor="mergeCheckbox" className="ml-2 text-sm text-gray-700">

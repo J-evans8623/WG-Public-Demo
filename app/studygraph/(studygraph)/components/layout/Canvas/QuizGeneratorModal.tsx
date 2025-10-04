@@ -48,6 +48,8 @@ interface QuizGeneratorModalProps {
    * PDF pipeline ignores this and uses attachedText instead.
    */
   preselectedTopicIds: string[];
+  mapId:string,
+  source?:string,
 }
 
 /**
@@ -68,6 +70,8 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
   isOpen,
   onClose,
   preselectedTopicIds,
+  mapId,
+  source,
 }) => {
   // Context hooks for existing functionality
   const { attachedText, clearAttachment } = useSelectionAttachment();
@@ -125,106 +129,120 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
     setSelectedQuizType(e.target.value);
   };
 
-  /**
-   * handleGenerateQuiz
-   * @description
-   * Enhanced quiz generation handler that integrates with the centralized API service
-   * for consistent subscription management and error handling. This method replaces legacy
-   * API calls with the unified service that automatically handles subscription validation,
-   * rate limiting, and error modal triggering while maintaining existing quiz processing
-   * and card creation workflows. The implementation ensures seamless user experience with
-   * automatic error handling through the event-driven architecture.
-   * @returns Promise resolving when quiz generation is complete or error handling triggered
-   */
-  const handleGenerateQuiz = async () => {
-    // Step 1: Validate input requirements based on pipeline mode
-    if (usingPdf && !attachedText) {
-      setError('No PDF selection found.');
-      return;
-    }
-    if (!usingPdf && selectedTopicIds.length === 0) {
-      setError('Please select at least one topic.');
-      return;
-    }
-    if (!selectedQuizType) {
-      setError('Please select a quiz type.');
-      return;
-    }
 
-    console.log('[QuizGeneratorModal.tsx][4007] Quiz generation initiated', {
+
+/**
+ * handleGenerateQuiz
+ * @description
+ *   (update - 2) Generate a quiz using the new exportData-only flow.
+ *   Steps:
+ *    1) Validate inputs for the current mode (PDF vs Map).
+ *    2) Export study data: from PDF selection or selected node topics.
+ *    3) Build the params object for the new createQuiz signature.
+ *    4) Call API; parse response; ensure Review node exists; save quiz.
+ *    5) Handle errors via UI messages; no `textSelection` is sent.
+ */
+const handleGenerateQuiz = async () => { // update - 2
+  // Step 1: Validate current mode inputs
+  const usingPdf = attachedText.trim().length > 0; // kept local for clarity
+  if (usingPdf && !attachedText) {
+    setError('No PDF selection found.');
+    return;
+  }
+  if (!usingPdf && selectedTopicIds.length === 0) {
+    setError('Please select at least one topic.');
+    return;
+  }
+  if (!selectedQuizType) {
+    setError('Please select a quiz type.');
+    return;
+  }
+
+  console.log('[QuizGeneratorModal.tsx][4007] Quiz generation initiated', {
+    usingPdf,
+    topicCount: selectedTopicIds.length,
+    quizType: selectedQuizType,
+    hasAttachment: !!attachedText
+  });
+
+  setIsLoading(true);
+  setError(null);
+
+  try {
+    // Step 2: Prepare exportData (single source of context)
+    // 2.1 Map mode → compile node resources
+    // 2.2 PDF mode → use attached text selection
+    const exportDataText = usingPdf
+      ? attachedText
+      : exportStudyData(selectedTopicIds);
+
+    console.log('[QuizGeneratorModal.tsx][4008] Study data prepared', {
       usingPdf,
-      topicCount: selectedTopicIds.length,
-      quizType: selectedQuizType,
-      hasAttachment: !!attachedText
+      exportLen: exportDataText?.length ?? 0
     });
 
-    setIsLoading(true);
-    setError(null);
+    // Step 3: Build params for the new API signature
+    //   - Always pass lessonId (map id) for server-side alignment
+    //   - Send topicIds only for map mode (harmless if omitted)
+    //   - Do NOT send textSelection anymore
+    const params = {
+      quizTypes: [selectedQuizType],
+      fileID: docFileID || '',
+      lessonId: mapId,                 // required server-side context key
+      topicIds: usingPdf ? [] : selectedTopicIds,
+      exportData: exportDataText,      // single source of context
+      questionCount: 5,
+    } 
 
-    try {
-      // Step 2: Export data for quiz context
-      const exportData = exportStudyData(usingPdf ? [] : selectedTopicIds);
+    // Step 4: Call the centralized API
+    const response = await apiService.createQuiz(params);
 
-      console.log('[QuizGeneratorModal.tsx][4008] Study data exported for quiz generation', {
-        dataLength: exportData.length
+    if (response.success && response.data) {
+      const parsedQuiz = parseQuizResponse(response.data, mapId);
+      if (!parsedQuiz) throw new Error('Received empty quiz response');
+
+      console.log('[QuizGeneratorModal.tsx][4009] Quiz response parsed successfully', {
+        hasQuiz: !!parsedQuiz,
+        quizTitle: parsedQuiz?.title
       });
 
-      // Step 3: Call enhanced API service instead of legacy generateQuiz
-      const response = await apiService.createQuiz(
-        usingPdf ? [] : selectedTopicIds,
-        [selectedQuizType],
-        docFileID || '',
-        exportData,
-        usingPdf ? attachedText : undefined
-      );
-
-      // Step 4: Process successful response
-      if (response.success && response.data) {
-        const parsedQuiz = parseQuizResponse(response.data);
-        if (!parsedQuiz) throw new Error('Received empty quiz response');
-
-        console.log('[QuizGeneratorModal.tsx][4009] Quiz response parsed successfully', {
-          hasQuiz: !!parsedQuiz,
-          quizTitle: parsedQuiz?.title
-        });
-
-        // Step 5: Ensure Review node exists for quiz attachment
-        const reviewInfo = getReviewNode();
-        if (!reviewInfo.exist) {
-          createNewNode('Review', getRootNode(), 'reviewNode');
-          layoutDispatch(setGetLayout(true));
-        }
-        parsedQuiz.nodeId = 'reviewNode';
-
-        // Step 6: Save quiz card and select review node
-        await createResource({
-          nodeId: parsedQuiz.nodeId,
-          type: 'quiz',
-          title: parsedQuiz.title,
-          content: parsedQuiz.content,
-        });
-
-        groupSelect([parsedQuiz.nodeId]);
-        
-        console.log('[QuizGeneratorModal.tsx][4010] Quiz card created and node selected successfully');
-        
-        handleClose();
-      } else {
-        // Step 7: Error handling is managed by the enhanced API service event system
-        console.log('[QuizGeneratorModal.tsx][4011] Quiz generation failed, error handled by event system', {
-          success: response.success,
-          errorType: response.error?.type
-        });
-        setError('Failed to generate quiz. Please try again later.');
-        setIsLoading(false);
+      // Ensure Review node exists
+      const reviewInfo = getReviewNode();
+      if (!reviewInfo.exist) {
+        createNewNode('Review', getRootNode(), 'reviewNode');
+        layoutDispatch(setGetLayout(true));
       }
-    } catch (err) {
-      // Step 8: Catch-all error handling for unexpected failures
-      console.error('[QuizGeneratorModal.tsx][4012] Unexpected error in quiz generation:', err);
+      parsedQuiz.nodeId = 'reviewNode';
+
+      // Save quiz card and select review node
+      await createResource({
+        nodeId: parsedQuiz.nodeId,
+        type: 'quiz',
+        title: parsedQuiz.title,
+        content: parsedQuiz.content,
+      });
+
+      groupSelect([parsedQuiz.nodeId]);
+
+      console.log('[QuizGeneratorModal.tsx][4010] Quiz card created and node selected successfully');
+
+      // Step 5: Close
+      handleClose();
+    } else {
+      console.log('[QuizGeneratorModal.tsx][4011] Quiz generation failed', {
+        success: response.success,
+        errorType: response.error?.type
+      });
       setError('Failed to generate quiz. Please try again later.');
       setIsLoading(false);
     }
-  };
+  } catch (err) {
+    console.error('[QuizGeneratorModal.tsx][4012] Unexpected error in quiz generation:', err);
+    setError('Failed to generate quiz. Please try again later.');
+    setIsLoading(false);
+  }
+};
+
 
   if (!isOpen) return null;
 
@@ -273,6 +291,7 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
               <QuizTopicSelector
                 selectedTopicIds={selectedTopicIds}
                 onChangeSelectedTopics={setSelectedTopicIds}
+                source={source}
               />
             </>
           )}

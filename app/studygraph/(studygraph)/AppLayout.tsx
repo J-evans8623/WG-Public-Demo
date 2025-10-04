@@ -133,7 +133,7 @@ const AppLayoutContent: React.FC = () => {
    // Reset function from ViewSwitchContext:
    const { resetPdfState, setActiveView, isPanelManuallyOpen, isPanelExpanded, togglePanel, setPanelExpanded } = useViewSwitch();
    const { setDefaultMap, activeConceptMapId } = useLessonModule();  
-  // Refs.
+  
   
 
 
@@ -186,7 +186,7 @@ const AppLayoutContent: React.FC = () => {
       collabDisconnect();
     }
     
-    // Note: We don't disconnect when docFileID is null because that might be temporary during loading
+    // We should not connect during file switching / initialization (please patch this)
   }, [docFileID, currentView, ydoc, getVisibility, collabConnect, collabDisconnect]);
 
 

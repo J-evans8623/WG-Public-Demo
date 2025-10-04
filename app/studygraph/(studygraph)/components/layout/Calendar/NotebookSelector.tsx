@@ -118,19 +118,9 @@ const NotebookSelector: React.FC<NotebookSelectorProps> = ({
    * consistent fallback colors for unknown subjects to maintain visual coherence.
    */
   const getNotebookColor = useCallback((notebook: NotebookSummary) => {
-    if (notebook.color) return notebook.color;
+    if (notebook.colorCode) return notebook.colorCode;
     
-    // Step 3: Map notebook names to brand theme subject colors
-    const name = notebook.fileName.toLowerCase();
-    if (name.includes('biology') || name.includes('bio')) return '#C8E6C9';
-    if (name.includes('chemistry') || name.includes('chem')) return '#FFE0B2';
-    if (name.includes('physics')) return '#BBDEFB';
-    if (name.includes('math') || name.includes('mathematics')) return '#FFCDD2';
-    if (name.includes('history')) return '#E1BEE7';
-    if (name.includes('english') || name.includes('literature')) return '#B2DFDB';
-    if (name.includes('psychology') || name.includes('psych')) return '#F8BBD9';
-    
-    return '#C8E6C9'; // Default sage green
+    return notebook.colorCode
   }, []);
 
   /**

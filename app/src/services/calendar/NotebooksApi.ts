@@ -28,6 +28,7 @@ type OwnedFile = {
     totalUnits?: number;
     unitsByMap?: Record<string, unknown[]>;
   };
+  colorCode:string
 };
 
 interface LessonUnit {
@@ -49,7 +50,7 @@ type NotebookDetailsWire = {
   lastUpdated: string;
   lessonUnits: LessonUnit[];
   version?: string;
-  color?: string;
+  colorCode: string;
 };
 
 export class NotebooksApi {
@@ -99,6 +100,7 @@ export class NotebooksApi {
         totalUnits: calcUnits(f.lessonUnitsMeta),
         lastUpdated: new Date(f.updatedAt),
         hasLessonMeta: !!f.lessonUnitsMeta,
+        colorCode:f.colorCode,
       }))
       .filter((n) => n.totalUnits > 0);
 
@@ -147,7 +149,7 @@ export class NotebooksApi {
         lessonUnits: nb.lessonUnits,
         lastUpdated: new Date(nb.lastUpdated),
         version: nb.version ?? 'unknown',
-        color: nb.color ?? '#3B82F6', // default color if backend omitted
+        colorCode: nb.colorCode ?? '#3B82F6', // default color if backend omitted
       }));
 
     console.log(`[${loc}] details() success valid=${mapped.length}`);

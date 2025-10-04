@@ -46,6 +46,7 @@ interface ScoreDisplayProps {
   onExit: () => void;
   results?: QuizResult[];
   onTryAgain?: () => void;
+  isAssessment?:boolean
 }
 
 const ScoreDisplay: React.FC<ScoreDisplayProps> = ({ 
@@ -53,7 +54,8 @@ const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
   total, 
   onExit, 
   results = [], 
-  onTryAgain 
+  onTryAgain,
+  isAssessment
 }) => {
   console.log('[ScoreDisplay.tsx:4001] Rendering score display with results:', results.length, 'items');
 
@@ -72,11 +74,14 @@ const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
    * @returns Object containing performance message for display with academic tone
    */
   const getPerformanceMessage = () => {
-    if (percentage >= 90) return "Outstanding work! You've mastered this topic.";
-    if (percentage >= 80) return "Strong performance. You have a solid understanding.";
-    if (percentage >= 70) return "Good progress. Review the concepts below for improvement.";
-    if (percentage >= 60) return "Continue studying. Focus on the areas covered below.";
-    return "More study needed. Focus on the concepts below.";
+    let messg:string;
+    if (percentage >= 90) messg= "Outstanding work! You've mastered this topic.";
+    if (percentage >= 80) messg ="Strong performance. You have a solid understanding.";
+    if (percentage >= 70) messg = "Good progress. Review the concepts below for improvement.";
+    if (percentage >= 60) messg = "Still room for improvement, Focus on the areas covered below.";
+    else messg = "Still room for improvement, Focus on the areas below."
+    messg = isAssessment ? "Your score has been submitted" : messg
+    return messg ;
   };
 
   const performanceMessage = getPerformanceMessage();
@@ -154,7 +159,7 @@ const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
 
       {/* Action Buttons at Bottom */}
       <div className="quiz-score-actions">
-        {onTryAgain && (
+        {onTryAgain && !isAssessment && (
           <button
             onClick={() => {
               console.log('[ScoreDisplay.tsx:4002] Try again button clicked');

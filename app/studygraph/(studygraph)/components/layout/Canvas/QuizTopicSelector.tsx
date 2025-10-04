@@ -9,7 +9,7 @@
  *   - Notify the parent component of any changes to the selected topic IDs.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
@@ -17,15 +17,32 @@ import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 interface QuizTopicSelectorProps {
   selectedTopicIds: string[];
   onChangeSelectedTopics: (newSelected: string[]) => void;
+  source?:string;
 }
 
 const QuizTopicSelector: React.FC<QuizTopicSelectorProps> = ({
   selectedTopicIds,
   onChangeSelectedTopics,
+  source
 }) => {
   const { nodes } = useNodesContext();
   const { activeConceptMapId } = useLessonModule();
   const { selectCueCards, selectResources } = useResourceContext();
+  
+  // helper to get related nodes (parent node id + sibling nodeId) of selected node
+  const getRelatedNodes = useCallback(()=>{
+    if (source ==='node'){
+      const nodeid = selectedTopicIds[0]
+      const node = nodes.get(nodeid)
+      const parent_node =nodes.get(node?.parentNodeId? node.parentNodeId :'')
+      let relatedNodes = [parent_node? parent_node.id:'']
+      const results = relatedNodes.concat(parent_node?.childrenNodeIds? parent_node.childrenNodeIds :[])
+      return results
+    }
+    else {
+      return ['']
+    }
+  }, [nodes, selectedTopicIds, source])
 
   // allNodeIds contains every node ID in the active concept map.
   const [allNodeIds, setAllNodeIds] = useState<string[]>([]);
@@ -35,9 +52,15 @@ const QuizTopicSelector: React.FC<QuizTopicSelectorProps> = ({
 
   useEffect(() => {
     // 1. Gather every node ID from the shared "nodes" map.
-    const nodeIds = Array.from(nodes.keys());
+    let nodeIds;
+    if(source !=="node")
+    {
+    nodeIds = Array.from(nodes.keys());
+    } else {
+      nodeIds = getRelatedNodes();
+    }
     setAllNodeIds(nodeIds);
-  }, [nodes]);
+  }, [getRelatedNodes, nodes, source]);
 
   useEffect(() => {
     // 2. Compute validNodeIds by checking each node's resources.
@@ -62,6 +85,7 @@ const QuizTopicSelector: React.FC<QuizTopicSelectorProps> = ({
 
   return (
     <div className="border rounded p-2 max-h-40 overflow-y-auto">
+      <p> Other topics from this unit </p>
       {validNodeIds.map((nodeId) => {
         const nodeTitle = nodes.get(nodeId)?.title || 'Untitled';
         return (

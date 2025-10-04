@@ -312,6 +312,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
             isOpen
             onClose={() => setIsQuizModalOpen(false)}
             preselectedTopicIds={[]}
+            mapId={activeConceptMapId}
           />,
           document.body
         )}

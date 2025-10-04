@@ -112,6 +112,7 @@ interface NodesContextValue {
   saveEditwithNewNode(nodeTitle: string): string;
   getNodes(mode:"History"|"Live") : Map<string, ConceptNode> | null;
   getGlobalNode: (mapId: string, nodeId: string) => ConceptNode | undefined;
+  mapId:string,
 }
 
 const NodesContext = createContext<NodesContextValue | undefined>(undefined);
@@ -664,8 +665,9 @@ const getGlobalNode = useCallback(
       saveEditwithNewNode,
       getNodes,
       getGlobalNode,
+      mapId:activeConceptMapId
     }),
-    [nodes, setNodes,setGeneratedNodes, createNewNode, updateNodeTitle, deleteNode, transferNode, resetNodes, initNewDocument, getNodeTitle, getRootNode, getReviewNode, restoreNode, saveEditwithNewNode, getNodes, getGlobalNode]
+    [nodes, setNodes, setGeneratedNodes, createNewNode, updateNodeTitle, deleteNode, transferNode, resetNodes, initNewDocument, getNodeTitle, getRootNode, getReviewNode, restoreNode, saveEditwithNewNode, getNodes, getGlobalNode, activeConceptMapId]
   );
 
   return <NodesContext.Provider value={contextValue}>{children}</NodesContext.Provider>;

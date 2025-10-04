@@ -46,6 +46,7 @@ import { setGetLayout } from '@/app/Library/Context/LayoutActions';
 import { layoutConfig } from '@/app/Library/Definitions/Definitions';
 import { createPortal } from 'react-dom';
 import TopicGeneratorModal from '../../TopicGeneratorModal';
+import QuizGeneratorModal from '../../QuizGeneratorModal';
 import '@/app/studygraph/customTooltip.css'
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; 
@@ -75,7 +76,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
     StatusMessage,
     setStatusMessage,
   } = useNodeSelection();
-  const { updateNodeTitle, createNewNode, deleteNode, transferNode } = useNodesContext();
+  const { updateNodeTitle, createNewNode, deleteNode, transferNode, mapId  } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
   const { open } = useSlideShow();
 
@@ -89,6 +90,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
 
   // Hover‐menu state
   const [showMenu, setShowMenu] = useState(false);
+  const [isQuizGeneratorOpen, setisQuizGeneratorOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const menuRef = React.useRef<HTMLDivElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
@@ -312,6 +314,16 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
     },
     [isRoot, childrenNodeIds, node.id, deleteNode, layoutDispatch, canEdit] // update - 9
   );
+
+  const handleGenerateQuiz =  useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canEdit) {
+      console.log('[Canvas/ConceptNode.tsx][6210] blocked topic generator (read-only)'); // update - 10
+      return;
+    }
+    setisQuizGeneratorOpen(true);
+    console.log('[Canvas/ConceptNode.tsx][6211] topic generator opened', { id: node.id }); // update - 10
+  }, [canEdit, node.id]); // update - 10
 
   /**
    * @function handleExploreTopic
@@ -540,6 +552,17 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
                 </button>
               )}
 
+                <button
+                onClick={(e) => {
+                  handleGenerateQuiz(e);
+                  setShowMenu(false);
+                }}
+                className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2 hover:bg-gray-50"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Create Quiz</span>
+              </button>
+
               <button
                 onClick={(e) => {
                   handleExploreTopic(e);
@@ -579,7 +602,17 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
           </div>,
           document.body
         )}
+      {canEdit && isQuizGeneratorOpen &&
+      createPortal(
+      <QuizGeneratorModal
+          isOpen
+          onClose={() => setisQuizGeneratorOpen(false)} 
+          preselectedTopicIds={[node.id]} 
+          mapId={mapId}
+          source='node'
 
+          />, 
+       document.getElementById('modal-root') || document.body)}
       {/* Topic generator modal — gated by canEdit */} {/* update - 19 */}
       {canEdit && isTopicGeneratorOpen &&
         createPortal(

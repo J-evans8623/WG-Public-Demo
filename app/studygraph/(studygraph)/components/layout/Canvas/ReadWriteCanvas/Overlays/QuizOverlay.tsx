@@ -327,6 +327,7 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
           onExit={requestExit}
           results={detailedResults}
           onTryAgain={handleTryAgain}
+          isAssessment
         />
       );
     }
