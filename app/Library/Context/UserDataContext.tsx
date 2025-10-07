@@ -47,8 +47,6 @@ interface UserDataContextValue {
   loading: boolean;
   recordQuizAttempt: (itemId: string, quizType: QuizType, correct: boolean) => void;
   generateRevision: () => RevisionCards | null;
-  LoadUserData: (docId:string) => Promise<RevisionMetaData | null>;
-  InitializeUserData: (documentID:string) => Promise<RevisionMetaData>;
   SaveUserData: (docId:string) => Promise<void>;
   recordQuizSession : () => void;
   // bookmark controls
@@ -73,7 +71,7 @@ export const UserDataProvider: React.FC<{ children: ReactNode }> = ({
   // ───────────────────── Hooks & Context ─────────────────────
   const { data: session } = useSession();
   const userId = session?.user.name;
-  const { docFileID } = useYDoc();
+  const { docFileID, bootPhase, renderReady, saveReady } = useYDoc();
   const { getAllFlashCards, getAllQuizzes } = useResourceScanner();
   const { getGlobalResourceCard, updatedRivisonCard, setupdatedRivisionCard } = useResourceContext();
 
@@ -239,148 +237,53 @@ const SaveUserData = useCallback(
   // ───────────── Context Value & Render ─────────────────────
 
 
-// 1) LOAD existing user data (GET)
+/***************************************************************************************
+ * @update - 301
+ * @section LoadUserData (GET-or-CREATE)
+ * @purpose
+ *   Align client with new server semantics: ONE idempotent GET after saveReady.
+ * @steps
+ *   1) Reset local state for a clean load.
+ *   2) GET /api/userData?docId=... (server will create if missing).
+ *   3) Normalize optional fields (GlobalQuizAttempts, bookmarks, seenRecord).
+ *   4) Commit to state and return the payload.
+ ***************************************************************************************/
 const LoadUserData = useCallback(
   async (docId: string): Promise<RevisionMetaData | null> => {
     if (!userId || !docId) return null;
 
-     console.log('[UserDataContext] Loading user data for doc:', docId);
+    console.log('[UserDataContext] (update-301) GET-or-CREATE for doc:', docId);
     setCurrentDocId(null);
     setuserRevisionData(null);
     setLoading(true);
+
     try {
-      const resp = await fetch(
-        `/api/userData?docId=${encodeURIComponent(docId)}`,
-        { credentials: 'include' }
-      );
-
-      if (resp.status === 404) {
-        console.log('[UserDataContext] No user data found for doc:', docId);
-
-        setCurrentDocId(docId);
-          const initial: RevisionMetaData = {
-    userId: userId!,
-    quizStats: {},
-    flashCardStats: {},
-    priority: {
-      flashCards: { newItems: [], wrongItems: [] },
-      quizzes: {
-        matching: { newItems: [], wrongItems: [] },
-        multipleChoice: { newItems: [], wrongItems: [] },
-        'true-false': { newItems: [], wrongItems: [] },
-        FIB: { newItems: [], wrongItems: [] },
-      },
-    },
-    queues: {
-      config: {
-        flashCardQuotas: { newQuota: 0.3, wrongQuota: 0.4, seenQuota: 0.3 },
-        quizQuotas: {
-          matching:   { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 },
-          multipleChoice: { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 },
-          'true-false':   { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 },
-          FIB:            { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 },
-        },
-      },
-      current: {
-        flashCardQueue: [],
-        quizQueue: {
-          matching: [], multipleChoice: [], 'true-false': [], FIB: []
-        },
-      },
-    },
-    GlobalQuizAttempts:0,
-     bookmarks: [],
-  };
-
-
-        setuserRevisionData(initial);
-        setLoading(false);
-        return null;
-      }
-
+      // (2) Single GET; server creates default if missing
+      const resp = await fetch(`/api/userData?docId=${encodeURIComponent(docId)}`, {
+        credentials: 'include',
+      });
       if (!resp.ok) {
         throw new Error(`LoadUserData GET failed: ${resp.status}`);
       }
-
       const data = (await resp.json()) as RevisionMetaData;
+
+      // (3) normalize optionals
       data.GlobalQuizAttempts = data.GlobalQuizAttempts ?? 0;
       data.bookmarks = data.bookmarks ?? [];
-      data.seenRecord = data.seenRecord?? {};
+      data.seenRecord = data.seenRecord ?? {};
 
-      // SET CONTEXT STATE HERE
+      // (4) set state & return
       setuserRevisionData(data);
-      setCurrentDocId(docId);  // ✅ Track which doc this data belongs to
-      setLoading(false);
-      console.log('[UserDataContext] User data loaded successfully for doc:', docId);
+      setCurrentDocId(docId);
+      console.log('[UserDataContext] (update-301) Loaded', { docId });
       return data;
     } finally {
-      // Always clear loading, even on early return or throw
       setLoading(false);
     }
   },
   [userId]
 );
 
-
-// 2) INITIALIZE brand‑new user data (bootstrap)
-async function InitializeUserData(documentID:string): Promise<RevisionMetaData> {
-
-
-  setLoading(true);
-
-  try {
-
-  const initial: RevisionMetaData = {
-    userId: userId!,
-    quizStats: {},
-    flashCardStats: {},
-    priority: {
-      flashCards: { newItems: [], wrongItems: [] },
-      quizzes: {
-        matching: { newItems: [], wrongItems: [] },
-        multipleChoice: { newItems: [], wrongItems: [] },
-        'true-false': { newItems: [], wrongItems: [] },
-        FIB: { newItems: [], wrongItems: [] },
-      },
-    },
-    queues: {
-      config: {
-        flashCardQuotas: { newQuota: 0.3, wrongQuota: 0.4, seenQuota: 0.3 },
-        quizQuotas: {
-          matching:   { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 },
-          multipleChoice: { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 },
-          'true-false':   { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 },
-          FIB:            { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 },
-        },
-      },
-      current: {
-        flashCardQueue: [],
-        quizQueue: {
-          matching: [], multipleChoice: [], 'true-false': [], FIB: []
-        },
-      },
-    },
-    GlobalQuizAttempts:0,
-     bookmarks: [],
-     seenRecord: {},
-  };
-
-  // save and return
-  await fetch(`/api/userData?docId=${encodeURIComponent(documentID)}`, {
-    method: 'PUT',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(initial),
-  });
-
-  setuserRevisionData(initial);
-  setCurrentDocId(documentID);
-
-  return initial;
-} finally {
-  setLoading(false)
-}
-}
 
 // Updates a single quiz stat
 const updateQuizQuestionStat = useCallback(
@@ -624,6 +527,61 @@ const clearSeenForDeleted = useCallback((postId: string) => {
   }, [userRevisionData, getGlobalResourceCard]);
 
 
+  /***************************************************************************************
+ * update - 403
+ * @section auto-load: robust guards
+ * @purpose
+ *   1) Reset the "already loaded" guard whenever the doc changes OR we’re not ACTIVE.
+ *   2) Fire GET-or-CREATE exactly once per doc when saveReady === true.
+ 
+ ***************************************************************************************/
+
+const lastLoadedDocRef = useRef<string | null>(null);
+
+/**
+ * update - 403 (A)
+ * @function effect: reset guard on doc switch or non-ACTIVE phases
+ * @steps
+ *   1) If no current doc OR bootPhase !== 'ACTIVE', clear the "already loaded" marker.
+ *   2) Also clear when docFileID changes (switching docs).
+ */
+useEffect(() => {
+  // Step 1: if we’re not in ACTIVE, we shouldn’t consider anything “already loaded”.
+  if (!docFileID || bootPhase !== 'ACTIVE') {
+    lastLoadedDocRef.current = null;
+    return;
+  }
+
+  // Step 2: if doc changed, allow a fresh load when it becomes saveReady.
+  if (lastLoadedDocRef.current && lastLoadedDocRef.current !== docFileID) {
+    lastLoadedDocRef.current = null;
+  }
+}, [docFileID, bootPhase]);
+
+/**
+ * update - 403 (B)
+ * @function effect: GET-or-CREATE exactly once per doc when authoritative
+ * @steps
+ *   1) Wait for saveReady === true and a stable docFileID.
+ *   2) If we haven’t loaded this doc in this ACTIVE session, call LoadUserData(docId).
+ *   3) Mark this doc as loaded to keep it idempotent.
+ */
+useEffect(() => {
+  if (!saveReady || !docFileID) return;             // Step 1
+  if (lastLoadedDocRef.current === docFileID) return;
+
+  LoadUserData(docFileID)                           // Step 2
+    .then(() => {
+      lastLoadedDocRef.current = docFileID;         // Step 3
+      console.log('[UserDataContext] (update-403) auto-loaded userdata', { docId: docFileID });
+    })
+    .catch((e) => {
+      console.warn('[UserDataContext] (update-403) auto-load failed (non-fatal)', e);
+    });
+}, [saveReady, docFileID, LoadUserData]);
+
+
+
   return (
     <UserDataContext.Provider
       value={{
@@ -631,8 +589,6 @@ const clearSeenForDeleted = useCallback((postId: string) => {
         loading,
         recordQuizAttempt : updateQuizQuestionStat,
         generateRevision: generateInterleavedRevision,
-        LoadUserData,
-        InitializeUserData,
         SaveUserData,
         recordQuizSession,
         addBookmark,

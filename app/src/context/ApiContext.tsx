@@ -36,10 +36,9 @@ import { UserFileMetadata, UserFilesResponse } from '@/app/src/types/fileTypes';
 import { insertDedupSorted, updateByIdSorted,
   removeById,
   resolveBucket, } from '@/app/studygraph/(studygraph)/components/utils/fileListOps';
-import DocumentAccessManager from '@/app/studygraph/(studygraph)/components/hooks/access/DocumentAccessManager';
 import { getFileListCache, setFileListCache, clearFileListCache } from '@/app/studygraph/(studygraph)/services/fileListCache';
 import { gradebookClient, AssignMetaPatchReq, AssignMetaPatchRes, AssignMetaUpsertReq, AssignMetaUpsertRes, GradebookQueryRes, AttemptStartReq, AttemptStartRes, AttemptSubmitReq, AttemptSubmitRes } from '@/app/studygraph/(studygraph)/services/gradebook/gradebookClient';
-import { useDocumentAccessMode } from '@/app/studygraph/(studygraph)/components/hooks/access/useDocumentAccessMode'; 
+
 
 type AccessMode = 'edit' | 'readonly'; 
 type AccessStatus = 'PENDING' | 'READY';
@@ -49,14 +48,14 @@ type AccessStatus = 'PENDING' | 'READY';
  * Narrow context carrying `{mode,status,docId}` for consumers that need the snapshot object.
  * We intentionally do not co-mingle this with ApiContext to avoid global re-renders.
  */
-const AccessSnapshotContext = React.createContext<{ mode: AccessMode; status: AccessStatus; docId: string | null } | undefined>(undefined);
+//const AccessSnapshotContext = React.createContext<{ mode: AccessMode; status: AccessStatus; docId: string | null } | undefined>(undefined);
 
 
 /**
  * Tiny boolean context for `editReady`. Keep this separate so a component that only needs the
  * boolean will not re-render when `mode` or `status` changes but `editReady` remains the same.
  */
-const EditReadyContext = React.createContext<boolean | undefined>(undefined);
+//const EditReadyContext = React.createContext<boolean | undefined>(undefined);
 
 
 interface AccountStatus {
@@ -152,7 +151,7 @@ export const useAccountStatus = () => {
  *   This hook is intentionally narrow: it only triggers re-renders for callers that explicitly opt-in
  *   to reading access state. By living in a tiny dedicated context, it avoids invalidating unrelated
  *   `ApiContext` consumers when access changes. O(1) lookups; throws if used outside `ApiProvider`.
- */
+
 // update - 2006
 export const useAccessSnapshot = () => {
   const v = React.useContext(AccessSnapshotContext);
@@ -161,7 +160,7 @@ export const useAccessSnapshot = () => {
   }
   return v;
 };
-
+ */
 
 
 /**
@@ -171,7 +170,7 @@ export const useAccessSnapshot = () => {
  *   keeps leaf components simple and efficient: they can guard mutating handlers with a single boolean,
  *   without re-rendering on changes to `mode` or `status` when the boolean didn’t change. The context
  *   is minimal by design to limit fan-out churn. O(1) lookups; throws if used outside `ApiProvider`.
- */
+
 // update - 2007
 export const useEditReady = () => {
   const v = React.useContext(EditReadyContext);
@@ -180,7 +179,7 @@ export const useEditReady = () => {
   }
   return v;
 };
-
+ */
 
 /**
  * @function useFileList
@@ -249,20 +248,6 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
   const mountedRef = useRef(true);
   const inflightListPromiseRef = useRef<Promise<UserFilesResponse> | null>(null);
   
-
-  /**
-   * Centralized DAM subscription: exactly one per app, owned by ApiProvider.
-   * We deliberately read it here and fan-out via tiny contexts below.
-   */
-  const dam = useDocumentAccessMode(); // { mode, status, docId, editReady }
-
-
-  const accessSnapshotValue = useMemo(
-    () => ({ mode: dam.mode as AccessMode, status: dam.status as AccessStatus, docId: dam.docId }),
-    [dam.mode, dam.status, dam.docId]
-  );
-
-
   
   /* @function currentUserEmail
    * @description
@@ -535,15 +520,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
       setFileList(cached);
       setIsFileListHydrated(true); 
       setFileListUpdatedAt(Date.now()); 
-      try {
-        DocumentAccessManager.getInstance().syncFileList([...cached.ownedFiles, ...cached.sharedFiles]);
-        console.log('[ApiContext.tsx][7201] listFiles cache hit → hydrated + synced', {
-          owned: cached.ownedFiles.length,
-          shared: cached.sharedFiles.length,
-        });
-      } catch (e) {
-        console.warn('[ApiContext.tsx][7291] listFiles cache sync failed (non-fatal)', e);
-      }
+
 
       // Step 2 — Kick background revalidation exactly once 
       if (!inflightListPromiseRef.current) {
@@ -555,13 +532,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
             setFileList(data);
             setFileListUpdatedAt(Date.now());
             setFileListCache(userKey, data);
-            try {
-              DocumentAccessManager.getInstance().syncFileList([...data.ownedFiles, ...data.sharedFiles]);
-            } catch { /* non-fatal */ }
-            console.log('[ApiContext.tsx][7212] revalidate success (bg)', {
-              owned: data.ownedFiles.length,
-              shared: data.sharedFiles.length,
-            }); 
+ 
             return data;
           })
           .catch((err) => {
@@ -591,15 +562,6 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
       setFileList(data);
       setIsFileListHydrated(true); 
       setFileListUpdatedAt(Date.now()); 
-      try {
-        DocumentAccessManager.getInstance().syncFileList([...data.ownedFiles, ...data.sharedFiles]);
-        console.log('[ApiContext.tsx][7203] listFiles network success → state+sync', {
-          owned: data.ownedFiles.length,
-          shared: data.sharedFiles.length,
-        });
-      } catch (e) {
-        console.warn('[ApiContext.tsx][7292] listFiles sync failed (non-fatal)', e);
-      }
       setFileListCache(userKey, data);
       return data;
     } catch (err:any) {
@@ -621,15 +583,6 @@ const refreshFileList = async (): Promise<void> => {
       const data = await fetchFilesFromServer();
       setFileList(data);
       setFileListUpdatedAt(Date.now()); 
-      try {
-        DocumentAccessManager.getInstance().syncFileList([...data.ownedFiles, ...data.sharedFiles]);
-        console.log('[ApiContext.tsx][7204] refreshList network success → state+sync', {
-          owned: data.ownedFiles.length,
-          shared: data.sharedFiles.length,
-        });
-      } catch (e) {
-        console.warn('[ApiContext.tsx][7293] refreshList sync failed (non-fatal)', e);
-      }
       // Write-through cache
       setFileListCache(userKey, data);
     } catch (e:any) {
@@ -641,15 +594,6 @@ const refreshFileList = async (): Promise<void> => {
         if (cached) {
           setFileList(cached);
           setIsFileListHydrated(true); // update - 50
-          try {
-            DocumentAccessManager.getInstance().syncFileList([...cached.ownedFiles, ...cached.sharedFiles]);
-            console.log('[ApiContext.tsx][7205] refreshList fallback to cache → state+sync', {
-              owned: cached.ownedFiles.length,
-              shared: cached.sharedFiles.length,
-            });
-          } catch (err) {
-            console.warn('[ApiContext.tsx][7295] refreshList fallback sync failed (non-fatal)', err);
-          }
         }
       }
     } finally {
@@ -662,7 +606,7 @@ const refreshFileList = async (): Promise<void> => {
    * applyAndSync
    * Responsibility:
    *   Apply a pure transformation to the local fileList (race-safe via functional setState),
-   *   then synchronize the combined list with DocumentAccessManager exactly once. This version
+   *   then synchronize the combined list with  exactly once. This version
    *   also performs a write-through to the user-scoped file list cache so that local UI changes
    *   remain coherent after navigation and across brief offline windows. Time complexity is O(N)
    *   where N is the number of files touched in a single pass; cache I/O is O(1).
@@ -673,15 +617,6 @@ const refreshFileList = async (): Promise<void> => {
   ) => {
     setFileList(prev => {
       const next = transform(prev);
-      try {
-        DocumentAccessManager.getInstance().syncFileList([...next.ownedFiles, ...next.sharedFiles]);
-        console.log('[ApiContext.tsx][7206] applyAndSync → access synced', {
-          owned: next.ownedFiles.length,
-          shared: next.sharedFiles.length,
-        });
-      } catch (e) {
-        console.warn('[ApiContext.tsx][7296] applyAndSync sync failed (non-fatal)', e);
-      }
 
       // Write-through cache with the new state after transformation
       try {
@@ -1148,8 +1083,7 @@ useEffect(() => { // update - 57
 
   // Expose read-only file list state to useFileList via non-API properties (internal surface) 
   return (
-    <AccessSnapshotContext.Provider value={accessSnapshotValue}>
-    <EditReadyContext.Provider value={dam.editReady}>  
+
         <ApiContext.Provider value={Object.assign(contextValue, { 
       _ownedFiles: fileList?.ownedFiles ?? [],
       _sharedFiles: fileList?.sharedFiles ?? [], 
@@ -1161,8 +1095,7 @@ useEffect(() => { // update - 57
 
       {children}
     </ApiContext.Provider>
-     </EditReadyContext.Provider>
-     </AccessSnapshotContext.Provider>
+
   );
 };
 

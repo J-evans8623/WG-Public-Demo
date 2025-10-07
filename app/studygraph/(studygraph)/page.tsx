@@ -4,7 +4,7 @@
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/pages/api/auth/[...nextauth]';
-import { AppLayout } from './AppLayout';
+import { AppLayout } from './app';
 
 type PageProps = {
   searchParams?: Record<string, string | string[] | undefined>;

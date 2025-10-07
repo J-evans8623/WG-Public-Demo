@@ -459,3 +459,10 @@ export type LocalOrigin = { __bm_local: true };
 export const LOCAL_ORIGIN: LocalOrigin = Object.freeze({ __bm_local: true });
 
 
+export type Visibility = "private" | "public";
+
+export interface ChatMessage {
+  id: number;
+  type: 'assistant' | 'user' | 'system' | 'attachment';
+  content: string;
+}

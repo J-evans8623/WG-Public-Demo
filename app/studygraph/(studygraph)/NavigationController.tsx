@@ -25,7 +25,7 @@ import React from 'react';
 import NavigationPanel from './components/layout/Sidebar/NavigationPanel';
 import ReadOnlyNavigationPanel from './components/layout/ReadOnly/navigation/ReadOnlyNavigationPanel';
 // update - 1
-import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; // update - 1
+import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
 
 
 /**
@@ -67,26 +67,18 @@ const NavigationController: React.FC<NavigationControllerProps> = (props) => {
     isManuallyOpen: props.isManuallyOpen ?? null,
   });
 
-  // update - 2
-  const { mode, status, docId } = useAccessSnapshot(); // update - 2
-  // update - 3
-  const editReady = useEditReady(); // update - 3
 
-  console.log('[NavigationController.tsx][3102] access snapshot', {
-    docId,
-    mode,
-    status,
-    editReady,
-  });
+ const {mode, status, editReady} = useAccessEditSnapshot();
+
+
 
   // update - 4
   const canEdit = editReady; // single source of truth (provider-precomputed) // update - 4
 
   if (canEdit) {
-    console.log('[NavigationController.tsx][3103] rendering RW NavigationPanel', { docId });
     return <NavigationPanel {...props} />;
   } else {
-    console.log('[NavigationController.tsx][3104] rendering RO NavigationPanel', { docId });
+
     return <ReadOnlyNavigationPanel {...props} />;
   }
 };

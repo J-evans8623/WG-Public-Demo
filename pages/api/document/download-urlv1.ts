@@ -29,9 +29,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import {
-  generateDownloadUrl,         // update - 1 (uses new mandatory opts signature)
+  generateDownloadUrl,        
   getAclSnapshot,
-  resolveRole, //redundant
+  resolveRole, 
   addToSharedWith
 } from '@/app/src/services/firebase';
 

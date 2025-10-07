@@ -1,81 +1,180 @@
-// File: pages/api/userData.ts
-/***************************************************************************************
+/**********************************************************************************************
  * @file pages/api/userData.ts
- * @description
- *   API endpoint for per-document user revision data, scoped by document ID.
- *   This handler now accepts an optional `docId` query parameter and directs all
- *   Firestore operations to `userData/{userId}/docs/{docId}`. If `docId` is absent,
- *   it defaults to `"root"` to preserve backward compatibility.  
- *   - GET: fetches the scoped document; returns 404 if not found.
- *   - PUT/POST: upserts the entire payload under the scoped path, stamping it
- *     with a server timestamp field `updatedAt`.  
- *   All methods authenticate via NextAuth and emit concise console logs
- *   (identified by unique 4‑digit codes) at entry, exit, and on errors.
+ * @responsibility
+ *   Per-user × per-doc userdata API.
+ *   - GET  /api/userData?docId=...  → idempotent GET-or-CREATE; always 200 with payload
+ *   - PUT  /api/userData?docId=...  → upsert whole document for the caller’s userId scope
  *
- * Responsibilities:
- *   • Authenticate incoming requests.
- *   • Parse and default the `docId` query parameter.
- *   • Route Firestore reads and writes to the correct sub-collection.
- *   • Handle GET, PUT, and POST methods with proper status codes.
- *   • Provide meaningful logs at key checkpoints for observability.
- ***************************************************************************************/
+ *   Storage path: userData/{userId}/docs/{docId}
+ *   Auth: authenticateRequest() is authoritative; we trust its userId scoping.
+ *
+ *   Notes:
+ *   - We no longer return 404 for GET: if missing, we create a default record and return it.
+ *   - This unifies client boot to “one request after saveReady”.
+ **********************************************************************************************/
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import admin from 'firebase-admin';
 import { firestore } from '@/app/src/services/firebase';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 
+/** Shape the client expects; keep minimal & backwards-compatible. */
+type QuizType = 'matching' | 'multipleChoice' | 'true-false' | 'FIB';
+
+type RevisionMetaData = {
+  userId: string;
+  quizStats: Record<string, any>;
+  flashCardStats: Record<string, any>;
+  priority: {
+    flashCards: { newItems: string[]; wrongItems: string[] };
+    quizzes: Record<QuizType, { newItems: string[]; wrongItems: string[] }>;
+  };
+  queues: {
+    config: {
+      flashCardQuotas: { newQuota: number; wrongQuota: number; seenQuota: number };
+      quizQuotas: Record<QuizType, { newQuota: number; wrongQuota: number; seenQuota: number }>;
+    };
+    current: {
+      flashCardQueue: any[];
+      quizQueue: Record<QuizType, any[]>;
+    };
+  };
+  GlobalQuizAttempts?: number;
+  bookmarks?: Array<{
+    resourceId: string;
+    mapId: string;
+    nodeId: string;
+    addedAt?: number;
+  }>;
+  seenRecord?: Record<string, number>;
+  /** Optional server-owned version for migrations */
+  schemaVersion?: number;
+};
+
+/**
+ * buildInitialPayload — update - 1
+ * @purpose
+ *   Produce a stable, server-owned default payload for a fresh user × doc.
+ * @steps
+ *   1) Fill all keys the app expects with minimal safe defaults.
+ *   2) Keep shape backward-compatible so older clients don’t break.
+ */
+function buildInitialPayload(userId: string): RevisionMetaData {
+  const baseQuizBuckets: Record<QuizType, { newItems: string[]; wrongItems: string[] }> = {
+    matching: { newItems: [], wrongItems: [] },
+    multipleChoice: { newItems: [], wrongItems: [] },
+    'true-false': { newItems: [], wrongItems: [] },
+    FIB: { newItems: [], wrongItems: [] },
+  };
+
+  const quizQuota = { newQuota: 0.25, wrongQuota: 0.25, seenQuota: 0.5 };
+
+  return {
+    userId,
+    quizStats: {},
+    flashCardStats: {},
+    priority: {
+      flashCards: { newItems: [], wrongItems: [] },
+      quizzes: baseQuizBuckets,
+    },
+    queues: {
+      config: {
+        flashCardQuotas: { newQuota: 0.3, wrongQuota: 0.4, seenQuota: 0.3 },
+        quizQuotas: {
+          matching: quizQuota,
+          multipleChoice: quizQuota,
+          'true-false': quizQuota,
+          FIB: quizQuota,
+        },
+      },
+      current: {
+        flashCardQueue: [],
+        quizQueue: {
+          matching: [],
+          multipleChoice: [],
+          'true-false': [],
+          FIB: [],
+        },
+      },
+    },
+    GlobalQuizAttempts: 0,
+    bookmarks: [],
+    seenRecord: {},
+    schemaVersion: 1,
+  };
+}
+
+/**
+ * handler — update - 2
+ * @purpose
+ *   Implement GET-or-CREATE and PUT upsert for per-user scoped userdata.
+ * @steps
+ *   1) Authenticate and resolve { userId, docId }.
+ *   2) On GET:
+ *      2.1) Attempt read → if exists, return 200.
+ *      2.2) If not, atomically create default with a transaction and return 200.
+ *   3) On PUT: write passed JSON payload verbatim as the current value.
+ *   4) Otherwise 405.
+ */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // ─── ① Authenticate ───────────────────────────────────────────────────────────────
+  try {
+    // 1) Auth + inputs
   const session = await authenticateRequest(req, res);
   if (!session) return;
   const userId = session.user.email!;
-  console.log('[userData.ts][2001] Authenticated user:', userId);
 
-  // ─── ② Determine scoped document ID ────────────────────────────────────────────────
-  const rawDocId = Array.isArray(req.query.docId)
-    ? req.query.docId[0]
-    : req.query.docId;
-  const docId = rawDocId && rawDocId.trim() ? rawDocId.trim() : 'root';
-  console.log('[userData.ts][2002] Using docId:', docId);
+    const docId = String(req.query.docId || '').trim();
+    if (!docId) {
+      res.status(400).json({ error: 'Missing docId' });
+      return;
+    }
 
-  // Build Firestore reference to `userData/{userId}/docs/{docId}`
-  const docRef = firestore
-    .collection('userData')
-    .doc(userId)
-    .collection('docs')
-    .doc(docId);
+    const userDocRef = firestore
+      .collection('userData')
+      .doc(userId)
+      .collection('docs')
+      .doc(docId);
 
-  try {
-    // ─── GET Handler ────────────────────────────────────────────────────────────────
     if (req.method === 'GET') {
-      console.log('[userData.ts][2003] GET userData for', { userId, docId });
-      const snap = await docRef.get();
-      if (!snap.exists) {
-        console.log('[userData.ts][2004] Scoped userData not found');
-        return res.status(404).json({ error: 'UserData not found' });
+      // 2) GET-or-CREATE
+      const snap = await userDocRef.get();
+      if (snap.exists) {
+        const data = snap.data();
+        console.log('[userData][GET] found', { userId, docId, action: 'found' });
+        res.status(200).json(data);
+        return;
       }
-      console.log('[userData.ts][2005] Scoped userData fetched');
-      return res.status(200).json(snap.data());
+
+      // 2.2) Create if missing (transaction to be race-safe)
+      const payload = buildInitialPayload(userId);
+      await firestore.runTransaction(async (tx) => {
+        const again = await tx.get(userDocRef);
+        if (!again.exists) {
+          tx.set(userDocRef, payload, { merge: false });
+        }
+      });
+
+      console.log('[userData][GET] created default', { userId, docId, action: 'created' });
+      const created = await userDocRef.get();
+      res.status(200).json(created.data());
+      return;
     }
 
-    // ─── PUT/POST Handler ────────────────────────────────────────────────────────────
-    if (req.method === 'PUT' || req.method === 'POST') {
-      console.log('[userData.ts][2006] Upserting userData for', { userId, docId });
-      const payload = req.body;
-      // Stamp with server timestamp for ordering
-      payload.updatedAt = admin.firestore.FieldValue.serverTimestamp();
-      await docRef.set(payload, { merge: true });
-      console.log('[userData.ts][2007] Scoped userData saved');
-      return res.status(200).json({ message: 'UserData saved' });
+    if (req.method === 'PUT') {
+      // 3) Upsert whole document
+      const input = req.body ?? {};
+      // Safety: ensure userId cannot be spoofed by the client
+      const safePayload = { ...(input || {}), userId };
+      await userDocRef.set(safePayload, { merge: false });
+      console.log('[userData][PUT] upserted', { userId, docId });
+      res.status(200).json({ ok: true });
+      return;
     }
 
-    // ─── Method Not Allowed ──────────────────────────────────────────────────────────
-    console.log('[userData.ts][2008] Method not allowed:', req.method);
-    res.setHeader('Allow', ['GET', 'PUT', 'POST']);
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  } catch (error) {
-    console.error('[userData.ts][2009] Error handling userData:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    // 4) Method not allowed
+    res.setHeader('Allow', 'GET, PUT');
+    res.status(405).json({ error: 'Method Not Allowed' });
+  } catch (err: any) {
+    console.error('[userData] error', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 }

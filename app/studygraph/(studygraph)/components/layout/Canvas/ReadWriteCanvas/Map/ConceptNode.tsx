@@ -49,7 +49,7 @@ import TopicGeneratorModal from '../../TopicGeneratorModal';
 import QuizGeneratorModal from '../../QuizGeneratorModal';
 import '@/app/studygraph/customTooltip.css'
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
-import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; 
+import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
 
 
 const GENERAL_SELECTED_COLOR = '#3B82F6';
@@ -81,8 +81,8 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   const { open } = useSlideShow();
 
   // 1) DAM → capability gating (centralized here for both RO/RW)  // update - 2
-  const { mode, status } = useAccessSnapshot();               // update - 2
-  const canEdit = useEditReady();                  // update - 2
+  const {mode, status, editReady} = useAccessEditSnapshot();               // update - 2
+  const canEdit = editReady;                 // update - 2
 
   const { title, depth, x, y, childrenNodeIds, isRoot } = node;
   const [isEditing, setIsEditing] = useState(false);

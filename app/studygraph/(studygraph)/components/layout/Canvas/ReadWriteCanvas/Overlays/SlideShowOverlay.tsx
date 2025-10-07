@@ -24,8 +24,6 @@ import ReactDOM from 'react-dom';
 import { X, BookmarkIcon, MessageSquare, Brain, Pencil } from 'lucide-react'; // update - 1
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 // update - 2: Use access mode to compute capabilities (and hide Edit entirely in RO)
-import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; 
-
 // update - 3: Keep helpers but we’ll render legacy DOM/classes.
 import { parseJumpToIndex, makeKeydownHandler, focusInput, autoAdvanceOnAskCompletion } from './OverlayBehaviors'; // update - 3
 
@@ -42,6 +40,7 @@ import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 // update - 16: Restore the edit experience by importing the full-screen edit form
 import SlideShowEditForm from '../../../CardDisplay/Cards/SlideShowEditForm';
+import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
 
 /**
  * @function SlideShowOverlay
@@ -64,9 +63,8 @@ const SlideShowOverlay: React.FC = () => {
     open,
   } = useSlideShow();
 
-  // update - 5: Access mode → capabilities. Edit is only allowed when isEditReady === true.
-  const { mode, status } = useAccessSnapshot(); // update - 5
-  const editReady = useEditReady(); 
+  
+   const {mode, status, editReady} = useAccessEditSnapshot();
   const caps = useMemo(() => {
     const canEdit = editReady
     // We keep Ask enabled in RW and disabled in RO, but only Edit is *hidden* in RO (per requirement)

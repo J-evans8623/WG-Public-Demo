@@ -1,4 +1,4 @@
-// services/documentSessionv2.ts
+// services/documentSessionv2. (marked for removal)
 /**
  * Restores the original DocumentSession public API while retaining the v2 safeguards.
  * Public API (unchanged from original):

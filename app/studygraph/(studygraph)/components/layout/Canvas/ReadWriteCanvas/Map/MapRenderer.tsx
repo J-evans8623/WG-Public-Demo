@@ -32,7 +32,7 @@ import Subtree from '../../Subtree';
 import '@/app/studygraph/(studygraph)/components/layout/hiddenScrollbar.css';
 
 // update - 1: Optional access read for observability only (no behavior changes).
-import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; 
+import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
 
 const MIN_ZOOM = 0.5;
 const VIEWPORT_PADDING = 0.9;
@@ -61,8 +61,7 @@ const MapRenderer: React.FC = () => {
   const { subtrees } = useSubTreeContext();
 
   // update - 2: Read DAM for telemetry; renderer behavior is unchanged.
-  const { mode, status } = useAccessSnapshot(); // update - 2
-  const editReady = useEditReady();     // update - 2
+  const {mode, status, editReady} = useAccessEditSnapshot();
   useEffect(() => {
     console.log('[Canvas/MapRenderer.tsx][9700] mounted in mode:', { mode, status, editReady }); // update - 3
   }, [mode, status, editReady]); // update - 3

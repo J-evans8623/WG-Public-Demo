@@ -1,6 +1,6 @@
 
 /**
- * @file AppLayout.tsx
+ * @file AppLayout.tsx (Legacy Version)
  * @description
  * This is the top-level layout for the entire application. It wraps the application with all necessary context providers
  * (including authentication, document, layout, zoom, etc.) and controls the high-level view switching between "home", "map",
@@ -27,7 +27,6 @@ import '@/app/studygraph/(studygraph)/canvas/Map/NodeGraphOriginal.css'
 import '@/app/studygraph/(studygraph)/components/layout/forum/ForumModal.css'
 import '@/app/studygraph/(studygraph)/components/layout/Canvas/CanvasView.css'
 import './appLayout.css';
-import { documentSession} from '@/app/studygraph/(studygraph)/services/documentSession/documentSessionv2';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -68,12 +67,13 @@ import { AccessLayerProvider, useAccessLayer } from '@/app/Library/Context/Acces
 import { Role } from './types/access';
 import { RefreshModal } from './components/access/RefreshModal';;
 import { useCollaborationManager } from './services/collab/useCollaborationManager';
-import DocumentAccessManager from './components/hooks/access/DocumentAccessManager';
 import { LoadingAnimation } from './LoadingAnimation';
 import { CalendarProvider } from '@/app/Library/Context/CalendarContextv2';
 import readiness from '@/app/studygraph/(studygraph)/services/documentReadiness/DocumentReadinessService';
 import { GlobalModalProvider, useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
 import { OptimisticInitController } from './services/documentReadiness/OptimisticInitController';
+import DocumentAccessManager from './components/hooks/access/DocumentAccessManager';
+import { documentSession} from '@/app/studygraph/(studygraph)/services/documentSession/documentSessionv2';
 
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
@@ -115,7 +115,7 @@ const AppLayoutContent: React.FC = () => {
     loadFromFirebase,
     ydoc, takeMapSnapshot, getVisibility
   } = useYDoc();
-  const {InitializeUserData, LoadUserData, SaveUserData} = useUserData();
+  const {InitializeUserData, LoadUserData } = useUserData();
   const {messages, chatDirty, resetDirty } = useChatHistory();
   const { clearHistory } = useUndoRedo();  
   const {clearSelection} = useNodeSelection();

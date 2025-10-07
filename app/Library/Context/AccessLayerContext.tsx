@@ -1,328 +1,312 @@
-/***************************************************************************************
- * @file AccessLayerContext.tsx - Integration Update
- * @description
- *   Updated AccessLayerContext with DocumentAccessHistoryManager integration to support
- *   intelligent access change detection and modal triggering. The context now maintains
- *   session-based access history alongside its existing role resolution functionality,
- *   enabling distinction between file switching operations and legitimate document access
- *   changes. This integration preserves all existing context functionality while adding
- *   the necessary hooks for the enhanced RefreshModal system.
- *
- *   The updates include access history initialization during document selection, automatic
- *   history updates during role changes, and seamless integration with the existing access
- *   signal processing pipeline. All changes maintain backward compatibility with existing
- *   consumers while providing the foundation for intelligent modal behavior that eliminates
- *   false positive notifications during routine file operations.
- *
- * Key Integration Points:
- *   - Document selection now initializes access history records
- *   - Role changes automatically update session-based tracking  
- *   - Signal processing integrates with history management
- *   - Existing API surface remains unchanged for compatibility
- *   - Enhanced logging provides observability for access flows
- ***************************************************************************************/
+/*****************************************************************************************
+ * @file AccessLayerContext.tsx
+ * @responsibility
+ *   Provide a single in-app source of truth for per-document access policy (role/public flags),
+ *   track the current doc id, and expose a small API that other providers/components can use.
+ *   This update fixes the context value shape to fully implement `AccessLayerAPI` and adds
+ *   missing methods to the memoized value (`currentDocId`, `get`, `seedFromList`).
+ *****************************************************************************************/
 
-'use client';
+import React, { createContext, useMemo, useCallback, useRef, useEffect } from 'react';
+import { Role,   AccessEnvelope } from   '@/app/studygraph/(studygraph)/types/access';
+import type { UserFileMetadata } from '@/app/src/types/fileTypes';
+import {  useFileList} from '@/app/src/context/ApiContext';
+type AccessRecord = {
+  role: Role;
+  updatedAt: number;
+  publicEdit?: boolean;
+  publicView?: boolean;
+  
+};
 
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { Role, AccessSignal, AccessSource, AccessEvent, AccessEnvelope } from   '@/app/studygraph/(studygraph)/types/access';
-import DocumentAccessHistoryManager from '@/app/studygraph/(studygraph)/components/hooks/access/DocumentAccessHistoryManager';
+export interface AccessLayerAPI {
+  /** currently selected doc id (null when none) */
+  currentDocId: string | null;
+  /** quick read for a doc’s policy facts (undefined if unknown) */
+  get: (docId: string) => AccessRecord | undefined;
+  /** bulk seed from file lists */
+  seedFromList: (files: UserFileMetadata[]) => void;
 
-type LastEvent = AccessEnvelope | null;
-
-interface AccessState {
+  /** derived helpers / selected doc facts */
   docId: string | null;
   role: Role;
   prevRole: Role | null;
-  lastEvent: LastEvent;
-}
-
-interface SelectSeed {
-  /** Assume caller is owner immediately (first-boot for a new doc). */
-  assumeOwner?: boolean;
-  /** Assume caller is editor immediately (rare; keeps API explicit). */
-  assumeEditor?: boolean;
-  /** Direct role seed (use sparingly; most should send envelopes). */
-  role?: Role;
-}
-
-interface AccessLayerAPI extends AccessState {
+  lastEvent: 'seed' | 'signal' | 'select' | 'clear' | 'reset' | null;
   canEdit: boolean;
   isOwner: boolean;
-  /** Step 1: set the active doc (optionally seed role to speed up UX). */
-  selectDoc: (docId: string, seed?: SelectSeed) => void;
-  /** Step 2: apply a normalized envelope from any producer. */
+
+  /** mutators */
+  selectDoc: (docId: string, opts?: { assumeOwner?: boolean }) => void;
   applySignal: (env: AccessEnvelope) => void;
-  /** Optional direct set when decoding a trusted JWT at connect time. */
-  setRole: (role: Role, source?: AccessEnvelope['source']) => void;
-  /** Clear doc (navigate away). */
+  setRole: (docId: string, role: Role) => void;
   clearDoc: () => void;
-  /** Full reset (hard app reset). */
   reset: () => void;
 }
 
-const AccessLayerContext = createContext<AccessLayerAPI | undefined>(undefined);
+const Ctx = createContext<AccessLayerAPI | undefined>(undefined);
 
-export function useAccessLayer(): AccessLayerAPI {
-  const ctx = useContext(AccessLayerContext);
-  if (!ctx) throw new Error('useAccessLayer must be used within <AccessLayerProvider>');
-  return ctx;
-}
+export const useAccessLayer = (): AccessLayerAPI => {
+  const v = React.useContext(Ctx);
+  if (!v) throw new Error('useAccessLayer must be used within AccessLayerProvider');
+  return v;
+};
 
-export const AccessLayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Step 1: Initialize history manager singleton integration
-  const historyManager = DocumentAccessHistoryManager.getInstance();
+export const AccessLayerProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
+  // ─────────────────────────────────────────────────────────────────────────────
+  // State stores
+  // ─────────────────────────────────────────────────────────────────────────────
+  const mapRef = useRef<Map<string, AccessRecord>>(new Map());
+  const currentDocIdRef = useRef<string | null>(null);
+  const roleRef = useRef<Role>('None');
+  const prevRoleRef = useRef<Role | null>(null);
+  const lastEventRef = useRef<AccessLayerAPI['lastEvent']>(null);
+  const { ownedFiles, sharedFiles, isHydrated} = useFileList();
 
-  // Step 2: Internal state retained across producers; lastAt is used for newest-wins.
-  const [docId, setDocId] = useState<string | null>(null);
-  const [role, setRoleState] = useState<Role>('None');
-  const [prevRole, setPrevRole] = useState<Role | null>(null);
-  const [lastEvent, setLastEvent] = useState<LastEvent>(null);
-  const lastAtMs = useRef<number>(0);
 
-  // Step 3: Derived booleans
-  const canEdit = role === 'Owner' || role === 'Editor';
-  const isOwner = role === 'Owner';
 
-  // Step 4: Enhanced role update with history integration
-  const updateRole = useCallback((next: Role, env: LastEvent) => {
-    console.log('[AccessLayerContext.tsx][4001] › Role update initiated', { 
-      docId, 
-      from: role, 
-      to: next, 
-      source: env?.source 
-    });
 
-    // Step 4a: Update React state
-    setPrevRole((r) => (r === next ? r : role));
-    setRoleState(next);
-    setLastEvent(env);
 
-    // Step 4b: Update access history if we have a document context
-    if (docId && env) {
-      const historyChanged = historyManager.updateDocumentAccess(docId, next, env.source);
-      console.log('[AccessLayerContext.tsx][4002] › Access history updated', { 
-        docId, 
-        role: next, 
-        historyChanged 
-      });
-    }
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Derived booleans (read from refs each call)
+  // ─────────────────────────────────────────────────────────────────────────────
+  const canEditOf = useCallback((r: AccessRecord | undefined): boolean => {
+    // 1) Owners and Editors can edit
+    if (r?.role === 'Owner' || r?.role === 'Editor') return true;
+    // 2) Public edit grants edit
+    if (r?.publicEdit === true) return true;
+    // 3) Otherwise read-only
+    return false;
+  }, []);
 
-    console.log('[AccessLayerContext.tsx][4003] › Role update completed', { 
-      docId, 
-      newRole: next, 
-      source: env?.source 
-    });
-  }, [role, docId, historyManager]);
-
+  // ─────────────────────────────────────────────────────────────────────────────
+  // API: get
+  // ─────────────────────────────────────────────────────────────────────────────
   /**
-   * @method selectDoc
-   * @description
-   *   Enhanced document selection that initializes both AccessLayer state and access
-   *   history tracking. Handles role seeding for optimistic UX while ensuring proper
-   *   history initialization to support intelligent modal trigger detection during
-   *   subsequent access changes and file operations.
+   * @function get
+   * @purpose Return the stored policy facts for a specific docId, or undefined.
+   * @steps
+   *   1) Read from the in-memory map
+   *   2) Return a direct reference (callers should treat as readonly)
    */
-  const selectDoc = useCallback((id: string, seed?: SelectSeed) => {
-    console.log('[AccessLayerContext.tsx][4004] › Document selection started', { 
-      docId: id, 
-      seed,
-      previousDoc: docId 
-    });
+  const get = useCallback<AccessLayerAPI['get']>((docId) => {
+    return mapRef.current.get(docId);
+  }, []);
 
-    // Step 1: Update document context
-    setDocId(id);
-    setLastEvent(null);
-    lastAtMs.current = 0;
+  // ─────────────────────────────────────────────────────────────────────────────
+  // API: seedFromList
+  // ─────────────────────────────────────────────────────────────────────────────
+  /**
+   * @function seedFromList
+   * @purpose Bulk-seed access records from file list responses.
+   * @steps
+   *   1) For each file, create/replace the record using file.role/public flags
+   *   2) Track updatedAt with a wall clock number (ms)
+   *   3) If current doc is touched and role changes, keep prevRole for diffing
+   *   4) Mark lastEvent for observability
+   */
+  const seedFromList = useCallback<AccessLayerAPI['seedFromList']>((files) => { // update - 1
 
-    // Step 2: Determine initial role from seed
-    let initialRole: Role = 'Viewer';
-    let source: AccessSource = 'bootstrap';
+    let touchedCurrent = false;
 
-    if (seed?.assumeOwner) {
-      initialRole = 'Owner';
-    } else if (seed?.assumeEditor) {
-      initialRole = 'Editor';
-    } else if (seed?.role) {
-      initialRole = seed.role;
+    for (const f of files) {
+      // Normalize role (default Viewer if missing)
+      const role: Role = (f.role as Role) || 'Viewer';
+      const record: AccessRecord = {
+        role,
+        publicEdit: f.publicEdit,
+        publicView: f.publicView,
+        updatedAt: Date.parse(f.updatedAt),
+      };
+
+      const currentRecord = mapRef.current.get(f.fileId)
+      
+      // check if current record exist
+      if (currentRecord) {
+        // if it exist check which record is the most recent
+         if (currentRecord.updatedAt < record.updatedAt) {
+        // if record is the most recent then overwrite record otherwise ignore...
+        mapRef.current.set(f.fileId, record);
+      }
+      // other wise if there was no current record then simply add it to the list
+      } else {
+        mapRef.current.set(f.fileId, record);
+      }
+
+      if (currentDocIdRef.current === f.fileId) {
+        touchedCurrent = true;
+      }
     }
 
-    // Step 3: Create access envelope for history tracking
-    const bootstrapEnvelope: AccessEnvelope = {
-      docId: id,
-      role: initialRole,
-      signal: 'GRANT_EDIT',
-      source,
-      at: new Date().toISOString(),
+    if (touchedCurrent) {
+      const cur = mapRef.current.get(currentDocIdRef.current!);
+      if (cur && cur.role !== roleRef.current) {
+        prevRoleRef.current = roleRef.current;
+        roleRef.current = cur.role;
+      }
+    }
+
+    lastEventRef.current = 'seed';
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // API: selectDoc
+  // ─────────────────────────────────────────────────────────────────────────────
+  /**
+   * @function selectDoc
+   * @purpose Set the active/current doc id and optionally assume owner in absence of data.
+   * @steps
+   *   1) Set current id
+   *   2) Read record; if missing and assumeOwner, synthesize a record
+   *   3) Track prevRole / role diffs
+   *   4) Record lastEvent
+   */
+  const selectDoc = useCallback<AccessLayerAPI['selectDoc']>((docId, opts) => { // update - 2
+    currentDocIdRef.current = docId;
+
+    let rec = mapRef.current.get(docId);
+    if (!rec && opts?.assumeOwner) {
+      rec = { role: 'Viewer', updatedAt: Date.now() };
+      mapRef.current.set(docId, rec);
+    }
+
+    const newRole = rec?.role ?? 'None';
+    if (newRole !== roleRef.current) {
+      prevRoleRef.current = roleRef.current;
+      roleRef.current = newRole;
+    }
+
+    lastEventRef.current = 'select';
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // API: applySignal
+  // ─────────────────────────────────────────────────────────────────────────────
+  /**
+   * @function applySignal
+   * @purpose Ingest server envelopes (save/download etc.) into the store.
+   * @steps
+   *   1) Upsert record by docId
+   *   2) Update timestamps and public flags
+   *   3) If record concerns current doc, update role/prevRole
+   *   4) Record lastEvent
+   */
+  const applySignal = useCallback<AccessLayerAPI['applySignal']>((env) => {      // update - 3
+    const rec = mapRef.current.get(env.docId) ?? { role: 'None', updatedAt: 0 };
+    const next: AccessRecord = {
+      role: (env.role as Role) ?? rec.role,
+      publicEdit: env.publicEdit ?? rec.publicEdit,
+      publicView: env.publicView ?? rec.publicView,
+      updatedAt: Date.parse(env.at) || Date.now(),
     };
+    mapRef.current.set(env.docId, next);
 
-    // Step 4: Initialize access history for new document
-    historyManager.initializeDocumentHistory(id, initialRole, source);
+    if (currentDocIdRef.current === env.docId) {
+      if (next.role !== roleRef.current) {
+        prevRoleRef.current = roleRef.current;
+        roleRef.current = next.role;
+      }
+    }
 
-    // Step 5: Update role through standard pipeline
-    updateRole(initialRole, bootstrapEnvelope);
+    lastEventRef.current = 'signal';
+  }, []);
 
-    console.log('[AccessLayerContext.tsx][4005] › Document selection completed', { 
-      docId: id, 
-      initialRole, 
-      source 
-    });
-  }, [updateRole, historyManager, docId]);
-
+  // ─────────────────────────────────────────────────────────────────────────────
+  // API: setRole
+  // ─────────────────────────────────────────────────────────────────────────────
   /**
-   * @method applySignal
-   * @description
-   *   Enhanced signal processing that maintains existing envelope handling while
-   *   integrating access history updates. Preserves all existing invariants including
-   *   document scoping, newest-wins resolution, and Owner immutability while adding
-   *   the necessary hooks for intelligent access change detection.
+   * @function setRole
+   * @purpose Manually stamp a role for a doc (best-effort hint).
+   * @steps
+   *   1) Upsert record with given role
+   *   2) If targeting current doc, update role/prevRole
+   *   3) Mark lastEvent
    */
-  const applySignal = useCallback((env: AccessEnvelope) => {
-    console.log('[AccessLayerContext.tsx][4006] › Signal application started', { 
-      docId: env.docId, 
-      role: env.role, 
-      source: env.source,
-      currentDoc: docId 
-    });
-
-    // Step 1: Ignore envelopes for other docs
-    if (!docId || env.docId !== docId) {
-      console.log('[AccessLayerContext.tsx][4007] › Signal ignored for different document', { 
-        active: docId, 
-        incoming: env.docId 
-      });
-      return;
-    }
-
-    // Step 2: Newest-wins: drop stale envelopes
-    const atMs = Date.parse(env.at || new Date().toISOString());
-    if (Number.isFinite(lastAtMs.current) && atMs <= lastAtMs.current) {
-      console.log('[AccessLayerContext.tsx][4008] › Stale envelope dropped', { 
-        lastAt: lastAtMs.current, 
-        incomingAt: atMs 
-      });
-      return;
-    }
-    lastAtMs.current = atMs;
-
-    // Step 3: Owner immutability: once owner, keep as owner (server-side truth drives this in practice)
-    if (role === 'Owner') {
-      setLastEvent(env);
-      console.log('[AccessLayerContext.tsx][4009] › Owner immutable; recorded event only', { env });
-      return;
-    }
-
-    // Step 4: Resolve role from envelope; signal is advisory for UX
-    const nextRole: Role = env.role ?? 'Viewer';
-    
-    // Step 5: Update through standard pipeline (includes history integration)
-    updateRole(nextRole, env);
-    
-    console.log('[AccessLayerContext.tsx][4010] › Signal application completed', { 
-      docId: env.docId, 
-      newRole: nextRole, 
-      source: env.source 
-    });
-  }, [docId, role, updateRole]);
-
-  /**
-   * @method setRole
-   * @description
-   *   Enhanced direct role setting that maintains existing functionality while
-   *   integrating with access history tracking. Preserves the existing API for
-   *   backward compatibility while ensuring history updates occur through the
-   *   standard signal processing pipeline for consistent access change detection.
-   */
-  const setRole = useCallback((next: Role, source: AccessEnvelope['source'] = 'yjs') => {
-    console.log('[AccessLayerContext.tsx][4011] › Direct role set requested', { 
-      docId, 
-      next, 
-      source 
-    });
-
-    if (!docId) {
-      console.log('[AccessLayerContext.tsx][4012] › Direct role set ignored; no active doc', { 
-        next, 
-        source 
-      });
-      return;
-    }
-
-    // Step 1: Create envelope for standard processing pipeline
-    const env: AccessEnvelope = {
-      docId,
-      role: next,
-      signal: next === 'Viewer' ? 'EDIT_REVOKED' : 'GRANT_EDIT',
-      source,
-      at: new Date().toISOString(),
+  const setRole = useCallback<AccessLayerAPI['setRole']>((docId, role) => {      // update - 4
+    const existed = mapRef.current.get(docId);
+    const next: AccessRecord = {
+      role,
+      publicEdit: existed?.publicEdit,
+      publicView: existed?.publicView,
+      updatedAt: Date.now(),
     };
+    mapRef.current.set(docId, next);
 
-    // Step 2: Process through standard signal pipeline
-    applySignal(env);
-  }, [docId, applySignal]);
+    if (currentDocIdRef.current === docId) {
+      if (next.role !== roleRef.current) {
+        prevRoleRef.current = roleRef.current;
+        roleRef.current = next.role;
+      }
+    }
 
+    lastEventRef.current = 'signal';
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // API: clearDoc / reset
+  // ─────────────────────────────────────────────────────────────────────────────
+  const clearDoc = useCallback<AccessLayerAPI['clearDoc']>(() => {               // update - 5
+    currentDocIdRef.current = null;
+    prevRoleRef.current = roleRef.current;
+    roleRef.current = 'None';
+    lastEventRef.current = 'clear';
+  }, []);
+
+  const reset = useCallback<AccessLayerAPI['reset']>(() => {                     // update - 6
+    mapRef.current.clear();
+    currentDocIdRef.current = null;
+    prevRoleRef.current = null;
+    roleRef.current = 'None';
+    lastEventRef.current = 'reset';
+  }, []);
+
+
+  // Use to syncrhonize list of access records from ApiContext to accesslayerContext
+  // Compares updateAt to determine which record to keep
+  useEffect(()=>{
+    const listfiles = [...ownedFiles, ...sharedFiles]
+    seedFromList(listfiles)
+
+  }, [ownedFiles, seedFromList, sharedFiles])
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Memoized context value (complete AccessLayerAPI)
+  // ─────────────────────────────────────────────────────────────────────────────
   /**
-   * @method clearDoc
-   * @description
-   *   Enhanced document clearing that maintains existing state management while
-   *   preserving access history for potential future reference. The history
-   *   remains available for the session duration to support proper change
-   *   detection if the same document is reopened during the current session.
+   * @function value (memo)
+   * @purpose Provide a stable object implementing `AccessLayerAPI`.
+   * @steps
+   *   1) Compute derived booleans from current refs
+   *   2) Return full API including the previously missing fields
    */
-  const clearDoc = useCallback(() => {
-    console.log('[AccessLayerContext.tsx][4013] › Document clear requested', { 
+  const value = useMemo<AccessLayerAPI>(() => {                                   // update - 7
+    const docId = currentDocIdRef.current;
+    const rec = docId ? mapRef.current.get(docId) : undefined;
+    const canEdit = canEditOf(rec);
+    const isOwner = rec?.role === 'Owner';
+
+    return {
+      // required by interface (previously missing)
+      currentDocId: currentDocIdRef.current,                                      // ✅ added
+      get,                                                                        // ✅ added
+      seedFromList,                                                               // ✅ added
+
+      // convenience mirrors (selected doc view)
       docId,
-      historySize: historyManager.getHistorySize() 
-    });
+      role: rec?.role ?? 'None',
+      prevRole: prevRoleRef.current,
+      lastEvent: lastEventRef.current,
+      canEdit,
+      isOwner,
 
-    // Step 1: Clear AccessLayer state
-    setDocId(null);
-    setPrevRole(role);
-    setRoleState('None');
-    setLastEvent(null);
-    lastAtMs.current = 0;
+      // mutators
+      selectDoc,
+      applySignal,
+      setRole,
+      clearDoc,
+      reset,
+    };
+  }, [canEditOf, get, seedFromList, selectDoc, applySignal, setRole, clearDoc, reset]); // deps
+  // NOTE: we intentionally read refs inside the memo to avoid spurious re-renders.
 
-    console.log('[AccessLayerContext.tsx][4014] › Document cleared successfully', { 
-      previousDoc: docId 
-    });
-  }, [role, docId, historyManager]);
-
-  /**
-   * @method reset
-   * @description
-   *   Enhanced full reset that clears both AccessLayer state and all access
-   *   history for complete session cleanup. Used for hard application resets
-   *   where complete state initialization is required, ensuring no stale
-   *   history affects subsequent access change detection.
-   */
-  const reset = useCallback(() => {
-    console.log('[AccessLayerContext.tsx][4015] › Full reset requested', {
-      currentDoc: docId,
-      historySize: historyManager.getHistorySize()
-    });
-
-    // Step 1: Clear AccessLayer state  
-    setDocId(null);
-    setPrevRole(null);
-    setRoleState('None');
-    setLastEvent(null);
-    lastAtMs.current = 0;
-
-    // Step 2: Clear access history
-    historyManager.clearHistory();
-
-    console.log('[AccessLayerContext.tsx][4016] › Full reset completed');
-  }, [docId, historyManager]);
-
-  // Step 6: Memoized context value with enhanced API
-  const value = useMemo<AccessLayerAPI>(() => ({
-    docId, role, prevRole, lastEvent, canEdit, isOwner,
-    selectDoc, applySignal, setRole, clearDoc, reset,
-  }), [docId, role, prevRole, lastEvent, canEdit, isOwner, selectDoc, applySignal, setRole, clearDoc, reset]);
-
-  return (
-    <AccessLayerContext.Provider value={value}>
-      {children}
-    </AccessLayerContext.Provider>
-  );
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };

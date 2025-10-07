@@ -55,7 +55,7 @@ import CanvasHeader from './CanvasHeader';
 import CardDisplay from './CardDisplay/CardDisplay';
 import CalendarModal from '../../Calendar/CalendarModal';
 import { PickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
-import { useAccessSnapshot, useEditReady } from '@/app/src/context/ApiContext'; // update - 6
+import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
 
 
 interface CanvasViewProps {
@@ -76,7 +76,7 @@ interface CanvasViewProps {
 export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFileSelect }) => {
   /* ───────────────────────────── Context hooks ──────────────────────────── */
   const { dispatch: zoomDispatch, zoomLevel } = useZoomContext();
-  const { activeConceptMapId, getLessonModule, updateConceptMapTitle, generatingLessonStatus, generatedLessons, setGeneratingLessonStatus, setActiveConceptMapId, clearGeneratedLesson } = useLessonModule();
+  const { activeConceptMapId, getLessonModule, updateConceptMapTitle, generatingLessonStatus, generatedLessons, setGeneratingLessonStatus, setActiveConceptMapId, clearGeneratedLesson , setDefaultMap} = useLessonModule();
   const { activeView, selectedPdfUrl } = useViewSwitch();
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
   const { openCustom } = useSlideShow();
@@ -96,10 +96,18 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
   const lessonTitle = activeLesson?.title ?? 'Untitled Lesson';
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(lessonTitle);
+  const [firstView, setFirstView] = useState(true);
+
+
+  useEffect(()=>{
+    if (firstView){
+      setDefaultMap();
+      setFirstView(false);
+    }
+  },[firstView, setDefaultMap])
 
   /* ───────────────────── DAM-driven mode + readiness  ──────────── */
-  const { mode, status } = useAccessSnapshot();                             // update - 2
-  const editReady = useEditReady();  
+  const {mode, status, editReady} = useAccessEditSnapshot();                             // update - 2
 
   useEffect(() => {
     if (!isEditingTitle) setTitleDraft(lessonTitle);

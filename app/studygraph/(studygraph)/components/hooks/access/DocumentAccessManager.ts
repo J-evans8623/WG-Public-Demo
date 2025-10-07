@@ -1,5 +1,5 @@
 /***************************************************************************************
- * @file DocumentAccessManager.ts
+ * @file DocumentAccessManager.ts (marked for removal)
  * @description
  *   Module-scoped singleton that provides race-condition-immune document access state
  *   management for the entire application. This class serves as the single source of truth
