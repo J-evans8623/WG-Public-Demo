@@ -321,6 +321,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
       console.log('[Canvas/ConceptNode.tsx][6210] blocked topic generator (read-only)'); // update - 10
       return;
     }
+    setShowTooltip(false);
     setisQuizGeneratorOpen(true);
     console.log('[Canvas/ConceptNode.tsx][6211] topic generator opened', { id: node.id }); // update - 10
   }, [canEdit, node.id]); // update - 10
@@ -337,6 +338,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
       console.log('[Canvas/ConceptNode.tsx][6210] blocked topic generator (read-only)'); // update - 10
       return;
     }
+     setShowTooltip(false);
     setIsTopicGeneratorOpen(true);
     console.log('[Canvas/ConceptNode.tsx][6211] topic generator opened', { id: node.id }); // update - 10
   }, [canEdit, node.id]); // update - 10
