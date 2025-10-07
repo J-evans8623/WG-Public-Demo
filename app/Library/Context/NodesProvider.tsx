@@ -22,7 +22,7 @@ import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { record } from '@/app/studygraph/(studygraph)/components/utils/deltaEngine';
 import { Delta } from '@/app/Library/Definitions/deltaTypes';
-import { useUndoRedo } from '@/app/studygraph/(studygraph)/components/Context/UndoRedoContext';
+
 
 
 
@@ -131,7 +131,6 @@ export const NodesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const yNodesMap = activeDoc.getMap<ConceptNode>(mapKey);
 
   const [nodes, setNodesState] = useState<Map<string, ConceptNode>>(new Map());
-  const { undo: globalUndo, redo: globalRedo } = useUndoRedo();
 
   // Load & subscribe
   useEffect(() => {
@@ -421,7 +420,7 @@ const restoreNode = useCallback(
           incrementVersion();
         }
       },
-      { type: 'system', action: 'restoreNode' }
+      LOCAL_ORIGIN
     );
 
     // 5) Log completion

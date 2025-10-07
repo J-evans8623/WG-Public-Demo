@@ -162,11 +162,11 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
 
   /* ────────────────────── Slideshow & flashcards ───────────────────────── */
-  const handleViewAllSlides = () => openCustom(UnitOrderSlides);
+  const handleViewAllSlides = () => openCustom(UnitOrderSlides, "start");
   const handleReviewUnit = () => {
     // Show cue cards and quizzes only
     const assessmentSlides = UnitOrderSlides.filter(card => card.type !== 'note');
-    openCustom(assessmentSlides);
+    openCustom(assessmentSlides, "review");
   }
   const handleViewFlashCards = () => {
     const reviewInfo = getReviewNode();

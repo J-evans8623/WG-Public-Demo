@@ -1,7 +1,7 @@
 // app/studygraph/(studygraph)/components/layout/ReviewModal/ReviewModalsv2.tsx
 
 /**
- * @file ReviewModal.tsx
+ * @file ReviewModalv2.tsx
  * @description
  *   (update - 1)
  *   This file renders the enhanced Review modal experience and governs a three-view flow:

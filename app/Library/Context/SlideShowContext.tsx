@@ -42,8 +42,8 @@ import { StudySession } from '@/app/Library/Definitions/CalendarDefinitions';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useBlockStudySession } from '@/app/studygraph/(studygraph)/components/hooks/calendar/useBlockStudySession';
-import readiness from '@/app/studygraph/(studygraph)/services/documentReadiness/DocumentReadinessService';
-import { getLastViewedSlide, setLastViewedSlide } from '@/app/studygraph/(studygraph)/services/localCacheStore';
+import { getLastViewedSlide, setLastViewedSlide, cachetype } from '@/app/studygraph/(studygraph)/services/localCacheStore';
+
 
 interface SlideShowContextValue {
   // Active slides (selection-based or override)
@@ -65,7 +65,7 @@ interface SlideShowContextValue {
   gotoPrev: () => void;
 
   // Override deck management
-  openCustom: (slidesToShow: ResourceCard[], resumeSlide?:boolean) => void;
+  openCustom: (slidesToShow: ResourceCard[], cachetype?:cachetype, resumeSlide?:boolean) => void;
   resetToSelection: () => void;
 
   // Convenience: open the currently resolved slides from selection
@@ -117,36 +117,17 @@ export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children 
   // Override deck, visibility, and index
   const [overrideSlides, setOverrideSlides] = useState<ResourceCard[] | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [lastSessionType,setLastSessionType] = useState<cachetype>("start");
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Study-session state machine
   const [sessionLaunchState, setSessionLaunchState] = useState<SessionLaunchState>({ type: 'IDLE' });
 
   // Cross-context dependencies for document & user data readiness
-  const { docFileID } = useYDoc();
+  const { docFileID , renderReady} = useYDoc();
   const { userRevisionData, loading: userDataLoading, generateRevision, currentDocId } = useUserData();
   const { generateBlockSession } = useBlockStudySession();
 
-  // Render readiness from DAM/ydoc readiness service
-  const [renderReady, setRenderReady] = useState(false);
-  useEffect(() => {
-    if (!docFileID) {
-      setRenderReady(false);
-      return;
-    }
-    const stream = readiness.renderReady$(docFileID);
-    const initial = stream.value.phase === 'RENDER_READY' || stream.value.phase === 'SAVE_READY';
-    setRenderReady(initial);
-    console.log('[SlideShowContext.tsx][5411] renderReady (initial):', { docId: docFileID, ready: initial });
-
-    const sub = stream.subscribe((s) => {
-      const ok = s.phase === 'RENDER_READY' || s.phase === 'SAVE_READY';
-      setRenderReady(ok);
-      console.log('[SlideShowContext.tsx][5412] renderReady (update):', { docId: docFileID, phase: s.phase, ready: ok });
-    });
-
-    return () => sub.unsubscribe();
-  }, [docFileID]);
 
   // Alias retained for legacy logs & guards
   const ydocReady = renderReady;
@@ -166,10 +147,10 @@ export const SlideShowProvider: React.FC<{ children: ReactNode }> = ({ children 
  *    2) If none, return 0 (default start).
  *    3) Scan slides for matching id; if found return index; else return 0.
  */
-const resumeIndexFor = useCallback((arr: ResourceCard[]): number => {
+const resumeIndexFor = useCallback((arr: ResourceCard[], cachetype?:cachetype): number => {
   // 1) Read last id (doc-bound)
   if (!docFileID) return 0;
-  const lastId = getLastViewedSlide(docFileID);
+  const lastId = getLastViewedSlide(docFileID, cachetype);
   // 2) No persisted id → start at 0
   if (!lastId) return 0;
   // 3) Find in current deck (O(N) only on open)
@@ -188,11 +169,12 @@ const resumeIndexFor = useCallback((arr: ResourceCard[]): number => {
  *    2) Write {docId -> lastViewedSlideId, lastViewedAt} via local cache helper.
  */
 const persistLastSlide = useCallback((slide: ResourceCard | null) => {
+  //lastSessionType  : start|review
   // 1) Guard
   if (!docFileID || !slide) return;
   // 2) Write
-  setLastViewedSlide(docFileID, slide.id);
-}, [docFileID]);
+  setLastViewedSlide(docFileID, slide.id, lastSessionType);
+}, [docFileID, lastSessionType]);
 
   /**
    * @function synchronizeOverrideSlides
@@ -331,12 +313,13 @@ const open = useCallback(                                                       
  *    2) If there are slides: compute start index via resumeIndexFor(arr).
  *    3) Set index and open.
  */
-const openCustom = useCallback((slidesToShow: ResourceCard[], resumeSlide = true) => {              // update - 1
+const openCustom = useCallback((slidesToShow: ResourceCard[], cachetype?:cachetype, resumeSlide = true) => {              // update - 1
   console.log('[SlideShowContext.tsx][7016] › Opening custom slideshow with slides, count:', slidesToShow.length);
   setOverrideSlides(slidesToShow);
-  if (slidesToShow.length > 0 && resumeSlide) {
+  if (slidesToShow.length > 0 && resumeSlide && cachetype) {
+    setLastSessionType(cachetype);
     // 2) compute resume index
-    const start = resumeIndexFor(slidesToShow);                                 // update - 1
+    const start = resumeIndexFor(slidesToShow, cachetype);                                 // update - 1
     setCurrentIndex(start);
     setIsOpen(true);
   }
@@ -527,7 +510,7 @@ const gotoPrev = useCallback(() => {                                            
               throw new Error('No slides generated for session - empty content collection');
             }
 
-            openCustom(generatedSlides, false);
+            openCustom(generatedSlides, undefined ,false);
             console.log('[SlideShowContext.tsx][6033] › Session launched successfully with', generatedSlides.length, 'slides');
             setSessionLaunchState({ type: 'IDLE' });
             break;

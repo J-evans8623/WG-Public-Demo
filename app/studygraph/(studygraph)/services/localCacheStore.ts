@@ -53,7 +53,8 @@ const STORE_NAME = 'bytes';
 const DB_VERSION = 1;                                  
 
 // LocalStorage key for the identifiers + LRU index
-const INDEX_KEY = '__doc_cache_index__';               
+const INDEX_KEY_START = '__doc_cache_index_start__';   
+const INDEX_KEY_REVIEW = '__doc_cache_index_review__'            
 
 // Default cap for tiny eviction policy (can be overridden per-call in saveDocBytes)
 const DEFAULT_CAP = 10;                                
@@ -193,15 +194,25 @@ async function idbClearAll(): Promise<void> {
  * =======================================================================================
  */
 
+export type cachetype = "start" | "review";
+
+function getIndexType(cachetype:cachetype | undefined): string {
+  if (cachetype =="review"){
+    return INDEX_KEY_REVIEW
+  }
+    return INDEX_KEY_START
+}
+
 /**
  * @function getIndex
  * @description
  *   Loads the identifiers/LRU index from localStorage. Returns an empty object if not
  *   present or if parsing fails. Time complexity: O(1). Logs only on parse failure.
  */
-export function getIndex(): CacheIndex {                                      
+export function getIndex(cachetype?:cachetype): CacheIndex {      
+  const key = getIndexType(cachetype)                                
   try {
-    const raw = localStorage.getItem(INDEX_KEY);
+    const raw = localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as CacheIndex) : {};
   } catch (e) {
     console.warn('[localCacheStore.ts][4011] getIndex: parse error', e);      
@@ -214,9 +225,10 @@ export function getIndex(): CacheIndex {
  * @description
  *   Persists the full index back to localStorage. Time complexity: O(1).
  */
-export function setIndex(idx: CacheIndex): void {                             
+export function setIndex(idx: CacheIndex, cachetype?:cachetype): void {
+  const key = getIndexType(cachetype)                           
   try {
-    localStorage.setItem(INDEX_KEY, JSON.stringify(idx));
+    localStorage.setItem(key, JSON.stringify(idx));
   } catch (e) {
     console.warn('[localCacheStore.ts][4012] setIndex: setItem failed', e);   
   }
@@ -293,7 +305,8 @@ export function clearDocIdentifiers(docId: string): void {
  */
 export function clearAllIdentifiers(): void {                                  
   try {
-    localStorage.removeItem(INDEX_KEY);
+    localStorage.removeItem(INDEX_KEY_START);
+    localStorage.removeItem(INDEX_KEY_REVIEW);
     console.log('[localCacheStore.ts][4015] clearAllIdentifiers: index cleared'); 
   } catch (e) {
     console.warn('[localCacheStore.ts][4016] clearAllIdentifiers: failed', e); 
@@ -467,9 +480,9 @@ export function docIdFromStoragePath(fileStorageId: string): string {
  *    2) Upsert { lastViewedSlideId, lastViewedAt, lastAccessed } under docId.
  *    3) Persist index (O(1)).
  */
-export function setLastViewedSlide(docId: string, slideId: string, at?: number): void {
+export function setLastViewedSlide(docId: string, slideId: string, cachetype:cachetype, at?: number, ): void {
   // 1) Load index
-  const idx = getIndex();
+  const idx = getIndex(cachetype);
 
   // 2) Upsert fields on the per-doc row
   const now = typeof at === 'number' ? at : Date.now();
@@ -481,7 +494,7 @@ export function setLastViewedSlide(docId: string, slideId: string, at?: number):
   };
 
   // 3) Save
-  setIndex(idx);
+  setIndex(idx, cachetype);
   console.log('[localCacheStore.ts][4101] setLastViewedSlide (doc, slide, at)=', docId, slideId, now);
 }
 
@@ -496,9 +509,9 @@ export function setLastViewedSlide(docId: string, slideId: string, at?: number):
  *    2) Read doc row; if missing or empty, return null.
  *    3) Return slide id or null.
  */
-export function getLastViewedSlide(docId: string): string | null {
+export function getLastViewedSlide(docId: string, cachetype?:cachetype): string | null {
   // 1) Load
-  const idx = getIndex();
+  const idx = getIndex(cachetype);
   // 2) Read
   const rec = idx[docId];
   // 3) Return (normalize to null)

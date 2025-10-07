@@ -24,7 +24,6 @@ import '@/app/studygraph/styles/tokens.css'
 import '@/app/studygraph/styles/brand/brand-utilities.css'  
 import '@/app/studygraph/styles/theme-warm-board.css'
 import '@/app/studygraph/(studygraph)/canvas/Map/NodeGraphOriginal.css'
-import '@/app/studygraph/(studygraph)/components/layout/forum/ForumModal.css'
 import '@/app/studygraph/(studygraph)/components/layout/Canvas/CanvasView.css'
 import './appLayout.css';
 import React, { useState, useEffect, useRef } from 'react';
