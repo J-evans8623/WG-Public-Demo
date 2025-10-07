@@ -69,7 +69,7 @@ import { ChatHistoryProvider, useChatHistory } from '@/app/Library/Context/ChatH
 import { CommentsProvider } from '@/app/Library/Context/CommentContext';
 import { UserDataProvider, useUserData } from '@/app/Library/Context/UserDataContext';
 import { LessonModuleProvider, useLessonModule } from '@/app/Library/Context/LessonModuleContext';
-import { AutoSaveManager } from '@/app/studygraph/(studygraph)/services/AutoSaveManager';
+import { AutoSaveManager } from '@/app/studygraph/(studygraph)/services/autosave/AutoSaveManager';
 import { useLessonModuleMapper } from '@/app/studygraph/(studygraph)/components/hooks/useLessonModuleMapper';
 import { SlideShowProvider } from '@/app/Library/Context/SlideShowContext';
 import { SearchProvider } from '@/app/Library/Context/SearchContext';
@@ -81,6 +81,7 @@ import { RefreshModal } from './components/access/RefreshModal';
 import { useCollaborationManager } from './services/collab/useCollaborationManager';
 import { CalendarProvider } from '@/app/Library/Context/CalendarContextv2';
 import { GlobalModalProvider, useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
+import { registerAutosaveHandlers } from '@/app/studygraph/(studygraph)/services/autosave/autoSaveBridge';
 
 // update - 2: remove legacy orchestrators (DocumentAccessManager, readiness, session/controllers)
 
@@ -301,9 +302,18 @@ const AppLayoutContent: React.FC = () => {
       autoSaveManagerRef.current = new AutoSaveManager(ydoc, autosaveCallback);
       console.log('app.tsx 9304 › AutoSaveManager initialized');
     }
+
+    // REGISTER bridge handlers here:
+    registerAutosaveHandlers(
+      () => autoSaveManagerRef.current?.notifyLocalChange(),
+      () => { void autoSaveManagerRef.current?.forceSave(); }
+    );
+  
+
     return () => {
       autoSaveManagerRef.current?.destroy();
       autoSaveManagerRef.current = null;
+      registerAutosaveHandlers(() => {}, () => {})
       console.log('app.tsx 9305 › AutoSaveManager destroyed');
     };
   }, [

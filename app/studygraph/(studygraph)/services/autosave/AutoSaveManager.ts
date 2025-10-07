@@ -109,6 +109,11 @@ export class AutoSaveManager {
     this.ensureGuaranteedSaveTimer();
   }
 
+  
+  public notifyLocalChange():void {
+    this.handleLocalChange();
+  }
+
   /** Debounced inactivity timer: triggers save after idle period. */
   private resetInactivityTimer = debounce(async (): Promise<void> => {
     if (this.inactivityTimer) clearTimeout(this.inactivityTimer);

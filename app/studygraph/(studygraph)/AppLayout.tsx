@@ -56,7 +56,7 @@ import { ChatHistoryProvider, useChatHistory } from '@/app/Library/Context/ChatH
 import { CommentsProvider } from '@/app/Library/Context/CommentContext';
 import { UserDataProvider, useUserData } from '@/app/Library/Context/UserDataContext';
 import { LessonModuleProvider , useLessonModule} from '@/app/Library/Context/LessonModuleContext';
-import { AutoSaveManager } from '@/app/studygraph/(studygraph)/services/AutoSaveManager';
+import { AutoSaveManager } from '@/app/studygraph/(studygraph)/services/autosave/AutoSaveManager';
 import { useLessonModuleMapper } from '@/app/studygraph/(studygraph)/components/hooks/useLessonModuleMapper';
 import { SlideShowProvider } from '@/app/Library/Context/SlideShowContext';
 import { SearchProvider } from '@/app/Library/Context/SearchContext';

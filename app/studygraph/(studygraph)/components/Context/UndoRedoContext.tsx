@@ -16,7 +16,8 @@ import React, {
     ReactNode
   } from 'react';
   import * as Engine from '../utils/deltaEngine';
-  
+  import { markAutosaveDirty} from '@/app/studygraph/(studygraph)/services/autosave/autoSaveBridge';
+
   interface UndoRedoContextType {
     undo(): void;
     redo(): void;
@@ -39,11 +40,13 @@ import React, {
     const undo = useCallback(() => {
       Engine.undo();
       updateFlags();
+       markAutosaveDirty();
     }, [updateFlags]);
   
     const redo = useCallback(() => {
       Engine.redo();
       updateFlags();
+       markAutosaveDirty();
     }, [updateFlags]);
   
     const clearHistory = useCallback(() => {
