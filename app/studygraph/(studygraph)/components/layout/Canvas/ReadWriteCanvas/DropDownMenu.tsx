@@ -93,8 +93,10 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
 
   const { setActiveView, activeView } = useViewSwitch();
   const { addLessonModule } = useLessonData();
+    const { addGeneratedLessonFile } = useFileAsset();
   const { showModal } = useGlobalModal();
   const { docFileID } = useYDoc();
+   const { accountStatus, } = useAccountStatus();
 
   const lessons = getLessonModule().conceptMaps || [];
 
@@ -116,6 +118,48 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
     setActiveView('conceptMap');
     setOpen(false);
   }, [mode, addConceptMap, setActiveConceptMapId, setActiveView]);
+
+
+    /**
+     * @function handleGenerateLessonSuccess
+     * @description
+     * Process successful lesson generation response by updating file asset and lesson
+     * data contexts. Maintains existing lesson generation workflow while providing
+     * comprehensive logging and error handling for production reliability.
+     */
+    const handleGenerateLessonSuccess = useCallback((responseData: any) => {
+      console.log('[NavigationPanel.tsx][9018] Processing lesson generation response:', responseData);
+  
+      try {
+        // Step 10: Convert response to TextFileMessage format
+        const generatedFileMessage: TextFileMessage = {
+          id: responseData.id,
+          type: 'pdf',
+          title: responseData.title,
+          serverUrl: responseData.url,
+          uploadDate: new Date(),
+          size: responseData.size,
+          visibility: responseData.visibility || 'private',
+          ownerId: responseData.owner,
+          accountType: accountStatus?.accountType || 'scholar',
+        };
+  
+        // Step 11: Update file asset context
+        addGeneratedLessonFile(generatedFileMessage);
+        console.log('[NavigationPanel.tsx][9019] Generated file added to asset context');
+  
+        // Step 12: Update lesson data context if lesson modules provided
+        if (responseData.id && responseData.lessonModules) {
+          addLessonModule(responseData.id, { lessonModules: responseData.lessonModules });
+          console.log('[NavigationPanel.tsx][9020] Lesson modules added to data context');
+        }
+      } catch (error) {
+        console.error('[NavigationPanel.tsx][9021] Error processing lesson generation response:', error);
+      }
+    }, [accountStatus?.accountType, addGeneratedLessonFile, addLessonModule]);
+
+
+
 
   const handleGenerate = useCallback(() => {
     if (mode !== 'edit') return;
@@ -265,7 +309,7 @@ export const UnifiedUploadsDropdown: React.FC<UnifiedUploadsDropdownProps> = ({
   const ref = useRef<HTMLDivElement>(null);
   useClickOutside(ref, () => setOpen(false));
 
-  const { getAllFiles } = useFileAsset();
+  const { getAllFiles, addFile } = useFileAsset();
   const { setSelectedPdfUrl, setActiveView, activeView } = useViewSwitch();
   const { showModal } = useGlobalModal();
   const { accountStatus } = useAccountStatus();
@@ -276,27 +320,21 @@ export const UnifiedUploadsDropdown: React.FC<UnifiedUploadsDropdownProps> = ({
     if (mode !== 'edit') return;
     console.log('[UnifiedDropDownMenus.tsx][7110] upload-open-modal');
     setOpen(false);
-    showModal('fileUpload', {
-      onUploadSuccess: (file: File, isPublic: boolean, serverUrl?: string) => {
-        console.log('[UnifiedDropDownMenus.tsx][7111] upload-success', {
-          file: file.name,
-          isPublic,
+    showModal('fileUpload', 
+       {
+      onUploadSuccess: (file: File, isPublic: boolean) => {
+        console.log('[NavigationPanel.tsx][9015] Upload successful via modal:', file.name, 'public:', isPublic);
+        
+        // Step 9: Process upload through existing file asset system
+        addFile(file, { visibility: isPublic ? 'public' : 'private' }).then(() => {
+          console.log('[NavigationPanel.tsx][9016] File added to asset context successfully');
+        }).catch((error) => {
+          console.error('[NavigationPanel.tsx][9017] File upload processing failed:', error);
         });
-        // Emit a light-weight message for observers; the actual asset context update
-        // is handled in the modal pipeline.
-        const msg: TextFileMessage = {
-          id: crypto.randomUUID(),
-          type: file.type === 'application/pdf' ? 'pdf' : 'txt',
-          title: file.name,
-          serverUrl: serverUrl || '',
-          uploadDate: new Date(),
-          size: file.size,
-          accountType: accountStatus?.accountType || 'scholar',
-        };
-        onFileUploaded?.(msg);
-      },
-    });
-  }, [mode, showModal, onFileUploaded, accountStatus?.accountType]);
+      }
+    }
+  );
+  }, [addFile, mode, showModal]);
 
   const handleOpenFile = useCallback(
     (file: TextFileMessage) => {

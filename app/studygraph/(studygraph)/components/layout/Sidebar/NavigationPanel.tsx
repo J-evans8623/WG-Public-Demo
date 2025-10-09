@@ -85,7 +85,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   console.log('[NavigationPanel.tsx][9001] NavigationPanel rendering with enhanced modal integration');
 
   // Step 1: Initialize account status and modal management
-  const { accountStatus, canUpgrade } = useAccountStatus();
+  const { accountStatus } = useAccountStatus();
   const { showModal} = useGlobalModal ();
 
   // Step 2: State management for panel expansion and interactions
@@ -300,7 +300,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   const handleUploadClick = useCallback(() => {
     console.log('[NavigationPanel.tsx][9014] File upload requested, opening centralized modal');
     
-    showModal('fileUpload', {
+    showModal('fileUpload',
+       {
       onUploadSuccess: (file: File, isPublic: boolean) => {
         console.log('[NavigationPanel.tsx][9015] Upload successful via modal:', file.name, 'public:', isPublic);
         
