@@ -31,6 +31,7 @@ import {
   scheduleInterleavedRevisions,
 } from './core/InterLeavedRevisionScheduler';
 import { aggregateSessions } from './core/SessionAggregator';
+import { mergeStudyPlans } from './mergeStudyPlan';
 
 // Utilities & validators
 import { validateNotebooks, validateScheduleConfig, validateStartDate } from './utils/validators';
@@ -95,26 +96,38 @@ export class StudyPlanService {
     }
   }
 
-  /**
-   * @function extendStudyPlan
+/**
+   * @function extendStudyPlan  // update - 001
    * @description
-   * Continues a plan using the saved internal `StudyPlanState` and (optionally) updated
-   * notebooks. The orchestrator restores progress, recalculates bounds, and appends new
-   * sessions after the last scheduled date. This method is O(N) in notebook changes and
-   * preserves previously scheduled sessions unchanged. See orchestrator docs for details.
+   *  Returns a **merged** plan by internally computing the tail then merging it with the
+   *  caller-provided existing plan.
+   * @steps
+   *  1) Validate inputs (updated notebooks).
+   *  2) Use orchestrator.extendPlan(existing.state, updatedNotebooks) to compute the tail.
+   *  3) mergeStudyPlans(existing, tail) to produce a unified plan preserving progress.
+   *  4) Log summary and return merged.
    */
-  public extendStudyPlan(
-    existingState: StudyPlanState,
-    updatedNotebooks: NotebookMeta[]
-  ): StudyPlanOutput {
+  public extendStudyPlan( // update - 001
+    existing: StudyPlanOutput,       // ⟵ signature changed to accept the full plan
+    updatedNotebooks: NotebookMeta[] //   rather than only the state
+  ): StudyPlanOutput {               // update - 001
     const loc = 'StudyPlanService.ts#4102';
     try {
-      // When extending, validation focuses on notebooks (structure) since config/state are trusted.
+      // 1) Validate
       validateNotebooks(updatedNotebooks);
-      const plan = this.orchestrator.extendPlan(existingState, updatedNotebooks);
+
+      // 2) Compute tail from existing state
+      const tail = this.orchestrator.extendPlan(existing.state, updatedNotebooks);
+
+      // 3) Merge
+      const merged = mergeStudyPlans(existing, tail);
+
+      // 4) Log
       // eslint-disable-next-line no-console
-      console.log(`[${loc}] extendStudyPlan -> PASS sessions=${plan.planMetadata.totalSessions}`);
-      return plan;
+      console.log(
+        `[${loc}] extendStudyPlan -> PASS mergedSessions=${merged.planMetadata.totalSessions} (tail=${tail.planMetadata.totalSessions})`
+      );
+      return merged;
     } catch (err) {
       // eslint-disable-next-line no-console
       console.log(`[${loc}] extendStudyPlan -> FAIL reason=${(err as Error).message}`);

@@ -255,15 +255,21 @@ const AppLayoutContent: React.FC = () => {
   // update - 9: collaboration: connect only when ACTIVE & saveReady & on map
   useEffect(() => {
     const ok = bootPhase === 'ACTIVE' && !!docFileID && saveReady && currentView === 'map' && ydoc;
-    if (ok && !isConnected) {
-      console.log('app.tsx 7201 › collab connect gate passed', { docFileID, bootPhase, saveReady });
+    if (ok) {
+
+      if (!isConnected) {
+              console.log('app.tsx 7201 › collab connect gate passed', { docFileID, bootPhase, saveReady });
       collabConnect(docFileID!, ydoc!, visibility).catch((err) =>
         console.error('app.tsx 7202 › collab connect failed', err),
       );
+      }
+
     } else {
       // Avoid churn during transitions
+      if (isConnected) {
       console.log('app.tsx 7203 › collab disconnect gate', { bootPhase, currentView, saveReady });
       collabDisconnect();
+      }
     }
   }, [bootPhase, saveReady, currentView, docFileID, ydoc, visibility, collabConnect, collabDisconnect, isConnected]); // update - 9
 

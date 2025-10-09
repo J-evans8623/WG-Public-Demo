@@ -126,7 +126,7 @@ export function createSessionMetadata(
   const unitCount = chunk.units.length || DEFAULT_CHUNK_SIZE;
 
   const meta: SessionMetadata = {
-    sessionTitle: buildSessionTitle(notebook, lesson, chunk, type),
+    sessionTitle: lesson.title,
     estimatedDuration: calculateEstimatedDuration(unitCount, type), // update - 3
     topicTitles: extractTopicTitles(chunk.units),                   // update - 4
     unitCount,

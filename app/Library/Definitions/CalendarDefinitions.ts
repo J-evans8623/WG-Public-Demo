@@ -22,7 +22,7 @@ export interface LessonUnit {
   conceptNodeTitle: string;
   /** Unique identifier of the primary concept node within its map */
   primaryConceptNodeID: string;
-  /** Title of the parent notebook/lesson containing this unit */
+  /** Title of the parent lesson containing this unit */
   parentTitle: string;
   /** Concept map identifier where this lesson unit originates */
   mapID: string;
@@ -204,6 +204,7 @@ export interface CalendarContextType {
   //getSessionsForDay: (date: Date) => StudySession[];
   //getTodaysPlan: () => DailyStudyPlan | null;
   notebookVersions: Map<string, NotebookVersionState>
+  updateStudyPlan: () => Promise<void>;
 
 }
 

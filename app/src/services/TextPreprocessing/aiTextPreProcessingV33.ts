@@ -56,6 +56,8 @@ export async function generateBatchedUnitSyllabus(
 ): Promise<BatchedSyllabus> {
   console.log('[aiTextPreProcessingV32.ts][2003] generateBatchedUnitSyllabus START', { topicAmount, max });
 
+  console.log(`-----------------Text input to aiTextPreProcessingV32.ts [2000] \n--------- ${JSON.stringify(fullText)} \n -----------------Text input to aiTextPreProcessingV32.ts [2000] end \n---------`)
+
   const prompt = unitSyllabusPromptV2(topicAmount, max);
   const raw: any = await aiService.generateStructuredOutput(
     { name: unitSyllabusArray.name, schema: unitSyllabusArray.schema, strict: unitSyllabusArray.strict },

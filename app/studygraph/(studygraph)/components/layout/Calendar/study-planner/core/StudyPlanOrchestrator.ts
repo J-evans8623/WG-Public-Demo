@@ -29,9 +29,13 @@ import type { LearningSet } from '../models/LearningSet';
 import type { NotebookProgress, LessonProgress } from '../models/Progress';
 import type { Lesson, LessonChunk } from '../models/Lesson';
 
-import { DEFAULT_CHUNK_SIZE, INTERLEAVED_REVISION_MULTIPLIER } from '../constants/schedulingConstants';
+import { DEFAULT_CHUNK_SIZE, INTERLEAVED_REVISION_MULTIPLIER, INTERLEAVED_INTERVAL_DAYS } from '../constants/schedulingConstants';
 import { addDays, formatDateKey, isDateAvailable } from '../utils/dateUtils';
-import { calculateChunkCount } from '../utils/lessonUtils';
+import {
+  hasPendingLearning,
+  findNextEligibleLearningSetDay,
+  makeSyntheticSetForNotebooks,
+} from './NotebookAnchorPlanner';
 
 // --- Dependency Contracts (small, easily mockable) -------------------------
 
@@ -94,6 +98,26 @@ interface IAggregationFns {
     blockRevisionSessions: StudySession[],
     interleavedSessions: StudySession[]
   ) => StudySession[];
+}
+
+
+/**
+ * @function todayMidnightLocal  // update - 001
+ * @description
+ * Returns a Date object set to local midnight for “today”. Keeps extension scans anchored
+ * to the user’s local day boundary (prevents off-by-one with time components).
+ * @steps
+ *  1) Construct Date() for now.
+ *  2) Zero out hours/mins/secs/ms to normalize to midnight.
+ *  3) Return the normalized date.
+ */
+function todayMidnightLocal(): Date {
+  // Step 1
+  const d = new Date();
+  // Step 2
+  d.setHours(0, 0, 0, 0);
+  // Step 3
+  return d;
 }
 
 // --- Orchestrator ----------------------------------------------------------
@@ -239,34 +263,143 @@ export class StudyPlanOrchestrator {
       state,
     };
   }
+    /**
+   * @function reconcileProgressWithLessons
+   * @private
+   * @description
+   *  Aligns existing NotebookProgress with freshly parsed lessons and adjusts the
+   *  interleaved program when lesson counts grow mid-plan.
+   * @steps
+   *  1) For each notebook:
+   *     1.1) Ensure a LessonProgress exists for every parsed lesson; create defaults if missing.
+   *     1.2) Recompute interleaved quota = lessons.length × INTERLEAVED_REVISION_MULTIPLIER.
+   *  2) If quota increases:
+   *     2.1) Raise `totalRequired` by the delta.
+   *     2.2) If `firstSessionDate` exists, **append** new aligned future dates after the
+   *          last planned date, stepping by INTERLEAVED_INTERVAL_DAYS and keeping only dates
+   *          where this notebook’s learning set is active in `learningSetSchedule`.
+   *     2.3) Update `sessionsScheduled` to match `scheduledDates.length`.
+   *  3) Leave any past/previously planned dates intact to preserve determinism.
+   */
+  private reconcileProgressWithLessons(
+    progressMap: Map<string, NotebookProgress>,
+    lessonsByNotebook: Map<string, Lesson[]>,
+    learningSetSchedule: Map<string, LearningSet>
+  ): void {
+    const loc = 'core/StudyPlanOrchestrator.ts#5206';
 
-  /**
+    for (const [nbId, nbProgress] of progressMap.entries()) {
+      // Step 1.1) Create missing LessonProgress entries.
+      const parsedLessons = lessonsByNotebook.get(nbId) ?? [];
+      const have = new Set(nbProgress.lessonProgress.map(p => p.lessonId));
+
+      for (const lesson of parsedLessons) {
+        if (have.has(lesson.id)) continue;
+
+        // (a) Minimal default progress row for a brand-new parsed lesson.
+        nbProgress.lessonProgress.push({
+          lessonId: lesson.id,
+          lessonUnits: lesson.units,
+          totalUnits: lesson.units.length,
+          unitsCoveredInBlockLearning: 0,
+          blockLearningSessions: [],
+          blockRevisionSessions: [],
+          status: 'not-started',
+        });
+
+        // eslint-disable-next-line no-console
+        console.log(`[${loc}] add LessonProgress nb=${nbId} lesson=${lesson.id}`);
+      }
+
+      // Step 1.2) Recompute interleaved quota for this notebook.
+      const totalLessons = parsedLessons.length;
+      const newQuota = totalLessons * INTERLEAVED_REVISION_MULTIPLIER;
+      const ilp = nbProgress.interleavedRevisionProgress;
+
+      if (newQuota > ilp.totalRequired) {
+        // Step 2.1) Raise totalRequired by delta.
+        const need = newQuota - ilp.totalRequired;
+        ilp.totalRequired = newQuota;
+
+        // Step 2.2) If program already started, append aligned **future** dates.
+        if (ilp.firstSessionDate) {
+          // (1) Determine starting cursor = last planned date + interval, or firstSessionDate.
+          const lastPlanned = ilp.scheduledDates?.length
+            ? ilp.scheduledDates[ilp.scheduledDates.length - 1]
+            : ilp.firstSessionDate;
+
+          // (2) Append until we satisfy the new quota, filtering by active learning set.
+          const targetSetId = nbProgress.learningSetId;
+          let cursor = addDays(lastPlanned, INTERLEAVED_INTERVAL_DAYS);
+
+          // (3) Safeguard against pathological scans (bounded loop).
+          const maxAppends = Math.max(need * 20, 60);
+          let appended = 0;
+
+          for (let i = 0; i < maxAppends && (ilp.scheduledDates.length < ilp.totalRequired); i++) {
+            const key = formatDateKey(cursor);
+            const ls = learningSetSchedule.get(key);
+            if (ls && ls.id === targetSetId) {
+              ilp.scheduledDates.push(cursor);
+              appended++;
+            }
+            cursor = addDays(cursor, INTERLEAVED_INTERVAL_DAYS);
+          }
+
+          // Step 2.3) Recompute sessionsScheduled.
+          ilp.sessionsScheduled = ilp.scheduledDates.length;
+
+          // eslint-disable-next-line no-console
+          console.log(
+            `[${loc}] interleaved quota↑ nb=${nbId} +${need} appended=${appended} planned=${ilp.sessionsScheduled}/${ilp.totalRequired}`
+          );
+        } else {
+          // No firstSessionDate yet — do not pre-plan; program will initialize on first completion.
+          // eslint-disable-next-line no-console
+          console.log(
+            `[${loc}] interleaved quota↑ nb=${nbId} +${need} (no firstSessionDate yet; planning deferred)`
+          );
+        }
+      }
+    }
+  }
+
+
+/**
    * @function extendPlan
    * @description
-   * Resumes planning from a previously returned `StudyPlanState`. The method rebuilds fast
-   * lesson lookups from the updated notebooks, reuses learning sets and progress, recomputes
-   * a future schedule window, and iterates forward beginning at `state.nextAvailableDate`.
-   * It appends sessions to the existing plan without mutating prior results. Complexity is
-   * O(D) in the number of additional days scanned with the same small constants per day.
+   * Duplicate-safe, notebook-aware extension.  // update - 003
+   * Steps (≥30 words):
+   * 1) Parse updated notebooks and rebuild lessons map.
+   * 2) Reuse learning sets + progress from existing state, compute a fresh schedule pattern from **today**.
+   * 3) Reconcile progress with any new lessons.
+   * 4) For each notebook that still has pending learning, compute a **per-notebook anchor date**:
+   *    the next date (≥ today) where its learning set is active and no prior block exists.
+   * 5) Iterate each day; on days that match one or more anchors, pass a **synthetic, filtered
+   *    learning set** to the learning scheduler. This guarantees at most one block per notebook per day.
+   * 6) Run revision mirroring, detection, and interleaved logic unchanged. Aggregate and return tail.
    */
   public extendPlan(
     existing: StudyPlanState,
     updatedNotebooks: NotebookMeta[]
   ): StudyPlanOutput {
-    const loc = 'core/StudyPlanOrchestrator.ts#5202';
+    const loc = 'core/StudyPlanOrchestrator.ts#6202'; // unique 4-digit code line tag
 
-    // Rebuild lessons map from updated notebooks (e.g., new units/lessons added).
+    // Rebuild lessons map from updated notebooks
     const lessonsByNotebook: Map<string, Lesson[]> = new Map();
     for (const nb of updatedNotebooks) {
       const lessons = this.lessonFns.parseLessons(nb);
       lessonsByNotebook.set(nb.fileId, lessons);
     }
 
-    // Reuse learning sets and progress.
-    const { learningSets, notebookProgress: progressMap, config } = existing;
-    const startDate = existing.nextAvailableDate;
+    // Reuse plan state
+    const { learningSets, notebookProgress: progressMap, sessionsByDate } = existing;
+    const config = existing.config;
 
-    // Compute new bounds and schedule pattern from extension start.
+    // Anchor window starts today (≥ today).  // update - 004
+    const startDate = todayMidnightLocal();
+
+    // Build forward schedule window and pattern
     const totalDays = this.calculateTotalDays(updatedNotebooks, learningSets, lessonsByNotebook);
     const schedulePattern = this.learningSetFns.buildSchedulePattern(
       startDate,
@@ -275,29 +408,90 @@ export class StudyPlanOrchestrator {
       totalDays
     );
 
-    const sessionsByDate = new Map<string, StudySession[]>(existing.sessionsByDate);
-    const allSessions: StudySession[] = [];
+    // Reconcile progress with new lessons (and adjust interleaved program as needed)
+    this.reconcileProgressWithLessons(progressMap, lessonsByNotebook, schedulePattern); // update - 005
+
+    // ---- Notebook-level anchor computation (pure, deterministic) ----  // update - 006
+    // 1) Map notebookId -> learningSetId for quick joins
+    const setByNotebook = new Map<string, LearningSet>();
+    for (const ls of learningSets) {
+      for (const nb of ls.notebooks) setByNotebook.set(nb.fileId, ls);
+    }
+
+    // 2) Identify notebooks with pending learning and compute anchor dates
+    type AnchorRec = { notebookId: string; anchor: Date | null; set: LearningSet };
+    const anchors: AnchorRec[] = [];
+    for (const [nbId, nbProg] of progressMap.entries()) {
+      if (!hasPendingLearning(nbProg)) continue;
+      const set = setByNotebook.get(nbId);
+      if (!set) continue;
+
+      const anchor = findNextEligibleLearningSetDay(
+        nbId,
+        nbProg.learningSetId,
+        startDate,
+        totalDays,
+        schedulePattern,
+        sessionsByDate,
+        config
+      );
+      anchors.push({ notebookId: nbId, anchor, set });
+    }
+
+    // 3) Invert anchors: dateKey -> list of notebookIds
+    const byDate = new Map<string, { set: LearningSet; notebookIds: string[] }>();
+    for (const a of anchors) {
+      if (!a.anchor) continue;
+      const key = formatDateKey(a.anchor);
+      const existingEntry = byDate.get(key);
+      if (existingEntry) {
+        // All anchors for a date share the same active learning set (by schedulePattern).
+        existingEntry.notebookIds.push(a.notebookId);
+      } else {
+        byDate.set(key, { set: a.set, notebookIds: [a.notebookId] });
+      }
+    }
+
+    // ---- Day loop with synthetic learning-set injection ----  // update - 007
+    const outSessions: StudySession[] = [];
+    const mergedSessionsByDate = new Map<string, StudySession[]>(existing.sessionsByDate);
     let prevDaySessions: StudySession[] = [];
     let prevActiveSet: LearningSet | undefined;
 
     for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
       const currentDate = addDays(startDate, dayOffset);
       if (!isDateAvailable(currentDate, config)) continue;
+
       const key = formatDateKey(currentDate);
-      const activeSet = schedulePattern.get(key);
+      const scheduledSet = schedulePattern.get(key) || undefined;
 
-      const blockLearning = activeSet
-        ? this.blockFns.scheduleBlockLearning(currentDate, activeSet, progressMap, lessonsByNotebook)
-        : [];
+      // If today has anchored notebooks, build a synthetic set containing only them.
+      let blockLearning: StudySession[] = [];
+      const dateAnchors = byDate.get(key);
+      if (scheduledSet && dateAnchors && dateAnchors.notebookIds.length > 0) {
+        const synthetic = makeSyntheticSetForNotebooks(scheduledSet, dateAnchors.notebookIds);
+        blockLearning = this.blockFns.scheduleBlockLearning(
+          currentDate,
+          synthetic,
+          progressMap,
+          lessonsByNotebook
+        );
+        // eslint-disable-next-line no-console
+        console.log(
+          `[${loc}] synthetic learn date=${key} nbCount=${dateAnchors.notebookIds.length} (6203)`
+        );
+      }
 
+      // Mirror yesterday’s learning into block revisions (unchanged)
       const blockRevision = this.blockFns.scheduleBlockRevision(
         currentDate,
         prevDaySessions,
         progressMap,
-        activeSet,
+        scheduledSet,
         prevActiveSet
       );
 
+      // Detect completions and schedule interleaved (unchanged)
       const completed = this.completionFns.detectCompletions(progressMap, currentDate);
       const interleaved = this.completionFns.scheduleInterleavedRevisions(
         completed,
@@ -307,6 +501,7 @@ export class StudyPlanOrchestrator {
         lessonsByNotebook
       );
 
+      // Aggregate and merge into archive
       const daySessions = this.aggregationFns.aggregateSessions(
         currentDate,
         blockLearning,
@@ -315,38 +510,38 @@ export class StudyPlanOrchestrator {
       );
 
       if (daySessions.length > 0) {
-        const existingList = sessionsByDate.get(key) ?? [];
-        sessionsByDate.set(key, [...existingList, ...daySessions]);
-        allSessions.push(...daySessions);
+        const prev = mergedSessionsByDate.get(key) ?? [];
+        mergedSessionsByDate.set(key, [...prev, ...daySessions]);
+        outSessions.push(...daySessions);
       }
 
       prevDaySessions = daySessions;
-      prevActiveSet = activeSet;
+      prevActiveSet = scheduledSet;
     }
 
     const planMetadata = this.buildPlanMetadata(
-      allSessions,
-      existing.nextAvailableDate,
+      outSessions,
+      startDate,
       learningSets.length
     );
 
-    const state: StudyPlanState = {
+    const newState: StudyPlanState = {
       learningSets,
       notebookProgress: progressMap,
-      sessionsByDate,
+      sessionsByDate: mergedSessionsByDate,
       nextAvailableDate: addDays(startDate, totalDays),
       config,
     };
 
     // eslint-disable-next-line no-console
     console.log(
-      `[${loc}] extendPlan -> PASS days=${totalDays} sessionsAppended=${planMetadata.totalSessions}`
+      `[${loc}] extendPlan (anchored) -> PASS appended=${planMetadata.totalSessions} days=${totalDays} (6204)`
     );
 
     return {
-      sessions: allSessions,
+      sessions: outSessions,
       planMetadata,
-      state,
+      state: newState,
     };
   }
 

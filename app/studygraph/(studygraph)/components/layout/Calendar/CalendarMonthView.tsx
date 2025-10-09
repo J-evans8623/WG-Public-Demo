@@ -747,7 +747,7 @@ const SessionPopoverPortal: React.FC<{
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <h5 className="font-medium text-sm text-gray-900 truncate">
-                        {session.notebookMeta.fileName}
+                        {session.metadata.sessionTitle}
                       </h5>
                       <span className="text-xs calendar-text-secondary flex-shrink-0 ml-2">
                         {session.metadata.estimatedDuration}m
@@ -780,6 +780,7 @@ const SessionPopoverPortal: React.FC<{
 
         <div className="p-3 border-t border-gray-200 calendar-bg-primary rounded-b-lg">
           <p className="text-xs calendar-text-secondary text-center">Click any session to start studying</p>
+          <p className="text-xs calendar-text-secondary text-center">Right click to mark complete</p>
         </div>
 
         {/* Arrow */}

@@ -39,26 +39,26 @@ import { resolveRole, addEditor } from '@/app/src/services/firebase';
  *   enable real-time collaborative editing through the WebSocket infrastructure.
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  //console.log('pages/api/collab/startv1.ts [6001] › Request received', { method: req.method, url: req.url });
+  console.log('pages/api/collab/startv1.ts [6001] › Request received', { method: req.method, url: req.url });
 
   // Step 1: Validate HTTP method
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     res.setHeader('Cache-Control', 'no-store');
-    //console.log('pages/api/collab/startv1.ts [6002] › Method not allowed', { method: req.method });
+    console.log('pages/api/collab/startv1.ts [6002] › Method not allowed', { method: req.method });
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   // Step 2: Authenticate user session
   const session = await authenticateRequest(req as any, res as any);
   if (!session) {
-    //console.log('pages/api/collab/startv1.ts [6003] › Authentication failed - no session');
+    console.log('pages/api/collab/startv1.ts [6003] › Authentication failed - no session');
     return; // authenticateRequest already responded
   }
 
   const email = session.user?.email?.toLowerCase() || '';
   if (!email) {
-    //console.log('pages/api/collab/startv1.ts [6004] › Authentication failed - no email in session');
+    console.log('pages/api/collab/startv1.ts [6004] › Authentication failed - no email in session');
     res.setHeader('Cache-Control', 'no-store');
     return res.status(401).json({ error: 'No email in session' });
   }
@@ -66,56 +66,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Step 3: Validate document ID parameter
   const docId = Array.isArray(req.query.doc) ? req.query.doc[0] : req.query.doc;
   if (!docId || typeof docId !== 'string') {
-    //console.log('pages/api/collab/startv1.ts [6005] › Invalid request - missing doc parameter');
+    console.log('pages/api/collab/startv1.ts [6005] › Invalid request - missing doc parameter');
     res.setHeader('Cache-Control', 'no-store');
     return res.status(400).json({ error: 'Missing doc parameter' });
   }
 
   try {
     // Step 4: Resolve user role using unified access control system
-    //console.log('pages/api/collab/startv1.ts [6006] › Resolving user role for collaboration', { docId, email });
+    console.log('pages/api/collab/startv1.ts [6006] › Resolving user role for collaboration', { docId, email });
     
     const userRole = await resolveRole(docId, email);
-    /****console.log('pages/api/collab/startv1.ts [6007] › Role resolution complete', { 
+    console.log('pages/api/collab/startv1.ts [6007] › Role resolution complete', { 
       docId, 
       email,
       resolvedRole: userRole
-    });***/
+    });
 
     // Step 5: Block access for users without any document permissions
     if (userRole === 'None') {
-      /**console.log('pages/api/collab/startv1.ts [6008] › Access denied - no document permissions', { 
+      console.log('pages/api/collab/startv1.ts [6008] › Access denied - no document permissions', { 
         docId, 
         email, 
         role: userRole 
-      });*/
+      });
       res.setHeader('Cache-Control', 'no-store');
       return res.status(403).json({ error: 'Access denied' });
-    }
-
-    // Step 7: Auto-add document owners to editors list to prevent lockout
-    if (userRole === 'Owner') {
-      try {
-        await addEditor(docId, email);
-        //console.log('pages/api/collab/startv1.ts [6010] › Owner auto-added to editors list', { docId, email });
-      } catch (err) {
-        console.warn('pages/api/collab/startv1.ts [6011] › Failed to auto-add owner to editors (non-fatal)', { 
-          docId, 
-          email, 
-          error: err instanceof Error ? err.message : 'Unknown error'
-        });
-      }
     }
 
     // Step 8: Determine Yjs server role mapping
     const yjsRole: 'owner' | 'editor' = userRole === 'Owner' ? 'owner' : 'editor';
 
-    /*console.log('pages/api/collab/startv1.ts [6012] › Authorization successful for collaboration', {
+    console.log('pages/api/collab/startv1.ts [6012] › Authorization successful for collaboration', {
       docId,
       email,
       accessControlRole: userRole,
       yjsServerRole: yjsRole
-    });*/
+    });
 
     // Step 9: Load RSA private key for JWT signing
     const rawPath = process.env.JWT_PRIVATE_PATH;
@@ -132,10 +118,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Server misconfiguration' });
     }
 
-    //console.log('pages/api/collab/startv1.ts [6013] › Loading private key for JWT signing', { keyPath });
+    console.log('pages/api/collab/startv1.ts [6013] › Loading private key for JWT signing', { keyPath });
     const privateKey = fs.readFileSync(keyPath, 'utf8');
     const privateKeyPreview = privateKey.substring(0, 100);
-    //console.log('pages/api/collab/startv1.ts [6014] › Private key loaded successfully', { preview: privateKeyPreview });
+    console.log('pages/api/collab/startv1.ts [6014] › Private key loaded successfully', { preview: privateKeyPreview });
 
     // Step 10: Generate JWT token with role claims for Yjs server
     const expiresIn = 15 * 60; // 15 minutes in seconds
@@ -163,7 +149,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const testPublicKey = fs.readFileSync('./app/src/services/yjs/keys/jwt_2025.pub', 'utf8');
       const testPayload = jwt.verify(token, testPublicKey, { algorithms: ['RS256'] });
-      //console.lo('pages/api/collab/startv1.ts [6016] › Token self-verification successful', { payload: testPayload });
+      console.log('pages/api/collab/startv1.ts [6016] › Token self-verification successful', { payload: testPayload });
     } catch (err) {
       console.error('pages/api/collab/startv1.ts [6093] › Token self-verification failed', { 
         error: err instanceof Error ? err.message : 'Unknown error'
@@ -172,7 +158,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Step 12: Return successful response with collaboration token
     res.setHeader('Cache-Control', 'no-store, private, max-age=0');
-    //console.lo('pages/api/collab/startv1.ts [6017] › Collaboration token issued successfully', { docId, email, role: yjsRole });
+    console.log('pages/api/collab/startv1.ts [6017] › Collaboration token issued successfully', { docId, email, role: yjsRole });
     console.log(`Calling api/collab/startv1.ts 44887 ${Date.now()}`)
     return res.status(200).json({ token, role: yjsRole, expiresIn });
 

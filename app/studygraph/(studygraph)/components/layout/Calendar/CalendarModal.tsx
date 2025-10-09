@@ -44,6 +44,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
     notebookVersions,
     // use today as start when generating
     setPlanStartDate,
+    updateStudyPlan,
   } = useCalendar();
 
   const extensionInProgress = isLoading;
@@ -101,6 +102,14 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
       console.error('[CalendarModal.tsx][1009] › Error generating schedule:', error);
     }
   }, [selectedNotebooks, generateSchedule, setPlanStartDate]);
+
+
+  
+const handleUpdateSchedule = async () => { // update - 1
+  // Step 1: Delegate to context API which handles fetching metas + merging
+  // Step 2: Keep UX (spinners/disabled) controlled by isLoading from context
+  await updateStudyPlan();
+};
 
   /**
    * Launch session via SlideShow context
@@ -337,7 +346,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
                   Clear Schedule
                 </button>
                 <button
-                  onClick={handleGenerateSchedule}
+                  onClick={handleUpdateSchedule}
                   disabled={selectedNotebooks.length === 0 || extensionInProgressState}
                   className="calendar-btn calendar-btn-secondary"
                 >

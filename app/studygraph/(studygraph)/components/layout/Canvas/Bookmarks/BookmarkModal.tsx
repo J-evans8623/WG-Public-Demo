@@ -83,8 +83,9 @@ const BookmarkModal: React.FC<BookmarkModalProps> = ({ isOpen, onClose }) => {
                           const selected = allSlides.find(c => c.id === card.id);
                           const others   = allSlides.filter(c => c.id !== card.id);
                           const slidesToShow = selected ? [selected, ...others] : allSlides;
+                          const resumeSlide = false
                           // 3) Open the slideshow & close modal
-                          openCustom(slidesToShow);
+                          openCustom(slidesToShow, undefined, resumeSlide);
                           onClose();
                         }}
                       >

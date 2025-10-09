@@ -352,12 +352,12 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
   const createSessionLauncher = useCallback((sessionId: string): PickerFileMeta | null => {
     if (!studyPlan) return null;
     const s = studyPlan.sessions.find(x => x.id === sessionId);
+    console.log(JSON.stringify(s));
     if (!s) return null;
     return {
       docId: s.notebookMeta.fileId,
       fileStorageId: s.notebookMeta.filePath,
       fileName: s.notebookMeta.fileName,
-      updatedAt: s.notebookMeta.lastUpdated?.toISOString(),
     };
   }, [studyPlan]);
 
@@ -391,6 +391,68 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
       return next;
     });
   }, []);
+
+
+
+  /**
+   * @function updateStudyPlan // update - 6
+   * @description
+   *  Extend the existing plan using updated NotebookMeta (from selection) and
+   *  write the **merged** plan back to state + persistence.
+   * @steps
+   *  1) Guard: require an existing plan and at least one selected notebook.
+   *  2) Load updated NotebookMeta[] via NotebooksApi.details(selectedNotebooks).
+   *  3) Call service.extendStudyPlan(studyPlan, metas) to get a unified plan.
+   *  4) setStudyPlan(merged) and POST envelope optimistically.
+   *  5) Refresh version tracking snapshot.
+   */
+  const updateStudyPlan = useCallback(async () => { // update - 6
+    if (!studyPlan) {
+      setError('No existing plan to update. Generate a plan first.');
+      return;
+    }
+    if (selectedNotebooks.length === 0) {
+      setError('Please select at least one notebook.');
+      return;
+    }
+
+    setIsLoading(true); setError(null);
+    try {
+      // 2) fetch latest notebook metadata
+      const metas = await notebooksApi.details(selectedNotebooks);
+
+      // 3) service returns a merged plan (existing + tail)
+      const merged = service.extendStudyPlan(studyPlan, metas);
+
+      // 4) update state + persist
+      setStudyPlan(merged);
+      await persistApi.store({
+        studyPlan: merged,
+        selectedNotebooks,
+        completedSessions,
+      });
+
+      // 5) version snapshot bookkeeping
+      setNotebookVersions(prev => {
+        const m = new Map(prev);
+        metas.forEach(nb => {
+          m.set(nb.fileId, {
+            notebookId: nb.fileId,
+            trackedVersion: nb.version ?? 'unknown',
+            currentVersion: nb.version ?? 'unknown',
+            needsUpdate: false,
+            lastChecked: new Date(),
+          });
+        });
+        return m;
+      });
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to update plan');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [studyPlan, selectedNotebooks, notebooksApi, service, persistApi, completedSessions]); // update - 6
+
 
 
   // "Autosave mechanism"
@@ -445,6 +507,7 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
 
     // scheduling
     generateSchedule,
+    updateStudyPlan,
     regenerateMonth,
     clearSchedule,
 
@@ -456,7 +519,7 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
 
     // utilities
     notebookVersions,
-  }), [selectedNotebooks,completedSessions, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, notebookVersions]);
+  }), [selectedNotebooks, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, updateStudyPlan, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, completedSessions, notebookVersions]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
