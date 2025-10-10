@@ -34,7 +34,7 @@ import QuizCard from '../Cards/QuizCard'; // update - 4
 import AskAssistantPanel from '../../../CardDisplay/Cards/AskAssistantPanel';
 import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/Cards/SlideShowv2.css';
 
-import { useComments } from '@/app/Library/Context/CommentContext';
+import { useComments } from '@/app/Library/Context/forum/CommentContext';
 import DiscussionFormInput from '../../../forum/DiscussionFormInput';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';

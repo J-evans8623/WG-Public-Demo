@@ -21,7 +21,7 @@
 import admin from 'firebase-admin';
 import { publishRevokeAllNonOwner, publishRevokeUser } from '../utils/revocationBus';
 import { UserFileMetadata } from '../types/fileTypes';
-import { CalendarData, StudySession,} from '@/app/Library/Definitions/CalendarDefinitions';
+
 import {readAclSnapshot as cacheReadAclSnapshot,   
   readRole as cacheReadRole,               
   bumpAclVersion } from './redisCache/aclCache';
@@ -78,42 +78,6 @@ export interface FirebaseService {
 
 
 
-/**
- * @function ensureDate
- * @purpose
- *   Normalize any input (Date | string | number | Timestamp-like) to a Date.
- * @steps
- *   1) If Date → return.
- *   2) If Firestore Timestamp-like → call .toDate().
- *   3) If string/number → new Date(), with NaN guard.
- *   4) Fallback → new Date() (now).
- */
-function ensureDate(v: unknown): Date { // update - 3
-  if (v instanceof Date) return v;
-  if (v && typeof (v as any).toDate === 'function') return (v as any).toDate();
-  if (typeof v === 'string' || typeof v === 'number') {
-    const d = new Date(v);
-    return isNaN(d.getTime()) ? new Date() : d;
-  }
-  return new Date();
-}
-
-/**
- * @function ts
- * @purpose Convert any date-like value to Firestore Timestamp via ensureDate.
- */
-const ts = (v: unknown) => admin.firestore.Timestamp.fromDate(ensureDate(v));
-
-/**
- * @function toDate
- * @purpose Convert Timestamp/number/string → Date safely.
- */
-const toDate = (v: any): Date => { // update - 1
-  if (!v) return new Date();
-  if (v instanceof Date) return v;
-  if (v?.toDate) return v.toDate();
-  return new Date(v);
-};
 
 /**
  * FirestoreFirebaseService implements FirebaseService using Firestore.
@@ -999,23 +963,6 @@ export async function getLatestFileIdentifiers(docId: string): Promise<{
   return { path, storageGeneration, versionNumber };
 }
 
-
-
-/**
- * @function clearCalendarData
- * @responsibility
- *   Remove the persisted calendar envelope for a user.
- * @steps
- *   1) Resolve users/{uid}/calendar/current
- *   2) Delete the document
- *   3) Log a concise confirmation
- */
-// update - 3
-export async function clearCalendarData(uid: string): Promise<void> {
-  const ref = firestore.collection('users').doc(uid).collection('calendar').doc('current');
-  await ref.delete();
-  console.log('[firebase.ts][3221] › clearCalendarData ok', { uid });
-}
 
 
 /**

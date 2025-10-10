@@ -27,7 +27,7 @@ import fs from 'fs';
 import path from 'path';
 import jwt from 'jsonwebtoken';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
-import { resolveRole, addEditor } from '@/app/src/services/firebase';
+import { resolveRole,  } from '@/app/src/services/firebase';
 
 /**
  * @function handler
@@ -136,25 +136,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       privateKey,
       { algorithm: 'RS256', expiresIn }
     );
-
-   /***  console.log('pages/api/collab/startv1.ts [6015] › JWT token generated successfully', { 
-      docId, 
-      email, 
-      role: yjsRole, 
-      expiresIn,
-      tokenLength: token.length
-    });*/
-
-    // Step 11: Perform self-verification test of generated token
-    try {
-      const testPublicKey = fs.readFileSync('./app/src/services/yjs/keys/jwt_2025.pub', 'utf8');
-      const testPayload = jwt.verify(token, testPublicKey, { algorithms: ['RS256'] });
-      console.log('pages/api/collab/startv1.ts [6016] › Token self-verification successful', { payload: testPayload });
-    } catch (err) {
-      console.error('pages/api/collab/startv1.ts [6093] › Token self-verification failed', { 
-        error: err instanceof Error ? err.message : 'Unknown error'
-      });
-    }
 
     // Step 12: Return successful response with collaboration token
     res.setHeader('Cache-Control', 'no-store, private, max-age=0');

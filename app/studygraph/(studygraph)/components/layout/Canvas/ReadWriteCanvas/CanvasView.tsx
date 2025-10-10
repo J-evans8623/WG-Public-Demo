@@ -47,7 +47,7 @@ import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import '@/app/studygraph/(studygraph)/components/layout/Canvas/CanvasView.css';
 import { useLessonUnitOrder } from '../../../hooks/useLessonUnitOrder';
 import ForumModal from '../../forum/ForumModal';
-import { useComments } from '@/app/Library/Context/CommentContext';
+import { useComments } from '@/app/Library/Context/forum/CommentContext';
 import ReviewModal from '../../Review/ReviewModalsv2';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import BookmarkModal from '../Bookmarks/BookmarkModal';

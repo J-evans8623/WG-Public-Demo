@@ -28,7 +28,7 @@ import AskAssistantPanel from './AskAssistantPanel';
 import './SlideShowv2.css';
 
 // —— NEW ——
-import { useComments } from '@/app/Library/Context/CommentContext';
+import { useComments } from '@/app/Library/Context/forum/CommentContext';
 import MentionBadge from '../../forum/MentionBadge';
 import DiscussionFormInput from '../../forum/DiscussionFormInput';
 import ReactDOM from 'react-dom';

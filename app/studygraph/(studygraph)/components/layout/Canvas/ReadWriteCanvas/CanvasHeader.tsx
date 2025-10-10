@@ -46,7 +46,7 @@ import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
 import { UnifiedLessonsDropdown, UnifiedUploadsDropdown } from './DropDownMenu'; // update - 2
 
 import '@/app/studygraph/(studygraph)/components/layout/Canvas/bottomUtilityBar/CanvasHeader.css';
-import { useComments } from '@/app/Library/Context/CommentContext';
+import { useComments } from '@/app/Library/Context/forum/CommentContext';
 
 export type UnifiedHeaderMode = 'edit' | 'readonly';
 

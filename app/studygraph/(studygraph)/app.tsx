@@ -66,7 +66,7 @@ import VHcanvasView from './components/layout/ReadOnly/map/VHcanvasView';
 import ROcardDisplay from './components/layout/ReadOnly/CardDisplay/VHcardDisplay';
 import { UserInfoPanel } from '@/app/studygraph/(studygraph)/components/layout/UserInfoPanel';
 import { ChatHistoryProvider, useChatHistory } from '@/app/Library/Context/ChatHistoryContext';
-import { CommentsProvider } from '@/app/Library/Context/CommentContext';
+import { CommentsProvider, useComments } from '@/app/Library/Context/forum/CommentContext';
 import { UserDataProvider, useUserData } from '@/app/Library/Context/UserDataContext';
 import { LessonModuleProvider, useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { AutoSaveManager } from '@/app/studygraph/(studygraph)/services/autosave/AutoSaveManager';
@@ -149,6 +149,7 @@ const AppLayoutContent: React.FC = () => {
 
   // Keep Lesson mapping fresh
   useLessonModuleMapper();
+  const { initializeForum, shutdownForum, forumDocReady, forumRoomConnected } = useComments();
 
   // Collaboration connection lifecycle
   const { connect: collabConnect, disconnect: collabDisconnect, isConnected } = useCollaborationManager({
@@ -262,7 +263,14 @@ const AppLayoutContent: React.FC = () => {
       collabConnect(docFileID!, ydoc!, visibility).catch((err) =>
         console.error('app.tsx 7202 › collab connect failed', err),
       );
+
+       initializeForum(docFileID).catch((e) =>
+        console.error('app.tsx [7411] › forum init failed', e),
+      );
       }
+
+
+
 
     } else {
       // Avoid churn during transitions
@@ -270,8 +278,12 @@ const AppLayoutContent: React.FC = () => {
       console.log('app.tsx 7203 › collab disconnect gate', { bootPhase, currentView, saveReady });
       collabDisconnect();
       }
+
+      // Clean shutdown: cancels timers, detaches listeners, disconnects WS
+      shutdownForum();
+ 
     }
-  }, [bootPhase, saveReady, currentView, docFileID, ydoc, visibility, collabConnect, collabDisconnect, isConnected]); // update - 9
+  }, [bootPhase, saveReady, currentView, docFileID, ydoc, visibility, collabConnect, collabDisconnect, isConnected, forumRoomConnected, initializeForum, shutdownForum]); // update - 9
 
   // update - 10: autosave — gated solely by ACTIVE + saveReady
   useEffect(() => {

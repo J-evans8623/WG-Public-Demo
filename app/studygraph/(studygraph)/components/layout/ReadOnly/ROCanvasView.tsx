@@ -35,7 +35,7 @@ import { usePreorderTraversal } from '@/app/studygraph/(studygraph)/components/h
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { useLessonUnitOrder } from '../../hooks/useLessonUnitOrder';
 import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
-import { useComments } from '@/app/Library/Context/CommentContext';
+import { useComments } from '@/app/Library/Context/forum/CommentContext';
 import { useSelectionAttachment } from '@/app/Library/Context/SelectionAttachmentContext';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
 import PDFRenderer from '../Canvas/PDFRenderer';

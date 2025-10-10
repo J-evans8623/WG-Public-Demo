@@ -43,7 +43,7 @@ import { useLessonUnitOrder } from '../../hooks/useLessonUnitOrder';
 import DiscussButton from '../forum/DiscussButton';
 import MentionBadge from '../forum/MentionBadge';
 import ForumModal from '../forum/ForumModal';
-import { useComments } from '@/app/Library/Context/CommentContext';
+import { useComments } from '@/app/Library/Context/forum/CommentContext';
 import ReviewModal from '../Review/ReviewModal';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import BookmarkModal from './Bookmarks/BookmarkModal';

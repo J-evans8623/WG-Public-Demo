@@ -29,7 +29,7 @@ import SlideShowEditForm from './SlideShowEditForm';
 import './SlideShowv2.css';
 
 // Context imports for enhanced functionality
-import { useComments } from '@/app/Library/Context/CommentContext';
+import { useComments } from '@/app/Library/Context/forum/CommentContext';
 import MentionBadge from '../../forum/MentionBadge';
 import DiscussionFormInput from '../../forum/DiscussionFormInput';
 import ReactDOM from 'react-dom';

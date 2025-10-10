@@ -21,7 +21,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useComments } from '@/app/Library/Context/CommentContext';
+import { useComments } from '@/app/Library/Context/forum/CommentContext';
 import './ForumPostDetail.css';
 
 interface ForumPostDetailProps {

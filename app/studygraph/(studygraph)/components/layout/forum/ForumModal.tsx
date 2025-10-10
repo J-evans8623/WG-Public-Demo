@@ -1,9 +1,10 @@
 /**
  * ForumModal.tsx (branded shell + pinned guidance)
  * - Uses the shared modal shell from modalStyles.css
+ * - Now styled with branded-forum.css for clean divider aesthetic
  * - Larger width, single scroll owner
  * - Branded header actions and tabs
- * - Adds a synthetic pinned guidance post that’s always visible in the list
+ * - Adds a synthetic pinned guidance post that's always visible in the list
  *   (does not change CommentContext data)
  */
 
@@ -11,13 +12,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { X } from 'lucide-react';
-import { useComments } from '@/app/Library/Context/CommentContext';
+import { useComments } from '@/app/Library/Context/forum/CommentContext';
 import ForumPost from './comment/ForumPost';
 import DiscussionThread from './DiscussionThread';
 import DiscussionFormInput from './DiscussionFormInput';
 
 import '@/app/studygraph/(studygraph)/components/modals/modalStyles.css';
-import './forum-modal.css';
+import './branded-forum.css';
 
 interface ForumModalProps {
   initialSlideId?: string | null;
@@ -89,7 +90,7 @@ const ForumModal: React.FC<ForumModalProps> = ({
 
   // --- create a synthetic pinned post for display only ---
   const pinnedPost = useMemo(() => {
-    const ts = 0; // oldest to keep it stable against “Recent”
+    const ts = 0; // oldest to keep it stable against "Recent"
     return {
       id: PINNED_ID,
       lessonTitle: 'Discussion Forum',
@@ -108,7 +109,7 @@ const ForumModal: React.FC<ForumModalProps> = ({
   // --- decide what the list should render ---
   const displayPosts = useMemo(() => {
     // We always show the pinned guidance at the top of the list view.
-    // It’s not part of CommentContext and won’t affect unseen/hot counts.
+    // It's not part of CommentContext and won't affect unseen/hot counts.
     const list = [pinnedPost, ...filteredPosts];
     return list;
   }, [filteredPosts, pinnedPost]);
@@ -150,7 +151,7 @@ const ForumModal: React.FC<ForumModalProps> = ({
       >
         {/* Header */}
         <div className="forum-header">
-          <h2 id="forum-title" className="modal-title forum-title">
+          <h2 id="forum-title" className="forum-title">
             Discussion Forum
           </h2>
           <div className="forum-actions">
