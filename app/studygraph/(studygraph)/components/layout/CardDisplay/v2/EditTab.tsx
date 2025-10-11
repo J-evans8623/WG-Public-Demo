@@ -184,8 +184,6 @@ const EditTab = forwardRef<EditTabRef, EditTabProps>((props, ref) => {
    *   • Called by CardDisplay when “Edit” is clicked on an existing card.
    *   • We load that resource’s fields into local state, clear draft, and switch to edit mode.
    */
-// In EditTab.tsx, replace the startEdit callback (around line 130-145)
-
 const startEdit = useCallback(
   (id: string) => {
     const res = ordered.find((r) => r.id === id);

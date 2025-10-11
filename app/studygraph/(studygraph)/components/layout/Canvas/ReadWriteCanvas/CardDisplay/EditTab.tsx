@@ -144,6 +144,11 @@ const EditTab = forwardRef<EditTabRef, EditTabProps>((props, ref) => {
     content: '',
   });
 
+   /**
+   * createDraft(type):
+   *   • Called by CardDisplay when “+ Add card ▶ [cuecard|note|image]” is clicked.
+   *   • We generate a fresh “draft‐ID,” clear previous metadata, and switch to edit mode.
+   */
   const createDraft = useCallback(
     (type: CardResourceType) => {
       const nodeId = getFocusNode() || '';
@@ -161,6 +166,11 @@ const EditTab = forwardRef<EditTabRef, EditTabProps>((props, ref) => {
     [getFocusNode, onInputDataChange, setEditingResourceId]
   );
 
+    /**
+   * startEdit(id):
+   *   • Called by CardDisplay when “Edit” is clicked on an existing card.
+   *   • We load that resource’s fields into local state, clear draft, and switch to edit mode.
+   */
   const startEdit = useCallback(
     (id: string) => {
       const res = ordered.find((r) => r.id === id);
@@ -193,6 +203,12 @@ const EditTab = forwardRef<EditTabRef, EditTabProps>((props, ref) => {
     [ordered, onInputDataChange, setEditingResourceId]
   );
 
+    /**
+   * saveEdit():
+   *   • Called by CardDisplay when the user clicks “Save.”
+   *   • If editing a draft, call createResource(); otherwise, call updateResource().
+   *   • Then exit edit mode.
+   */
   const saveEdit = useCallback(async () => {
     if (!editingResourceId) return;
 
@@ -233,6 +249,11 @@ const EditTab = forwardRef<EditTabRef, EditTabProps>((props, ref) => {
     setEditingResourceId,
   ]);
 
+    /**
+   * cancelEdit():
+   *   • Called by CardDisplay when the user clicks “Cancel.”
+   *   • Discard local changes and exit edit mode.
+   */
   const cancelEdit = useCallback(() => {
     setEditingResourceId(null);
     setDraft(null);

@@ -30,7 +30,7 @@ type DisplayType = 'cuecard' | 'note' | 'quiz';
 export interface NotesTabProps {
   canEdit?: boolean; // update - 7301
   onAddResource?: (type: ResourceType) => void;
-  onEditResource?: (id: string) => void;
+  onEditResource: (id: string) => void;
 }
 
 const NotesTab: React.FC<NotesTabProps> = ({
@@ -144,6 +144,7 @@ const NotesTab: React.FC<NotesTabProps> = ({
                   content={getContentString(r)}
                   isEditing={false}
                   canEdit={canEdit}
+                  onEdit={() => onEditResource(r.id)}
                 />
               </div>
             );

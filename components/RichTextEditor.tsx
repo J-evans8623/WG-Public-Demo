@@ -228,11 +228,11 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   });
 
   return (
-    <div className={`border rounded-md ${className}`}>
+    <div className={`border rounded-md flex flex-col ${className}`}>
       <MenuBar editor={editor} />
       <EditorContent
         editor={editor}
-        className="prose max-w-none p-3 min-h-[120px] focus:outline-none"
+        className="prose max-w-none h-full p-3 [&_.ProseMirror]:min-h-full [&_.ProseMirror]:outline-none"
       />
     </div>
   );

@@ -72,7 +72,7 @@ export interface ResourceDisplayProps {
   onContentChange?: (c: string) => void; /* update - 6 */
   onCancel?: () => void; /* update - 7 */
   onSave?: () => void; /* update - 8 */
-  onEdit?: () => void; /* update - 9 */
+  onEdit: () => void; /* update - 9 */
   onDelete?: () => void; /* update - 10 */
   onAskAI?: () => void; /* update - 11 */
   onDismiss?: () => void;
@@ -179,7 +179,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   const [contentError, setContentError] = useState(false);
 
   /* update - 16: single gate for edit affordances */
-  const editingEnabled = Boolean(canEdit && isEditing);
+  const editingEnabled =  Boolean(canEdit && isEditing);
 
   useEffect(() => {
     // Step 1: ensure external save buttons are disabled when we leave an editable state
@@ -511,7 +511,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
               <div className="preview-slide-title">{title}</div>
               <div className="preview-slide-actions">
                 {/* update - 26: gate mutating ResourceMenu behind editingEnabled */}
-                {editingEnabled && (
+                {canEdit && (
                   <ResourceMenu
                     onEdit={() => {
                       console.log('[ResourceDisplay.tsx][9004] Edit requested', {
@@ -519,7 +519,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
                         canEdit,
                         isEditing,
                       });
-                      onEdit?.();
+                      onEdit();
                     }}
                     onDelete={() => {
                       console.log('[ResourceDisplay.tsx][9005] Delete requested', {

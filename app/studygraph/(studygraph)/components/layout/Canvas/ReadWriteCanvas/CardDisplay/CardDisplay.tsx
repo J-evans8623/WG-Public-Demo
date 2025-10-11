@@ -96,10 +96,10 @@ const CardDisplay: React.FC<CardDisplayProps> = ({ mode, setMode, askHandler }) 
   };
 
   const handleEditExisting = (id: string) => {
-    if (!canEdit) {
+   if (!canEdit) {
       console.log('[CardDisplay.tsx][5203] blocked editExisting — not edit-ready', { id }); 
       return;
-    }
+    } 
     setInputData({ selectedTopicId: '', createNode: false, nodeTitle: '', file: undefined });
     editTabRef.current?.startEdit(id);
     setEditingResourceId(id);

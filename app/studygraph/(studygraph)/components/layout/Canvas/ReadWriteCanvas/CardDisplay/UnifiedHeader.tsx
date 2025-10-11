@@ -254,12 +254,42 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
           {/* PDF view - keep existing SearchButton and Topics */}
           {activeTab === 'notes' && activeView === 'pdf' && (
             <>
-              <SearchButton
-                onClick={() => {
-                  console.log('[UnifiedHeader.tsx][6101] SearchButton clicked'); // update - 14
-                  openSearchModal();
+                           {/* Search button - minimal with brown outline */}
+              <button
+                onClick={handleSearchClick}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: '#8B7355',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  border: '1px solid #D4C4B0',
+                  cursor: 'pointer',
                 }}
-              />
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#FAF8F5';
+                  e.currentTarget.style.borderColor = '#8B7355';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = '#D4C4B0';
+                }}
+                title="Search"
+                aria-label="Search"
+              >
+                <span>Search</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="w-4 h-4"
+                  style={{ color: '#8B7355' }}
+                >
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <path d="m21 21-4.35-4.35"></path>
+                </svg>
+              </button>
               <TopicsDropdown onTopicChange={onTopicChange!} />
             </>
           )}
