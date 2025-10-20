@@ -51,8 +51,7 @@ import { UndoRedoProvider, useUndoRedo } from './components/Context/UndoRedoCont
 import { ResourceProvider } from '@/app/Library/Context/ResourceContext';
 import { LessonDataProvider } from '@/app/Library/Context/LessonDataContext';
 
-// update - 1: swap to the Phase-1 context (exposes intents + readiness flags)
-import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext'; // update - 1
+import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext'; 
 
 import { FileAssetProvider } from '@/app/Library/Context/FileAssetContext';
 import { SelectionAttachmentProvider } from '@/app/Library/Context/SelectionAttachmentContext';
@@ -60,13 +59,13 @@ import { VersionHistoryProvider, useVersionHistory } from '@/app/Library/Context
 import VersionHistoryPanel from './components/versionHistory/ui/VersionHistoryPanel';
 import SelectionAttachmentHandler from './components/layout/Canvas/SelectionAttachmentHandler';
 import HomeScreen from './components/HomescreenV3';
-import NavigationController from './NavigationController';
+import NavigationPanel from './NavigationPanel';
 import { CanvasView } from '@/app/studygraph/(studygraph)/components/layout/Canvas/ReadWriteCanvas/CanvasView';
 import VHcanvasView from './components/layout/ReadOnly/map/VHcanvasView';
 import ROcardDisplay from './components/layout/ReadOnly/CardDisplay/VHcardDisplay';
 import { UserInfoPanel } from '@/app/studygraph/(studygraph)/components/layout/UserInfoPanel';
 import { ChatHistoryProvider, useChatHistory } from '@/app/Library/Context/ChatHistoryContext';
-import { CommentsProvider, useComments } from '@/app/Library/Context/forum/CommentContext';
+import { CommentsProvider } from '@/app/Library/Context/forum/CommentContext';
 import { UserDataProvider, useUserData } from '@/app/Library/Context/UserDataContext';
 import { LessonModuleProvider, useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { AutoSaveManager } from '@/app/studygraph/(studygraph)/services/autosave/AutoSaveManager';
@@ -149,10 +148,8 @@ const AppLayoutContent: React.FC = () => {
 
   // Keep Lesson mapping fresh
   useLessonModuleMapper();
-  const { initializeForum, shutdownForum, forumDocReady, forumRoomConnected } = useComments();
-
   // Collaboration connection lifecycle
-  const { connect: collabConnect, disconnect: collabDisconnect, isConnected } = useCollaborationManager({
+  const { connect: collabConnect, disconnect: collabDisconnect, isConnected , status} = useCollaborationManager({
     onRevoked: ({ docId }) => {
       console.log('app.tsx 7101 › collaboration revoked', { docId });
     },
@@ -256,20 +253,16 @@ const AppLayoutContent: React.FC = () => {
   // update - 9: collaboration: connect only when ACTIVE & saveReady & on map
   useEffect(() => {
     const ok = bootPhase === 'ACTIVE' && !!docFileID && saveReady && currentView === 'map' && ydoc;
+    const inProgress= status == "connecting" || status == "connected";
     if (ok) {
 
-      if (!isConnected) {
+      if (!isConnected && ! inProgress) {
               console.log('app.tsx 7201 › collab connect gate passed', { docFileID, bootPhase, saveReady });
       collabConnect(docFileID!, ydoc!, visibility).catch((err) =>
         console.error('app.tsx 7202 › collab connect failed', err),
       );
 
-       initializeForum(docFileID).catch((e) =>
-        console.error('app.tsx [7411] › forum init failed', e),
-      );
-      }
-
-
+    }
 
 
     } else {
@@ -279,11 +272,9 @@ const AppLayoutContent: React.FC = () => {
       collabDisconnect();
       }
 
-      // Clean shutdown: cancels timers, detaches listeners, disconnects WS
-      shutdownForum();
  
     }
-  }, [bootPhase, saveReady, currentView, docFileID, ydoc, visibility, collabConnect, collabDisconnect, isConnected, forumRoomConnected, initializeForum, shutdownForum]); // update - 9
+  }, [bootPhase, saveReady, currentView, docFileID, ydoc, visibility, collabConnect, collabDisconnect, isConnected, status]);// update - 9
 
   // update - 10: autosave — gated solely by ACTIVE + saveReady
   useEffect(() => {
@@ -374,7 +365,7 @@ const AppLayoutContent: React.FC = () => {
     <div className="h-screen w-full flex bg-white theme-warm-board theme-scope" data-theme="warm-board">
       {/* Navigation Panel */}
       <div className="z-50">
-        <NavigationController
+        <NavigationPanel
           isManuallyOpen={isPanelManuallyOpen}
           currentView={currentView}
           onSetView={setCurrentView}

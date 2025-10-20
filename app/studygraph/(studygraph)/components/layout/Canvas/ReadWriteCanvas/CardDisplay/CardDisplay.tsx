@@ -32,6 +32,9 @@ import type { ResourceType } from '@/app/studygraph/(studygraph)/components/layo
 import type { ResourceFormInput } from '../../../CardDisplay/types/resourceForm';
 import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
 import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/CardDisplay.css'; // Existing styling overrides for panel, header, footer
+import { useResourceQuickActions } from '@/app/studygraph/(studygraph)/components/layout/Canvas/ReadWriteCanvas/ResourceQuickActionsContext';
+import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';       
+
 
 type Mode = 'note' | 'edit' | 'chat';
 
@@ -67,6 +70,11 @@ const CardDisplay: React.FC<CardDisplayProps> = ({ mode, setMode, askHandler }) 
     file: undefined,
   });
 
+  
+  // --- NEW: selection UI focus toggle ---------------------------------------
+  const { setEditingUiFocusOnly } = useNodeSelection();                                  // update - 2
+  const { registerActions } = useResourceQuickActions();  
+
   // 3) Resource form validity surfaced from ResourceDisplay
   const [isFormValid, setIsFormValid] = useState(false);
 
@@ -83,16 +91,42 @@ const CardDisplay: React.FC<CardDisplayProps> = ({ mode, setMode, askHandler }) 
     if (selectedResultIds.length > 0) setMode('note');
   }, [selectedResultIds, setMode]);
 
+
+
+    // 6) Register quick actions used by ConceptNode’s menu. We flip the flag HERE.
+  useEffect(() => {                                                                                         // update - 8
+    const createNoteDraft = () => {
+      if (!canEdit) return;
+      // (1) Flip caret-only UI ON for the duration of edit
+      setEditingUiFocusOnly(true);                      // step 1
+      // (2) Reset form and create draft
+      setInputData({ selectedTopicId: '', createNode: false, nodeTitle: '', file: undefined });
+      editTabRef.current?.createDraft('note');          // step 2
+      // (3) Keep CardDisplay’s view logic independent; we still show the edit form
+      setMode('edit');                                  // step 3 (view routing only)
+    };
+    const createCueCardDraft = () => {
+      if (!canEdit) return;
+      setEditingUiFocusOnly(true);
+      setInputData({ selectedTopicId: '', createNode: false, nodeTitle: '', file: undefined });
+      editTabRef.current?.createDraft('cuecard');
+      setMode('edit');
+    };
+    registerActions({ createNoteDraft, createCueCardDraft });
+  }, [canEdit, registerActions, setMode, setEditingUiFocusOnly]);
+
+
   // 5) Mutating handlers (guarded by canEdit)
   const handleAddResource = (type: ResourceType) => {
     if (!canEdit) {
       console.log('[CardDisplay.tsx][5202] blocked addResource — not edit-ready', { type });
       return;
     }
+     setEditingUiFocusOnly(true); 
     // Reset form inputs before creating a new draft
     setInputData({ selectedTopicId: '', createNode: false, nodeTitle: '', file: undefined });
     editTabRef.current?.createDraft(type);
-    setMode('edit');
+     setMode('edit');
   };
 
   const handleEditExisting = (id: string) => {
@@ -100,6 +134,7 @@ const CardDisplay: React.FC<CardDisplayProps> = ({ mode, setMode, askHandler }) 
       console.log('[CardDisplay.tsx][5203] blocked editExisting — not edit-ready', { id }); 
       return;
     } 
+     setEditingUiFocusOnly(true); 
     setInputData({ selectedTopicId: '', createNode: false, nodeTitle: '', file: undefined });
     editTabRef.current?.startEdit(id);
     setEditingResourceId(id);
@@ -118,6 +153,7 @@ const CardDisplay: React.FC<CardDisplayProps> = ({ mode, setMode, askHandler }) 
     await editTabRef.current?.save();
     setEditingResourceId(null);
     setMode('note');
+    setEditingUiFocusOnly(false);
     console.log('[CardDisplay.tsx][5206] save completed'); 
   };
 
@@ -129,6 +165,7 @@ const CardDisplay: React.FC<CardDisplayProps> = ({ mode, setMode, askHandler }) 
     editTabRef.current?.cancel();
     setEditingResourceId(null);
     setMode('note');
+    setEditingUiFocusOnly(false);
     console.log('[CardDisplay.tsx][5208] edit canceled'); 
   };
 
@@ -137,6 +174,7 @@ const CardDisplay: React.FC<CardDisplayProps> = ({ mode, setMode, askHandler }) 
     if (editingResourceId && canEdit) {
       editTabRef.current?.cancel();
       setEditingResourceId(null);
+       setEditingUiFocusOnly(false);
       console.log('[CardDisplay.tsx][5209] edit canceled due to tab switch');
     }
     setMode(tab === 'chat' ? 'chat' : 'note');

@@ -33,6 +33,7 @@ import { persistRawEmbeddings } from '@/app/src/services/TextPreprocessing/Lesso
 import { extractTextFromFileService } from '@/doc-preprocessing-service/text-extraction-client';
 import { authenticateRequest, EnhancedSession, requireUserProfile } from '@/app/src/auth/authenticateRequest';
 import { FileUploadService, FileUploadRequest } from '@/app/src/services/FileUploadService';
+import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
 // Step 1: Preserve existing interfaces for API compatibility
 interface StoredFile {
@@ -94,7 +95,7 @@ export const config = {
  * duplicated upload logic while preserving all existing functionality including text extraction,
  * lesson module integration, and comprehensive error handling.
  */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+ async function handler(req: NextApiRequest, res: NextApiResponse) {
     try {
         console.log('[FileAssetsV2.ts][4004] Handling request - Method:', req.method);
         
@@ -400,3 +401,5 @@ const runMiddleware = (req: NextApiRequest, res: NextApiResponse, fn: any): Prom
         });
     });
 }
+
+export default withRateLimitNP('np:fileUpload')(handler);

@@ -47,11 +47,11 @@ const GlobalModalContext = createContext<GlobalModalContextValue | null>(null);
 export const GlobalModalProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   // Step 1: Initialize the single modal manager at the root (one time for app lifetime).
   const { showModal, hideModal, ModalRenderer } = useModalManager();
-  console.log('[GlobalModalProvider.tsx][4101] GlobalModalProvider mounted; single host established');
+  // console.log('[GlobalModalProvider.tsx][4101] GlobalModalProvider mounted; single host established');
 
   // Step 2: Memoize the context value for O(1) consumption without re-computation.
   const ctx = useMemo<GlobalModalContextValue>(() => {
-    console.log('[GlobalModalProvider.tsx][4102] Global modal context prepared');
+    // console.log('[GlobalModalProvider.tsx][4102] Global modal context prepared');
     return { showModal, hideModal };
   }, [showModal, hideModal]);
 

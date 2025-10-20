@@ -34,6 +34,7 @@ import {
   resolveRole, 
   addToSharedWith
 } from '@/app/src/services/firebase';
+import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
 /**
  * Normalizes email addresses to lowercase for consistent comparison across the system.
@@ -67,7 +68,7 @@ function normEmail(email: string): string {
  *     6) Signed URL minting (with identifiers for docs)
  *     7) Respond with URL, path, identifiers (doc), and `{access}`
  */
-export default async function handler(
+ async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
@@ -244,3 +245,4 @@ export default async function handler(
     return res.status(500).json({ error: 'Failed to generate download URL' });
   }
 }
+export default withRateLimitNP('np:documentLoad')(handler);

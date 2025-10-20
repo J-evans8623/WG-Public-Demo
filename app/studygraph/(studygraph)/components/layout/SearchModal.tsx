@@ -1,8 +1,10 @@
 // src/app/studygraph/(studygraph)/components/layout/SearchModal.tsx
+// src/app/studygraph/(studygraph)/components/layout/SearchModal.tsx
 
 import React, { useEffect, useRef, KeyboardEvent, MouseEvent } from 'react';
 import ReactDOM from 'react-dom';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
+import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 
 const FOCUSABLE_SELECTORS = [
   'a[href]',
@@ -28,10 +30,13 @@ function stripHtml(html: string): string {
  *   Clicking a result selects it and closes modal.
  *   Supports closing via ESC, overlay click, or "X" button.
  *   Traps focus within the modal and announces role="dialog".
+ *   
+ *   Now displays concept node title + resource card title with proper visual hierarchy.
  *
  * Responsibilities:
  *   - Centered compact modal matching prototype footprint.
  *   - Live-updating result list; empty-state prompt.
+ *   - Display concept node title (more prominent) + resource card title.
  *   - Accessible: role="dialog", aria-modal, focus trap.
  *   - Footer hint for ESC.
  */
@@ -45,6 +50,7 @@ const SearchModal: React.FC = () => {
     close,
   } = useSearchContext();
 
+  const { nodes } = useNodesContext();
   const overlayRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -103,6 +109,12 @@ const SearchModal: React.FC = () => {
 
   const handleResultClick = (id: string) => {
     selectResult(id);
+  };
+
+  // Helper to get node title from nodeId
+  const getNodeTitle = (nodeId: string): string => {
+    const node = nodes.get(nodeId);
+    return node?.title || 'Unknown Topic';
   };
 
   const modal = (
@@ -167,6 +179,7 @@ const SearchModal: React.FC = () => {
                 rawText = JSON.stringify((card as any).content) ?? '';
               }
               const displayText = stripHtml(rawText);
+              const nodeTitle = getNodeTitle(card.nodeId);
 
               return (
                 <li
@@ -174,8 +187,18 @@ const SearchModal: React.FC = () => {
                   onClick={() => handleResultClick(card.id)}
                   className="px-4 py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer"
                 >
-                  <div className="font-medium">{card.title}</div>
-                  <div className="text-sm text-gray-600 truncate">
+                  {/* Concept Node Title - More prominent */}
+                  <div className="font-semibold text-base text-gray-900 mb-0.5">
+                    {nodeTitle}
+                  </div>
+                  
+                  {/* Resource Card Title - Slightly less prominent */}
+                  <div className="font-medium text-sm text-gray-700">
+                    {card.title}
+                  </div>
+                  
+                  {/* Content preview - Subtle */}
+                  <div className="text-xs text-gray-500 truncate mt-1">
                     {displayText}
                   </div>
                 </li>

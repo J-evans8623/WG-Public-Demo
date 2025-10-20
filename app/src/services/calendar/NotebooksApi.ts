@@ -18,7 +18,9 @@
  */
 
 import type { NotebookSummary, NotebookMeta } from '@/app/Library/Definitions/CalendarDefinitions';
+import { supersedingCall } from '../../net/SupersedingCaller';
 
+const NOTEBOOKS_LIST_LANE = 'files:list:notebooks';
 
 type OwnedFile = {
   fileId: string;
@@ -63,50 +65,61 @@ export class NotebooksApi {
    * 4) Logs entry, total count, and errors with unique codes for troubleshooting.
    * Time complexity is O(N + U) where N = files, U = accumulated units traversal.
    */
-  public async list(): Promise<NotebookSummary[]> {
-    const loc = 'NotebooksApi.ts[7001]';
-    // Step 1: Request list
-    console.log(`[${loc}] list() begin`);
-    const res = await fetch('/api/files/list', { method: 'GET', credentials: 'include' });
-    if (!res.ok) {
-      console.error(`[${loc}] list() http_error status=${res.status}`);
-      throw new Error(`NotebooksApi.list failed: ${res.status}`);
-    }
+public async list(): Promise<NotebookSummary[]> {
+  const loc = 'NotebooksApi.ts[7001]';
+  console.log(`[${loc}] list() begin (via SupersedingCaller)`);
 
-    // Step 2: Parse
-    const body = await res.json();
-    const ownedFiles: OwnedFile[] = Array.isArray(body?.ownedFiles) ? body.ownedFiles : [];
-    console.log(`[${loc}] list() fetched files=${ownedFiles.length}`);
+  const makeRequest = async (signal: AbortSignal): Promise<Response> => {
+    return fetch('/api/files/list', { method: 'GET', credentials: 'include', signal });
+  };
 
-    // Step 3: Compute units with fallbacks (O(N + U))
-    const calcUnits = (meta?: OwnedFile['lessonUnitsMeta']): number => {
-      if (!meta) return 0;
-      if (typeof meta.totalUnits === 'number') return meta.totalUnits;
-      if (meta.unitsByMap && typeof meta.unitsByMap === 'object') {
-        let total = 0;
-        for (const arr of Object.values(meta.unitsByMap)) {
-          if (Array.isArray(arr)) total += arr.length;
-        }
-        return total;
-      }
-      return 0;
-    };
+  const resp = await supersedingCall(NOTEBOOKS_LIST_LANE, /*payload*/ null, makeRequest);
 
-    // Step 4: Map → summaries; filter zero-unit notebooks
-    const summaries: NotebookSummary[] = ownedFiles
-      .map((f) => ({
-        fileId: f.fileId,
-        fileName: f.fileName,
-        totalUnits: calcUnits(f.lessonUnitsMeta),
-        lastUpdated: new Date(f.updatedAt),
-        hasLessonMeta: !!f.lessonUnitsMeta,
-        colorCode:f.colorCode,
-      }))
-      .filter((n) => n.totalUnits > 0);
-
-    console.log(`[${loc}] list() success notebooks=${summaries.length}`);
-    return summaries;
+  if (!resp) {
+    // deferred (429) or superseded by a newer list()
+    const err: any = new Error('LIST_DEFERRED');
+    err.deferred = true;
+    console.log(`[${loc}] list() deferred/superseded; upstream should tolerate this.`);
+    throw err;
   }
+
+  if (!resp.ok) {
+    console.error(`[${loc}] list() http_error status=${resp.status}`);
+    throw new Error(`NotebooksApi.list failed: ${resp.status}`);
+  }
+
+  const body = await resp.json();
+  const ownedFiles: OwnedFile[] = Array.isArray(body?.ownedFiles) ? body.ownedFiles : [];
+  console.log(`[${loc}] list() fetched files=${ownedFiles.length}`);
+
+  const calcUnits = (meta?: OwnedFile['lessonUnitsMeta']): number => {
+    if (!meta) return 0;
+    if (typeof meta.totalUnits === 'number') return meta.totalUnits;
+    if (meta.unitsByMap && typeof meta.unitsByMap === 'object') {
+      let total = 0;
+      for (const arr of Object.values(meta.unitsByMap)) {
+        if (Array.isArray(arr)) total += arr.length;
+      }
+      return total;
+    }
+    return 0;
+  };
+
+  const summaries: NotebookSummary[] = ownedFiles
+    .map((f) => ({
+      fileId: f.fileId,
+      fileName: f.fileName,
+      totalUnits: calcUnits(f.lessonUnitsMeta),
+      lastUpdated: new Date(f.updatedAt),
+      hasLessonMeta: !!f.lessonUnitsMeta,
+      colorCode: f.colorCode,
+    }))
+    .filter((n) => n.totalUnits > 0);
+
+  console.log(`[${loc}] list() success notebooks=${summaries.length}`);
+  return summaries;
+}
+
 
 /**
    * @function details

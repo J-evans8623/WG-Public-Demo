@@ -15,8 +15,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { listUserFiles } from '@/app/src/services/firebase';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
+import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
@@ -40,3 +41,5 @@ export default async function handler(
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+export default withRateLimitNP('np:listFiles')(handler);

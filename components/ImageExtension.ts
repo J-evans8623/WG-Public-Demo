@@ -1,20 +1,25 @@
 /**
  * @file ImageExtension.ts
- * @description
- * Custom Tiptap extension for handling inline images within rich text content. This extension provides
- * comprehensive image support including drag-and-drop functionality, clipboard paste operations, and
- * manual file upload capabilities. The extension automatically uploads images to the server via the
- * /api/asset endpoint and replaces local file references with permanent server URLs. It integrates
- * seamlessly with the existing Tiptap editor infrastructure and follows the same patterns established
- * by MathExtension and Citation extensions. The extension supports image resizing, alt text, and proper
- * HTML serialization for storage in the ResourceContext. All uploaded images are processed through
- * the established asset management pipeline to ensure consistency with existing image handling in
- * PictureResource components. The extension also provides proper error handling for upload failures
- * and maintains accessibility standards through proper alt text and ARIA attributes.
+ * @responsibility
+ *   Tiptap Image node with drag-drop & paste upload pipeline.
+ *   Now uses the general-purpose SupersedingCaller so that:
+ *     1) A 429 schedules a single retry using the server’s Retry-After value.
+ *     2) Newer images supersede older queued/in-flight uploads (flush stale).
+ *     3) Each editor instance gets its own upload “lane” key to avoid cross-editor collisions.
+ *
+ *   Notes:
+ *     • Like the RichTextEditor integration, when a 429 defers the upload, we do not insert
+ *       the image immediately; the retry will fire later but there’s no callback path to
+ *       complete insertion. This mirrors the editor toolbar behavior you signed off on.
+ *       If you want “retry → finally insert” behavior, we can extend SupersedingCaller
+ *       with a completion callback channel (happy to do that next).
  */
 
 import { Node, mergeAttributes, nodeInputRule } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
+
+// ✨ update - 1: bring in the general-purpose caller
+import { supersedingCall } from '@/app/src/net/SupersedingCaller';
 
 export interface ImageOptions {
   inline: boolean;
@@ -36,38 +41,63 @@ declare module '@tiptap/core' {
 }
 
 /**
- * uploadImageToServer
- * Handles the server upload process for image files using the existing /api/asset endpoint.
- * Converts File objects to FormData and manages the upload lifecycle including error handling.
- * @param file The image file to upload to the server
- * @returns Promise resolving to the server URL of the uploaded image
+ * buildLaneKey — update - 2
+ * @purpose
+ *   Create a per-editor-instance “lane” key so uploads from different editors don’t supersede each other.
+ * @steps
+ *   1) Prefix the lane.
+ *   2) Append a short random token (sufficiently unique per view lifetime).
  */
-async function uploadImageToServer(file: File): Promise<string> {
+function buildLaneKey(): string {
+  return `asset:upload:editor:${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * uploadImageToServer — update - 3
+ * @purpose
+ *   Upload a single File via SupersedingCaller, honoring Retry-After and “latest wins”.
+ *   Returns the server URL string when the request succeeds immediately.
+ *   If the call is deferred (429) or superseded, returns null (no insertion).
+ * @steps
+ *   1) Define makeRequest that rebuilds FormData each attempt (Files/FormData must be fresh).
+ *   2) Call supersedingCall(laneKey, {file}, makeRequest).
+ *   3) If null → superseded/deferred; if 429 → retry scheduled; otherwise parse {url}.
+ */
+async function uploadImageToServer(file: File, laneKey: string): Promise<string | null> {
   console.log('[ImageExtension.ts][1001] Starting image upload for file:', file.name);
-  
-  // 1. Create FormData object for multipart upload
-  const formData = new FormData();
-  formData.append('image', file);
-  
-  try {
-    // 2. Send POST request to existing asset upload endpoint
-    const response = await fetch('/api/asset', {
+
+  const makeRequest = async (signal: AbortSignal, payload: any): Promise<Response> => {
+    const fd = new FormData();
+    fd.append('image', payload.file as File);
+    return fetch('/api/asset', {
       method: 'POST',
-      body: formData,
+      body: fd,
       credentials: 'include',
+      signal,
     });
-    
-    // 3. Check response status and handle errors
-    if (!response.ok) {
-      console.error('[ImageExtension.ts][1002] Upload failed with status:', response.status);
-      throw new Error(`Upload failed: ${response.status}`);
+  };
+
+  try {
+    const resp = await supersedingCall(laneKey, { file }, makeRequest);
+
+    // Superseded or deferred due to Retry-After: do not insert now (matches RichTextEditor behavior)
+    if (!resp) {
+      console.log('[ImageExtension.ts][1001a] Upload superseded or deferred (timer scheduled if 429).');
+      return null;
     }
-    
-    // 4. Extract server URL from response
-    const { url: serverUrl } = await response.json();
+
+    if (!resp.ok) {
+      if (resp.status === 429) {
+        console.warn('[ImageExtension.ts][1002] Upload hit 429; retry scheduled by SupersedingCaller.');
+        return null;
+      }
+      console.error('[ImageExtension.ts][1002] Upload failed with status:', resp.status);
+      throw new Error(`Upload failed: ${resp.status}`);
+    }
+
+    const { url: serverUrl } = await resp.json();
     console.log('[ImageExtension.ts][1003] Upload successful, server URL:', serverUrl);
-    
-    return serverUrl;
+    return serverUrl ?? null;
   } catch (error) {
     console.error('[ImageExtension.ts][1004] Upload error:', error);
     throw error;
@@ -75,99 +105,104 @@ async function uploadImageToServer(file: File): Promise<string> {
 }
 
 /**
- * createImageUploadPlugin
- * Creates a ProseMirror plugin that handles drag-and-drop and paste events for images.
- * This plugin intercepts file operations and processes them through the upload pipeline.
- * @param uploadFn Function to handle image upload operations
- * @returns ProseMirror plugin for handling image upload events
+ * createImageUploadPlugin — update - 4
+ * @purpose
+ *   ProseMirror plugin that:
+ *     • Captures drop/paste of image files.
+ *     • Uploads via SupersedingCaller using a per-editor lane key.
+ *     • Inserts <img> only when the upload returns immediately OK.
+ * @steps
+ *   1) On init, generate a laneKey and keep it in plugin state.
+ *   2) handleDrop: collect image files, upload sequentially; insert each if URL available.
+ *   3) handlePaste: same as drop with current selection position.
  */
-function createImageUploadPlugin(uploadFn: (file: File) => Promise<string>) {
-  return new Plugin({
-    key: new PluginKey('imageUpload'),
-    
+function createImageUploadPlugin() {
+  type PState = { laneKey: string };
+  const key = new PluginKey<PState>('imageUpload');
+
+  return new Plugin<PState>({
+    key,
+    state: {
+      init() {
+        const laneKey = buildLaneKey();
+        console.log('[ImageExtension.ts][1005] imageUpload laneKey =', laneKey);
+        return { laneKey };
+      },
+      apply(tr, prev) {
+        return prev;
+      },
+    },
+
     props: {
       // Handle drag and drop events
-      handleDrop(view, event, slice, moved) {
-        console.log('[ImageExtension.ts][1005] Drop event detected');
-        
-        // 1. Check if files were dropped
+      handleDrop(view, event) {
+        console.log('[ImageExtension.ts][1006] Drop event detected');
+
         const files = Array.from(event.dataTransfer?.files || []);
-        const imageFiles = files.filter(file => file.type.startsWith('image/'));
-        
-        if (imageFiles.length === 0) {
-          return false; // Let other handlers process non-image drops
-        }
-        
-        // 2. Process each dropped image file
+        const imageFiles = files.filter(f => f.type.startsWith('image/'));
+        if (imageFiles.length === 0) return false;
+
+        const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        if (!coords) return true;
+
         const { schema } = view.state;
-        const coordinates = view.posAtCoords({
-          left: event.clientX,
-          top: event.clientY,
-        });
-        
-        if (!coordinates) return true;
-        
-        // 3. Upload and insert images sequentially
-        imageFiles.forEach(async (file, index) => {
-          try {
-            console.log('[ImageExtension.ts][1006] Processing dropped image:', file.name);
-            const serverUrl = await uploadFn(file);
-            
-            // 4. Create image node and insert at drop position
-            const node = schema.nodes.image.create({
-              src: serverUrl,
-              alt: file.name,
-            });
-            
-            const transaction = view.state.tr.insert(coordinates.pos + index, node);
-            view.dispatch(transaction);
-            
-          } catch (error) {
-            console.error('[ImageExtension.ts][1007] Failed to process dropped image:', error);
+        const { laneKey } = key.getState(view.state)!;
+
+        // Sequentially upload and insert; if a file’s upload is deferred/superseded, skip insertion.
+        (async () => {
+          for (let i = 0; i < imageFiles.length; i++) {
+            const file = imageFiles[i];
+            try {
+              console.log('[ImageExtension.ts][1007] Processing dropped image:', file.name);
+              const serverUrl = await uploadImageToServer(file, laneKey);
+              if (!serverUrl) {
+                console.log('[ImageExtension.ts][1007a] No URL (deferred/superseded); skipping insert.');
+                continue;
+              }
+              const node = schema.nodes.image.create({ src: serverUrl, alt: file.name });
+              const tr = view.state.tr.insert(coords.pos + i, node);
+              view.dispatch(tr);
+            } catch (err) {
+              console.error('[ImageExtension.ts][1007b] Failed to process dropped image:', err);
+            }
           }
-        });
-        
+        })();
+
         return true; // Prevent default drop handling
       },
-      
+
       // Handle paste events
-      handlePaste(view, event, slice) {
+      handlePaste(view, event) {
         console.log('[ImageExtension.ts][1008] Paste event detected');
-        
-        // 1. Extract files from clipboard
+
         const items = Array.from(event.clipboardData?.items || []);
-        const imageItems = items.filter(item => item.type.startsWith('image/'));
-        
-        if (imageItems.length === 0) {
-          return false; // Let other handlers process non-image pastes
-        }
-        
-        // 2. Process clipboard images
-        const { schema } = view.state;
+        const imageItems = items.filter(it => it.type.startsWith('image/'));
+        if (imageItems.length === 0) return false;
+
         const { from } = view.state.selection;
-        
-        imageItems.forEach(async (item, index) => {
-          const file = item.getAsFile();
-          if (!file) return;
-          
-          try {
-            console.log('[ImageExtension.ts][1009] Processing pasted image');
-            const serverUrl = await uploadFn(file);
-            
-            // 3. Insert image at current cursor position
-            const node = schema.nodes.image.create({
-              src: serverUrl,
-              alt: 'Pasted image',
-            });
-            
-            const transaction = view.state.tr.insert(from + index, node);
-            view.dispatch(transaction);
-            
-          } catch (error) {
-            console.error('[ImageExtension.ts][1010] Failed to process pasted image:', error);
+        const { schema } = view.state;
+        const { laneKey } = key.getState(view.state)!;
+
+        (async () => {
+          for (let i = 0; i < imageItems.length; i++) {
+            const file = imageItems[i].getAsFile();
+            if (!file) continue;
+            try {
+              console.log('[ImageExtension.ts][1009] Processing pasted image');
+              const serverUrl = await uploadImageToServer(file, laneKey);
+              if (!serverUrl) {
+                console.log('[ImageExtension.ts][1009a] No URL (deferred/superseded); skipping insert.');
+                continue;
+              }
+              const node = schema.nodes.image.create({ src: serverUrl, alt: 'Pasted image' });
+              const tr = view.state.tr.insert(from + i, node);
+              view.dispatch(tr);
+            } catch (err) {
+              console.error('[ImageExtension.ts][1010] Failed to process pasted image:', err);
+            }
           }
-        });
-        
+        })();
+
         return true; // Prevent default paste handling
       },
     },
@@ -181,7 +216,7 @@ function createImageUploadPlugin(uploadFn: (file: File) => Promise<string>) {
  */
 export const ImageExtension = Node.create<ImageOptions>({
   name: 'image',
-  
+
   defaultOptions: {
     inline: false,
     allowBase64: false,
@@ -189,69 +224,55 @@ export const ImageExtension = Node.create<ImageOptions>({
       class: 'prose-image',
     },
   },
-  
+
   inline() {
     return this.options.inline;
   },
-  
+
   group() {
     return this.options.inline ? 'inline' : 'block';
   },
-  
+
   draggable: true,
-  
+
   addAttributes() {
     return {
       src: {
         default: null,
         parseHTML: element => element.getAttribute('src'),
-        renderHTML: attributes => ({
-          src: attributes.src,
-        }),
+        renderHTML: attributes => ({ src: attributes.src }),
       },
       alt: {
         default: null,
         parseHTML: element => element.getAttribute('alt'),
-        renderHTML: attributes => ({
-          alt: attributes.alt,
-        }),
+        renderHTML: attributes => ({ alt: attributes.alt }),
       },
       title: {
         default: null,
         parseHTML: element => element.getAttribute('title'),
-        renderHTML: attributes => ({
-          title: attributes.title,
-        }),
+        renderHTML: attributes => ({ title: attributes.title }),
       },
       width: {
         default: null,
         parseHTML: element => element.getAttribute('width'),
-        renderHTML: attributes => ({
-          width: attributes.width,
-        }),
+        renderHTML: attributes => ({ width: attributes.width }),
       },
       height: {
         default: null,
         parseHTML: element => element.getAttribute('height'),
-        renderHTML: attributes => ({
-          height: attributes.height,
-        }),
+        renderHTML: attributes => ({ height: attributes.height }),
       },
     };
   },
-  
+
   parseHTML() {
-    return [
-      {
-        tag: 'img[src]',
-      },
-    ];
+    return [{ tag: 'img[src]' }];
   },
-  
+
   renderHTML({ HTMLAttributes }) {
     return ['img', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes)];
   },
-  
+
   addCommands() {
     return {
       setImage: options => ({ commands }) => {
@@ -263,7 +284,7 @@ export const ImageExtension = Node.create<ImageOptions>({
       },
     };
   },
-  
+
   addInputRules() {
     return [
       nodeInputRule({
@@ -276,10 +297,9 @@ export const ImageExtension = Node.create<ImageOptions>({
       }),
     ];
   },
-  
+
   addProseMirrorPlugins() {
-    return [
-      createImageUploadPlugin(uploadImageToServer),
-    ];
+    // ✨ update - 5: use the new plugin that routes uploads through SupersedingCaller
+    return [createImageUploadPlugin()];
   },
 });

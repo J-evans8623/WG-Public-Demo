@@ -662,11 +662,16 @@ const SessionChip: React.FC<{
 };
 
 /**
+/**
  * @function SessionPopoverPortal
  * @description
- *   Interactive popover rendered into document.body via portal. Uses `position: fixed` with
- *   viewport-relative coordinates for accurate placement near the trigger. Supports outside
- *   click to close and remains fully interactive (`pointer-events: auto`).
+ *   Interactive popover rendered into document.body via portal. Uses `position: fixed`
+ *   with viewport-relative coords. Now includes type-specific guidance text:
+ *     - block: "Explore the following topics: …"
+ *     - revision-block: "Test your recall on the following topics: …"
+ *     - revision-interleaved: "Interleave revision: Test your recall on any topic from this notebook."
+ *   Footer shows a single row of dual hints, left/right aligned.
+ *   // update - 2
  */
 const SessionPopoverPortal: React.FC<{
   sessions: StudySession[];
@@ -674,17 +679,14 @@ const SessionPopoverPortal: React.FC<{
   position: { x: number; y: number };
   onClose: () => void;
   onSessionClick: (session: StudySession) => void;
-  onSessionContextMenu: (session: StudySession, e: React.MouseEvent) => void; // update - 1
- isCompleted: (id: string) => boolean;   
-}> = ({ sessions, date, position, onClose, onSessionClick, onSessionContextMenu, isCompleted  }) => {
+  onSessionContextMenu: (session: StudySession, e: React.MouseEvent) => void;
+  isCompleted: (id: string) => boolean;
+}> = ({ sessions, date, position, onClose, onSessionClick, onSessionContextMenu, isCompleted }) => {
   const ref = useRef<HTMLDivElement>(null);
 
-  // Click-outside to close
   useEffect(() => {
     const handle = (evt: MouseEvent) => {
-      if (ref.current && !ref.current.contains(evt.target as Node)) {
-        onClose();
-      }
+      if (ref.current && !ref.current.contains(evt.target as Node)) onClose();
     };
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
@@ -693,10 +695,7 @@ const SessionPopoverPortal: React.FC<{
   const formatDate = (d: Date) =>
     d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-  const totalDuration = sessions.reduce(
-    (sum, s) => sum + (s.metadata?.estimatedDuration ?? 0),
-    0
-  );
+  const totalDuration = sessions.reduce((sum, s) => sum + (s.metadata?.estimatedDuration ?? 0), 0);
 
   const style: React.CSSProperties = {
     position: 'fixed',
@@ -705,6 +704,31 @@ const SessionPopoverPortal: React.FC<{
     transform: 'translate(-50%, -100%)',
     zIndex: 9999,
     pointerEvents: 'auto',
+  };
+
+  // update - 2: helper to produce type-specific instructional text + topics visibility
+  const renderTypeMessage = (s: StudySession) => {
+    if (s.type === 'revision-interleaved') {
+      return (
+        <p className="text-xs text-gray-800">
+          <strong>Interleave revision:</strong> Test your recall on any topic from this notebook.
+        </p>
+      );
+    }
+    const topics = (s.metadata?.topicTitles ?? []).join(', ');
+    if (s.type === 'block') {
+      return (
+        <p className="text-xs text-gray-800">
+          <strong>Explore the following topics:</strong> {topics || '—'}
+        </p>
+      );
+    }
+    // revision-block
+    return (
+      <p className="text-xs text-gray-800">
+        <strong>Test your recall on the following topics:</strong> {topics || '—'}
+      </p>
+    );
   };
 
   const content = (
@@ -725,62 +749,70 @@ const SessionPopoverPortal: React.FC<{
         <div className="max-h-64 overflow-y-auto">
           <div className="p-2 space-y-2">
             {sessions.map((session) => {
-               const completed = isCompleted(session.id);
-               return (
-              <button
-              
-                key={session.id}
-                onClick={() => {
-                  console.log('[SessionPopover][2012] › Session clicked in popover:', session.id);
-                  onSessionClick(session);
-
-                
-                }}
-                 onContextMenu={(e) => onSessionContextMenu(session, e)}
-                className="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
-              >
-                <div className="flex items-start space-x-3">
-                  <div
-                    className="w-4 h-4 rounded-full flex-shrink-0 mt-0.5"
-                    style={{ backgroundColor: session.notebookMeta.colorCode}}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <h5 className="font-medium text-sm text-gray-900 truncate">
-                        {session.metadata.sessionTitle}
-                      </h5>
-                      <span className="text-xs calendar-text-secondary flex-shrink-0 ml-2">
-                        {session.metadata.estimatedDuration}m
-                      </span>
-                    </div>
-                    <p className="text-xs calendar-text-secondary mb-1">
-                      {session.type === 'block'
-                        ? 'Learning Session'
-                        : session.type === 'revision-block'
-                        ? 'Focused Review'
-                        : 'Mixed Review'}
-                    </p>
-                    <p className="text-xs calendar-text-muted truncate">
-                      {session.metadata.topicTitles.join(', ')}
-                    </p>
-                    {session.timeSlot && (
-                      <div className="mt-1">
-                        <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded capitalize">
-                          {session.timeSlot}
+              const completed = isCompleted(session.id);
+              const subjectColor = session.notebookMeta.colorCode;
+              return (
+                <button
+                  key={session.id}
+                  onClick={() => {
+                    console.log('[SessionPopover][2012] › Session clicked in popover:', session.id);
+                    onSessionClick(session);
+                  }}
+                  onContextMenu={(e) => onSessionContextMenu(session, e)}
+                  className="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+                >
+                  <div className="flex items-start space-x-3">
+                    <div
+                      className="w-4 h-4 rounded-full flex-shrink-0 mt-0.5"
+                      style={{ backgroundColor: subjectColor }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h5 className="font-medium text-sm text-gray-900 truncate">
+                          {session.metadata.sessionTitle}
+                        </h5>
+                        <span className="text-xs calendar-text-secondary flex-shrink-0 ml-2">
+                          {session.metadata.estimatedDuration}m
                         </span>
                       </div>
-                    )}
+
+                      {/* update - 2: session-type label remains for quick scanning */}
+                      <p className="text-xs calendar-text-secondary mb-1">
+                        {session.type === 'block'
+                          ? 'Learning Session'
+                          : session.type === 'revision-block'
+                          ? 'Focused Review'
+                          : 'Mixed Review'}
+                      </p>
+
+                      {/* update - 2: new, type-specific guidance + topics visibility */}
+                      {renderTypeMessage(session)}
+
+                      {session.timeSlot && (
+                        <div className="mt-1">
+                          <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded capitalize">
+                            {session.timeSlot}
+                          </span>
+                        </div>
+                      )}
+
+                      {completed && (
+                        <div className="mt-1 text-[11px] text-green-700">✓ Marked complete</div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </button>
-               );
-           })}
+                </button>
+              );
+            })}
           </div>
         </div>
 
+        {/* update - 2: single-row dual hint, left/right aligned */}
         <div className="p-3 border-t border-gray-200 calendar-bg-primary rounded-b-lg">
-          <p className="text-xs calendar-text-secondary text-center">Click any session to start studying</p>
-          <p className="text-xs calendar-text-secondary text-center">Right click to mark complete</p>
+          <div className="flex items-center justify-between text-xs calendar-text-secondary">
+            <span>Click to start session</span>
+            <span>Right-click to mark complete</span>
+          </div>
         </div>
 
         {/* Arrow */}
@@ -797,9 +829,9 @@ const SessionPopoverPortal: React.FC<{
 /**
  * @function SessionTooltipPortal
  * @description
- *   Non-interactive session tooltip rendered into document.body via portal. Uses `position: fixed`
- *   and pointer-events: none so it never intercepts mouse movement, eliminating hover conflicts
- *   that previously caused flicker or immediate hides when crossing the tooltip.
+ *   Non-interactive tooltip via portal. Now renders type-specific copy and
+ *   shows topics only for 'block' and 'revision-block'. Footer switched to
+ *   a single-row left/right hint. // update - 1
  */
 const SessionTooltipPortal: React.FC<{
   session: StudySession;
@@ -824,7 +856,47 @@ const SessionTooltipPortal: React.FC<{
     top: position.y - 10,
     transform: 'translate(-50%, -100%)',
     zIndex: 9998,
-    pointerEvents: 'none', // CRITICAL: avoids stealing hover from chip
+    pointerEvents: 'none',
+  };
+
+  // update - 1: render type-specific messaging in tooltip too
+  const renderTooltipBody = (s: StudySession) => {
+    const minutes = s.metadata?.estimatedDuration ?? 0;
+    const timeRow = (
+      <div className="flex items-center space-x-2">
+        <Clock size={12} className="calendar-text-muted" />
+        <span>{minutes} minutes</span>
+        {s.timeSlot && <span className="calendar-text-secondary">• {s.timeSlot}</span>}
+      </div>
+    );
+
+    if (s.type === 'revision-interleaved') {
+      return (
+        <div className="space-y-2 text-sm">
+          {timeRow}
+          <p className="text-xs text-gray-800">
+            <strong>Interleave revision:</strong> Test your recall on any topic from this notebook.
+          </p>
+        </div>
+      );
+    }
+
+    // block / revision-block show topics with different lead-in text
+    const topics = (s.metadata?.topicTitles ?? []).join(', ');
+    const leadIn =
+      s.type === 'block'
+        ? 'Explore the following topics:'
+        : 'Test your recall on the following topics:';
+
+    return (
+      <div className="space-y-2 text-sm">
+        {timeRow}
+        <div>
+          <p className="calendar-text-secondary text-xs font-medium mb-1">{leadIn}</p>
+          <p className="text-gray-800">{topics || '—'}</p>
+        </div>
+      </div>
+    );
   };
 
   const content = (
@@ -842,20 +914,14 @@ const SessionTooltipPortal: React.FC<{
           </div>
         </div>
 
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center space-x-2">
-            <Clock size={12} className="calendar-text-muted" />
-            <span>{session.metadata.estimatedDuration} minutes</span>
-            {session.timeSlot && <span className="calendar-text-secondary">• {session.timeSlot}</span>}
-          </div>
-          <div>
-            <p className="calendar-text-secondary text-xs font-medium mb-1">Topics:</p>
-            <p className="text-gray-800">{session.metadata.topicTitles.join(', ')}</p>
-          </div>
-        </div>
+        {renderTooltipBody(session)}
 
+        {/* update - 1: single-row dual hint, left/right aligned */}
         <div className="mt-3 pt-2 border-t border-gray-200">
-          <p className="text-xs calendar-text-secondary">Click to start session</p>
+          <div className="flex items-center justify-between text-xs calendar-text-secondary">
+            <span>Click to start session</span>
+            <span>Right-click to mark complete</span>
+          </div>
         </div>
 
         {/* Arrow */}
@@ -868,5 +934,6 @@ const SessionTooltipPortal: React.FC<{
 
   return createPortal(content, document.body);
 };
+
 
 export default CalendarMonthView;

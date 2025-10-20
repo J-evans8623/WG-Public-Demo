@@ -45,7 +45,7 @@ function useClickOutside(ref: React.RefObject<HTMLElement>, onOutside: () => voi
   useEffect(() => {
     const handler = (evt: MouseEvent) => {
       if (ref.current && !ref.current.contains(evt.target as Node)) {
-        console.log('[UnifiedDropDownMenus.tsx][7101] click-outside → closing dropdown');
+        // console.log('[UnifiedDropDownMenus.tsx][7101] click-outside → closing dropdown');
         onOutside();
       }
     };
@@ -102,7 +102,7 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
 
   const handleSelect = useCallback(
     (lessonId: string) => {
-      console.log('[UnifiedDropDownMenus.tsx][7102] lesson-select', { lessonId });
+      // console.log('[UnifiedDropDownMenus.tsx][7102] lesson-select', { lessonId });
       setActiveConceptMapId(lessonId);
       setActiveView('conceptMap');
       setOpen(false);
@@ -112,7 +112,7 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
 
   const handleCreateBlank = useCallback(() => {
     if (mode !== 'edit') return;
-    console.log('[UnifiedDropDownMenus.tsx][7103] create-blank-lesson');
+    // console.log('[UnifiedDropDownMenus.tsx][7103] create-blank-lesson');
     const { id } = addConceptMap('Untitled Lesson');
     setActiveConceptMapId(id);
     setActiveView('conceptMap');
@@ -128,7 +128,7 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
      * comprehensive logging and error handling for production reliability.
      */
     const handleGenerateLessonSuccess = useCallback((responseData: any) => {
-      console.log('[NavigationPanel.tsx][9018] Processing lesson generation response:', responseData);
+      // console.log('[NavigationPanel.tsx][9018] Processing lesson generation response:', responseData);
   
       try {
         // Step 10: Convert response to TextFileMessage format
@@ -146,12 +146,12 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
   
         // Step 11: Update file asset context
         addGeneratedLessonFile(generatedFileMessage);
-        console.log('[NavigationPanel.tsx][9019] Generated file added to asset context');
+        // console.log('[NavigationPanel.tsx][9019] Generated file added to asset context');
   
         // Step 12: Update lesson data context if lesson modules provided
         if (responseData.id && responseData.lessonModules) {
           addLessonModule(responseData.id, { lessonModules: responseData.lessonModules });
-          console.log('[NavigationPanel.tsx][9020] Lesson modules added to data context');
+          // console.log('[NavigationPanel.tsx][9020] Lesson modules added to data context');
         }
       } catch (error) {
         console.error('[NavigationPanel.tsx][9021] Error processing lesson generation response:', error);
@@ -163,13 +163,13 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
 
   const handleGenerate = useCallback(() => {
     if (mode !== 'edit') return;
-    console.log('[UnifiedDropDownMenus.tsx][7104] generate-lesson → open modal');
+    // console.log('[UnifiedDropDownMenus.tsx][7104] generate-lesson → open modal');
     setOpen(false);
     showModal('lessonGeneration', {
       docFileId: docFileID,
       onSuccess: (resp: any) => {
         try {
-          console.log('[UnifiedDropDownMenus.tsx][7105] generate-lesson success');
+          // console.log('[UnifiedDropDownMenus.tsx][7105] generate-lesson success');
           if (resp?.id && resp?.lessonModules) {
             addLessonModule(resp.id, { lessonModules: resp.lessonModules });
           }
@@ -216,7 +216,7 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
       : lessons.map((l) => {
           const isActiveForView = activeView !== 'pdf' && l.id === activeConceptMapId;
           if (isActiveForView) {
-            console.log('[UnifiedDropDownMenus.tsx][7107] lesson-highlight', { lessonId: l.id });
+            // console.log('[UnifiedDropDownMenus.tsx][7107] lesson-highlight', { lessonId: l.id });
           }
           return (
             <button
@@ -255,12 +255,12 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
         onClick={() => {
           const next = !open;
           setOpen(next);
-          console.log('[UnifiedDropDownMenus.tsx][7108] lessons-toggle', { open: next });
+          // console.log('[UnifiedDropDownMenus.tsx][7108] lessons-toggle', { open: next });
         }}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             setOpen(false);
-            console.log('[UnifiedDropDownMenus.tsx][7109] lessons-escape-close');
+            // console.log('[UnifiedDropDownMenus.tsx][7109] lessons-escape-close');
           }
         }}
       >
@@ -318,16 +318,16 @@ export const UnifiedUploadsDropdown: React.FC<UnifiedUploadsDropdownProps> = ({
 
   const handleUpload = useCallback(() => {
     if (mode !== 'edit') return;
-    console.log('[UnifiedDropDownMenus.tsx][7110] upload-open-modal');
+    // console.log('[UnifiedDropDownMenus.tsx][7110] upload-open-modal');
     setOpen(false);
     showModal('fileUpload', 
        {
       onUploadSuccess: (file: File, isPublic: boolean) => {
-        console.log('[NavigationPanel.tsx][9015] Upload successful via modal:', file.name, 'public:', isPublic);
+        // console.log('[NavigationPanel.tsx][9015] Upload successful via modal:', file.name, 'public:', isPublic);
         
         // Step 9: Process upload through existing file asset system
         addFile(file, { visibility: isPublic ? 'public' : 'private' }).then(() => {
-          console.log('[NavigationPanel.tsx][9016] File added to asset context successfully');
+          // console.log('[NavigationPanel.tsx][9016] File added to asset context successfully');
         }).catch((error) => {
           console.error('[NavigationPanel.tsx][9017] File upload processing failed:', error);
         });
@@ -338,7 +338,7 @@ export const UnifiedUploadsDropdown: React.FC<UnifiedUploadsDropdownProps> = ({
 
   const handleOpenFile = useCallback(
     (file: TextFileMessage) => {
-      console.log('[UnifiedDropDownMenus.tsx][7112] open-file', { fileId: file.id, title: file.title });
+      // console.log('[UnifiedDropDownMenus.tsx][7112] open-file', { fileId: file.id, title: file.title });
       setSelectedFileId(file.id);
       setSelectedPdfUrl(file.serverUrl);
       setActiveView('pdf');
@@ -371,7 +371,7 @@ export const UnifiedUploadsDropdown: React.FC<UnifiedUploadsDropdownProps> = ({
       : uploadedFiles.map((f) => {
           const isSelectedAndActive = activeView === 'pdf' && f.id === selectedFileId;
           if (isSelectedAndActive) {
-            console.log('[UnifiedDropDownMenus.tsx][7113] file-highlight', { fileId: f.id });
+            // console.log('[UnifiedDropDownMenus.tsx][7113] file-highlight', { fileId: f.id });
           }
           return (
             <button
@@ -410,12 +410,12 @@ export const UnifiedUploadsDropdown: React.FC<UnifiedUploadsDropdownProps> = ({
         onClick={() => {
           const next = !open;
           setOpen(next);
-          console.log('[UnifiedDropDownMenus.tsx][7114] uploads-toggle', { open: next });
+          // console.log('[UnifiedDropDownMenus.tsx][7114] uploads-toggle', { open: next });
         }}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             setOpen(false);
-            console.log('[UnifiedDropDownMenus.tsx][7115] uploads-escape-close');
+            // console.log('[UnifiedDropDownMenus.tsx][7115] uploads-escape-close');
           }
         }}
       >

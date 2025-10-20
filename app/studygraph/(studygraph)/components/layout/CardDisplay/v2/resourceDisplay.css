@@ -42,6 +42,21 @@
   box-shadow: 0 3px 12px rgba(0,0,0,0.10);
 }
 
+
+/* update - 41: disable hover focus when card is in editing mode */
+.resource-display.no-hover { 
+  transition: none;
+}
+
+/* Override the preview-slide/slide hover only while editing */
+.resource-display.no-hover:hover {
+  border-color: var(--edge, #E8E4DE) !important;
+  transform: none !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08) !important; /* default resting shadow */
+  cursor: default;
+}
+
+
 /* 1a) Header: title + inline actions */
 .preview-slide-header {
   padding: 0.9rem 1.2rem 0.6rem;

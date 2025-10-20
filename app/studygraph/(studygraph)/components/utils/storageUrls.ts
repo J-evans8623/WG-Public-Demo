@@ -2,24 +2,17 @@
  * @file utils/storageUrls.ts
  * @description
  *   Client-side utility module that centralizes calls to API endpoints responsible for
- *   minting signed Firebase Storage URLs and returning minimal access envelopes. By
- *   abstracting URL building and response normalization here, the rest of the front-end
- *   can request upload/download capabilities with a single function call and through a
- *   consistent shape. **Phase 3 update:** this module adds support for conflict-safe
- *   conditional uploads (via the upload API’s 409 response) and surfaces Storage/
- *   Firestore identifiers returned by the download and save flows where available so
- *   clients can update reconciliation markers (e.g., `metadata.persist.*`). Logging is
- *   lightweight and tagged with stable 4-digit codes to aid production troubleshooting
- *   without spamming the console. These helpers perform O(1) work; network latency
- *   dominates due to single API calls.
+ *   minting signed Firebase Storage URLs and returning minimal access envelopes.
  *
- * Responsibilities:
- *   - getUploadUrl(docId, type, preconditions?) → issue a (conditionally) signed PUT URL.
- *   - getDownloadUrl(docId, type) → fetch a signed GET URL (and access envelope).
- *   - initialUpload(docId) → bootstrap flow: returns both doc and chat upload URLs.
+ *   Phase 3 + NP retry update:
+ *     - Uses SupersedingCaller so rapid calls coalesce and in-flight minting is aborted.
+ *     - Honors server 429 Retry-After exactly once; if deferred, we return `DEFERRED` so
+ *       callers can noop or retry later based on UX.
+ *     - Keeps the same shapes and 409 conflict surfacing.
  */
 
 import type { AccessEnvelope } from '@/app/studygraph/(studygraph)/types/access';
+import { supersedingCall } from '@/app/src/net/SupersedingCaller';
 
 type UploadOk = {
   uploadUrl: string;
@@ -30,9 +23,7 @@ type DownloadOk = {
   downloadUrl: string;
   fileStoragePath: string;
   access: AccessEnvelope;
-  /** May be present if the server elects to return identifiers. */
   storageGeneration?: string | null;
-  /** May be present if the server elects to return identifiers. */
   versionNumber?: number | null;
 };
 
@@ -40,14 +31,20 @@ function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
+function deferredError(scope: string) {
+  const err: any = new Error(`${scope}_DEFERRED`);
+  err.deferred = true;
+  err.scope = scope;
+  return err;
+}
+
 /**
  * @function getUploadUrl
  * @description
- *   Retrieves a signed upload URL for either a document or a per-user chat. When
- *   `preconditions` are provided, the server will verify the client’s expected
- *   identifiers and return HTTP 409 with authoritative `conflict` data if they do
- *   not match. The caller should catch that error and reconcile before retrying.
- *   Returns a normalized `{ uploadUrl, fileStoragePath }` shape on success.
+ *   Retrieves a signed upload URL for either a document or a per-user chat.
+ *   - On 429, the request is scheduled for retry; we return a DEFERRED error immediately.
+ *   - On 409, we throw with { code:409, body } so callers can reconcile.
+ *   - On success, returns { uploadUrl, fileStoragePath }.
  */
 export async function getUploadUrl(
   docFileID: string,
@@ -60,26 +57,47 @@ export async function getUploadUrl(
     hasPre: !!preconditions,
   });
 
-  const params = new URLSearchParams({ docFileID, type });
-  if (preconditions?.expectStorageGeneration != null) {
-    params.set('expectStorageGeneration', String(preconditions.expectStorageGeneration));
-  }
-  if (preconditions?.expectVersionNumber != null) {
-    params.set('expectVersionNumber', String(preconditions.expectVersionNumber));
-  }
+  // Lane: per-doc + type + "upload-urlv1" (latest wins for the same doc/type)
+  const lane = `storage:upload-urlv1:${type}:${docFileID}`;
 
-  const res = await fetch(`/api/document/upload-urlv1?${params.toString()}`, {
-    method: 'GET',
-    credentials: 'include',
-  });
+  const makeRequest = async (signal: AbortSignal, payloadUnknown: unknown): Promise<Response> => {
+    const p = (payloadUnknown as any) || {};
+    const params = new URLSearchParams({ docFileID: p.docFileID, type: p.type });
 
-  // Conflict path: surface parsed body to callers for reconciliation UX
+    if (p.pre?.expectStorageGeneration != null) {
+      params.set('expectStorageGeneration', String(p.pre.expectStorageGeneration));
+    }
+    if (p.pre?.expectVersionNumber != null) {
+      params.set('expectVersionNumber', String(p.pre.expectVersionNumber));
+    }
+    if (p.newDoc) params.set('newDoc', 'true');
+
+    return fetch(`/api/document/upload-urlv1?${params.toString()}`, {
+      method: 'GET',
+      credentials: 'include',
+      signal,
+    });
+  };
+
+  const payload = {
+    docFileID,
+    type,
+    pre: preconditions ?? undefined,
+    newDoc: false,
+  };
+
+  const res = await supersedingCall(lane, payload, makeRequest);
+
+  // If we’re inside Retry-After, call returns null (timer scheduled).
+  if (!res) throw deferredError('UPLOAD_URL');
+
+  // Conflict: surface parsed body for reconciliation
   if (res.status === 409) {
     const body = await res.json().catch(() => ({}));
     console.warn('[storageUrls.ts][9302] › upload precondition conflict', body);
-    const err = new Error('UPLOAD_PRECONDITION_FAILED');
-    (err as any).code = 409;
-    (err as any).body = body;
+    const err: any = new Error('UPLOAD_PRECONDITION_FAILED');
+    err.code = 409;
+    err.body = body;
     throw err;
   }
 
@@ -89,18 +107,16 @@ export async function getUploadUrl(
   if (!isNonEmptyString(raw.uploadUrl) || !isNonEmptyString(raw.fileStoragePath)) {
     console.error('[storageUrls.ts][9303] › malformed upload-url payload', raw);
     throw new Error('Upload URL error: malformed payload');
-    }
+  }
   return { uploadUrl: raw.uploadUrl, fileStoragePath: raw.fileStoragePath };
 }
 
 /**
  * @function getDownloadUrl
  * @description
- *   Retrieves a signed download URL for either a document or chat asset. The server
- *   also returns a normalized access envelope which the client can use to adjust its
- *   UI permissions immediately. Some server versions may additionally return storage
- *   and logical version identifiers; this function preserves them if present, defaulting
- *   to `null` otherwise to keep the return type predictable for callers.
+ *   Retrieves a signed download URL for either a document or chat asset.
+ *   - On 429 (Retry-After), returns DEFERRED so caller can noop.
+ *   - Returns optional identifiers for doc type when provided by server.
  */
 export async function getDownloadUrl(
   docFileID: string,
@@ -108,11 +124,21 @@ export async function getDownloadUrl(
 ): Promise<DownloadOk> {
   console.log('[storageUrls.ts][9304] › fetching download URL', { docFileID, type });
 
-  const params = new URLSearchParams({ docFileID, type });
-  const res = await fetch(`/api/document/download-urlv1?${params.toString()}`, {
-    method: 'GET',
-    credentials: 'include',
-  });
+  const lane = `storage:download-urlv1:${type}:${docFileID}`;
+
+  const makeRequest = async (signal: AbortSignal, payloadUnknown: unknown): Promise<Response> => {
+    const p = (payloadUnknown as any) || {};
+    const params = new URLSearchParams({ docFileID: p.docFileID, type: p.type });
+    return fetch(`/api/document/download-urlv1?${params.toString()}`, {
+      method: 'GET',
+      credentials: 'include',
+      signal,
+    });
+  };
+
+  const res = await supersedingCall(lane, { docFileID, type }, makeRequest);
+
+  if (!res) throw deferredError('DOWNLOAD_URL');
   if (!res.ok) throw new Error(`Download URL error: ${res.status} ${res.statusText}`);
 
   const raw = (await res.json()) as DownloadOk;
@@ -120,6 +146,7 @@ export async function getDownloadUrl(
     console.error('[storageUrls.ts][9305] › malformed download-url payload', raw);
     throw new Error('Download URL error: malformed payload');
   }
+
   return {
     downloadUrl: raw.downloadUrl,
     fileStoragePath: raw.fileStoragePath,
@@ -138,27 +165,33 @@ export type InitialUploadResult = {
 /**
  * @function initialUpload
  * @description
- *   Triggers the new-document bootstrap path on the server which returns **both**
- *   signed URLs (document and per-user chat) in a single request. This is used by
- *   create flows where the client wants to immediately PUT bytes for the doc plus
- *   initialize a chat artifact. Returns normalized shapes so callers can PUT
- *   without additional mapping.
+ *   Bootstrap flow: mint **both** doc + chat upload URLs in one request.
+ *   - Uses superseding lane so repeated bootstraps coalesce.
+ *   - On 429, returns DEFERRED.
  */
 export async function initialUpload(docFileID: string): Promise<InitialUploadResult> {
   console.log('[storageUrls.ts][9306] › initialUpload (newDoc bootstrap)', { docFileID });
 
-  const params = new URLSearchParams({ docFileID, type: 'doc', newDoc: 'true' });
-  const res = await fetch(`/api/document/upload-urlv1?${params.toString()}`, {
-    method: 'GET',
-    credentials: 'include',
-  });
+  const lane = `storage:initial-upload:${docFileID}`;
+
+  const makeRequest = async (signal: AbortSignal, payloadUnknown: unknown): Promise<Response> => {
+    const p = (payloadUnknown as any) || {};
+    const params = new URLSearchParams({ docFileID: p.docFileID, type: 'doc', newDoc: 'true' });
+    return fetch(`/api/document/upload-urlv1?${params.toString()}`, {
+      method: 'GET',
+      credentials: 'include',
+      signal,
+    });
+  };
+
+  const res = await supersedingCall(lane, { docFileID }, makeRequest);
+
+  if (!res) throw deferredError('INITIAL_UPLOAD');
   if (!res.ok) {
     let detail = '';
     try {
       detail = (await res.json())?.error || '';
-    } catch {
-      /* ignore parse error for non-JSON bodies */
-    }
+    } catch {/* ignore */}
     throw new Error(
       `Initial upload URL error: ${res.status} ${res.statusText}${detail ? ` (${detail})` : ''}`
     );

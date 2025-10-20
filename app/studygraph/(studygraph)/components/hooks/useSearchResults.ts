@@ -4,11 +4,12 @@
  * @file useSearchResults.ts
  * @description
  *   Custom hook that returns a memoized array of ResourceCard
- *   filtered by a search query.
+ *   filtered by a search query. Now filters out practiceSheet types.
  *
  * Responsibilities:
  *   - Pull all resources from useResourceContext().
  *   - Flatten the Map<string,ResourceCard[]> to a single array.
+ *   - Filter out practiceSheet (quiz) type results.
  *   - Perform case-insensitive substring match against title
  *     and content/description fields.
  *   - Memoize results for performance.
@@ -32,6 +33,9 @@ export const useSearchResults = (query: string): ResourceCard[] => {
     });
 
     return allCards.filter((card) => {
+      // Filter out practiceSheet types
+      if (card.type === 'practiceSheet') return false;
+
       // Title match
       if (card.title.toLowerCase().includes(q)) return true;
 
@@ -42,7 +46,6 @@ export const useSearchResults = (query: string): ResourceCard[] => {
       } else if (typeof (card as any).content === 'string') {
         contentText = (card as any).content;
       } else {
-        // Ensure we never assign undefined—coerce to empty string if JSON.stringify returns undefined
         contentText = JSON.stringify((card as any).content) ?? '';
       }
 

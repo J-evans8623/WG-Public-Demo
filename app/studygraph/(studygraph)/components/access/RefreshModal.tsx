@@ -63,16 +63,10 @@ export const RefreshModal: React.FC<RefreshModalProps> = ({ onRefresh }) => {
    *   comprehensive access history analysis and change significance evaluation.
    */
   useEffect(() => {
-    console.log('[RefreshModal.tsx][3001] › Access layer state changed', {
-      docId: access.docId,
-      role: access.role,
-      prevRole: access.prevRole,
-      lastEvent: access.lastEvent?.source
-    });
 
     // Step 2: Validate required context for modal evaluation
     if (!access.docId || !access.lastEvent) {
-      console.log('[RefreshModal.tsx][3002] › Insufficient context for modal evaluation');
+      // console.log('[RefreshModal.tsx][3002] › Insufficient context for modal evaluation');
       return;
     }
 
@@ -84,7 +78,7 @@ export const RefreshModal: React.FC<RefreshModalProps> = ({ onRefresh }) => {
     );
 
     if (!accessChanged) {
-      console.log('[RefreshModal.tsx][3003] › No access change detected, modal evaluation skipped');
+      // console.log('[RefreshModal.tsx][3003] › No access change detected, modal evaluation skipped');
       return;
     }
 
@@ -106,16 +100,8 @@ export const RefreshModal: React.FC<RefreshModalProps> = ({ onRefresh }) => {
         });
         
         setIsOpen(true);
-        console.log('[RefreshModal.tsx][3004] › Modal triggered for access change', {
-          docId: access.docId,
-          from: history.previousRole,
-          to: access.role,
-          source: access.lastEvent.source
-        });
       }
-    } else {
-      console.log('[RefreshModal.tsx][3005] › Modal trigger conditions not met');
-    }
+    } 
   }, [access.docId, access.role, access.lastEvent, historyManager, access.prevRole]);
 
   /**
@@ -127,10 +113,7 @@ export const RefreshModal: React.FC<RefreshModalProps> = ({ onRefresh }) => {
    *   tracking and debugging modal behavior patterns.
    */
   const handleDismiss = (): void => {
-    console.log('[RefreshModal.tsx][3006] › Modal dismissed by user', {
-      docId: changeDetails?.docId,
-      changeType: `${changeDetails?.fromRole} → ${changeDetails?.toRole}`
-    });
+
     
     setIsOpen(false);
     setChangeDetails(null);
@@ -145,11 +128,6 @@ export const RefreshModal: React.FC<RefreshModalProps> = ({ onRefresh }) => {
    *   Supports optional refresh callback for backward compatibility.
    */
   const handleRefresh = (): void => {
-    console.log('[RefreshModal.tsx][3007] › Modal refresh action triggered', {
-      docId: changeDetails?.docId,
-      changeType: `${changeDetails?.fromRole} → ${changeDetails?.toRole}`,
-      hasRefreshCallback: !!onRefresh
-    });
     
     if (onRefresh) {
       onRefresh();

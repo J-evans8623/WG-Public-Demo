@@ -24,6 +24,9 @@ import type { ResourceType } from '@/app/studygraph/(studygraph)/components/layo
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/notesTab.css';
 import DefaultEmptyResourceCard from '@/app/studygraph/(studygraph)/components/layout/Canvas/ReadWriteCanvas/CardDisplay/DefaultEmptyResourceCard'; // update - 7322
+import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
+import useCardCrudOperations from '../../../../hooks/useCardCrudOperations';
+import { useSearchContext } from '@/app/Library/Context/SearchContext';
 
 type DisplayType = 'cuecard' | 'note' | 'quiz';
 
@@ -40,10 +43,13 @@ const NotesTab: React.FC<NotesTabProps> = ({
 }) => {
   const ordered = useOrderedResources();
   const { getNodeTitle } = useNodesContext();
+   const { dismissResource } = useNodeSelection();
+    const { deleteResource } = useCardCrudOperations();
 
   const [isHoveringTab, setIsHoveringTab] = useState(false);
   const [isHoveringCard, setIsHoveringCard] = useState(false);
   const tabRef = useRef<HTMLDivElement>(null);
+   const { removeSelectedResult } = useSearchContext();
 
   useEffect(() => {
     console.log('[NotesTab.tsx][7301] mount → ordered resources:', ordered.length, 'canEdit:', canEdit);
@@ -110,6 +116,25 @@ const NotesTab: React.FC<NotesTabProps> = ({
     (r): r is VisibleCard => r.type !== 'quizAssessment'
   ); // update - 7305
 
+  const handleDelete = (nodeId:string, resourceId:string) => {
+    if (!canEdit){
+      return
+    } else {
+      deleteResource(nodeId, resourceId)
+    }
+
+
+  }
+   /** Dismiss handler: hide by policy AND unpin from search history */
+  const handleDismiss = (nodeId: string, resourceId: string) => {
+    // 1) Mark dismissed for the node (policy filter)
+    dismissResource(nodeId, resourceId);
+    // 2) Also remove from search selection history (unpin)
+    removeSelectedResult(resourceId);
+  };
+
+
+
   return (
     <div
       ref={tabRef}
@@ -145,12 +170,14 @@ const NotesTab: React.FC<NotesTabProps> = ({
                   isEditing={false}
                   canEdit={canEdit}
                   onEdit={() => onEditResource(r.id)}
+                  onDismiss={()=>  handleDismiss(r.nodeId, r.id)}
+                  onDelete={()=> handleDelete(r.nodeId, r.id)}
                 />
               </div>
             );
           })
         ) : (
-          // update - 7323
+          
           <div
             onMouseEnter={handleCardMouseEnter} // update - 7324
             onMouseLeave={handleCardMouseLeave} // update - 7325

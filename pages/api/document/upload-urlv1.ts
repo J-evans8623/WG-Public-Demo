@@ -31,6 +31,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import { generateUploadUrl, getAclSnapshot } from '@/app/src/services/firebase';
+import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
 type Role = 'Owner' | 'Editor' | 'Viewer' | 'None';
 
@@ -45,7 +46,7 @@ type Role = 'Owner' | 'Editor' | 'Viewer' | 'None';
  *   authoritative conflict information so the client can reconcile state efficiently.
  *   For `type='chat'`, the function returns a signed PUT URL scoped by the caller user id.
  */
-export default async function handler(
+ async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
@@ -362,3 +363,4 @@ export default async function handler(
     return res.status(500).json({ error: 'Failed to generate upload URL', access });
   }
 }
+export default withRateLimitNP('np:documentSave')(handler);

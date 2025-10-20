@@ -38,6 +38,7 @@ import { insertDedupSorted, updateByIdSorted,
   resolveBucket, } from '@/app/studygraph/(studygraph)/components/utils/fileListOps';
 import { getFileListCache, setFileListCache, clearFileListCache } from '@/app/studygraph/(studygraph)/services/fileListCache';
 import { gradebookClient, AssignMetaPatchReq, AssignMetaPatchRes, AssignMetaUpsertReq, AssignMetaUpsertRes, GradebookQueryRes, AttemptStartReq, AttemptStartRes, AttemptSubmitReq, AttemptSubmitRes } from '@/app/studygraph/(studygraph)/services/gradebook/gradebookClient';
+import { supersedingCall } from '../net/SupersedingCaller';
 
 
 type AccessMode = 'edit' | 'readonly'; 
@@ -429,150 +430,180 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
    * Returns UserFileMetadata objects with complete role information for access control.
    * Includes comprehensive logging for debugging file listing operations.
    */
-  const fetchFilesFromServer = async (query?: string): Promise<UserFilesResponse> => {
-    console.log('[ApiContext.tsx][1011] Fetching file lists');
-    
-    const url = new URL('/api/files/list', window.location.origin);
-    if (query) url.searchParams.append('query', query);
+const fetchFilesFromServer = async (query?: string): Promise<UserFilesResponse> => {
+  console.log('[ApiContext.tsx][1011] Fetching file lists (via SupersedingCaller)');
 
-    const res = await fetch(url.toString(), {
-      method: 'GET',
-      credentials: 'include'
-    });
-    
-    if (!res.ok) {
-      const text = await res.text();
-      console.error('[ApiContext.tsx][1012] ListFiles failed:', res.statusText, text);
-      throw new Error(`List files failed: ${res.statusText}`);
+  // Stable lane per feature (and per-query so rapid re-queries supersede each other)
+  const lane = query ? `files:list?q=${encodeURIComponent(query)}` : 'files:list';
+
+  // Match SupersedingCaller’s expected signature: (signal, payload: unknown) => Promise<Response>
+  const makeRequest: (signal: AbortSignal, payload: unknown) => Promise<Response> = async (
+    signal,
+    payload
+  ) => {
+    // Safely narrow payload → optional { query?: string }
+    let q: string | undefined = query;
+    if (payload && typeof payload === 'object' && 'query' in (payload as Record<string, unknown>)) {
+      const maybe = (payload as { query?: unknown }).query;
+      if (typeof maybe === 'string') q = maybe;
     }
 
-    const data = await res.json() as UserFilesResponse;
-    console.log('[ApiContext.tsx][1013] Files received - owned:', data.ownedFiles.length, 'shared:', data.sharedFiles.length);
+    const url = new URL('/api/files/list', window.location.origin);
+    if (q) url.searchParams.append('query', q);
 
-    /**
-     * @function mapToUserFileMetadata
-     * @description
-     * Converts raw API response data to properly typed UserFileMetadata objects.
-     * Handles timestamp conversion from various formats and ensures all required
-     * fields are present with appropriate defaults for missing data.
-     */
-    const mapToUserFileMetadata = (f: any): UserFileMetadata => {
-      // Handle timestamp conversion - could be Firestore Timestamp or ISO string
-      let updatedAt: string;
-      if (f.updatedAt) {
-        updatedAt = f.updatedAt;
-      } else if (f.timestamp) {
-        // Handle Firestore Timestamp objects
-        if (f.timestamp.toDate && typeof f.timestamp.toDate === 'function') {
-          updatedAt = f.timestamp.toDate().toISOString();
-        } else if (typeof f.timestamp === 'string') {
-          updatedAt = new Date(f.timestamp).toISOString();
-        } else {
-          updatedAt = new Date().toISOString();
-        }
-      } else {
-        updatedAt = new Date().toISOString();
-      }
+    return fetch(url.toString(), { method: 'GET', credentials: 'include', signal });
+  };
 
-      return {
-        fileId: f.fileId || '',
-        ownerId: f.ownerId || '',
-        fileName: f.fileName || 'Untitled Document',
-        colorCode: f.colorCode, 
-        version: f.version,
-        fileStoragePath: f.fileStoragePath || '',
-        timestamp: f.timestamp || new Date().toISOString(),
-        fileSize: f.fileSize || 0,
-        contentType: f.contentType || 'application/octet-stream',
-        editors: f.editors || [],
-        sharedWith: f.sharedWith || [],
-        publicEdit: f.publicEdit || false,
-        publicView: f.publicView || false,
-        role: f.role || 'Viewer',
-        updatedAt: updatedAt
-      };
-    };
+  const resp = await supersedingCall(lane, { query }, makeRequest);
+
+  // Superseded or waiting for a Retry-After timer — surface a soft signal to caller.
+  if (!resp) {
+    console.log('[ApiContext.tsx][1011a] list() deferred/superseded (429 timer or abort).');
+    const err: any = new Error('LIST_DEFERRED');
+    err.deferred = true;
+    throw err;
+  }
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    console.error('[ApiContext.tsx][1012] ListFiles failed:', resp.status, text);
+    throw new Error(`List files failed: ${resp.statusText}`);
+  }
+
+  const raw = (await resp.json()) as UserFilesResponse;
+
+  const mapToUserFileMetadata = (f: any): UserFileMetadata => {
+    let updatedAt: string;
+    if (f.updatedAt) {
+      updatedAt = f.updatedAt;
+    } else if (f.timestamp?.toDate && typeof f.timestamp.toDate === 'function') {
+      updatedAt = f.timestamp.toDate().toISOString();
+    } else if (typeof f.timestamp === 'string') {
+      updatedAt = new Date(f.timestamp).toISOString();
+    } else {
+      updatedAt = new Date().toISOString();
+    }
 
     return {
-      ownedFiles: data.ownedFiles.map(mapToUserFileMetadata),
-      sharedFiles: data.sharedFiles.map(mapToUserFileMetadata),
+      fileId: f.fileId || '',
+      ownerId: f.ownerId || '',
+      fileName: f.fileName || 'Untitled Document',
+      colorCode: f.colorCode,
+      version: f.version,
+      fileStoragePath: f.fileStoragePath || '',
+      timestamp: f.timestamp || new Date().toISOString(),
+      fileSize: f.fileSize || 0,
+      contentType: f.contentType || 'application/octet-stream',
+      editors: f.editors || [],
+      sharedWith: f.sharedWith || [],
+      publicEdit: f.publicEdit || false,
+      publicView: f.publicView || false,
+      role: f.role || 'Viewer',
+      updatedAt,
+      lessonUnitsMeta: f.lessonUnitsMeta ?? undefined,
     };
   };
+
+  return {
+    ownedFiles: (raw.ownedFiles || []).map(mapToUserFileMetadata),
+    sharedFiles: (raw.sharedFiles || []).map(mapToUserFileMetadata),
+  };
+};
+
 
 
 /**
-   * @function listFiles
-   * @description
-   *   Cached-first, background revalidation strategy:
-   *   (1) Serve cached results immediately if present and mark as hydrated;
-   *   (2) Always kick a single in-flight network revalidation that updates state and cache;
-   *   (3) If no cache exists, await the first network call before resolving. This design
-   *   guarantees Homescreen renders instantly when cache exists and still converges to the
-   *   authoritative list. Cache/Sync ops are O(1); mapping/merge are O(N).
-   */
-  const listFiles = async (): Promise<UserFilesResponse> => { 
-    const userKey = currentUserEmail(); 
-    setFileListError(null); 
+ * @function listFiles
+ * @description
+ *   Cached-first, background revalidation strategy:
+ *   (1) Serve cached results immediately if present and mark as hydrated;
+ *   (2) Always kick a single in-flight network revalidation that updates state and cache;
+ *   (3) If no cache exists, await the first network call before resolving. This design
+ *   guarantees Homescreen renders instantly when cache exists and still converges to the
+ *   authoritative list. Cache/Sync ops are O(1); mapping/merge are O(N).
+ */
+const listFiles = async (): Promise<UserFilesResponse> => {
+  const userKey = currentUserEmail();
+  setFileListError(null);
 
-    // Step 1 — Try cache (read-through)
-    const cached = getFileListCache(userKey);
-    if (cached) {
-      setFileList(cached);
-      setIsFileListHydrated(true); 
-      setFileListUpdatedAt(Date.now()); 
+  // Step 1 — Try cache (read-through)
+  const cached = getFileListCache(userKey);
+  if (cached) {
+    setFileList(cached);
+    setIsFileListHydrated(true);
+    setFileListUpdatedAt(Date.now());
 
+    // Step 2 — Kick background revalidation exactly once (and make sure we clear the flag)
+    if (!inflightListPromiseRef.current) {
+      console.log('[ApiContext.tsx][7211] revalidate begin (bg)', { userKey });
+      setIsFileListRefreshing(true);
 
-      // Step 2 — Kick background revalidation exactly once 
-      if (!inflightListPromiseRef.current) {
-        console.log('[ApiContext.tsx][7211] revalidate begin (bg)', { userKey }); 
-        setIsFileListRefreshing(true); 
-        inflightListPromiseRef.current = fetchFilesFromServer()
-          .then((data) => {
-            if (!mountedRef.current) return data;
-            setFileList(data);
-            setFileListUpdatedAt(Date.now());
-            setFileListCache(userKey, data);
- 
-            return data;
-          })
-          .catch((err) => {
+      const p = fetchFilesFromServer()
+        .then((data) => {
+          if (!mountedRef.current) return data;
+          setFileList(data);
+          setFileListUpdatedAt(Date.now());
+          setFileListCache(userKey, data);
+          return data;
+        })
+        .catch((err) => {
+          // (Background path) Only surface hard errors
+          if (!(err?.deferred || err?.message === 'LIST_DEFERRED')) {
             console.error('[ApiContext.tsx][7298] revalidate failed (bg)', err);
-            setFileListError(err?.message ?? 'File list refresh failed'); 
-            return cached;
-          })
-          .finally(() => {
-            inflightListPromiseRef.current = null; 
-          });
-      }
+            if (mountedRef.current) {
+              setFileListError(err?.message ?? 'File list refresh failed');
+            }
+          } else {
+            console.log('[ApiContext.tsx][7298] revalidate deferred (bg): suppressed user-visible error');
+          }
+          return cached;
+        })
+        .finally(() => {
+          // Clear only if this is the same in-flight op; then drop the refreshing flag
+          if (inflightListPromiseRef.current === p) {
+            inflightListPromiseRef.current = null;
+            if (mountedRef.current) setIsFileListRefreshing(false);
+          }
+        });
 
-      // Return immediately with cached data 
-      return Promise.resolve(cached);
+      inflightListPromiseRef.current = p;
     }
 
-    console.log('[ApiContext.tsx][7202] listFiles cache miss → fallback to network', { userKey });
-    // Step 3 — No cache, perform network path (write-through) and await once 
-    setIsFileListLoading(true);
-    setIsFileListRefreshing(true); 
-    try {
-      const promise = inflightListPromiseRef.current ?? fetchFilesFromServer(); 
-      inflightListPromiseRef.current = promise; 
-      const data = await promise; 
-      if (!mountedRef.current) return data; 
+    // Return immediately with cached data
+    return Promise.resolve(cached);
+  }
 
-      setFileList(data);
-      setIsFileListHydrated(true); 
-      setFileListUpdatedAt(Date.now()); 
-      setFileListCache(userKey, data);
-      return data;
-    } catch (err:any) {
-      setFileListError(err?.message ?? 'File list load failed'); 
-      throw err;
-    } finally {
-      setIsFileListRefreshing(false);
-      setIsFileListLoading(false);
-      inflightListPromiseRef.current = null; 
+  console.log('[ApiContext.tsx][7202] listFiles cache miss → fallback to network', { userKey });
+
+  // Step 3 — No cache, perform network path (write-through) and await once
+  setIsFileListLoading(true);
+  setIsFileListRefreshing(true);
+  try {
+    const promise = inflightListPromiseRef.current ?? fetchFilesFromServer();
+    inflightListPromiseRef.current = promise;
+    const data = await promise;
+    if (!mountedRef.current) return data;
+
+    setFileList(data);
+    setIsFileListHydrated(true);
+    setFileListUpdatedAt(Date.now());
+    setFileListCache(userKey, data);
+    return data;
+  } catch (err: any) {
+    // 👇 Hard vs soft: do not surface LIST_DEFERRED
+    if (!(err?.deferred || err?.message === 'LIST_DEFERRED')) {
+      setFileListError(err?.message ?? 'File list load failed');
+    } else {
+      console.log('[ApiContext.tsx][7202a] initial list deferred/superseded: suppressed user-visible error');
     }
-  };
+    throw err;
+  } finally {
+    setIsFileListRefreshing(false);
+    setIsFileListLoading(false);
+    inflightListPromiseRef.current = null;
+  }
+};
+
 
 
 const refreshFileList = async (): Promise<void> => {
@@ -586,8 +617,14 @@ const refreshFileList = async (): Promise<void> => {
       // Write-through cache
       setFileListCache(userKey, data);
     } catch (e:any) {
-      setFileListError(e?.message ?? 'File list refresh failed'); // update - 49
-      console.warn('[ApiContext.tsx][7294] refreshList network failed; preserving current state', e);
+      // 👇 Hard vs soft: do not surface LIST_DEFERRED
+    if (!(e?.deferred || e?.message === 'LIST_DEFERRED')) {
+      setFileListError(e?.message ?? 'File list refresh failed');
+    } else {
+      console.log('[ApiContext.tsx][7294a] refresh deferred/superseded: suppressed user-visible error');
+    }
+
+    console.warn('[ApiContext.tsx][7294] refreshList network failed; preserving current state', e);
       // Optional: fallback to cached data if state is empty and cache exists
       if (!fileList) {
         const cached = getFileListCache(userKey);
@@ -1039,6 +1076,12 @@ useEffect(() => { // update - 57
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, normalizedEmail]);
+
+
+  useEffect(() => {
+  mountedRef.current = true;
+  return () => { mountedRef.current = false; };
+}, []);
 
 
   // Step 10: Expose comprehensive API context value

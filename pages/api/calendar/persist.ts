@@ -15,6 +15,7 @@ import {
   generateCalendarUploadUrl,
   deleteCalendar,
 } from '@/app/src/services/studyplanfb/StudyPlanFB';
+import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
 /**
  * @function handler
@@ -28,7 +29,7 @@ import {
  *   4) DELETE → deleteCalendar(uid)             → return { ok: true }.
  *   5) Else   → 405.
  */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await authenticateRequest(req, res);
   if (!session) return;
 
@@ -61,3 +62,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+
+export default withRateLimitNP('np:calendarPersist')(handler);

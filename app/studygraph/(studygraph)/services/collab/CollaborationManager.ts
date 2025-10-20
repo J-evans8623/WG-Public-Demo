@@ -11,6 +11,7 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { getCookie } from '../../components/utils/cookies';
 import { createOpQueue, awaitProviderClose } from './collabSwitchGuards';
+import { supersedingCall } from '@/app/src/net/SupersedingCaller';
 
 export type CollabStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -319,25 +320,78 @@ class CollaborationManager {
 
   /**
    * Fetch JWT token for document collaboration
+   * Wrapped with SupersedingCaller to coalesce bursts and respect 429 Retry-After.
+   * Note: we also do a single in-call 429 wait+retry to ensure this method resolves
+   * with a token (since the caller needs it immediately to connect).
    */
   private async fetchToken(docId: string): Promise<TokenBundle> {
     console.log('CollaborationManager › Fetching token for doc:', docId);
-    
-    const response = await fetch(`/api/collab/startv1?doc=${encodeURIComponent(docId)}`, {
-      credentials: 'include'
-    });
+
+    const key = `collab:start:${docId}`;
+
+    // makeRequest encapsulates the fetch and a single in-call 429 retry honoring Retry-After.
+    const makeRequest = async (signal: AbortSignal): Promise<Response> => {
+      const doFetch = () =>
+        fetch(`/api/collab/startv1?doc=${encodeURIComponent(docId)}`, {
+          credentials: 'include',
+          signal,
+        });
+
+      // First attempt
+      let resp = await doFetch();
+
+      if (resp.status === 429) {
+        // Honor Retry-After once inside this call to keep fetchToken awaitable.
+        const h = resp.headers.get('Retry-After');
+        const secs = Number.isFinite(Number(h)) ? Math.max(1, Math.floor(Number(h))) : 1;
+
+        // Wait with abort support
+        await new Promise<void>((resolve, reject) => {
+          const t = setTimeout(resolve, secs * 1000);
+          const onAbort = () => {
+            clearTimeout(t);
+            reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+          };
+          // If already aborted, short-circuit
+          if (signal.aborted) {
+            onAbort();
+            return;
+          }
+          signal.addEventListener('abort', onAbort, { once: true });
+        });
+
+        // Retry once
+        resp = await doFetch();
+      }
+
+      return resp;
+    };
+
+    // Use supersedingCall to ensure latest-wins and abort stale attempts.
+    const response = await supersedingCall(key, {}, makeRequest);
+
+    // If supersedingCall returned null, it means a prior Retry-After window was already scheduled
+    // for this key by some earlier call. That is rare for token fetches, but if it happens we
+    // surface a clear error (the queued retry will still happen in the background, but the caller
+    // needs a deterministic result now).
+    if (!response) {
+      const msg = 'Token fetch deferred by rate limit (Retry-After active). Please try again.';
+      console.error('CollaborationManager › Token fetch deferred (null response):', msg);
+      throw new Error(msg);
+    }
 
     if (!response.ok) {
-      const errorText = await response.text();
+      const errorText = await response.text().catch(() => '');
       console.error('CollaborationManager › Token fetch failed:', response.status, errorText);
       throw new Error(`Token fetch failed: ${response.status} ${errorText}`);
     }
 
     const { token, expiresIn } = await response.json();
     console.log('CollaborationManager › Token fetched successfully; expiresIn(s)=', expiresIn);
-    
+
     return { token, expiresIn };
   }
+
 
   /**
    * FIXED: Establish WebSocket connection with JWT token

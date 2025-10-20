@@ -30,6 +30,7 @@ import {
   getLatestFileIdentifiers, // update - 1
 } from '@/app/src/services/firebase';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
+import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
 interface SaveDocumentRequest {
   fileName: string;
@@ -55,7 +56,7 @@ interface SaveDocumentRequest {
  *   `getLatestFileIdentifiers`. This echo allows the client to update its local
  *   reconciliation markers without making extra trips.
  */
-export default async function handler(
+ async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
@@ -240,3 +241,4 @@ export default async function handler(
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+export default withRateLimitNP('np:documentSaveMeta')(handler);

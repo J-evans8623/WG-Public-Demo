@@ -1,45 +1,40 @@
-// File: pages/api/history/download.ts
-
 /***********************************************************************************************
  * @file pages/api/history/download.ts
  * @description
  *   Implements the GET /api/history/download endpoint for Bloom-Maps’ Version-History service.
  *   This endpoint issues a V4 signed GET URL for a specific snapshot ZIP in Cloud Storage,
- *   allowing clients to securely download the snapshot contents. It authenticates the user,
- *   validates the `docId` and `snapshotId` query parameters, retrieves the metadata document
- *   from Firestore (ensuring the snapshot exists), extracts the storage `path`, and then
- *   requests a signed URL from the Firebase Admin SDK. The URL is returned in JSON. Errors
- *   due to missing parameters, missing metadata, authentication failures, or unexpected
- *   conditions return appropriate HTTP status codes with JSON error messages. Key
- *   execution points are logged with unique 4-digit codes for observability.
+ *   allowing clients to securely download the snapshot contents. In Phase 2 this handler was
+ *   refactored to delegate all Firebase/Firestore/Storage work to the VersionHistoryFB adapter
+ *   and to apply the NP rate-limit wrapper. The endpoint now focuses strictly on auth, input
+ *   parsing, and response shaping. On success it returns { downloadUrl }. On failure it returns
+ *   an appropriate error code. Purposeful logs mark major decision points for observability.
  *
  * Responsibilities:
- *   - Authenticate incoming requests via NextAuth.
- *   - Validate `docId` and `snapshotId` parameters.
- *   - Retrieve Firestore metadata to confirm existence and obtain storage path.
- *   - Generate V4 signed GET URL using Firebase Admin SDK.
- *   - Return JSON { downloadUrl } or error status.
+ *   1) Authenticate the user via NextAuth.
+ *   2) Validate `docId` and `snapshotId` query parameters.
+ *   3) Use the adapter to read metadata and sign a V4 read URL (5-minute TTL).
+ *   4) Return a JSON response or an error status with helpful diagnostics.
  ***********************************************************************************************/
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import admin from 'firebase-admin';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
-import { firestore } from '@/app/src/services/firebase';
+// update - 1
+import { getSnapshotMeta, signSnapshotDownloadUrl } from '@/app/src/services/calendar/versionhistory/VersionHistoryFb';
+// update - 2
+import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
 /**
  * @function handler
  * @description
- *   Handles authenticated GET requests for snapshot downloads. Expects `docId` and
- *   `snapshotId` query parameters. Validates presence, retrieves the corresponding
- *   Firestore metadata document under documents/{docId}/snapshots/{snapshotId}, and
- *   issues a V4 signed GET URL for the Cloud Storage file at `path`. Returns JSON
- *   with the URL or an error response if parameters are missing, metadata is absent,
- *   or any internal error occurs.
+ *   Handles authenticated GET requests for snapshot downloads. It validates the query params,
+ *   uses the adapter to retrieve the snapshot metadata (to learn the GCS object path), then
+ *   mints a signed V4 READ URL for that object. This function deliberately avoids any direct
+ *   Firestore or Storage calls, delegating them to the adapter to improve testability.
  *
  * @param req - Next.js API request
  * @param res - Next.js API response
  */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) { // update - 3
   if (req.method !== 'GET') {
     console.log('download.ts 3001 › Invalid method:', req.method);
     res.setHeader('Allow', ['GET']);
@@ -64,33 +59,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   console.log('download.ts 3004 › Download request for', { docId, snapshotId });
 
   try {
-    const metaRef = firestore
-      .collection('documents')
-      .doc(docId)
-      .collection('snapshots')
-      .doc(snapshotId);
-    const metaSnap = await metaRef.get();
-
-    if (!metaSnap.exists) {
+    // update - 4: use adapter to fetch metadata and sign read URL
+    const meta = await getSnapshotMeta(docId, snapshotId);
+    if (!meta || !meta.path) {
       console.log('download.ts 3005 › Snapshot metadata not found', { docId, snapshotId });
       return res.status(404).json({ error: 'Snapshot not found' });
     }
+    console.log('download.ts 3006 › Found metadata, path=', meta.path);
 
-    const { path } = metaSnap.data()!;
-    console.log('download.ts 3006 › Found metadata, path=', path);
-
-    const bucket = admin.storage().bucket();
-    const file = bucket.file(path);
-    const [downloadUrl] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + 5 * 60 * 1000  // URL valid for 5 minutes
-    });
-
-    console.log('download.ts 3007 › Issued signed download URL for', path);
+    const { downloadUrl } = await signSnapshotDownloadUrl(meta.path);
+    console.log('download.ts 3007 › Issued signed download URL for', meta.path);
     return res.status(200).json({ downloadUrl });
   } catch (err) {
     console.error('download.ts 3008 › Error generating download URL:', err);
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+// update - 5: apply NP rate-limit wrapper for download scope
+export default withRateLimitNP('np:vhDownload')(handler);

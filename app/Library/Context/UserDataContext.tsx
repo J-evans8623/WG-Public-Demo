@@ -41,6 +41,9 @@ import { useResourceScanner } from '@/app/studygraph/(studygraph)/components/hoo
 import { CueCardResource, PracticeSheetResource } from '../Definitions/Definitions';
 import { useResourceContext } from './ResourceContext';
 import type { ResourceCard } from '@/app/Library/Definitions/Definitions';
+// add import near the top
+import { supersedingCall } from '@/app/src/net/SupersedingCaller'; // update - 404
+
 
 interface UserDataContextValue {
   userRevisionData: RevisionMetaData | null;
@@ -83,21 +86,37 @@ export const UserDataProvider: React.FC<{ children: ReactNode }> = ({
 
   // ─────────────────────── Helpers ────────────────────────
 
-  // 3) SAVE user data back to server (PUT)
+/**
+ * SaveUserData — update - 405
+ * @purpose
+ *   Persist the latest snapshot using the SupersedingCaller so stale saves are flushed.
+ *   If a 429 is received, it will use Retry-After and re-attempt with the newest payload.
+ * @steps
+ *   1) Build a stable key per doc.
+ *   2) Provide a makeRequest that performs the actual PUT with the signal.
+ *   3) Hand the *current* userRevisionData to supersedingCall; it will coalesce/abort/queue.
+ */
 const SaveUserData = useCallback(
-  async ( docId:string): Promise<void> => {
-    if (!docFileID) return;
-    const url = `/api/userData?docId=${encodeURIComponent(docId)}`;
-    const status = await fetch(url, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userRevisionData),
-    });
+  async (docId: string): Promise<void> => {
+    if (!docId || !userRevisionData) return;
 
-    console.log(`${JSON.stringify(status)}`)
+    const key = `userData:doc:${docId}`; // Step 1
+
+    // Step 2: request factory; the caller injects AbortSignal and latest payload
+    const makeRequest = async (signal: AbortSignal, payload: unknown) => {
+      return fetch(`/api/userData?docId=${encodeURIComponent(docId)}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal,
+      });
+    };
+
+    // Step 3: call the superseding layer with the current snapshot
+    await supersedingCall(key, userRevisionData, makeRequest);
   },
-  [docFileID, userRevisionData]
+  [userRevisionData]
 );
 
   //_________________save user data after time debounce and resource context change

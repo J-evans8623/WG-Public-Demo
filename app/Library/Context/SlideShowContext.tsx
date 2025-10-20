@@ -184,10 +184,10 @@ const persistLastSlide = useCallback((slide: ResourceCard | null) => {
    * The pass is O(N) over the override deck and runs only when override mode is active.
    */
   const synchronizeOverrideSlides = useCallback(() => {
-    console.log('[SlideShowContext.tsx][7001] › synchronizeOverrideSlides called, overrideSlides length:', overrideSlides?.length || 0);
+    // ('[SlideShowContext.tsx][7001] › synchronizeOverrideSlides called, overrideSlides length:', overrideSlides?.length || 0);
 
     if (!overrideSlides || overrideSlides.length === 0) {
-      console.log('[SlideShowContext.tsx][7002] › No override slides to synchronize, skipping');
+      // console.log('[SlideShowContext.tsx][7002] › No override slides to synchronize, skipping');
       return;
     }
 
@@ -201,30 +201,30 @@ const persistLastSlide = useCallback((slide: ResourceCard | null) => {
         const changed = JSON.stringify(existingSlide) !== JSON.stringify(fresh);
         if (changed) {
           foundUpdates = true;
-          console.log('[SlideShowContext.tsx][7003] › Slide updated detected for ID:', existingSlide.id);
+          // console.log('[SlideShowContext.tsx][7003] › Slide updated detected for ID:', existingSlide.id);
         }
       } else {
         synchronizedSlides.push(existingSlide);
-        console.log('[SlideShowContext.tsx][7004] › Slide not found in ResourceContext, keeping original:', existingSlide.id);
+        // console.log('[SlideShowContext.tsx][7004] › Slide not found in ResourceContext, keeping original:', existingSlide.id);
       }
     });
 
     if (foundUpdates) {
-      console.log('[SlideShowContext.tsx][7005] › Applying synchronized slides, count:', synchronizedSlides.length);
+      // console.log('[SlideShowContext.tsx][7005] › Applying synchronized slides, count:', synchronizedSlides.length);
       setOverrideSlides(synchronizedSlides);
     } else {
-      console.log('[SlideShowContext.tsx][7006] › No changes detected, override slides remain current');
+      // console.log('[SlideShowContext.tsx][7006] › No changes detected, override slides remain current');
     }
   }, [overrideSlides, getResourceCard]);
 
   // React to ResourceContext changes only when override is active
   useEffect(() => {
-    console.log('[SlideShowContext.tsx][7007] › ResourceContext change detected, checking synchronization needs');
+    // console.log('[SlideShowContext.tsx][7007] › ResourceContext change detected, checking synchronization needs');
     if (overrideSlides && overrideSlides.length > 0) {
-      console.log('[SlideShowContext.tsx][7008] › Override mode active, triggering synchronization');
+      // console.log('[SlideShowContext.tsx][7008] › Override mode active, triggering synchronization');
       synchronizeOverrideSlides();
     } else {
-      console.log('[SlideShowContext.tsx][7009] › Default mode active, no synchronization needed');
+      // console.log('[SlideShowContext.tsx][7009] › Default mode active, no synchronization needed');
     }
   }, [overrideSlides, resources, synchronizeOverrideSlides]);
 
@@ -243,19 +243,19 @@ const persistLastSlide = useCallback((slide: ResourceCard | null) => {
  */
 const open = useCallback(                                                       // update - 3
   (resourceId: string, nodeId: boolean = false) => {
-    console.log('[SlideShowContext.tsx][7010] › Opening slideshow for resource:', resourceId, 'nodeId mode:', nodeId);
+    // console.log('[SlideShowContext.tsx][7010] › Opening slideshow for resource:', resourceId, 'nodeId mode:', nodeId);
     let idx: number = -1;
 
     if (nodeId) {
       const resourceCards = selectResources(resourceId);
       if (resourceCards.length === 0) {
-        console.log('[SlideShowContext.tsx][7011] › No resources found for node:', resourceId);
+        // console.log('[SlideShowContext.tsx][7011] › No resources found for node:', resourceId);
         return;
       }
       idx = slides.findIndex((r) => r.id === resourceCards[0].id);
       if (idx < 0) {
         const merged = [...resourceCards, ...defaultSlides];
-        console.log('[SlideShowContext.tsx][7012] › Switching to override mode with merged slides, count:', merged.length);
+        // console.log('[SlideShowContext.tsx][7012] › Switching to override mode with merged slides, count:', merged.length);
         setOverrideSlides(merged);
         setCurrentIndex(0);
         setIsOpen(true);
@@ -266,18 +266,18 @@ const open = useCallback(                                                       
     }
 
     if (idx >= 0) {
-      console.log('[SlideShowContext.tsx][7013] › Found slide at index:', idx);
+      // console.log('[SlideShowContext.tsx][7013] › Found slide at index:', idx);
       setCurrentIndex(idx);
       setIsOpen(true);
     } else {
       // 4) Fallback: open current resolved slides using resume index
       if (slides.length > 0) {
-        console.log('[SlideShowContext.tsx][7013.1] › Target not found; falling back to resume index'); // update - 3
+        // console.log('[SlideShowContext.tsx][7013.1] › Target not found; falling back to resume index'); // update - 3
         const start = resumeIndexFor(slides);                                   // update - 3
         setCurrentIndex(start);
         setIsOpen(true);
       } else {
-        console.log('[SlideShowContext.tsx][7014] › Slide not found in current slides');
+        // console.log('[SlideShowContext.tsx][7014] › Slide not found in current slides');
       }
     }
   },
@@ -295,7 +295,7 @@ const open = useCallback(                                                       
    * This is an O(1) operation that simply flips visibility and resets the index to the first slide.
    */
   const openSelectedSlides = useCallback(() => {
-    console.log('[SlideShowContext.tsx][7015] › Opening selected slides, count:', slides.length);
+    // console.log('[SlideShowContext.tsx][7015] › Opening selected slides, count:', slides.length);
     if (slides.length > 0) {
       setCurrentIndex(0);
       setIsOpen(true);
@@ -314,7 +314,7 @@ const open = useCallback(                                                       
  *    3) Set index and open.
  */
 const openCustom = useCallback((slidesToShow: ResourceCard[], cachetype?:cachetype, resumeSlide = true) => {              // update - 1
-  console.log('[SlideShowContext.tsx][7016] › Opening custom slideshow with slides, count:', slidesToShow.length);
+  // console.log('[SlideShowContext.tsx][7016] › Opening custom slideshow with slides, count:', slidesToShow.length);
   setOverrideSlides(slidesToShow);
   if (slidesToShow.length > 0 && resumeSlide && cachetype) {
     setLastSessionType(cachetype);
@@ -336,7 +336,7 @@ const openCustom = useCallback((slidesToShow: ResourceCard[], cachetype?:cachety
    * This is O(1) and does not affect the default selection list.
    */
   const resetToSelection = useCallback(() => {
-    console.log('[SlideShowContext.tsx][7017] › Resetting to selection-based mode');
+    // console.log('[SlideShowContext.tsx][7017] › Resetting to selection-based mode');
     setOverrideSlides(null);
   }, []);
 
@@ -357,7 +357,7 @@ const gotoNext = useCallback(() => {                                            
   const next = Math.min(currentIndex + 1, slides.length - 1);                   // 1
   const nextSlide = slides[next];                                               // 2
   if (nextSlide) persistLastSlide(nextSlide);                                   // update - 4
-  console.log('[SlideShowContext.tsx][7019] › Going to next slide, index:', currentIndex, '->', next);
+  // console.log('[SlideShowContext.tsx][7019] › Going to next slide, index:', currentIndex, '->', next);
   setCurrentIndex(next);                                                        // 3
 }, [currentIndex, slides, persistLastSlide]);                                   // update - 4
 
@@ -375,7 +375,7 @@ const gotoPrev = useCallback(() => {                                            
   const prev = Math.max(currentIndex - 1, 0);                                   // 1
   const prevSlide = slides[prev];                                               // 2
   if (prevSlide) persistLastSlide(prevSlide);                                   // update - 5
-  console.log('[SlideShowContext.tsx][7020] › Going to previous slide, index:', currentIndex, '->', prev);
+  // console.log('[SlideShowContext.tsx][7020] › Going to previous slide, index:', currentIndex, '->', prev);
   setCurrentIndex(prev);                                                        // 3
 }, [currentIndex, slides, persistLastSlide]);                                   // update - 5
 
@@ -387,7 +387,7 @@ const gotoPrev = useCallback(() => {                                            
    */
   const currentSlide = useMemo(() => {
     const slide = slides[currentIndex] || null;
-    console.log('[SlideShowContext.tsx][7021] › Current slide computed:', slide?.id || 'null');
+    // console.log('[SlideShowContext.tsx][7021] › Current slide computed:', slide?.id || 'null');
     return slide;
   }, [slides, currentIndex]);
 
@@ -398,7 +398,7 @@ const gotoPrev = useCallback(() => {                                            
    * are ready before generating the deck and opening the slideshow. O(1) enqueue.
    */
   const requestSessionLaunch = useCallback((request: SessionLaunchRequest) => {
-    console.log('[SlideShowContext.tsx][7022] › Session launch requested:', request.sessionId);
+    // console.log('[SlideShowContext.tsx][7022] › Session launch requested:', request.sessionId);
     setSessionLaunchState({ type: 'REQUESTED', request });
   }, []);
 
@@ -408,41 +408,41 @@ const gotoPrev = useCallback(() => {                                            
       try {
         switch (sessionLaunchState.type) {
           case 'REQUESTED': {
-            console.log('[SlideShowContext.tsx][6019] › Processing session launch request for:', sessionLaunchState.request.sessionId);
+            // console.log('[SlideShowContext.tsx][6019] › Processing session launch request for:', sessionLaunchState.request.sessionId);
             const targetFileId = sessionLaunchState.request.targetFileId;
             if (docFileID !== targetFileId) {
-              console.log('[SlideShowContext.tsx][6020] › File switch required from', docFileID, 'to', targetFileId);
+              // console.log('[SlideShowContext.tsx][6020] › File switch required from', docFileID, 'to', targetFileId);
               setSessionLaunchState({ type: 'SWITCHING_FILE', request: sessionLaunchState.request, targetFileId });
             } else {
-              console.log('[SlideShowContext.tsx][6021] › Same file, proceeding to document verification');
+              // console.log('[SlideShowContext.tsx][6021] › Same file, proceeding to document verification');
               setSessionLaunchState({ type: 'LOADING_DOCUMENT', request: sessionLaunchState.request, targetFileId });
             }
             break;
           }
           case 'SWITCHING_FILE': {
             if (docFileID === sessionLaunchState.targetFileId) {
-              console.log('[SlideShowContext.tsx][6022] › File switch completed successfully');
+              // console.log('[SlideShowContext.tsx][6022] › File switch completed successfully');
               setSessionLaunchState({
                 type: 'LOADING_DOCUMENT',
                 request: sessionLaunchState.request,
                 targetFileId: sessionLaunchState.targetFileId,
               });
             } else {
-              console.log('[SlideShowContext.tsx][6023] › Waiting for file switch completion... current:', docFileID, 'target:', sessionLaunchState.targetFileId);
+              // console.log('[SlideShowContext.tsx][6023] › Waiting for file switch completion... current:', docFileID, 'target:', sessionLaunchState.targetFileId);
             }
             break;
           }
           case 'LOADING_DOCUMENT': {
             const ready = docFileID === sessionLaunchState.targetFileId && ydocReady;
             if (ready) {
-              console.log('[SlideShowContext.tsx][6024] › Document ready, proceeding to user data verification');
+              // console.log('[SlideShowContext.tsx][6024] › Document ready, proceeding to user data verification');
               setSessionLaunchState({
                 type: 'LOADING_USERDATA',
                 request: sessionLaunchState.request,
                 targetFileId: sessionLaunchState.targetFileId,
               });
             } else {
-              console.log('[SlideShowContext.tsx][6025] › Waiting for document readiness... fileMatch:', docFileID === sessionLaunchState.targetFileId, 'ydocReady:', ydocReady);
+              // console.log('[SlideShowContext.tsx][6025] › Waiting for document readiness... fileMatch:', docFileID === sessionLaunchState.targetFileId, 'ydocReady:', ydocReady);
             }
             break;
           }
@@ -454,53 +454,43 @@ const gotoPrev = useCallback(() => {                                            
               userRevisionData !== null;
 
             if (ok) {
-              console.log('[SlideShowContext.tsx][6026] › UserData ready, preparing for session launch');
+              // console.log('[SlideShowContext.tsx][6026] › UserData ready, preparing for session launch');
               setSessionLaunchState({ type: 'READY_TO_LAUNCH', request: sessionLaunchState.request });
-            } else {
-              console.log('[SlideShowContext.tsx][6027] › Waiting for UserData readiness... fileMatch:',
-                docFileID === sessionLaunchState.targetFileId,
-                'userDataFileMatch:',
-                currentDocId === sessionLaunchState.targetFileId,
-                'loading:',
-                userDataLoading,
-                'hasData:',
-                !!userRevisionData
-              );
-            }
+            } 
             break;
           }
           case 'READY_TO_LAUNCH': {
-            console.log('[SlideShowContext.tsx][6028] › All dependencies ready, launching session');
+            // console.log('[SlideShowContext.tsx][6028] › All dependencies ready, launching session');
             setSessionLaunchState({ type: 'LAUNCHING', request: sessionLaunchState.request });
 
             const { request } = sessionLaunchState;
             let generatedSlides: ResourceCard[] = [];
 
             if (request.sessionData.type === 'block') {
-              console.log('[SlideShowContext.tsx][6029] › Generating block session with', request.sessionData.targetLessonUnits.length, 'units');
+              // console.log('[SlideShowContext.tsx][6029] › Generating block session with', request.sessionData.targetLessonUnits.length, 'units');
               if (!request.sessionData.targetLessonUnits || request.sessionData.targetLessonUnits.length === 0) {
                 throw new Error('No lesson units provided for block session');
               }
               generatedSlides = generateBlockSession(request.sessionData.targetLessonUnits);
-              console.log('[SlideShowContext.tsx][6030] › Generated', generatedSlides.length, 'block session slides');
+              // console.log('[SlideShowContext.tsx][6030] › Generated', generatedSlides.length, 'block session slides');
             }
             else if (request.sessionData.type === 'revision-block'){
                 
-              console.log('[SlideShowContext.tsx][6029] › Generating block session with', request.sessionData.targetLessonUnits.length, 'units');
+              // console.log('[SlideShowContext.tsx][6029] › Generating block session with', request.sessionData.targetLessonUnits.length, 'units');
               if (!request.sessionData.targetLessonUnits || request.sessionData.targetLessonUnits.length === 0) {
                 throw new Error('No lesson units provided for block session');
               }
               const revision = generateBlockSession(request.sessionData.targetLessonUnits);
               generatedSlides = revision.filter(card => card.type !== 'note');
-              console.log('[SlideShowContext.tsx][6030] › Generated', generatedSlides.length, 'block session slides');
+              // console.log('[SlideShowContext.tsx][6030] › Generated', generatedSlides.length, 'block session slides');
             
             }
             else {
-              console.log('[SlideShowContext.tsx][6031] › Generating revision session');
+              // console.log('[SlideShowContext.tsx][6031] › Generating revision session');
               const revision = generateRevision();
               if (revision) {
                 generatedSlides = [...revision.flashCards, ...revision.quizzes];
-                console.log('[SlideShowContext.tsx][6032] › Generated', generatedSlides.length, 'revision slides');
+                // console.log('[SlideShowContext.tsx][6032] › Generated', generatedSlides.length, 'revision slides');
               } else {
                 throw new Error('Failed to generate revision content - generateRevision returned null');
               }
@@ -511,14 +501,14 @@ const gotoPrev = useCallback(() => {                                            
             }
 
             openCustom(generatedSlides, undefined ,false);
-            console.log('[SlideShowContext.tsx][6033] › Session launched successfully with', generatedSlides.length, 'slides');
+            // console.log('[SlideShowContext.tsx][6033] › Session launched successfully with', generatedSlides.length, 'slides');
             setSessionLaunchState({ type: 'IDLE' });
             break;
           }
           case 'ERROR': {
             console.error('[SlideShowContext.tsx][6034] › Session launch error:', sessionLaunchState.error);
             setTimeout(() => {
-              console.log('[SlideShowContext.tsx][6035] › Resetting state machine after error');
+              // console.log('[SlideShowContext.tsx][6035] › Resetting state machine after error');
               setSessionLaunchState({ type: 'IDLE' });
             }, 5000);
             break;
@@ -562,7 +552,7 @@ const gotoPrev = useCallback(() => {                                            
 const close = useCallback(() => {                                               // update - 6
   // 1) Persist current slide on exit
   persistLastSlide(currentSlide);                                               // update - 6
-  console.log('[SlideShowContext.tsx][7018] › Closing slideshow and clearing overrides');
+  // console.log('[SlideShowContext.tsx][7018] › Closing slideshow and clearing overrides');
   // 2) Close
   setIsOpen(false);
   // 3) Clear override

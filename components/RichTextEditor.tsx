@@ -39,6 +39,22 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 
+// ✨ update - 2: add a stable per-editor key so multiple editors don’t collide
+// Purpose: if you ever render >1 RichTextEditor at once, each one will have its own upload lane.
+import { useRef } from 'react';
+import { supersedingCall } from '@/app/src/net/SupersedingCaller';
+
+function useStableEditorKey(prefix = 'asset:upload'): string {
+  const keyRef = useRef<string | null>(null);
+  if (!keyRef.current) {
+    // Simple, fast uniqueness. If you prefer UUID, swap it in — we just need per-instance uniqueness.
+    keyRef.current = `${prefix}:${Math.random().toString(36).slice(2, 10)}`;
+  }
+  return keyRef.current;
+}
+
+
+
 interface RichTextEditorProps {
   /** Initial HTML content to load into the editor */
   content: string;
@@ -58,53 +74,72 @@ interface RichTextEditorProps {
  */
 const handleImageUpload = (editor: any) => {
   console.log('[RichTextEditor.tsx][2001] Image upload button clicked');
-  
-  // 1. Create hidden file input element
+
+  // (2) get a stable key for *this* editor instance
+  const key = (window as any).__rtuKey ??= `asset:upload:singleton`;
+  // NOTE: if you render multiple editors simultaneously, replace the line above with:
+  //   const key = useStableEditorKey();  // ← see update - 2 helper
+  // and hoist `handleImageUpload` inside the component so hooks are valid.
+
+  // 1) Create a hidden input to choose an image
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*';
   input.multiple = false;
-  
-  // 2. Handle file selection
+
   input.onchange = async (event) => {
     const file = (event.target as HTMLInputElement)?.files?.[0];
     if (!file) {
       console.log('[RichTextEditor.tsx][2002] No file selected');
       return;
     }
-    
     console.log('[RichTextEditor.tsx][2003] Processing selected file:', file.name);
-    
-    try {
-      // 3. Upload file to server
+
+    // 3) Define how to actually execute the request (used for first send AND any retry)
+    const makeRequest = async (signal: AbortSignal, payload: any): Promise<Response> => {
+      // Rebuild FormData fresh each attempt so it’s valid for re-send
       const formData = new FormData();
-      formData.append('image', file);
-      
-      const response = await fetch('/api/asset', {
+      formData.append('image', payload.file as File);
+
+      return fetch('/api/asset', {
         method: 'POST',
         body: formData,
         credentials: 'include',
+        signal,
       });
-      
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status}`);
+    };
+
+    try {
+      // 4) Call via superseding lane — handles 429 Retry-After, in-flight aborts, and stale flush
+      const resp = await supersedingCall(key, { file }, makeRequest);
+
+      // If we got superseded (null) or request failed, bail quietly.
+      if (!resp) {
+        console.log('[RichTextEditor.tsx][2003a] Upload superseded or deferred.');
+        return;
       }
-      
-      // 4. Get server URL and insert image
-      const { url: serverUrl } = await response.json();
+      if (!resp.ok) {
+        // If it was a 429 we’ve already scheduled a retry; other errors surface here.
+        console.warn('[RichTextEditor.tsx][2003b] Upload response not OK:', resp.status);
+        if (resp.status === 429) return; // scheduled by SupersedingCaller
+        throw new Error(`Upload failed: ${resp.status}`);
+      }
+
+      // 5) Insert the (latest) uploaded image URL
+      const { url: serverUrl } = await resp.json();
       console.log('[RichTextEditor.tsx][2004] Upload successful, inserting image:', serverUrl);
-      
-      editor.chain().focus().setImage({ 
-        src: serverUrl, 
-        alt: file.name 
-      }).run();
-      
-    } catch (error) {
-      console.error('[RichTextEditor.tsx][2005] Image upload failed:', error);
+
+      editor
+        ?.chain()
+        .focus()
+        .setImage({ src: serverUrl, alt: file.name })
+        .run();
+    } catch (err) {
+      console.error('[RichTextEditor.tsx][2005] Image upload failed:', err);
     }
   };
-  
-  // 5. Trigger file picker
+
+  // 1) Trigger the file picker
   input.click();
 };
 

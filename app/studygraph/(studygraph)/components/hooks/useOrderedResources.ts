@@ -1,5 +1,4 @@
 // src/app/studygraph/(studygraph)/components/hooks/useOrderedResources.ts
-
 import { useMemo } from 'react';
 import { useResourceSync } from '@/app/studygraph/(studygraph)/components/hooks/useResourceSync';
 import { usePreorderTraversal } from './usePreorderTraversal';
@@ -9,9 +8,15 @@ import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import type { ResourceCard } from '@/app/Library/Definitions/Definitions';
 
 /**
- * Returns a merged, ordered list of resources:
- *  1. Search‐history cards (whose node is not selected).
- *  2. All resources for selected nodes in preorder, excluding dismissed cards.
+ * @file useOrderedResources.ts
+ * @description
+ *   Returns a merged, ordered list of resources:
+ *     1) Search-history cards (whose node is not currently selected),
+ *        filtered to EXCLUDE dismissed items.
+ *     2) All resources for selected nodes in preorder, excluding dismissed cards.
+ *
+ *   This change ensures that dismissing a searched (history) card actually removes it
+ *   from the Notes list immediately and keeps it out if the user reopens Notes.
  */
 export function useOrderedResources(): ResourceCard[] {
   const { selectedNodeIds, notes, cueCards, practiceSheets } = useResourceSync();
@@ -24,13 +29,13 @@ export function useOrderedResources(): ResourceCard[] {
   return useMemo(() => {
     const currentNodes = getSelectedNodeIds();
 
-    // 1️⃣ History cards, skipping ones from any *currently* selected node
+    // 1️⃣ History cards (from search) — exclude (a) missing cards,
+    // (b) cards from currently selected nodes, and (c) dismissed cards.
     const historyCards = selectedResultIds
       .map(id => getResourceCard(id))
-      .filter(
-        (c): c is ResourceCard =>
-          Boolean(c) && !currentNodes.includes(c!.nodeId)
-      );
+      .filter((c): c is ResourceCard => Boolean(c))
+      .filter(c => !currentNodes.includes(c.nodeId))
+      .filter(c => !isResourceDismissed(c.nodeId, c.id));
 
     // 2️⃣ Group existing resources by node
     const group = <T extends ResourceCard>(arr: T[]) =>
@@ -51,18 +56,25 @@ export function useOrderedResources(): ResourceCard[] {
         [...(byNote[nodeId] || []),
          ...(byCue[nodeId] || []),
          ...(byQuiz[nodeId] || [])]
-        .forEach(r => {
-          if (!isResourceDismissed(r.nodeId, r.id)) {
-            base.push(r);
-          }
-        });
+          .forEach(r => {
+            if (!isResourceDismissed(r.nodeId, r.id)) {
+              base.push(r);
+            }
+          });
       });
 
     // 4️⃣ Merge: history first (dedupe), then base
     const seen = new Set(historyCards.map(r => r.id));
-    return [
-      ...historyCards,
-      ...base.filter(r => !seen.has(r.id)),
-    ];
-  }, [selectedResultIds, notes, cueCards, practiceSheets, preorder, selectedNodeIds, getResourceCard, getSelectedNodeIds, isResourceDismissed]);
+    return [...historyCards, ...base.filter(r => !seen.has(r.id))];
+  }, [
+    selectedResultIds,
+    notes,
+    cueCards,
+    practiceSheets,
+    preorder,
+    selectedNodeIds,
+    getResourceCard,
+    getSelectedNodeIds,
+    isResourceDismissed,
+  ]);
 }

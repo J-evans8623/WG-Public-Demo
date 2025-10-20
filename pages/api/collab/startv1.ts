@@ -28,6 +28,7 @@ import path from 'path';
 import jwt from 'jsonwebtoken';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import { resolveRole,  } from '@/app/src/services/firebase';
+import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
 /**
  * @function handler
@@ -38,7 +39,7 @@ import { resolveRole,  } from '@/app/src/services/firebase';
  *   rights including public sharing flags, and generates role-appropriate tokens that
  *   enable real-time collaborative editing through the WebSocket infrastructure.
  */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   console.log('pages/api/collab/startv1.ts [6001] › Request received', { method: req.method, url: req.url });
 
   // Step 1: Validate HTTP method
@@ -156,3 +157,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
+export default withRateLimitNP('np:collabConnect')(handler);

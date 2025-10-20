@@ -25,6 +25,7 @@ import type { Visibility } from '../../Definitions/Definitions';
 // Shared types imported from original sources (type-only to avoid runtime cycles).
 import type { AccessEnvelope } from '@/app/studygraph/(studygraph)/types/access';
 import type { ChatMessage } from '../ChatHistoryContext';
+export { opCreateLocal, opBootstrapNewDoc } from './pureOps.createFast';
 
 // Local op contracts
 import type {
@@ -35,6 +36,7 @@ import type {
   OpCreateParams,
   OpCreateOutput,
 } from './pureOps.types';
+import { supersedingCallAwait } from '@/app/src/net/SupersedingAwait';
 
 /* ------------------------------------------------------------------------------------------------
  * Internal utility (PURE): robust version read
@@ -181,22 +183,15 @@ export async function opLoadAuth(params: OpLoadAuthParams): Promise<OpLoadAuthOu
 }
 
 /* ------------------------------------------------------------------------------------------------
- * update - 3
+ * update - 4
  * @function opCreate
  * @purpose
- *   Create a new Y.Doc with default structures and metadata, upload bytes and an empty chat,
- *   and finalize via /api/document/save to obtain authoritative identifiers. Returns
- *   an **Owner** accessEnvelope and initial chat payload. PURE w.r.t. provider.
- *
- * @steps
- *   (1) Allocate a fresh Y.Doc and seed default metadata/structures.
- *   (2) Encode bytes and request initial upload tickets (doc + chat).
- *   (3) PUT doc bytes; PUT empty chat JSON; write doc bytes to local cache.
- *   (4) POST to /api/document/save to reconcile identifiers and metadata.
- *   (5) Build REQUIRED Owner accessEnvelope and typed output.
+ *   Create a new Y.Doc, upload bytes + empty chat, then finalize via /api/document/save. The
+ *   finalization call uses the new `supersedingCallAwait` so we align with NP rate limiting:
+ *   `429` is respected with a single scheduled retry, and the Promise resolves only on the next
+ *   successful server response. Complexity: O(N) for upload; O(1) for control logic.
  * ------------------------------------------------------------------------------------------------ */
 export async function opCreate(_: OpCreateParams): Promise<OpCreateOutput> {
-  // (1)
   const newDocId = uuidv4();
   const ydoc = new Y.Doc();
   const meta = ydoc.getMap<any>('metadata');
@@ -216,15 +211,12 @@ export async function opCreate(_: OpCreateParams): Promise<OpCreateOutput> {
       meta.set('persist', new Y.Map());
     }
 
-    // Minimal initial structures (matching your legacy shape)
     ydoc.getMap('resources').clear();
     ydoc.getMap('subtrees').clear();
 
-    // posts (empty map)
     const postsMap = ydoc.getMap<Y.Map<any>>('posts');
     postsMap.clear();
 
-    // lesson module + default concept map
     const lessonModule = ydoc.getMap('lessonModule');
     lessonModule.clear();
     lessonModule.set('title', 'Default Lesson Module');
@@ -252,21 +244,18 @@ export async function opCreate(_: OpCreateParams): Promise<OpCreateOutput> {
       depth: 0,
     });
 
-    // sentinel subtree
     ydoc.getMap('subtrees').set('sentinel-node', {
       minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0, position: { x: 0, y: 0 }
     });
   }, { type: 'system', action: 'reset' });
 
-  // (2)
   const bytes = Y.encodeStateAsUpdate(ydoc);
   const fileSize = bytes.byteLength;
   const colorCode = getRandomColor();
 
   const { doc, chat, access: uploadAccess } = await initialUpload(newDocId);
-  console.log('[pureOps] opCreate: initialUpload ready', { newDocId, fileSize });
+  console.log('[pureOps.ts][5203] opCreate › initialUpload', { newDocId, fileSize });
 
-  // (3) PUT doc
   const putDoc = await fetch(doc.uploadUrl, {
     method: 'PUT',
     body: new Uint8Array(bytes),
@@ -277,7 +266,6 @@ export async function opCreate(_: OpCreateParams): Promise<OpCreateOutput> {
   }
   await saveDocBytes(newDocId, bytes);
 
-  // (3) PUT chat (empty)
   const putChat = await fetch(chat.uploadUrl, {
     method: 'PUT',
     body: JSON.stringify([]),
@@ -287,31 +275,38 @@ export async function opCreate(_: OpCreateParams): Promise<OpCreateOutput> {
     throw new Error(`opCreate: chat upload failed: ${putChat.status} ${putChat.statusText}`);
   }
 
-  // (4) save.ts
-  const saveResp = await fetch('/api/document/save', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({
-      fileName: defaultFileName,
-      docFileID: newDocId,
-      fileStoragePath: doc.fileStoragePath,
-      chatPath: chat.fileStoragePath,
-      fileSize,
-      colorCode,
-      version: defaultVersion,
-    }),
-  });
-  if (!saveResp.ok) {
-    throw new Error(`opCreate: metadata sync failed: ${saveResp.status} ${saveResp.statusText}`);
+  // update - 5: use awaitable superseder for /api/document/save
+  const key = `docSave:${newDocId}`;
+  const payload = {
+    fileName: defaultFileName,
+    docFileID: newDocId,
+    fileStoragePath: doc.fileStoragePath,
+    chatPath: chat.fileStoragePath,
+    fileSize,
+    colorCode,
+    version: defaultVersion,
+  };
+
+  const resp = await supersedingCallAwait(key, payload, (signal, body) =>
+    fetch('/api/document/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      signal,
+      body: JSON.stringify(body),
+    })
+  );
+
+  if (!resp.ok) {
+    throw new Error(`opCreate: metadata sync failed: ${resp.status} ${resp.statusText}`);
   }
-  const saveSeed = await saveResp.json();
+
+  const saveSeed = await resp.json();
   const seedStorageGen: string | null = saveSeed?.storageGeneration ?? null;
   const seedVersionNum: number = typeof saveSeed?.versionNumber === 'number'
     ? saveSeed.versionNumber
     : defaultVersion;
 
-  // (5) REQUIRED Owner envelope
   const accessEnvelope: AccessEnvelope = uploadAccess ?? {
     docId: newDocId,
     role: 'Owner',
@@ -327,7 +322,7 @@ export async function opCreate(_: OpCreateParams): Promise<OpCreateOutput> {
     ydoc,
     bytes,
     identifiers: { storageGeneration: seedStorageGen, versionNumber: seedVersionNum },
-    accessEnvelope, 
+    accessEnvelope,
     chat: [],
     chatFresh: true,
   };

@@ -54,7 +54,8 @@ import { saveDocBytes, loadDocBytes } from '@/app/studygraph/(studygraph)/servic
 import { useApiContext } from '@/app/src/context/ApiContext';
 
 // Pure ops: perform I/O + computation only; driver commits outputs.
-import { opHydrateFromBytes, opLoadAuth, opCreate } from './ops/pureOps';
+import { opHydrateFromBytes, opLoadAuth, opCreateLocal, opBootstrapNewDoc } from './ops/pureOps';
+import { supersedingCall } from '@/app/src/net/SupersedingCaller';
 
 
 interface ChatMessage {
@@ -80,7 +81,8 @@ type BootState =
   | { type: 'READY_FOR_SELECT'; docId: string } // pass B entry for select
   // update - 122
   | { type: 'CACHE_CHECK'; docId: string } // new explicit cache pass for fast-paint on select
-  | { type: 'CREATING' }
+  | { type: 'CREATING_LOCAL' }           // NEW: local-only materialization
+  | { type: 'BOOTSTRAP_NEW'; docId: string }
   | { type: 'LOADING_AUTH'; docId: string }
   
   | { type: 'ACTIVE'; docId: string }
@@ -212,6 +214,14 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   const [saveReady, setSaveReady] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+ * 
+ * @ref createLocalRef
+ * @purpose
+ *   Stash local create outputs (docId + bytes) between CREATING_LOCAL → BOOTSTRAP_NEW.
+ */
+const createLocalRef = useRef<{ docId: string; bytes: Uint8Array } | null>(null);
+
   const access = useAccessLayer();
   const chatReadyListenersRef = useRef<Set<ChatReadyListener>>(new Set());
 
@@ -241,7 +251,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   const selectDoc = useCallback((docId: string) => {
     lastIntentRef.current = { kind: 'select', docId };
     setMachine({ type: 'REQUEST_SELECT', docId });
-    console.log('YDocContextv2.tsx 4001 › [update - 110] request select', { docId });
+    // console.log('YDocContextv2.tsx 4001 › [update - 110] request select', { docId });
   }, []);
 
   // update - 111
@@ -255,7 +265,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   const createDocReq = useCallback(() => {
     lastIntentRef.current = { kind: 'create' };
     setMachine({ type: 'REQUEST_CREATE' });
-    console.log('YDocContextv2.tsx 4002 › [update - 111] request create');
+    // console.log('YDocContextv2.tsx 4002 › [update - 111] request create');
   }, []);
 
   // update - 112
@@ -266,9 +276,9 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
    *   cleanup (e.g., collab sockets) without mutating the live Y.Doc. Complexity O(1).
    */
   const teardownPreviousDoc = useCallback(async (prevId: string) => {
-    console.log('YDocContextv2.tsx 5001 › [update - 112] teardownPreviousDoc begin', { prevId });
+    // console.log('YDocContextv2.tsx 5001 › [update - 112] teardownPreviousDoc begin', { prevId });
     await Promise.resolve();
-    console.log('YDocContextv2.tsx 5002 › [update - 112] teardownPreviousDoc end', { prevId });
+    // console.log('YDocContextv2.tsx 5002 › [update - 112] teardownPreviousDoc end', { prevId });
   }, []);
 
   /**
@@ -282,7 +292,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
     if (!(persist instanceof Y.Map)) {
       persist = new Y.Map();
       meta.set('persist', persist);
-      console.log('YDocContextv2.tsx 3501 › [update-2] persist map created');
+      // console.log('YDocContextv2.tsx 3501 › [update-2] persist map created');
     }
     return persist;
   }, [ydoc]);
@@ -303,7 +313,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       storageGeneration: typeof sg === 'string' && sg.trim() ? sg : null,
       versionNumber: typeof vn === 'number' && Number.isFinite(vn) ? vn : null,
     };
-    console.log('YDocContextv2.tsx 3502 › readPersistFromDoc', out);
+    // console.log('YDocContextv2.tsx 3502 › readPersistFromDoc', out);
     return out;
   }, [getPersistMap]);
 
@@ -325,7 +335,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       p.set('updatedAt', Date.now());
       p.set('updatedBy', ids.updatedBy ?? ids.source);
     }, { type: 'system', action: 'persist-ids' });
-    console.log('YDocContextv2.tsx 3503 › writePersistToDoc', ids);
+    // console.log('YDocContextv2.tsx 3503 › writePersistToDoc', ids);
   }, [getPersistMap, ydoc]);
 
   /**
@@ -335,7 +345,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
    *   ensures single listener failure does not impact others.
    */
   const emitChatReady = useCallback((payload: ChatReadyPayload) => {
-    console.log('YDocContextv2.tsx 1110 › emitChatReady firing', { docId: payload.docId, count: payload.messages?.length ?? 0, fresh: payload.fresh });
+    // console.log('YDocContextv2.tsx 1110 › emitChatReady firing', { docId: payload.docId, count: payload.messages?.length ?? 0, fresh: payload.fresh });
     chatReadyListenersRef.current.forEach((cb) => {
       try {
         cb(payload);
@@ -352,7 +362,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
    */
   const addChatReadyListener = useCallback((cb: ChatReadyListener) => {
     chatReadyListenersRef.current.add(cb);
-    console.log('YDocContextv2.tsx 1112 › addChatReadyListener (pool size)', chatReadyListenersRef.current.size);
+    // console.log('YDocContextv2.tsx 1112 › addChatReadyListener (pool size)', chatReadyListenersRef.current.size);
   }, []);
 
   /**
@@ -362,7 +372,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
    */
   const removeChatReadyListener = useCallback((cb: ChatReadyListener) => {
     chatReadyListenersRef.current.delete(cb);
-    console.log('YDocContextv2.tsx 1113 › removeChatReadyListener (pool size)', chatReadyListenersRef.current.size);
+    // console.log('YDocContextv2.tsx 1113 › removeChatReadyListener (pool size)', chatReadyListenersRef.current.size);
   }, []);
 
   /**
@@ -389,13 +399,13 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   useEffect(() => {
     if (!snapshotYDoc) return;
 
-    console.log('YDocContextv2.tsx 7000 › Loaded snapshotYDoc — inspecting contents');
+    // console.log('YDocContextv2.tsx 7000 › Loaded snapshotYDoc — inspecting contents');
 
     // 1) Concept maps
     const lessonModule = snapshotYDoc.getMap('lessonModule');
     const cmArray = lessonModule.get('conceptMaps') as Y.Array<any> | undefined;
     const maps = cmArray ? cmArray.toArray() : [];
-    console.log('YDocContextv2.tsx 7001 › snapshot conceptMaps:', maps);
+    // console.log('YDocContextv2.tsx 7001 › snapshot conceptMaps:', maps);
 
     // 2) For each map, log nodes & resources
     maps.forEach((cm: any) => {
@@ -404,10 +414,10 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       const resourcesKey = `resources:${mapId}`;
 
       const nodesMap = snapshotYDoc.getMap<ConceptNode>(nodesKey);
-      console.log('YDocContextv2.tsx 7002 › snapshot nodes entries:', nodesKey, 'count=', nodesMap.size, Array.from(nodesMap.entries()));
+      // console.log('YDocContextv2.tsx 7002 › snapshot nodes entries:', nodesKey, 'count=', nodesMap.size, Array.from(nodesMap.entries()));
 
       const resMap = snapshotYDoc.getMap<any>(resourcesKey);
-      console.log('YDocContextv2.tsx 7003 › snapshot resources entries:', resourcesKey, 'count=', resMap.size, Array.from(resMap.entries()));
+      // console.log('YDocContextv2.tsx 7003 › snapshot resources entries:', resourcesKey, 'count=', resMap.size, Array.from(resMap.entries()));
     });
   }, [snapshotYDoc]);
 
@@ -454,10 +464,10 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       (meta.get('fileId') as string | undefined) ??
       null;
 
-    console.log('YDocContextv2.tsx 5401 › [update - 113] assertDocIdentityOrThrow', {
-      intendedDocId,
-      embeddedDocId
-    });
+    // console.log('YDocContextv2.tsx 5401 › [update - 113] assertDocIdentityOrThrow', {
+    //  intendedDocId,
+      //embeddedDocId
+    //});
 
     if (!embeddedDocId || embeddedDocId !== intendedDocId) {
       const err: any = new Error('DOC_ID_MISMATCH');
@@ -478,7 +488,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   const getVisibility = useCallback((): 'private' | 'public' => {
     const v = visibility;
     const out = v === 'public' ? 'public' : 'private';
-    console.log('YDocContextv2.tsx 6002 › getVisibility=', out);
+    // console.log('YDocContextv2.tsx 6002 › getVisibility=', out);
     return out;
   }, [visibility]);
 
@@ -574,13 +584,13 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
     const stateBytes = Y.encodeStateAsUpdate(newYDoc);
     const fileSize = stateBytes.byteLength;
 
-    console.log('[YDocContextv2.tsx][9703] requesting initialUpload URLs', { docId: newDocId, fileSize });
+    // console.log('[YDocContextv2.tsx][9703] requesting initialUpload URLs', { docId: newDocId, fileSize });
     const { doc, chat, access: accessEnv } = await initialUpload(newDocId);
 
     if (accessEnv) {
       // Reconcile with server-provided envelope (source: 'upload')
       access.applySignal(accessEnv);
-      console.log('[YDocContextv2.tsx][9704] applied access envelope from initialUpload', accessEnv);
+      // console.log('[YDocContextv2.tsx][9704] applied access envelope from initialUpload', accessEnv);
     }
 
     // ── [3] PUT document & initialized chat to Storage ──────────────────────────────
@@ -595,7 +605,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       throw new Error(`Doc upload failed: ${putDoc.status} ${putDoc.statusText}`);
     }
     await saveDocBytes(newDocId, stateBytes)    
-    console.log('[YDocContextv2.tsx][9705] doc PUT complete', { path: doc.fileStoragePath });
+    // console.log('[YDocContextv2.tsx][9705] doc PUT complete', { path: doc.fileStoragePath });
 
     // 3b) initialized chat (empty array for new docs)
     const putChat = await fetch(chat.uploadUrl, {
@@ -607,7 +617,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       console.error('[YDocContextv2.tsx][9792] chat PUT failed', { status: putChat.status, statusText: putChat.statusText });
       throw new Error(`Chat upload failed: ${putChat.status} ${putChat.statusText}`);
     }
-    console.log('[YDocContextv2.tsx][9706] chat PUT complete', { path: chat.fileStoragePath });
+    // console.log('[YDocContextv2.tsx][9706] chat PUT complete', { path: chat.fileStoragePath });
 
     // ── [4] Sync Firestore metadata via /api/document/save ──────────────────────────
     const saveResp = await fetch('/api/document/save', {
@@ -628,7 +638,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       console.error('[YDocContextv2.tsx][9793] metadata sync failed', { status: saveResp.status, statusText: saveResp.statusText });
       throw new Error(`Metadata sync failed: ${saveResp.status} ${saveResp.statusText}`);
     }
-    console.log('[YDocContextv2.tsx][9707] metadata sync complete via save.ts', { docId: newDocId });
+    // console.log('[YDocContextv2.tsx][9707] metadata sync complete via save.ts', { docId: newDocId });
 
     // Seed identifiers from save.ts so we avoid any extra identifiers call.
       const saveSeed = await saveResp.json(); 
@@ -637,15 +647,15 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
       writePersistToDoc({ storageGeneration: seedStorageGen, versionNumber: seedVersionNum, updatedBy: 'initial', source: 'initial' }); 
       lastKnownStorageGenerationRef.current = seedStorageGen; 
       lastKnownVersionNumberRef.current = seedVersionNum; 
-      console.log('YDocContextv2.tsx 3524 › [update - 2] seeded persist identifiers from save.ts', { sg: seedStorageGen, vn: seedVersionNum }); 
+      // console.log('YDocContextv2.tsx 3524 › [update - 2] seeded persist identifiers from save.ts', { sg: seedStorageGen, vn: seedVersionNum }); 
 
       setIsInitialized(true);
       toast.success('New document created');
       access.selectDoc(newDocId, { assumeOwner: true });
-     console.log('[YDocContextv2.tsx][9601] selectDoc (assumeOwner) seeded', { docId: newDocId });
+     // console.log('[YDocContextv2.tsx][9601] selectDoc (assumeOwner) seeded', { docId: newDocId });
       
     emitChatReady({ docId: newDocId, messages: [], fresh: true });
-    console.log('YDocContextv2.tsx 1114 › CHAT_READY emitted for new doc', { docId: newDocId });
+    // console.log('YDocContextv2.tsx 1114 › CHAT_READY emitted for new doc', { docId: newDocId });
 
     lastKnownStorageGenerationRef.current = null;
     lastKnownVersionNumberRef.current = version;
@@ -674,7 +684,7 @@ const loadData = useCallback(async (
   docState: Uint8Array
 ): Promise<void> => {
   try {
-    console.log('Starting loadData operation...');
+    // console.log('Starting loadData operation...');
     setIsInitialized(false);
 
     // Fresh Y.Doc each load to avoid carrying over metadata from previous file.
@@ -727,11 +737,11 @@ const loadData = useCallback(async (
     setFileName(finalFileName);
     setDocFileID(canonicalDocId);
 
-    console.log('loadData › finalized identity', {
+    /** console.log('loadData › finalized identity', {
       visibility: visibilityVal,
       fileName: finalFileName,
       docFileID: canonicalDocId
-    });
+    }); **/
 
     // 3) Reset/seed persistence identifiers to avoid cross-file reuse.
     try {
@@ -754,7 +764,7 @@ const loadData = useCallback(async (
       if (lastKnownStorageGenerationRef) lastKnownStorageGenerationRef.current = null;
       if (lastKnownVersionNumberRef)     lastKnownVersionNumberRef.current = null;
 
-      console.log('loadData › persist identifiers cleared');
+      // console.log('loadData › persist identifiers cleared');
     } catch (e) {
       console.warn('loadData › could not reset persist identifiers (non-fatal)', e);
     }
@@ -762,13 +772,13 @@ const loadData = useCallback(async (
     // 4) Initialize local React "version" from Y.Doc metadata (authoritative).
     const loadedVersion = readVersionFromMetadata(newYDoc);
     setVersion(loadedVersion);
-    console.log(`Initialized local version state from Y.Doc metadata: ${loadedVersion}`);
+    // console.log(`Initialized local version state from Y.Doc metadata: ${loadedVersion}`);
 
     // 5) Commit document into provider and mark initialized.
     setYDoc(newYDoc);
     setSnapshotYDoc(null);
     setIsInitialized(true);
-    console.log('loadData completed successfully');
+    // console.log('loadData completed successfully');
   } catch (error) {
     console.error('Error in loadData:', error);
     toast.error('Failed to load document data');
@@ -790,11 +800,11 @@ const loadData = useCallback(async (
       const resolved =
         typeof fromDoc === 'string' && fromDoc.trim().length > 0 ? fromDoc : fileName;
 
-      console.log('YDocContextv2.tsx 7401 › getFileName resolved', {
+      /**  console.log('YDocContextv2.tsx 7401 › getFileName resolved', {
         fromDoc,
         fallback: fileName,
         result: resolved,
-      });
+      });*/
 
       return resolved;
     } catch (err) {
@@ -851,9 +861,9 @@ const loadData = useCallback(async (
       try {
         assertDocIdentityOrThrow(docFileID);
         lessonUnitsMeta = createLessonUnitsMeta(ydoc);
-        console.log('YDocContextv2.tsx 9801 › lessonUnitsMeta prepared', {
+         /** // console.log('YDocContextv2.tsx 9801 › lessonUnitsMeta prepared', {
           units: lessonUnitsMeta?.totalUnits ?? 0,
-        });
+        }); **/
       } catch (err) {
         console.warn('YDocContextv2.tsx 9802 › lessonUnitsMeta generation failed (non-fatal)', err);
       }
@@ -875,12 +885,7 @@ const loadData = useCallback(async (
         const docTicket = await getUploadUrl(docFileID, 'doc', pre);
         docUrl = docTicket.uploadUrl;
         docPath = docTicket.fileStoragePath;
-        console.log('YDocContextv2.tsx 9803 › doc upload-url OK (preconditions accepted)', {
-          docId: docFileID,
-          expectSG,
-          expectVN,
-          path: docPath,
-        });
+        
       } catch (e: any) {
         if (e?.code === 409 && e?.body?.conflict) {
           const c = e.body.conflict as { path: string; storageGeneration: string | null; versionNumber: number | null; };
@@ -892,10 +897,7 @@ const loadData = useCallback(async (
           const docTicket = await getUploadUrl(docFileID, 'doc', retryPre);
           docUrl = docTicket.uploadUrl;
           docPath = docTicket.fileStoragePath;
-          console.log('YDocContextv2.tsx 9805 › doc upload-url OK on retry (pure)', {           // update - 117
-            docId: docFileID,
-            path: docPath,
-          });
+
         } else {
           console.error('YDocContextv2.tsx 9890 › upload-url error (doc)', e);
           throw e;
@@ -917,7 +919,7 @@ const loadData = useCallback(async (
       }
       // optional local cache write is OK (no Provider mutation)
       await saveDocBytes(docFileID, bytes);                                      // update - 117
-      console.log('YDocContextv2.tsx 9806 › doc PUT complete (pure)', { path: docPath }); // update - 117
+      // console.log('YDocContextv2.tsx 9806 › doc PUT complete (pure)', { path: docPath }); // update - 117
 
       // 5) Optional chat upload (pure I/O)
       let chatPath: string | undefined;
@@ -936,10 +938,11 @@ const loadData = useCallback(async (
           throw new Error(`Chat upload failed: ${putChat.status} ${putChat.statusText}`);
         }
         chatPath = chatTicket.fileStoragePath;
-        console.log('YDocContextv2.tsx 9807 › chat PUT complete (pure)', { path: chatPath }); // update - 117
+        // console.log('YDocContextv2.tsx 9807 › chat PUT complete (pure)', { path: chatPath }); // update - 117
       }
 
       // 6) Sync metadata (authoritative) — still pure (no Provider mutation)
+      
       const savePayload: any = {
         fileName,
         docFileID,
@@ -950,12 +953,31 @@ const loadData = useCallback(async (
       };
       if (lessonUnitsMeta) savePayload.lessonUnitsMeta = lessonUnitsMeta;
 
-      const resp = await fetch('/api/document/save', {
+
+      const key = `docSave:${docFileID}`;                                        // update - 118
+    const makeRequest = (signal: AbortSignal, payload: unknown) =>             // update - 118
+      fetch('/api/document/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(savePayload),
+        signal,
+        body: JSON.stringify(payload),
       });
+
+      const resp = await supersedingCall(key, savePayload, makeRequest);
+      if (!resp) {
+      // We’re inside a Retry-After window; a single timer is scheduled. Return a safe, optimistic result.
+                                                                       // update - 118
+      return {
+        persistIds: {
+          storageGeneration: null,          // will be reconciled by the scheduled retry
+          versionNumber: currentVersion,    // optimistic: we just uploaded these bytes
+        },
+        accessEnvelope: null,
+        fileStoragePath: docPath!,
+      };
+    }
+    
       if (!resp.ok) {
         console.error('YDocContextv2.tsx 9893 › save.ts rejected (pure)', {
           status: resp.status,
@@ -973,7 +995,7 @@ const loadData = useCallback(async (
           ? saveResult.versionNumber
           : currentVersion;
 
-      console.log('YDocContextv2.tsx 9810 › pure save result ready', { sg, vn, path: docPath }); // update - 117
+      // console.log('YDocContextv2.tsx 9810 › pure save result ready', { sg, vn, path: docPath }); // update - 117
 
       const accessEnvelope = saveResult?.access ?? null;
 
@@ -998,18 +1020,14 @@ const loadData = useCallback(async (
    */
   const loadFromFirebase = useCallback(
     async (fileStorageId: string): Promise<void> => {
-      console.log('YDocContextv2.tsx 9901 › loadFromFirebase start', { fileStorageId });
+      // console.log('YDocContextv2.tsx 9901 › loadFromFirebase start', { fileStorageId });
 
       const idFromPath =
         fileStorageId.match(/^documents\/(.+)\.bloomdocx$/)?.[1] ?? fileStorageId;
 
       const { downloadUrl: dUrl, access: accessData, storageGeneration, versionNumber } =
         await getDownloadUrl(idFromPath, 'doc');
-      console.log('YDocContextv2.tsx 9902 › download-url ready', {
-        docId: idFromPath,
-        sg: storageGeneration,
-        vn: versionNumber,
-      });
+
 
     
         access.setRole(accessData.docId, accessData.role)
@@ -1023,10 +1041,7 @@ const loadData = useCallback(async (
       });
       lastKnownStorageGenerationRef.current = storageGeneration ?? null;
       lastKnownVersionNumberRef.current = typeof versionNumber === 'number' ? versionNumber : null;
-      console.log('YDocContextv2.tsx 9903 › identifiers seeded (pre-load)', {
-        sg: lastKnownStorageGenerationRef.current,
-        vn: lastKnownVersionNumberRef.current,
-      });
+
 
       try {
         const response = await fetch(dUrl);
@@ -1038,7 +1053,7 @@ const loadData = useCallback(async (
         await saveDocBytes(idFromPath, bytes);
         await loadData(fileName, idFromPath, new Uint8Array(buffer));
         //manager.confirmDocumentReady(idFromPath);
-        console.log('YDocContextv2.tsx 9904 › Y.Doc hydrated from download');
+        // console.log('YDocContextv2.tsx 9904 › Y.Doc hydrated from download');
 
         // Try to fetch chat; 404 means “fresh”
         const { downloadUrl: cUrl } = await getDownloadUrl(idFromPath, 'chat');
@@ -1054,11 +1069,7 @@ const loadData = useCallback(async (
         }
 
         emitChatReady({ docId: idFromPath, messages: Array.isArray(chatData) ? chatData : [], fresh });
-        console.log('YDocContextv2.tsx 9905 › CHAT_READY emitted', {
-          docId: idFromPath,
-          count: chatData.length,
-          fresh,
-        });
+
         return;
       } catch (error) {
         console.error('YDocContextv2.tsx 9999 › loadFromFirebase error', error);
@@ -1080,9 +1091,9 @@ const loadData = useCallback(async (
         console.error('YDocContextv2.tsx 6007 › No docFileID for snapshot');
         throw new Error('Cannot snapshot: missing docFileID');
       }
-      console.log('YDocContextv2.tsx 6007 › Initiating takeMapSnapshot for', mapId);
+      // console.log('YDocContextv2.tsx 6007 › Initiating takeMapSnapshot for', mapId);
       const snapshotId = await _takeMapSnapshot(ydoc, docFileID, mapId);
-      console.log('YDocContextv2.tsx 6007 › takeMapSnapshot completed snapshotId=', snapshotId);
+      // console.log('YDocContextv2.tsx 6007 › takeMapSnapshot completed snapshotId=', snapshotId);
       return snapshotId;
     },
     [ydoc, docFileID]
@@ -1193,11 +1204,11 @@ const commitPersistIds = useCallback((
             if (docFileID) {
               setBootPhase('CLOSING');
               setMachine({ type: 'CLOSING', prevId: docFileID });
-              console.log('YDocContextv2.tsx 8003 › REQUEST_CREATE (has active) → CLOSING');
+              // console.log('YDocContextv2.tsx 8003 › REQUEST_CREATE (has active) → CLOSING');
             } else {
               setBootPhase('IDLE'); // pass A end
               setMachine({ type: 'READY_FOR_CREATE' }); // pass B entry
-              console.log('YDocContextv2.tsx 8004 › REQUEST_CREATE (idle) → READY_FOR_CREATE');
+              // console.log('YDocContextv2.tsx 8004 › REQUEST_CREATE (idle) → READY_FOR_CREATE');
             }
             return;
           }
@@ -1206,11 +1217,11 @@ const commitPersistIds = useCallback((
             if (docFileID) {
               setBootPhase('CLOSING');
               setMachine({ type: 'CLOSING', prevId: docFileID });
-              console.log('YDocContextv2.tsx 8005 › REQUEST_SELECT (has active) → CLOSING');
+              // console.log('YDocContextv2.tsx 8005 › REQUEST_SELECT (has active) → CLOSING');
             } else {
               setBootPhase('IDLE'); // pass A end
               setMachine({ type: 'READY_FOR_SELECT', docId: machine.docId }); // pass B entry
-              console.log('YDocContextv2.tsx 8006 › REQUEST_SELECT (idle) → READY_FOR_SELECT', { docId: machine.docId });
+              // console.log('YDocContextv2.tsx 8006 › REQUEST_SELECT (idle) → READY_FOR_SELECT', { docId: machine.docId });
             }
             return;
           }
@@ -1223,7 +1234,7 @@ const commitPersistIds = useCallback((
             setSaveReady(false);
             access.clearDoc();
             setBootPhase('IDLE');
-            console.log('YDocContextv2.tsx 8007 › CLOSING → IDLE', { prevId: machine.prevId });
+            // console.log('YDocContextv2.tsx 8007 › CLOSING → IDLE', { prevId: machine.prevId });
 
             const intent = lastIntentRef.current;
             if (intent?.kind === 'create') setMachine({ type: 'READY_FOR_CREATE' });
@@ -1237,50 +1248,77 @@ const commitPersistIds = useCallback((
 
           case 'READY_FOR_CREATE': {
             setBootPhase('SELECTING');
-            setMachine({ type: 'CREATING' });
-            console.log('YDocContextv2.tsx 8008 › READY_FOR_CREATE → CREATING');
+            setMachine({ type: 'CREATING_LOCAL' });
+            // console.log('YDocContextv2.tsx 8008 › READY_FOR_CREATE → CREATING');
             return;
           }
 
-          case 'CREATING': {
-            //const { docId: newDocId, ydoc: ynew } = await createNewDocument();
-            const created = await opCreate({});
-            if (isStale()) return;
+          case 'CREATING_LOCAL': {
+  const local = opCreateLocal();
 
-            // 2) Commit hydrated doc & metadata directly from created.ydoc as ground truth
-             commitHydratedDoc({
-             ydoc: created.ydoc,
-             fileName: 'Untitled Document',
-             docId: created.docId,
-             visibility: 'private',
-             version: 1,
-            });
+  // (1) Commit local doc for instant paint
+  commitHydratedDoc({
+    ydoc: local.ydoc,
+    fileName: local.fileName,
+    docId: local.docId,
+    visibility: local.visibility,
+    version: local.version,
+  });
 
-            // 3) Commit identifiers, access, chat
-            commitPersistIds({
-            storageGeneration: created.identifiers.storageGeneration,
-            versionNumber: created.identifiers.versionNumber,
-            }, 'initial');
+  // (2) UI gates: paint now, save later
+  setRenderReady(true);
+  setSaveReady(false);
+  setBootPhase('SELECTING');
+  setTriggerViewSwitch(true);
 
-             access.applySignal(created.accessEnvelope);     // Owner role required
-             access.selectDoc(created.docId, { assumeOwner: true });
-             emitChatReady({ docId: created.docId, messages: created.chat, fresh: created.chatFresh });
+  // (3) Handoff & transition
+  createLocalRef.current = { docId: local.docId, bytes: local.bytes };
+  setMachine({ type: 'BOOTSTRAP_NEW', docId: local.docId });
+  // console.log('YDocContextv2.tsx › [update - 136] CREATING_LOCAL → BOOTSTRAP_NEW', { docId: local.docId });
+  return;
+} 
 
-         // 4) UI gates & machine
-          setRenderReady(true);
-          setSaveReady(true);
-          setBootPhase('ACTIVE');
-          setMachine({ type: 'ACTIVE', docId: created.docId });
-          setTriggerViewSwitch(true);
-          console.log('YDocContextv2.tsx › [update - 131] CREATING → ACTIVE', { docId: created.docId });
-            return;
-          }
+case 'BOOTSTRAP_NEW': {
+  const handoff = createLocalRef.current;
+  if (!handoff || handoff.docId !== machine.docId) {
+    console.error('YDocContextv2.tsx › [update - 137] Missing local create handoff; aborting bootstrap');
+    setMachine({ type: 'ERROR', message: 'Create handoff missing' });
+    setBootPhase('ERROR');
+    return;
+  }
+
+  try {
+    const boot = await opBootstrapNewDoc({ docId: handoff.docId, bytes: handoff.bytes });
+    if (isStale()) return;
+
+    // (2) Reconcile identifiers, access, chat
+    commitPersistIds(boot.identifiers, 'bootstrap');
+    access.applySignal(boot.accessEnvelope);
+    access.selectDoc(handoff.docId, { assumeOwner: true });
+    emitChatReady({ docId: handoff.docId, messages: boot.chat, fresh: boot.chatFresh });
+
+    // (3) Promote to ACTIVE now that it’s authoritative
+    setSaveReady(true);
+    setBootPhase('ACTIVE');
+    setMachine({ type: 'ACTIVE', docId: handoff.docId });
+    // console.log('YDocContextv2.tsx › [update - 137] BOOTSTRAP_NEW → ACTIVE', { docId: handoff.docId });
+
+    // cleanup handoff
+    createLocalRef.current = null;
+  } catch (e) {
+    console.warn('YDocContextv2.tsx › [update - 137] bootstrap failed (soft). Doc remains usable; save pending.', e);
+    // keep UI usable, allow retry (autosave/manual) to reconcile later
+    setSaveReady(false);
+    setBootPhase('SELECTING');
+  }
+  return;
+}
 
           case 'READY_FOR_SELECT': {
             // New three-pass select: step 1 is CACHE_CHECK
             setBootPhase('SELECTING');
             setMachine({ type: 'CACHE_CHECK', docId: machine.docId }); // update - 124
-            console.log('YDocContextv2.tsx 8010a › READY_FOR_SELECT → CACHE_CHECK', { docId: machine.docId }); // update - 124
+            // console.log('YDocContextv2.tsx 8010a › READY_FOR_SELECT → CACHE_CHECK', { docId: machine.docId }); // update - 124
             return;
           }
 
@@ -1290,7 +1328,7 @@ const commitPersistIds = useCallback((
               // Attempt to hydrate from local cache for fast paint
               const cached = await loadDocBytes(machine.docId);
               const hasCache = cached instanceof Uint8Array && cached.byteLength > 0;
-              console.log('YDocContextv2.tsx 8010b › CACHE_CHECK result', { docId: machine.docId, hasCache, bytes: hasCache ? cached.byteLength : 0 });
+              // console.log('YDocContextv2.tsx 8010b › CACHE_CHECK result', { docId: machine.docId, hasCache, bytes: hasCache ? cached.byteLength : 0 });
 
               if (hasCache) {
                 // Materialize cached Y.Doc into provider and emit renderReady immediately
@@ -1307,14 +1345,14 @@ const commitPersistIds = useCallback((
                 setRenderReady(true);
                 setTriggerViewSwitch(true);
                 setSaveReady(false); // authoritative not ready yet
-                console.log('YDocContextv2.tsx 8010c › CACHE_CHECK → renderReady=true (fast paint)', { docId: machine.docId });
+                // console.log('YDocContextv2.tsx 8010c › CACHE_CHECK → renderReady=true (fast paint)', { docId: machine.docId });
               }
             } catch (e) {
               console.warn('YDocContextv2.tsx 8010d › CACHE_CHECK failed (non-fatal, proceed to auth load)', e);
             }
             // proceed to authoritative load regardless of cache hit/miss
             setMachine({ type: 'LOADING_AUTH', docId: machine.docId });
-            console.log('YDocContextv2.tsx 8010e › CACHE_CHECK → LOADING_AUTH', { docId: machine.docId });
+            // console.log('YDocContextv2.tsx 8010e › CACHE_CHECK → LOADING_AUTH', { docId: machine.docId });
             return;
           }
 
@@ -1346,7 +1384,7 @@ const commitPersistIds = useCallback((
             setSaveReady(true);
             setBootPhase('ACTIVE');
             setMachine({ type: 'ACTIVE', docId: auth.docId });
-            console.log('YDocContextv2.tsx 8011 › LOADING_AUTH → ACTIVE', { docId: auth.docId });
+            // console.log('YDocContextv2.tsx 8011 › LOADING_AUTH → ACTIVE', { docId: auth.docId });
             setTriggerViewSwitch(true);
             return;
           }
@@ -1375,7 +1413,7 @@ const commitPersistIds = useCallback((
       aborted = true;
       ac.abort();
     };
-  }, [machine, docFileID, access, createNewDocument, loadFromFirebase, teardownPreviousDoc, ydoc, loadData, commitHydratedDoc, commitPersistIds, emitChatReady]);
+  }, [machine, docFileID, access,  teardownPreviousDoc, ydoc, loadData, commitHydratedDoc, commitPersistIds, emitChatReady]);
 
   //--------------------------------- END STATE MACHINE --------------------------------
 

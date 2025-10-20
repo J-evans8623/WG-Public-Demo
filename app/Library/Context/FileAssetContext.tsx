@@ -38,7 +38,16 @@ import { useAccountStatus } from '@/app/src/context/ApiContext';
 import { TextFileMessage } from '../Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 import { useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
+import { supersedingCall } from '@/app/src/net/SupersedingCaller';
 
+function buildUploadKey(docId: string | undefined | null) {
+  // one lane per document so parallel docs don’t collide; if missing, fall back to a global lane
+  return docId ? `fileUpload:doc:${docId}` : 'fileUpload:doc:unknown';
+}
+
+async function safeParseJson(resp: Response): Promise<any> {
+  try { return await resp.json(); } catch { return { error: 'UNKNOWN', message: resp.statusText }; }
+}
 
 // Step 1: Enhanced interface definitions for privacy-aware file management
 interface EnhancedTextFileMessage extends TextFileMessage {
@@ -94,7 +103,7 @@ const FileAssetContext = createContext<FileAssetContextType | undefined>(undefin
  * @returns Promise resolving to file content or URL
  */
 const fetchFileContent = async (serverUrl: string, fileType: TextFileMessage['type']): Promise<string> => {
-  console.log('[FileAssetContext.tsx][3001] Fetching file content from:', serverUrl);
+  // console.log('[FileAssetContext.tsx][3001] Fetching file content from:', serverUrl);
   
   const response = await fetch(serverUrl, { credentials: 'include' });
   if (!response.ok) {
@@ -103,12 +112,12 @@ const fetchFileContent = async (serverUrl: string, fileType: TextFileMessage['ty
   }
   
   const result = fileType === 'pdf' ? serverUrl : await response.text();
-  console.log('[FileAssetContext.tsx][3003] File content retrieved successfully');
+  // console.log('[FileAssetContext.tsx][3003] File content retrieved successfully');
   return result;
 };
 
 export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  console.log('[FileAssetContext.tsx][3004] FileAssetProvider initializing with enhanced privacy controls');
+  // console.log('[FileAssetContext.tsx][3004] FileAssetProvider initializing with enhanced privacy controls');
   
   // Step 3: Core context dependencies
   const { ydoc, docFileID } = useYDoc();
@@ -124,7 +133,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
   // Step 5: Get current user email for ownership validation
   const currentUserEmail = accountStatus?.email || 'unknown@example.com';
 
-  console.log('[FileAssetContext.tsx][3005] Current user context - Email:', currentUserEmail, 'Account type:', accountStatus?.accountType);
+  // console.log('[FileAssetContext.tsx][3005] Current user context - Email:', currentUserEmail, 'Account type:', accountStatus?.accountType);
 
   /**
    * canUserSeeFile
@@ -138,13 +147,13 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
   const canUserSeeFile = useCallback((file: EnhancedTextFileMessage): boolean => {
     // Step 6: Public files are visible to everyone
     if (file.visibility === 'public') {
-      console.log('[FileAssetContext.tsx][3007] File visible - public access:', file.title);
+      // console.log('[FileAssetContext.tsx][3007] File visible - public access:', file.title);
       return true;
     }
     
     // Step 7: Private files only visible to owner
     const isOwner = file.ownerId === currentUserEmail || file.uploaderEmail === currentUserEmail;
-    console.log('[FileAssetContext.tsx][3008] Private file access check - File:', file.title, 'Is owner:', isOwner);
+    // console.log('[FileAssetContext.tsx][3008] Private file access check - File:', file.title, 'Is owner:', isOwner);
     return isOwner;
   }, [currentUserEmail]);
 
@@ -158,7 +167,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
    */
   const canUserDeleteFile = useCallback((file: EnhancedTextFileMessage): boolean => {
     const canDelete = file.ownerId === currentUserEmail || file.uploaderEmail === currentUserEmail;
-    console.log('[FileAssetContext.tsx][3009] File deletion permission check - File:', file.title, 'Can delete:', canDelete);
+    // console.log('[FileAssetContext.tsx][3009] File deletion permission check - File:', file.title, 'Can delete:', canDelete);
     return canDelete;
   }, [currentUserEmail]);
 
@@ -172,7 +181,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
   const getFilteredFiles = useCallback((): EnhancedTextFileMessage[] => {
     const allFiles = Array.from(files.values());
     const visibleFiles = allFiles.filter(canUserSeeFile);
-    console.log('[FileAssetContext.tsx][3010] File filtering complete - Total:', allFiles.length, 'Visible:', visibleFiles.length);
+    // console.log('[FileAssetContext.tsx][3010] File filtering complete - Total:', allFiles.length, 'Visible:', visibleFiles.length);
     return visibleFiles;
   }, [files, canUserSeeFile]);
 
@@ -185,7 +194,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
    */
   const getPublicFiles = useCallback((): EnhancedTextFileMessage[] => {
     const publicFiles = Array.from(files.values()).filter(file => file.visibility === 'public');
-    console.log('[FileAssetContext.tsx][3011] Public files retrieved - Count:', publicFiles.length);
+    // console.log('[FileAssetContext.tsx][3011] Public files retrieved - Count:', publicFiles.length);
     return publicFiles;
   }, [files]);
 
@@ -200,13 +209,13 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
     const myPrivateFiles = Array.from(files.values()).filter(file => 
       file.visibility === 'private' && canUserSeeFile(file)
     );
-    console.log('[FileAssetContext.tsx][3012] Private files retrieved - Count:', myPrivateFiles.length);
+    // console.log('[FileAssetContext.tsx][3012] Private files retrieved - Count:', myPrivateFiles.length);
     return myPrivateFiles;
   }, [files, canUserSeeFile]);
 
   // Step 8: Initialize and sync files from Y.js (CLEANED - no migration logic)
   useEffect(() => {
-    console.log('[FileAssetContext.tsx][3013] Initializing file sync from Y.js document');
+    // console.log('[FileAssetContext.tsx][3013] Initializing file sync from Y.js document');
     
     const loadInitialFiles = () => {
       const initialFiles = new Map<string, EnhancedTextFileMessage>();
@@ -215,7 +224,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
         initialFiles.set(id, file);
       });
       setFiles(initialFiles);
-      console.log('[FileAssetContext.tsx][3014] Initial files loaded - Count:', initialFiles.size);
+      // console.log('[FileAssetContext.tsx][3014] Initial files loaded - Count:', initialFiles.size);
     };
 
     loadInitialFiles();
@@ -229,7 +238,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
         updatedFiles.set(id, file);
       });
       setFiles(updatedFiles);
-      console.log('[FileAssetContext.tsx][3015] Files updated from Y.js sync - Count:', updatedFiles.size);
+      // console.log('[FileAssetContext.tsx][3015] Files updated from Y.js sync - Count:', updatedFiles.size);
     };
 
     yFileMap.observeDeep(updateListener);
@@ -253,7 +262,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
       'application/vnd.openxmlformats-officedocument.presentationml.presentation'
     ];
     const isValid = allowedTypes.includes(file.type);
-    console.log('[FileAssetContext.tsx][3016] File type validation - File:', file.name, 'Type:', file.type, 'Valid:', isValid);
+    // console.log('[FileAssetContext.tsx][3016] File type validation - File:', file.name, 'Type:', file.type, 'Valid:', isValid);
     return isValid;
   }, []);
 
@@ -272,25 +281,20 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
     const errorCode = error.code || error.error || 'UNKNOWN_ERROR';
     const errorMessage = error.message || error.reason || 'An unknown error occurred';
     
-    console.log('[FileAssetContext.tsx][3018] Processing upload error - Code:', errorCode, 'Message:', errorMessage);
+    // console.log('[FileAssetContext.tsx][3018] Processing upload error - Code:', errorCode, 'Message:', errorMessage);
 
     // Step 10: Handle specific error types with appropriate modals
     if (errorCode.includes('RATE_LIMIT') || errorMessage.includes('rate limit')) {
       showModal('rateLimit', {
         retryAfter: error.retryAfter || 60,
-        onClose: () => console.log('[FileAssetContext.tsx][3019] Rate limit modal closed')
       });
     } else if (errorCode.includes('UPLOAD_DENIED') || errorMessage.includes('permission')) {
       showModal('subscribe', {
         featureName: 'File Upload',
-        onUpgrade: () => console.log('[FileAssetContext.tsx][3020] Upgrade initiated from upload error'),
-        onClose: () => console.log('[FileAssetContext.tsx][3021] Permission denied modal closed')
       });
     } else if (errorMessage.includes('demo credits')) {
       showModal('subscribe', {
         featureName: 'Additional Uploads',
-        onUpgrade: () => console.log('[FileAssetContext.tsx][3022] Upgrade initiated for demo credits'),
-        onClose: () => console.log('[FileAssetContext.tsx][3023] Demo credits modal closed')
       });
     } else {
       // Generic error - could add a general error modal here if available
@@ -309,101 +313,105 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
    * @param options Upload options including visibility preferences
    * @returns Promise that resolves when upload is complete
    */
-  const addFile = useCallback(async (file: File, options: FileUploadOptions = {}) => {
-    console.log('[FileAssetContext.tsx][3025] Starting enhanced file upload - File:', file.name, 'Options:', options);
-    
-    try {
-      // Step 11: Validate file type
-      if (!validateFileType(file)) {
-        throw new Error('Invalid file type. Only PDF, TXT, DOC, DOCX, and PPTX files are allowed.');
-      }
+/**
+ * addFile
+ * @description
+ *   Enhanced file upload function that integrates with FileAssetsV2 endpoint and privacy controls.
+ *   Now routes uploads through `supersedingCall` so:
+ *   1) A 429 schedules a single retry using `Retry-After`.
+ *   2) Picking a new file before the retry fires supersedes the queued one (stale flushed).
+ *   3) An in-flight upload is aborted if a newer one starts.
+ */
+const addFile = useCallback(async (file: File, options: FileUploadOptions = {}) => { // ✨ update - 3
+  // console.log('[FileAssetContext.tsx][3025] Starting enhanced file upload - File:', file.name, 'Options:', options);
 
-      // Get current account type
-      const currentAccountType = accountStatus?.accountType || 'scholar';
+  // (pre-existing logic) validate type, resolve visibility, ids, etc...
+  if (!validateFileType(file)) throw new Error('Invalid file type. Only PDF, TXT, DOC, DOCX, and PPTX files are allowed.');
+  const currentAccountType = accountStatus?.accountType || 'scholar';
 
-      // Step 12: Determine visibility with Scholar constraint enforcement
-      let visibility: 'public' | 'private' = 'private'; // Default to private for security
-      
-      if (options.forcePrivate) {
-        visibility = 'private';
-        console.log('[FileAssetContext.tsx][3026] Visibility forced to private');
-      } else if (currentAccountType === 'scholar') {
-        // Scholar accounts ALWAYS get private files
-        visibility = 'private';
-        console.log('[FileAssetContext.tsx][3027] Visibility forced to private for Scholar account');
-        
-        // Log warning if user tried to select public
-        if (options.visibility === 'public') {
-          console.warn('[FileAssetContext.tsx][3028] Scholar attempted public upload, forced to private');
-        }
-      } else if (options.visibility === 'public' && hasFeature('canCreatePublicFiles')) {
-        visibility = 'public';
-        console.log('[FileAssetContext.tsx][3029] Public visibility selected for educator account');
-      } else if (options.visibility === 'public' && !hasFeature('canCreatePublicFiles')) {
-        console.warn('[FileAssetContext.tsx][3030] Public upload denied for account without permission, defaulting to private');
-        visibility = 'private';
-      }
+  let visibility: 'public' | 'private' = 'private';
+  if (options.forcePrivate) {
+    visibility = 'private';
+  } else if (currentAccountType === 'scholar') {
+    visibility = 'private';
+  } else if (options.visibility === 'public' && hasFeature('canCreatePublicFiles')) {
+    visibility = 'public';
+  }
 
-      // Step 13: Generate unique identifiers
-      const resourceID = uuidv4();
-      const docFileid = docFileID!;
-      const fileId = uuidv4();
-      
-      console.log('[FileAssetContext.tsx][3031] Upload identifiers - Resource:', resourceID, 'Doc:', docFileid, 'File:', fileId);
+  const resourceID = uuidv4();
+  const docFileid = docFileID!;
+  const fileId = uuidv4();
 
-      // Step 14: Prepare upload payload
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('DocID', docFileid);
-      formData.append('fileID', fileId);
-      formData.append('visibility', visibility);
+  // --- NEW: superseding caller wiring --------------------------------------
+  const key = buildUploadKey(docFileid);
 
-      console.log('[FileAssetContext.tsx][3032] Uploading to FileAssetsV2 endpoint with visibility:', visibility, 'for account type:', currentAccountType);
+  /**
+   * makeRequest — used by supersedingCall for first attempt + any timed retry
+   * @steps
+   *  1) Rebuild FormData fresh each attempt (Files/FormData must be recreated).
+   *  2) POST to /api/FileAssetsV2 with AbortSignal wired in.
+   */
+  const makeRequest = async (signal: AbortSignal, payload: any): Promise<Response> => {
+    const fd = new FormData();
+    fd.append('file', payload.file as File);
+    fd.append('DocID', docFileid);
+    fd.append('fileID', fileId);
+    fd.append('visibility', visibility);
+    return fetch('/api/FileAssetsV2', {
+      method: 'POST',
+      body: fd,
+      credentials: 'include',
+      signal,
+    });
+  };
 
-      // Step 15: Upload to enhanced endpoint
-      const response = await fetch('/api/FileAssetsV2', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
+  try {
+    // Call via superseding lane — respects 429 Retry-After & flushes stale if a new file arrives
+    const resp = await supersedingCall(key, { file }, makeRequest);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('[FileAssetContext.tsx][3033] Upload request failed:', response.status, errorData);
-        handleUploadError(errorData, file.name);
-        return;
-      }
-
-      const responseData = await response.json();
-      console.log('[FileAssetContext.tsx][3034] Upload successful - Response:', responseData);
-
-      // Step 16: Create enhanced file message with correct privacy metadata
-      const enhancedFileMessage: EnhancedTextFileMessage = {
-        id: resourceID,
-        type: file.type === 'application/pdf' ? 'pdf' : 'txt',
-        title: file.name,
-        serverUrl: responseData.url,
-        uploadDate: new Date(),
-        size: responseData.size,
-        visibility: visibility,
-        ownerId: currentUserEmail,
-        accountType: currentAccountType,
-        uploaderEmail: currentUserEmail
-      };
-
-      // Step 17: Store in Y.js document for real-time collaboration
-      ydoc.transact(() => {
-        yFileMap.set(enhancedFileMessage.id, enhancedFileMessage);
-      });
-
-      console.log('[FileAssetContext.tsx][3035] File stored in Y.js document with correct privacy metadata - ID:', resourceID, 'Visibility:', visibility, 'Account type:', currentAccountType);
-
-    } catch (error) {
-      console.error('[FileAssetContext.tsx][3036] File upload error:', error);
-      handleUploadError(error, file.name);
-      throw error;
+    // If superseded (null) or deferred due to Retry-After, do nothing; retry is scheduled already.
+    if (!resp) {
+      // console.log('[FileAssetContext.tsx] upload superseded/deferred; latest snapshot will run.');
+      return;
     }
-  }, [ydoc, yFileMap, validateFileType, docFileID, currentUserEmail, accountStatus, hasFeature, handleUploadError]);
+
+    if (!resp.ok) {
+      // 429 path: the retry is already scheduled by supersedingCall; other errors bubble to handler
+      const errorData = await safeParseJson(resp);
+      console.error('[FileAssetContext.tsx] Upload request failed:', resp.status, errorData);
+      handleUploadError(errorData, file.name);
+      return;
+    }
+
+    const responseData = await resp.json();
+    // console.log('[FileAssetContext.tsx][3034] Upload successful - Response:', responseData);
+
+    // Store in Y.js (unchanged semantics)
+    const enhancedFileMessage: EnhancedTextFileMessage = {
+      id: resourceID,
+      type: file.type === 'application/pdf' ? 'pdf' : 'txt',
+      title: file.name,
+      serverUrl: responseData.url,
+      uploadDate: new Date(),
+      size: responseData.size,
+      visibility,
+      ownerId: currentUserEmail,
+      accountType: currentAccountType,
+      uploaderEmail: currentUserEmail
+    };
+
+    ydoc.transact(() => {
+      yFileMap.set(enhancedFileMessage.id, enhancedFileMessage);
+    });
+
+    // console.log('[FileAssetContext.tsx][3035] File stored in Y.js with privacy metadata', { id: resourceID, visibility });
+
+  } catch (error) {
+    console.error('[FileAssetContext.tsx][3036] File upload error:', error);
+    handleUploadError(error, file.name);
+    throw error;
+  }
+}, [ydoc, yFileMap, validateFileType, docFileID, currentUserEmail, accountStatus, hasFeature, handleUploadError]);
 
   /**
    * removeFile
@@ -414,7 +422,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
    * @returns Promise that resolves when deletion is complete
    */
   const removeFile = useCallback(async (fileId: string) => {
-    console.log('[FileAssetContext.tsx][3037] Starting file removal - File ID:', fileId);
+    // console.log('[FileAssetContext.tsx][3037] Starting file removal - File ID:', fileId);
     
     try {
       const file = files.get(fileId);
@@ -448,7 +456,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
       // Step 21: Clear any cached content
       clearCache(fileId);
       
-      console.log('[FileAssetContext.tsx][3040] File deletion completed successfully - ID:', fileId);
+      // console.log('[FileAssetContext.tsx][3040] File deletion completed successfully - ID:', fileId);
 
     } catch (error) {
       console.error('[FileAssetContext.tsx][3041] Error removing file:', error);
@@ -460,7 +468,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
   const getFileById = useCallback((fileId: string) => {
     const file = files.get(fileId);
     if (file && canUserSeeFile(file)) {
-      console.log('[FileAssetContext.tsx][3042] File retrieved by ID:', fileId);
+      // console.log('[FileAssetContext.tsx][3042] File retrieved by ID:', fileId);
       return file;
     }
     console.warn('[FileAssetContext.tsx][3043] File access denied or not found:', fileId);
@@ -490,7 +498,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
    * @returns Promise resolving to file content or URL
    */
   const getFileContent = useCallback(async (fileId: string): Promise<string> => {
-    console.log('[FileAssetContext.tsx][3044] Retrieving file content - ID:', fileId);
+    // console.log('[FileAssetContext.tsx][3044] Retrieving file content - ID:', fileId);
     
     const file = files.get(fileId);
     if (!file || !canUserSeeFile(file)) {
@@ -501,19 +509,19 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
     // Check cache first
     const cached = getCachedContent(fileId);
     if (cached) {
-      console.log('[FileAssetContext.tsx][3046] File content served from cache - ID:', fileId);
+      // console.log('[FileAssetContext.tsx][3046] File content served from cache - ID:', fileId);
       return cached;
     }
 
     const content = await fetchFileContent(file.serverUrl, file.type);
     setCachedContent(fileId, content);
-    console.log('[FileAssetContext.tsx][3047] File content retrieved and cached - ID:', fileId);
+    // console.log('[FileAssetContext.tsx][3047] File content retrieved and cached - ID:', fileId);
     return content;
   }, [files, canUserSeeFile]);
 
   const clearCache = useCallback((fileId: string) => {
     contentCache.delete(fileId);
-    console.log('[FileAssetContext.tsx][3048] File cache cleared - ID:', fileId);
+    // console.log('[FileAssetContext.tsx][3048] File cache cleared - ID:', fileId);
   }, [contentCache]);
 
   /**
@@ -525,27 +533,27 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
    * @param fileMessage The generated file message from the backend
    */
   const addGeneratedLessonFile = useCallback((fileMessage: TextFileMessage) => {
-    console.log('[FileAssetContext.tsx][3049] Adding generated lesson file - ID:', fileMessage.id);
+    // console.log('[FileAssetContext.tsx][3049] Adding generated lesson file - ID:', fileMessage.id);
     
     // Get current account type
     const currentAccountType = accountStatus?.accountType || 'scholar';
 
 
-  console.log('8932 DEBUG - accountStatus:', accountStatus);
-  console.log('8932 DEBUG - currentAccountType:', currentAccountType);
-  console.log('8932 DEBUG - hasFeature canCreatePublicFiles:', hasFeature('canCreatePublicFiles'));
+  // console.log('8932 DEBUG - accountStatus:', accountStatus);
+  // console.log('8932 DEBUG - currentAccountType:', currentAccountType);
+  // console.log('8932 DEBUG - hasFeature canCreatePublicFiles:', hasFeature('canCreatePublicFiles'));
     
     // Scholar accounts ALWAYS get private files, regardless of features
     let visibility: 'public' | 'private';
     if (currentAccountType === 'scholar') {
       visibility = 'private'; // Force private for all Scholar accounts
 
-      console.log('8932 DEBUG - Scholar detected, visibility set to:', visibility);
-      console.log('[FileAssetContext.tsx][3050] Generated lesson forced to private for Scholar account');
+      // console.log('8932 DEBUG - Scholar detected, visibility set to:', visibility);
+      // console.log('[FileAssetContext.tsx][3050] Generated lesson forced to private for Scholar account');
     } else {
       // Educators can have public files if they have the feature
       visibility = hasFeature('canCreatePublicFiles') ? 'public' : 'private';
-      console.log('[FileAssetContext.tsx][3051] Generated lesson visibility for Educator:', visibility);
+      // console.log('[FileAssetContext.tsx][3051] Generated lesson visibility for Educator:', visibility);
     }
 
     // Step 23: Enhance generated file with correct privacy metadata
@@ -561,7 +569,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
       yFileMap.set(enhancedFile.id, enhancedFile);
     });
 
-    console.log('[FileAssetContext.tsx][3052] Generated lesson file stored with correct privacy metadata - Visibility:', enhancedFile.visibility, 'Account type:', currentAccountType);
+    // console.log('[FileAssetContext.tsx][3052] Generated lesson file stored with correct privacy metadata - Visibility:', enhancedFile.visibility, 'Account type:', currentAccountType);
   }, [ydoc, yFileMap, currentUserEmail, accountStatus, hasFeature]);
 
   // Step 24: Expose enhanced context API
@@ -595,7 +603,7 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
     canUserDeleteFile,
   ]);
 
-  console.log('[FileAssetContext.tsx][3053] FileAssetProvider ready with enhanced privacy controls');
+  // console.log('[FileAssetContext.tsx][3053] FileAssetProvider ready with enhanced privacy controls');
 
   return (
     <FileAssetContext.Provider value={value}>

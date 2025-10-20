@@ -22,6 +22,7 @@ import multer from 'multer';
 import sharp from 'sharp';
 import connectDB from '@/app/src/config/db';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest'; 
+import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
 interface ProcessedImage {
     id: string;
@@ -100,7 +101,7 @@ export const config = {
  * @description Main API handler for image asset operations.
  *              It authenticates the request and then routes to the appropriate handler.
  */
-export default async function handler(
+async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
@@ -269,3 +270,5 @@ async function processAndStoreImage(req: NextApiRequest & { file?: Express.Multe
         throw error;
     }
 }
+
+export default withRateLimitNP('np:asset')(handler);

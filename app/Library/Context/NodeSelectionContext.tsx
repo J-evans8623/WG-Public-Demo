@@ -26,7 +26,9 @@ type NodeSelectionContextType = {
   setStatusMessage: (msg: string) => void;
   multiSelectEnabled: boolean;
   toggleMultiSelectEnabled: () => void;
-  
+    editingUiFocusOnly: boolean;          
+  setEditingUiFocusOnly: (on: boolean) => void; 
+  setCaretNode: (nodeId: string) => void; 
 };
 
 const NodeSelectionContext = createContext<NodeSelectionContextType | undefined>(undefined);
@@ -38,7 +40,7 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
   const [mergeSource, setMergeSource] = useState<string | null>(null);
   const [StatusMessage, setStatusMessage] = useState('');
   const [multiSelectEnabled, setMultiSelectEnabled] = useState<boolean>(true);
-
+  const [editingUiFocusOnly, setEditingUiFocusOnly] = useState<boolean>(false);
 
   const dismissResource = (nodeId: string, resourceId: string) => {
     setDismissed(prev => {
@@ -64,13 +66,21 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
 
 
 
-  const toggleNodeSelection = (nodeId: string) => {
-    setSelectedIDs(prev =>
-      prev.includes(nodeId)
-        ? (() => { clearDismissedForNode(nodeId); return prev.filter(id => id !== nodeId); })()
-        : [...prev, nodeId]
-    );
-  };
+ /**
+ * toggleNodeSelection
+ * @purpose Toggle a node in the selection. If adding, flush its dismissed set
+ *          so resources reappear; if removing, also clear for symmetry.
+ * @steps
+ *  1) If node currently selected → clear dismissed for it and remove.
+ *  2) If node not selected       → clear dismissed for it and add.
+ */
+const toggleNodeSelection = (nodeId: string) => { // update - 8
+  setSelectedIDs(prev =>
+    prev.includes(nodeId)
+      ? (() => { clearDismissedForNode(nodeId); return prev.filter(id => id !== nodeId); })() // (1)
+      : (() => { clearDismissedForNode(nodeId); return [...prev, nodeId]; })()                 // (2)
+  );
+};
 
   const isSelected = (nodeId: string) => selectedIDs.includes(nodeId);
   const clearSelection = () => {
@@ -84,28 +94,68 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
     clearDismissedForNode(nodeId);
     setSelectedIDs(prev => prev.filter(id => id !== nodeId));
   };
-  const selectNode = (nodeId: string) => {
-    setSelectedIDs((prevSelected) => (prevSelected.includes(nodeId) ? prevSelected : [...prevSelected, nodeId]));
-  };
+  /**
+ * selectNode
+ * @purpose Add a node to the current selection. On add, flush any dismissed
+ *          resources for that node so its full resource list is visible.
+ * @steps
+ *  1) If already selected, no-op.
+ *  2) If not selected, clearDismissedForNode(nodeId).
+ *  3) Append nodeId to selection.
+ */
+const selectNode = (nodeId: string) => { // update - 4
+  setSelectedIDs((prevSelected) => {
+    if (prevSelected.includes(nodeId)) return prevSelected;         // (1)
+    clearDismissedForNode(nodeId);                                  // (2)
+    return [...prevSelected, nodeId];                               // (3)
+  });
+};
 
-  const singleSelect = (nodeId: string) => {
-    // clear dismissed for any nodes being deselected
+ /**
+ * singleSelect
+ * @purpose Select only the given nodeId. Clear dismissed for deselected nodes
+ *          AND for the node we are selecting so it fully resets.
+ * @steps
+ *  1) Clear dismissed for any nodes being removed from selection.
+ *  2) Clear dismissed for the node we are selecting.
+ *  3) Replace selection with [nodeId].
+ */
+const singleSelect = (nodeId: string) => { // update - 5
+  // (1) clear dismissed for nodes being deselected
+  selectedIDs.forEach(id => { if (id !== nodeId) clearDismissedForNode(id); });
+  // (2) clear dismissed for the node being selected
+  clearDismissedForNode(nodeId);
+  // (3) select only this node
+  setSelectedIDs([nodeId]);
+};
+
+  /**
+ * multiSelect
+ * @purpose Toggle/add a node into the multi-selection. When adding a node,
+ *          flush its dismissed set so its resources appear immediately.
+ * @steps
+ *  A) Multi-select enabled/forced:
+ *     a. If removing: clear dismissed for that node and remove it.
+ *     b. If adding:   clear dismissed for that node and add it.
+ *  B) Single-select fallback: clear for deselected others + for the target,
+ *     then select only the target.
+ */
+const multiSelect = (nodeId: string, isMulti: boolean = false) => { // update - 6
+  if (isMulti || multiSelectEnabled) {
+    setSelectedIDs(prev =>
+      prev.includes(nodeId)
+        // remove case
+        ? (() => { clearDismissedForNode(nodeId); return prev.filter(id => id !== nodeId); })()
+        // add case → flush dismissed then add
+        : (() => { clearDismissedForNode(nodeId); return [...prev, nodeId]; })()
+    );
+  } else {
+    // single-select fallback
     selectedIDs.forEach(id => { if (id !== nodeId) clearDismissedForNode(id); });
+    clearDismissedForNode(nodeId);
     setSelectedIDs([nodeId]);
-  };
-
-  const multiSelect = (nodeId: string, isMulti: boolean = false) => {
-    if (isMulti || multiSelectEnabled) {
-      setSelectedIDs(prev =>
-        prev.includes(nodeId)
-          ? (() => { clearDismissedForNode(nodeId); return prev.filter(id => id !== nodeId); })()
-          : [...prev, nodeId]
-      );
-    } else {
-      selectedIDs.forEach(id => { if (id !== nodeId) clearDismissedForNode(id); });
-      setSelectedIDs([nodeId]);
-    }
-  };
+  }
+};
 
   const setTargetNodeId = (nodeId: string) => {
     setTargetNodeIdState(nodeId);
@@ -148,17 +198,41 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
     setMultiSelectEnabled((prev) => !prev);
   };
 
-  /**
-   * Select a whole group of nodes at once.
-   * @param nodeIds 
-   */
-  const groupSelect = (nodeIds: string[]) => {
-    // clear dismissed for any nodes removed
-    selectedIDs.forEach(id => {
-      if (!nodeIds.includes(id)) clearDismissedForNode(id);
-    });
-    setSelectedIDs([...nodeIds]);
-  };
+ /**
+ * groupSelect
+ * @purpose Select a batch of nodes at once. Flush dismissed for nodes that
+ *          will remain or become selected; also clear for those leaving selection.
+ * @steps
+ *  1) For nodes leaving selection, clear their dismissed sets (existing behavior).
+ *  2) For every node being selected, clear dismissed so all resources show.
+ *  3) Apply the new selection.
+ */
+const groupSelect = (nodeIds: string[]) => { // update - 7
+  // (1) clear dismissed for any nodes removed
+  selectedIDs.forEach(id => {
+    if (!nodeIds.includes(id)) clearDismissedForNode(id);
+  });
+  // (2) clear dismissed for all nodes being selected now
+  nodeIds.forEach(id => clearDismissedForNode(id));
+  // (3) set selection
+  setSelectedIDs([...nodeIds]);
+};
+
+
+/**
+ * setCaretNode
+ * @purpose Move or append nodeId to the end of the selection array so it becomes the caret,
+ *          without clearing other selections.
+ * @steps
+ *  1) If already selected, filter it out first.
+ *  2) Append it back so it's the last (caret).
+ */
+const setCaretNode = (nodeId: string) => {                                    // update - 3
+  setSelectedIDs(prev => {
+    const filtered = prev.filter(id => id !== nodeId);
+    return [...filtered, nodeId];
+  });
+};
 
 
   const contextValue = useMemo(
@@ -187,8 +261,11 @@ export const NodeSelectionProvider = ({ children }: { children: React.ReactNode 
       dismissResource,
     clearDismissedForNode,
     isResourceDismissed,
+      editingUiFocusOnly,                       
+    setEditingUiFocusOnly,                     
+    setCaretNode,
     }),
-    [isSelected, getSelectedNodeIds, StatusMessage, multiSelectEnabled]
+    [isSelected, getSelectedNodeIds, editingUiFocusOnly, StatusMessage, multiSelectEnabled, editingUiFocusOnly]
   );
 
   return <NodeSelectionContext.Provider value={contextValue}>{children}</NodeSelectionContext.Provider>;

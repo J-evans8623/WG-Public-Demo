@@ -53,6 +53,24 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
   // Two tabs now: select (with availability) and calendar
   const [activeTab, setActiveTab] = useState<'select' | 'calendar'>('select');
 
+   /**
+   * @effect Auto-tab to "Calendar View" when modal opens and there is data
+   * @reason
+   *   Improves UX by taking users directly to their calendar if it already exists.
+   * @behavior
+   *   - When `isOpen` becomes true, if `currentMonth?.dailyPlans?.length > 0`, set tab to 'calendar'.
+   *   - Otherwise stay on 'select'.
+   *   // update - 1
+   */
+  useEffect(() => {
+    if (!isOpen) return;
+    const hasCalendar =
+      !!currentMonth && Array.isArray(currentMonth.dailyPlans) && currentMonth.dailyPlans.length > 0;
+    if (hasCalendar) {
+      setActiveTab('calendar');
+    }
+  }, [isOpen, currentMonth]);
+
   /**
    * Manual extension trigger for outdated notebooks (unchanged)
    */
@@ -105,7 +123,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
 
 
   
-const handleUpdateSchedule = async () => { // update - 1
+const handleUpdateSchedule = async () => { 
   // Step 1: Delegate to context API which handles fetching metas + merging
   // Step 2: Keep UX (spinners/disabled) controlled by isLoading from context
   await updateStudyPlan();
@@ -150,12 +168,6 @@ const handleUpdateSchedule = async () => { // update - 1
     }
   }, [requestSessionLaunch, createSessionLauncher, currentMonth, onFileSelect, onClose]);
 
-  // Load notebooks if modal opens and none loaded
-  useEffect(() => {
-    if (isOpen && availableNotebooks.length === 0) {
-      refreshNotebooks();
-    }
-  }, [isOpen, availableNotebooks.length, refreshNotebooks]);
 
   if (!isOpen) return null;
 

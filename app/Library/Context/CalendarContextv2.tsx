@@ -29,6 +29,7 @@ import { CalendarPersistApi } from '@/app/src/services/calendar/CalendarPersistA
 import { StudyPlanService } from '@/app/studygraph/(studygraph)/components/layout/Calendar/study-planner';
 import type { StudyPlanOutput} from '@/app/studygraph/(studygraph)/components/layout/Calendar/study-planner/models/StudyPlanOutput.ts'
 import { useYDoc } from '@/app/Library/Context/YDocContext';
+import { useFileList } from '@/app/src/context/ApiContext'; 
 
 const Ctx = createContext<CalendarContextType | undefined>(undefined);
 
@@ -117,7 +118,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [studyPlan, setStudyPlan] = useState<StudyPlanOutput | null>(null);
   const [completedSessions, setCompletedSessions] = useState<string[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [availableNotebooks, setAvailableNotebooks] = useState<NotebookSummary[]>([]);
+  //const [availableNotebooks, setAvailableNotebooks] = useState<NotebookSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -142,11 +143,46 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   // External context for optional version wiring
   const { docFileID, version: currentDocVersion } = useYDoc();
 
+    // ── File list (canonical) from ApiContext
+   const { ownedFiles, isRefreshing: listRefreshing, lastError: listError, refresh: refreshFileList } = useFileList(); 
+
+   const availableNotebooks: NotebookSummary[] = useMemo(() => { // update - 7
+    // Step 1: calc totalUnits from lessonUnitsMeta or unitsByMap
+    const calcUnits = (meta: any): number => {
+      if (!meta) return 0;
+      if (typeof meta.totalUnits === 'number') return meta.totalUnits;
+      if (meta.unitsByMap && typeof meta.unitsByMap === 'object') {
+        let total = 0;
+        for (const arr of Object.values(meta.unitsByMap)) {
+          if (Array.isArray(arr)) total += arr.length;
+        }
+        return total;
+      }
+      if (Array.isArray(meta.units)) return meta.units.length;
+      return 0;
+    };
+    // Step 2: map to NotebookSummary and filter empty notebooks
+    const mapped = (ownedFiles || []).map((f: any) => ({
+      fileId: f.fileId,
+      fileName: f.fileName,
+      totalUnits: calcUnits((f as any).lessonUnitsMeta),
+      lastUpdated: new Date(f.updatedAt || f.timestamp || Date.now()),
+      hasLessonMeta: !!(f as any).lessonUnitsMeta,
+      colorCode: f.colorCode,
+    })).filter(n => n.totalUnits > 0);
+    return mapped;
+  }, [ownedFiles]);
+
+
   // ── Derived month (pure; recompute when inputs change)
   const currentMonth = useMemo<CalendarMonth | null>(() => {
     if (!studyPlan) return null;
     return groupSessionsIntoMonth(studyPlan, currentDate);
   }, [studyPlan, currentDate]);
+
+
+  
+  
 
   /**
    * @function hydrate
@@ -196,28 +232,35 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }, [completedSessions, persistApi, selectedNotebooks, studyPlan]);
 
-  /**
+   /**
    * @function refreshNotebooks
-   * @description Load list of notebooks for selection UI.
+   * @description Thin delegator to the centralized `ApiContext.refreshList()` which coalesces,
+   * caches, and dedupes file list loads. This keeps the calendar’s selection UI in sync with the
+   * single authoritative list and prevents racing `/api/files/list` requests. It returns a promise
+   * for convenient awaiting by callers but exposes no local side effects beyond `ApiContext` state.
+   * This path also suppresses soft “deferred” states, surfacing only hard network errors via context.
    * @steps
-   *  1) GET list() via NotebooksApi.
+   *  1) Call `refreshFileList()` from `useFileList()`.
    */
-  const refreshNotebooks = useCallback(async () => {
-    try {
-      const notebooks = await notebooksApi.list();
-      //const withColors = notebooks.map((n, i) => ({ ...n, color: NOTEBOOK_COLORS[i % NOTEBOOK_COLORS.length] }));
-      setAvailableNotebooks(notebooks);
-    } catch (e) {
-      setError('Failed to load notebooks');
-    }
-  }, [notebooksApi]);
+  const refreshNotebooks = useCallback(async () => { // update - 8
+    await refreshFileList();
+  }, [refreshFileList]);
 
-  useEffect(() => { void refreshNotebooks(); }, [refreshNotebooks]);
+
+  //useEffect(() => { void refreshNotebooks(); }, [refreshNotebooks]);
+
+
+  useEffect(() => {
+  // Suppress soft deferrals; they are expected during superseded calls / Retry-After
+  if (!listError || listError === 'LIST_DEFERRED') return;
+  setError(listError);
+}, [listError]);
+
 
   /**
    * @function selectNotebook
    * @description Add notebook ID and persist envelope (if a plan exists).
-   * // update - 3
+   * 
    */
   const selectNotebook = useCallback((id: string) => {
     setSelectedNotebooks(prev => {
@@ -246,7 +289,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   /**
    * @function deselectNotebook
    * @description Remove notebook ID and persist envelope (if a plan exists).
-   * // update - 3
+   * 
    */
   const deselectNotebook = useCallback((id: string) => {
     setSelectedNotebooks(prev => {
@@ -262,7 +305,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
 /**
    * @function updateScheduleConfig
    * @description Update DayAvailability only. Ignores deprecated fields.
-   * // update - 4
+   * 
    * @steps
    *  1) Validate provided DayAvailability tokens are among Mon..Sun.
    *  2) De-duplicate while preserving order.
@@ -322,7 +365,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   /**
    * @function regenerateMonth
    * @description Move the visible window. The month is derived; no recompute needed.
-   * // update - 3
+   * 
    */
   const regenerateMonth = useCallback(async (year: number, monthIndex: number) => {
     setCurrentDate(new Date(year, monthIndex, 1));
@@ -406,7 +449,7 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
    *  4) setStudyPlan(merged) and POST envelope optimistically.
    *  5) Refresh version tracking snapshot.
    */
-  const updateStudyPlan = useCallback(async () => { // update - 6
+  const updateStudyPlan = useCallback(async () => { 
     if (!studyPlan) {
       setError('No existing plan to update. Generate a plan first.');
       return;
@@ -470,7 +513,7 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
    * @steps
    *  1) Reset local state.
    *  2) DELETE on server (ignore errors).
-   * // update - 3
+   * 
    */
   const clearSchedule = useCallback(() => {
     setSelectedNotebooks([]);
@@ -488,7 +531,7 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
     scheduleConfig,
     planStartDate,
     setPlanStartDate,
-    isLoading: isLoading || extensionInProgress,
+    isLoading:isLoading || extensionInProgress || listRefreshing,
     error,
     availableNotebooks,
 
@@ -519,7 +562,7 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
 
     // utilities
     notebookVersions,
-  }), [selectedNotebooks, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, updateStudyPlan, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, completedSessions, notebookVersions]);
+  }), [selectedNotebooks, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, listRefreshing, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, updateStudyPlan, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, completedSessions, notebookVersions]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };

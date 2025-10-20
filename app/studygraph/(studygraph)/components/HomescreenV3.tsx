@@ -96,7 +96,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
  */
 const openCalendarModal = () => {
   // Step 1: Log intent with file-scoped tag for observability
-  console.log('HomescreenV3.tsx [4001] › Opening calendar modal via Quick Action');
+  // console.log('HomescreenV3.tsx [4001] › Opening calendar modal via Quick Action');
 
   // Step 2: Flip local visibility boolean
   setIsCalendarModalOpen(true);
@@ -109,7 +109,7 @@ const openCalendarModal = () => {
  */
 const closeCalendarModal = () => {
   // Step 1: Log close intent
-  console.log('HomescreenV3.tsx [4002] › Closing calendar modal');
+  // console.log('HomescreenV3.tsx [4002] › Closing calendar modal');
 
   // Step 2: Reset local state
   setIsCalendarModalOpen(false);
@@ -138,7 +138,7 @@ useEffect(() => {
 
   // Step 4: Initialize component on mount
   useEffect(() => {
-    console.log('HomescreenV3.tsx 3001 › Component initialization start');
+    // console.log('HomescreenV3.tsx 3001 › Component initialization start');
     
     // Set greeting based on time of day
     const hour = new Date().getHours();
@@ -148,7 +148,7 @@ useEffect(() => {
       'Good evening'
     );
     
-    console.log('HomescreenV3.tsx 3002 › Initial setup complete');
+    // console.log('HomescreenV3.tsx 3002 › Initial setup complete');
   }, []);
 
 
@@ -162,10 +162,10 @@ useEffect(() => {
    */
   const handleDeleteFile = async (path: string, docId:string) => {
     if (window.confirm('Are you sure you want to delete this file?')) {
-      console.log('HomescreenV3.tsx 3009 › Delete confirmation received for:', path);
+      // console.log('HomescreenV3.tsx 3009 › Delete confirmation received for:', path);
       try {
         await deleteFile(path);
-        console.log('HomescreenV3.tsx 3010 › File deletion successful:', path);
+        // console.log('HomescreenV3.tsx 3010 › File deletion successful:', path);
         await refresh(); // Refresh file list after deletion
         deleteDocBytes(docId);
       } catch (err) {
@@ -192,7 +192,7 @@ useEffect(() => {
       updatedAt: file.updatedAt,
     };
     
-    console.log('HomescreenV3.tsx 3012 › PickerMeta constructed with role:', meta);
+    // console.log('HomescreenV3.tsx 3012 › PickerMeta constructed with role:', meta);
     return meta;
   };
 
@@ -207,7 +207,7 @@ useEffect(() => {
   const openLearningModal = (title: string, description: string) => {
     setModalContent({ title, description });
     setIsModalOpen(true);
-    console.log('HomescreenV3.tsx 3015 › Learning modal opened:', title);
+    // console.log('HomescreenV3.tsx 3015 › Learning modal opened:', title);
   };
 
   /**
@@ -219,7 +219,7 @@ useEffect(() => {
   const closeLearningModal = () => {
     setIsModalOpen(false);
     setModalContent(null);
-    console.log('HomescreenV3.tsx 3016 › Learning modal closed');
+    // console.log('HomescreenV3.tsx 3016 › Learning modal closed');
   };
 
   // Step 5: Filter files based on active tab and search query
@@ -248,7 +248,7 @@ useEffect(() => {
       );
     }
 
-    console.log('HomescreenV3.tsx 3017 › Filtered files count:', files.length, 'for tab:', activeTab);
+    // console.log('HomescreenV3.tsx 3017 › Filtered files count:', files.length, 'for tab:', activeTab);
     return files;
   };
 
@@ -295,7 +295,7 @@ useEffect(() => {
     },
   ];
 
-  console.log('HomescreenV3.tsx 3018 › Rendering component with filtered files:', getFilteredFiles().length);
+  // console.log('HomescreenV3.tsx 3018 › Rendering component with filtered files:', getFilteredFiles().length);
 
   return (
     <div className="home-screen-v3">
@@ -402,7 +402,7 @@ useEffect(() => {
                         className="file-tile"
                         onClick={() => {
                           const meta = buildPickerMeta(file);
-                          console.log('HomescreenV3.tsx 3019 › File tile clicked:', meta);
+                          // console.log('HomescreenV3.tsx 3019 › File tile clicked:', meta);
                           onFileSelect(meta);
                         }}
                       >
@@ -527,7 +527,7 @@ useEffect(() => {
       onClose={closeCalendarModal}
       onFileSelect={(meta: CalendarPickerFileMeta) => {
         // Step 1: Log the selection for traceability
-        console.log('HomescreenV3.tsx [4003] › Calendar selected file', meta);
+        // console.log('HomescreenV3.tsx [4003] › Calendar selected file', meta);
 
         // Step 2: Forward to parent handler to trigger file switch/navigation
         onFileSelect(meta);

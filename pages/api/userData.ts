@@ -16,6 +16,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { firestore } from '@/app/src/services/firebase';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
+import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
 /** Shape the client expects; keep minimal & backwards-compatible. */
 type QuizType = 'matching' | 'multipleChoice' | 'true-false' | 'FIB';
@@ -104,7 +105,7 @@ function buildInitialPayload(userId: string): RevisionMetaData {
 }
 
 /**
- * handler — update - 2
+ * handler 
  * @purpose
  *   Implement GET-or-CREATE and PUT upsert for per-user scoped userdata.
  * @steps
@@ -115,7 +116,7 @@ function buildInitialPayload(userId: string): RevisionMetaData {
  *   3) On PUT: write passed JSON payload verbatim as the current value.
  *   4) Otherwise 405.
  */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+ async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     // 1) Auth + inputs
   const session = await authenticateRequest(req, res);
@@ -178,3 +179,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+export default withRateLimitNP('np:userData')(handler);

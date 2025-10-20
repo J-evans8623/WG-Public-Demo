@@ -13,8 +13,9 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import { resolveRole } from '@/app/src/services/firebase';
 import { mintForumJwt } from '@/app/src/services/forum/ForumFb';
+import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+ async function handler(req: NextApiRequest, res: NextApiResponse) {
   console.log('pages/api/forum/start.ts [3301] › request', { method: req.method, url: req.url });
 
   // STEP 1 — Method guard
@@ -66,3 +67,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
+export default withRateLimitNP('np:forumData')(handler);

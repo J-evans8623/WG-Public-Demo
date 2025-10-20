@@ -14,6 +14,7 @@ interface SearchContextType {
   setQuery(q: string): void;
   selectResult(id: string): void;    // ← Appends to the array
   clearSelection(): void;            // ← Clears the array
+  removeSelectedResult(id: string): void;
 }
 
 const SearchContext = createContext<SearchContextType | undefined>(undefined);
@@ -51,6 +52,12 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({ children }) => {
     setSelectedResultIds([]);
   };
 
+  
+   /** Remove a single selected result from history */
+  const removeSelectedResult = (id: string) => {
+    setSelectedResultIds(prev => prev.filter(x => x !== id));
+  };
+
   return (
     <SearchContext.Provider value={{
       isOpen,
@@ -61,7 +68,8 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({ children }) => {
       close,
       setQuery,
       selectResult,
-      clearSelection
+      clearSelection,
+      removeSelectedResult
     }}>
       {children}
     </SearchContext.Provider>

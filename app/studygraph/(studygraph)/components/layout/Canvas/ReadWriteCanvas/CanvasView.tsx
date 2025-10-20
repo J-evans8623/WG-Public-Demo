@@ -36,7 +36,6 @@ import { useUndoRedo } from '@/app/studygraph/(studygraph)/components/Context/Un
 import BottomToolbar from '../toolbar/BottomToolbar';
 import QuizGeneratorModal from '../QuizGeneratorModal';
 import ShareModal from '../../share/ShareModal';
-import type { PdfViewerRefType } from '../PdfViewer';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import { usePreorderTraversal } from '@/app/studygraph/(studygraph)/components/hooks/usePreorderTraversal';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
@@ -56,7 +55,14 @@ import CardDisplay from './CardDisplay/CardDisplay';
 import CalendarModal from '../../Calendar/CalendarModal';
 import { PickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
 import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
+import { ResourceQuickActionsProvider} from '@/app/studygraph/(studygraph)/components/layout/Canvas/ReadWriteCanvas/ResourceQuickActionsContext';
 
+
+type PdfViewerRefType = {
+  handlePrev: () => void;
+  handleNext: () => void;
+  handleGoTo: (page: number) => void;
+};
 
 interface CanvasViewProps {
   handleFileSelect: (meta: PickerFileMeta) => void;
@@ -260,6 +266,8 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
         }}
       />
 
+       <ResourceQuickActionsProvider>
+
       {/* Panels: left map/pdf viewport + right resource panel */}
       <div className="canvas-panels flex-1">
         {/* Column 1: Viewport wrapper (overflow hidden) + BottomToolbar */}
@@ -312,6 +320,8 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
           />
         </div>
       </div>
+      </ResourceQuickActionsProvider>
+
 
       {/* Modals */}
       {isQuizModalOpen &&

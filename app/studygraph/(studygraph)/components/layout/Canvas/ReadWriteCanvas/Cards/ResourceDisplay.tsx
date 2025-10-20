@@ -501,7 +501,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   return (
     <>
       <BaseResourceCard
-        className={`resource-display preview-slide ${!editingEnabled ? 'fixed-height' : ''}`} /* update - 24 */
+        className={`resource-display preview-slide ${editingEnabled ? 'no-hover' : ''} ${!editingEnabled ? 'fixed-height' : ''}`}
         tabIndex={editingEnabled ? 0 : -1} /* update - 25 */
       >
         {!editingEnabled ? (
@@ -583,8 +583,20 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
                 >
                   <Maximize2 />
                 </button>
+                                {onDismiss && (
+                                  <button
+                                    onClick={() => {
+                                      console.log('[ResourceDisplay.tsx][9106] Dismiss action clicked:', { id });
+                                      onDismiss();
+                                    }}
+                                    className="slide-action-btn"
+                                    title="Dismiss"
+                                  >
+                                    <CloseIcon />
+                                  </button>
+                                )}
 
-                {/* update - 28: Dismiss is only meaningful in edit sessions; hide otherwise */}
+                {/* update - 28: Dismiss is only meaningful in edit sessions; hide otherwise 
                 {editingEnabled && onDismiss && (
                   <button
                     onClick={() => {
@@ -596,7 +608,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
                   >
                     <CloseIcon />
                   </button>
-                )}
+                )}*/}
               </div>
             </div>
 

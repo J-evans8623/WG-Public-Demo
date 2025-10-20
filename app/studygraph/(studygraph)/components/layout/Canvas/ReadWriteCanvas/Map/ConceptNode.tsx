@@ -50,7 +50,7 @@ import QuizGeneratorModal from '../../QuizGeneratorModal';
 import '@/app/studygraph/customTooltip.css'
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
-
+import { useResourceQuickActions } from '@/app/studygraph/(studygraph)/components/layout/Canvas/ReadWriteCanvas/ResourceQuickActionsContext';
 
 const GENERAL_SELECTED_COLOR = '#3B82F6';
 const CARET_COLOR = '#FF6500';
@@ -75,6 +75,8 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
     completeMerge,
     StatusMessage,
     setStatusMessage,
+    editingUiFocusOnly,
+    setCaretNode,
   } = useNodeSelection();
   const { updateNodeTitle, createNewNode, deleteNode, transferNode, mapId  } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
@@ -103,6 +105,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const nodeRef = React.useRef<HTMLDivElement>(null);
+  const { createNoteDraft, createCueCardDraft } = useResourceQuickActions();
 
   /**
    * @function handleSelect
@@ -396,9 +399,15 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   const isCaretNode = node.id === focusNodeId;
   const isTargetNode = node.id === targetNodeId && node.id !== focusNodeId;
   let ringColor: string | null = null;
-  if (isCaretNode) ringColor = CARET_COLOR;
-  else if (isTargetNode) ringColor = TARGET_COLOR;
+  if (isCaretNode) {
+    ringColor = CARET_COLOR;
+  }  else if (!editingUiFocusOnly ){
+     if (isTargetNode) ringColor = TARGET_COLOR;
   else if (isSelected(node.id) || node.id === targetNodeId) ringColor = GENERAL_SELECTED_COLOR;
+  }
+  else {
+  ringColor = null;                   // hide secondary rings during edit focus
+}
   const nodeColor = depth === 1 ? primaryColor : backgroundColor;
   const isDepthOne = depth === 1;
 
@@ -516,6 +525,41 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
                 <Plus className="w-4 h-4" />
                 <span>Add node</span>
               </button>
+
+
+               {/* update - 26: Add note */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setCaretNode(node.id);
+          createNoteDraft();
+          setShowMenu(false);
+        }}
+        className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2 hover:bg-gray-50"
+      >
+        <Plus className="w-4 h-4" />
+        <span>Add note</span>
+      </button>
+
+              {/* update - 25: Add cue card */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          // 1) Make this node caret without clearing others
+          // 2) Trigger right-rail draft creation
+          // 3) Close menu
+          setCaretNode(node.id);          // step 1
+          createCueCardDraft();           // step 2
+          setShowMenu(false);             // step 3
+        }}
+        className="w-full text-left px-2.5 py-1.5 text-sm flex items-center gap-2 hover:bg-gray-50"
+      >
+        <Plus className="w-4 h-4" />
+        <span>Add cue card</span>
+      </button>
+
+      
+
 
               <button
                 onClick={(e) => {

@@ -21,7 +21,6 @@ import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
-import SearchButton from '@/app/studygraph/(studygraph)/components/layout/CardDisplay/SearchButton';
 import BackButton from '../../../CardDisplay/BackButton';
 import '@/app/studygraph/styles/brand/brand-utilities.css'; // this is correct import path
 import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/v2/CardDisplay.css'; // this is correct import path
