@@ -77,14 +77,12 @@ import SearchModal from './components/layout/SearchModal';
 import { AccessLayerProvider, useAccessLayer } from '@/app/Library/Context/AccessLayerContext';
 import { Role } from './types/access';
 import { RefreshModal } from './components/access/RefreshModal';
-import { useCollaborationManager } from './services/collab/useCollaborationManager';
 import { CalendarProvider } from '@/app/Library/Context/CalendarContextv2';
 import { GlobalModalProvider, useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
 import { registerAutosaveHandlers } from '@/app/studygraph/(studygraph)/services/autosave/autoSaveBridge';
+import { CollabProvider, useCollab } from '@/app/Library/Context/collab/CollabContext'; 
 
-// update - 2: remove legacy orchestrators (DocumentAccessManager, readiness, session/controllers)
 
-// update - 3: typings reused by HomeScreen's onFileSelect
 type PickerArg =
   | string
   | {
@@ -149,14 +147,7 @@ const AppLayoutContent: React.FC = () => {
   // Keep Lesson mapping fresh
   useLessonModuleMapper();
   // Collaboration connection lifecycle
-  const { connect: collabConnect, disconnect: collabDisconnect, isConnected , status} = useCollaborationManager({
-    onRevoked: ({ docId }) => {
-      console.log('app.tsx 7101 › collaboration revoked', { docId });
-    },
-    onInvalidToken: ({ docId, error }) => {
-      console.error('app.tsx 7102 › collaboration token invalid', { docId, error });
-    },
-  });
+  const { status: collabStatus, restart } = useCollab();
 
   // update - 5: shared-link landing — express **only intent**, let context drive readiness
   useEffect(() => {
@@ -250,31 +241,7 @@ const AppLayoutContent: React.FC = () => {
 
   }, [renderReady, saveReady, docFileID, setActiveView, hideModal, triggerViewSwitch, setTriggerViewSwitch]); // update - 8
 
-  // update - 9: collaboration: connect only when ACTIVE & saveReady & on map
-  useEffect(() => {
-    const ok = bootPhase === 'ACTIVE' && !!docFileID && saveReady && currentView === 'map' && ydoc;
-    const inProgress= status == "connecting" || status == "connected";
-    if (ok) {
 
-      if (!isConnected && ! inProgress) {
-              console.log('app.tsx 7201 › collab connect gate passed', { docFileID, bootPhase, saveReady });
-      collabConnect(docFileID!, ydoc!, visibility).catch((err) =>
-        console.error('app.tsx 7202 › collab connect failed', err),
-      );
-
-    }
-
-
-    } else {
-      // Avoid churn during transitions
-      if (isConnected) {
-      console.log('app.tsx 7203 › collab disconnect gate', { bootPhase, currentView, saveReady });
-      collabDisconnect();
-      }
-
- 
-    }
-  }, [bootPhase, saveReady, currentView, docFileID, ydoc, visibility, collabConnect, collabDisconnect, isConnected, status]);// update - 9
 
   // update - 10: autosave — gated solely by ACTIVE + saveReady
   useEffect(() => {
@@ -427,15 +394,7 @@ const AppLayoutContent: React.FC = () => {
       <RefreshModal
         onRefresh={() => {
           console.log('app.tsx 5001 › refresh modal → collab restart');
-          collabDisconnect();
-          setTimeout(() => {
-            if (docFileID && ydoc && bootPhase === 'ACTIVE' && saveReady) {
-              const v = getVisibility();
-              collabConnect(docFileID, ydoc, v).catch((e) => console.error('app.tsx 5004 › collab reconnect failed', e));
-            } else {
-              console.log('app.tsx 5006 › skipped reconnect: not ACTIVE/saveReady', { bootPhase, saveReady });
-            }
-          }, 800);
+          restart(); 
         }}
       />
     </div>
@@ -456,6 +415,7 @@ export const AppLayout: React.FC = () => {
         <GlobalModalProvider>
           <AccessLayerProvider>
             <YDocProvider>
+              <CollabProvider>
               <CalendarProvider>
                 <ViewSwitchProvider>
                   <LessonModuleProvider>
@@ -500,6 +460,7 @@ export const AppLayout: React.FC = () => {
                   </LessonModuleProvider>
                 </ViewSwitchProvider>
               </CalendarProvider>
+              </CollabProvider>
             </YDocProvider>
           </AccessLayerProvider>
         </GlobalModalProvider>

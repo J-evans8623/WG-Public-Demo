@@ -40,6 +40,7 @@ interface BatchedResult {
   metadata: {
     LessonTitle: string;
     Introduction: string;
+    CourseTitle:string;
   };
   nodes: PrimaryNode[];
 }
@@ -106,7 +107,8 @@ async function structuralPass(
   return {
     metadata: {
       LessonTitle: batched.LessonTitle,
-      Introduction: batched.Introduction
+      Introduction: batched.Introduction,
+      CourseTitle: batched.CourseTitle,
     },
     nodes
   };
@@ -209,6 +211,7 @@ console.log('[LessonModuleServiceV7.ts][6001] START generateLessonFromSegment', 
       introduction        : metadata.Introduction,  
       primary_subtopics   : enriched,                    
       quiz                : combinedQuiz,
+      CourseTitle: metadata.CourseTitle,
     }
   };
 

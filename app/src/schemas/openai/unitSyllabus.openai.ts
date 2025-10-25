@@ -24,6 +24,10 @@ export const unitSyllabusArrayOpenAI = {
         type: "string",
         description: "The generated introduction for the lesson module."
       },
+      CourseTitle: {
+        type: "string",
+        description: "Short, conventional University course name (e.g., Biology, Calculus I, World History, Pscyhology, Sosciology, Economics, Statistics, Business, Religion, Physics, Chemistry, Organic Chemistry, Algebra, Math, Computer Science)."
+      },
       unit_syllabus: {
         type: "array",
         description: "An array of primary subtopic objects for the unit syllabus.",
@@ -69,23 +73,6 @@ export const unitSyllabusArrayOpenAI = {
               type: "integer",
               description: "Order in which this primary subtopic is presented."
             },
-            Domain: {
-              type: "string",
-              description: "The subject domain of this primary subtopic.",
-              enum: [
-                "Humanities",
-                "Social Sciences",
-                "Natural Sciences",
-                "Formal Sciences",
-                "Fine & Performing Arts",
-                "Engineering & Technology",
-                "Business & Management",
-                "Health Sciences & Medicine",
-                "Education",
-                "Law & Public Policy",
-                "Agriculture & Environmental Sciences"
-              ]
-            },
             relevantPages: {
               type: "array",
               description: "Page numbers from the original document that this subtopic covers.",
@@ -99,7 +86,6 @@ export const unitSyllabusArrayOpenAI = {
             "LessonOutline",
             "SecondarySubtopic",
             "ChronologicalOrder",
-            "Domain",
             "relevantPages"
           ],
           additionalProperties: false
@@ -107,7 +93,7 @@ export const unitSyllabusArrayOpenAI = {
       }
     },
     // IMPORTANT for OpenAI strict at the top-level as well.
-    required: ["LessonTitle", "Introduction", "unit_syllabus"],
+    required: ["LessonTitle", "Introduction", "CourseTitle","unit_syllabus"],
     additionalProperties: false
   },
   strict: true

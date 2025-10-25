@@ -24,7 +24,7 @@ import { useSubTreeContext } from '@/app/Library/Context/SubTreeProvider';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { parseConceptMap } from './parseConceptMap';
 import { v4 as uuidv4 } from 'uuid';
-import { set } from 'mongoose';
+
 
 export function useLessonModuleMapper(): void {
   // Retrieve lesson modules from LessonDataContext.
@@ -72,15 +72,17 @@ export function useLessonModuleMapper(): void {
           console.log(`[useLessonModuleMapper] Processing lesson module with uniqueId: ${uniqueId}`);
           addLoadingLesson(uniqueId);
           try {
-            // Create a new concept map for the individual lesson module.
+            // Create a new concept map for the individual lesson module. Use notebook title here instead
             const mapTitle =
               singleLessonModule?.main_topic?.title || 'New Lesson Module';
               if (i === 0) {
-                const currentFileName = getFileName().toLowerCase().trim();
-                if (currentFileName === 'untitled document') {
-                  updateFileName(mapTitle);
-                  console.log(`[useLessonModuleMapper] Updated file name to: ${mapTitle}`);
-                }
+                const rawCourseTitle = singleLessonModule?.main_topic?.CourseTitle;
+                const courseTitle =
+                  typeof rawCourseTitle === 'string' && rawCourseTitle.trim().length > 0
+                    ? rawCourseTitle.trim()
+                    : null;
+                const nextName = courseTitle || mapTitle;
+                updateFileName(nextName);
               } 
             const newMap = addConceptMap(mapTitle, uniqueId); 
             setGeneratedLessons((prev) => [...prev, uniqueId]);
@@ -111,39 +113,7 @@ export function useLessonModuleMapper(): void {
             setGeneratingLessonStatus("completed")
           }
         }
-      } else {
-        // Fallback: if lessonModules is not an array, treat the entire lessonModule as a single module.
-        console.log(`[useLessonModuleMapper] Fallback processing for fileId: ${fileId}`);
-        addLoadingLesson(fileId);
-        try {
-          const mapTitle =
-            lessonModule?.metadata?.main_topic?.title || 'New Lesson Module';
-          const newMap = addConceptMap(mapTitle, fileId);
-          await parseConceptMap(
-            lessonModule,
-            {
-              updateNodeTitle,
-              setNodes: wrappedSetNodes,
-              nodes: new Map(newMap.nodesMap.entries()),
-              createResource,
-              setSubtrees: wrappedSetSubtrees,
-              subtrees,
-              getRootNode,
-            },
-            newMap.id
-          );
-          updateLessonModule(fileId, {
-            topic: lessonModule.metadata.main_topic.title,
-            summary: lessonModule.metadata.summary,
-          });
-        } catch (error) {
-          console.error(`Error processing lesson module for file ${fileId}:`, error);
-          setGeneratingLessonStatus("error")
-        } finally {
-          removeLoadingLesson(fileId);
-          setGeneratingLessonStatus("completed")
-        }
-      }
+      } 
     });
 
     // Clear the lesson module list to prevent duplication.

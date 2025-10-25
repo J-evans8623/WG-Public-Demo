@@ -44,6 +44,7 @@ export interface PrimarySubtopic {
 export interface BatchedSyllabus {
   LessonTitle: string;
   Introduction: string;
+  CourseTitle:string;
   unit_syllabus: PrimarySubtopic[];
 }
 
@@ -71,13 +72,13 @@ export async function generateBatchedUnitSyllabus(
   const parsed: BatchedSyllabus = {
     LessonTitle: raw.LessonTitle,
     Introduction: raw.Introduction,
+    CourseTitle: raw.CourseTitle,
     unit_syllabus: raw.unit_syllabus.map((ps: any) => ({
       Title: ps.Title,
       Learning_Objectives: ps.Learning_Objectives,
       LessonOutline: ps.LessonOutline,
       SecondarySubtopic: ps.SecondarySubtopic,
       ChronologicalOrder: ps.ChronologicalOrder,
-      Domain: ps.Domain,
       relevantPages: ps.relevantPages  
     }))
   };

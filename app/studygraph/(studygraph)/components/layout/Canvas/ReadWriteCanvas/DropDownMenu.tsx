@@ -161,25 +161,27 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
 
 
 
-  const handleGenerate = useCallback(() => {
-    if (mode !== 'edit') return;
-    // console.log('[UnifiedDropDownMenus.tsx][7104] generate-lesson → open modal');
-    setOpen(false);
-    showModal('lessonGeneration', {
-      docFileId: docFileID,
-      onSuccess: (resp: any) => {
-        try {
-          // console.log('[UnifiedDropDownMenus.tsx][7105] generate-lesson success');
-          if (resp?.id && resp?.lessonModules) {
-            addLessonModule(resp.id, { lessonModules: resp.lessonModules });
-          }
-          onLessonGenerated?.(resp);
-        } catch (e) {
-          console.error('[UnifiedDropDownMenus.tsx][7106] generate-lesson onSuccess error', e);
-        }
-      },
-    });
-  }, [mode, showModal, docFileID, addLessonModule, onLessonGenerated]);
+const handleGenerate = useCallback(() => {
+  if (mode !== 'edit') return;
+  setOpen(false);
+  showModal('lessonGeneration', {
+    docFileId: docFileID,
+    onSuccess: (resp: any) => {
+      try {
+        // Single source of truth: persist file + modules
+        handleGenerateLessonSuccess(resp);
+
+        // Preserve external hook
+        onLessonGenerated?.(resp);
+      } catch (e) {
+        console.error('[UnifiedDropDownMenus.tsx][7106] generate-lesson onSuccess error', e);
+      }
+    },
+  });
+}, [mode, showModal, docFileID, handleGenerateLessonSuccess, onLessonGenerated]);
+
+
+
 
   const items = [
     ...(mode === 'edit'

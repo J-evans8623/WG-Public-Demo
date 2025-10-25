@@ -397,63 +397,30 @@ class CollaborationManager {
    * FIXED: Establish WebSocket connection with JWT token
    * The key fix: Use a custom WebSocket class that connects to the complete URL
    */
-  private async connectWithToken(docId: string, ydoc: Y.Doc, jwt: string): Promise<void> {
-    /*console.log('CollaborationManager › Establishing WebSocket connection', {
-      docId,
-      jwtLength: jwt.length,
-      jwtPreview: jwt.substring(0, 50) + '...'
-    });*/
+private async connectWithToken(docId: string, ydoc: Y.Doc, jwt: string): Promise<void> {
+  // Clean state before connecting
+  this.clearTimers();
+  this.destroyProvider();
 
-    // Clean state before connecting
-    this.clearTimers();
-    this.destroyProvider();
+  // Basic JWT sanity check
+  if (jwt.split('.').length !== 3) throw new Error('Invalid JWT');
 
-    // Validate JWT format
-    const jwtParts = jwt.split('.');
-    if (jwtParts.length !== 3) {
-      throw new Error(`Invalid JWT format: expected 3 parts, got ${jwtParts.length}`);
-    }
+  const rawEndpoint = process.env.NEXT_PUBLIC_YJS_ENDPOINT || 'ws://localhost:1234';
+  const endpoint = rawEndpoint.replace(/\/+$/, ''); // strip trailing slash
 
-    /*console.log('CollaborationManager › JWT validation passed:', {
-      parts: jwtParts.length,
-      headerLength: jwtParts[0].length,
-      payloadLength: jwtParts[1].length,
-      signatureLength: jwtParts[2].length
-    });*/
+  // ✅ No custom WebSocket. Use y-websocket’s URL builder & params.
+  this.provider = new WebsocketProvider(endpoint, docId, ydoc, {
+    // y-websocket >=1.5 supports appending query params automatically
+    params: { token: jwt },
 
-    // Build the complete WebSocket URL that the Yjs server expects
-    const rawEndpoint = process.env.NEXT_PUBLIC_YJS_ENDPOINT || 'ws://localhost:1234';
-    const endpoint = rawEndpoint.replace(/\/+$/, ''); // strip trailing slashes
-    const encodedDoc = encodeURIComponent(docId);
-    const encodedToken = encodeURIComponent(jwt);
-    
-    // This is the URL format your Yjs server expects: ws://localhost:1234/{docId}?token={jwt}
-    const completeUrl = `${endpoint}/${encodedDoc}?token=${encodedToken}`;
+    // OPTIONAL: uncomment to disable cross-tab BroadcastChannel if you prefer
+     disableBc: true,
+  });
 
-   /* console.log('CollaborationManager › Target URL (token hidden):', 
-      `${endpoint}/${encodedDoc}?token=***`);*/
+  this.setupProviderEvents();
+  console.log('CollaborationManager › WebSocket provider initialized (room=doc, params=?token=JWT)');
+}
 
-    // Create a custom WebSocket class that ignores y-websocket's URL construction
-    // and connects directly to our complete URL
-    class TokenizedWebSocket extends WebSocket {
-      constructor(url?: string | URL, protocols?: string | string[]) {
-        // Ignore the URL that y-websocket passes and use our complete URL instead
-        console.log('TokenizedWebSocket › Connecting to complete URL with token');
-        super(completeUrl, protocols);
-      }
-    }
-
-    // Create the WebsocketProvider with dummy parameters since we handle URL construction
-    // The empty string room name prevents y-websocket from appending anything to our URL
-    this.provider = new WebsocketProvider('dummy://localhost', '', ydoc, {
-      WebSocketPolyfill: TokenizedWebSocket,
-    });
-
-    // Set up event listeners
-    this.setupProviderEvents();
-
-    console.log('CollaborationManager › WebSocket provider initialized with custom WebSocket class');
-  }
 
   /**
    * Set up WebSocket provider event listeners
