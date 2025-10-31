@@ -1,0 +1,587 @@
+/***************************************************************************************
+ * @file NavigationPanel.css
+ * @description
+ *   Polished styling for the three-region navigation panel with warm board theme.
+ *   Features fixed header, scrollable content, and sticky footer to prevent Profile
+ *   button truncation. Uses sage green accents and professional typography.
+ ***************************************************************************************/
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    WRAPPER & TRIGGER                                  */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel-wrapper {
+  position: relative;
+  z-index: 50;
+}
+
+.nav-panel-trigger {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 16px;
+  height: 100vh;
+  background: transparent;
+  z-index: 50;
+  cursor: pointer;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    MAIN PANEL                                         */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translate(-100%, -50%);
+  width: 20rem;
+  max-height: 85vh;
+  background: #ffffff;
+  border: 1px solid #E8E7E5;
+  border-radius: 0 8px 8px 0;
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.08);
+  transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 51;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.nav-panel--expanded {
+  transform: translate(0, -50%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    HEADER - Fixed                                     */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__header {
+  flex-shrink: 0;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #E8E7E5;
+  background: #ffffff;
+}
+
+.nav-panel__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.nav-panel__logo {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #FF8C42, #FF6B35);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.nav-panel__brand-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2C3E50;
+  font-family: 'Crimson Text', serif;
+}
+
+.nav-panel__badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  background: #E3F2FD;
+  color: #1976D2;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    CONTENT - Scrollable                               */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.75rem 0;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 196, 176, 0.4) transparent;
+}
+
+.nav-panel__content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nav-panel__content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav-panel__content::-webkit-scrollbar-thumb {
+  background: rgba(212, 196, 176, 0.4);
+  border-radius: 3px;
+}
+
+.nav-panel__content::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 196, 176, 0.6);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    NAVIGATION ITEMS                                   */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  color: #6C757D;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+  text-align: left;
+}
+
+.nav-panel__nav-item:hover {
+  background: #FAF8F5;
+  color: #2C3E50;
+}
+
+.nav-panel__nav-item--active {
+  background: linear-gradient(90deg, rgba(91, 140, 90, 0.06) 0%, transparent 100%);
+  border-left-color: #5B8C5A;
+  color: #2C3E50;
+}
+
+.nav-panel__icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    SECTION LAYOUT                                     */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__section {
+  margin-top: 0.5rem;
+}
+
+.nav-panel__section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  color: #2C3E50;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    DOCUMENT TITLE                                     */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__doc-title {
+  padding: 0.75rem 1.5rem;
+  border-top: 1px solid #F0F0F0;
+  border-bottom: 1px solid #F0F0F0;
+  background: #FAFAFA;
+}
+
+.nav-panel__title-text {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2C3E50;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-panel__title-text--editable {
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.nav-panel__title-text--editable:hover {
+  color: #5B8C5A;
+}
+
+.nav-panel__title-input {
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  border: 1px solid #5B8C5A;
+  border-radius: 4px;
+  background: white;
+  color: #2C3E50;
+}
+
+.nav-panel__title-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(91, 140, 90, 0.2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    SUBSECTIONS                                        */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__subsection {
+  margin-top: 1rem;
+}
+
+.nav-panel__subsection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1.5rem;
+  color: #6C757D;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nav-panel__subsection-title {
+  flex: 1;
+}
+
+.nav-panel__subsection-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    ICON BUTTONS                                       */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__icon-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #6C757D;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.nav-panel__icon-btn:hover {
+  background: #F0F0F0;
+  color: #5B8C5A;
+}
+
+.nav-panel__icon--sm {
+  width: 14px;
+  height: 14px;
+}
+
+.nav-panel__icon--xs {
+  width: 12px;
+  height: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    LISTS                                              */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__list {
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 196, 176, 0.3) transparent;
+}
+
+.nav-panel__list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.nav-panel__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav-panel__list::-webkit-scrollbar-thumb {
+  background: rgba(212, 196, 176, 0.3);
+  border-radius: 2px;
+}
+
+.nav-panel__list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 1.5rem;
+  min-height: 38px;
+  background: transparent;
+  border-left: 3px solid transparent;
+  color: #2C3E50;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  position: relative;
+}
+
+.nav-panel__list-item:hover {
+  background: #FAF8F5;
+}
+
+.nav-panel__list-item:hover .nav-panel__list-actions {
+  opacity: 1;
+}
+
+.nav-panel__list-item--active {
+  background: linear-gradient(90deg, rgba(91, 140, 90, 0.06) 0%, transparent 100%);
+  border-left-color: #5B8C5A;
+  font-weight: 500;
+}
+
+.nav-panel__list-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #6C757D;
+}
+
+.nav-panel__list-icon--file {
+  color: #EF4444;
+}
+
+.nav-panel__list-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.nav-panel__list-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.nav-panel__action-btn {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: #6C757D;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.nav-panel__action-btn:hover {
+  background: rgba(108, 117, 125, 0.1);
+  color: #2C3E50;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    EDIT FORM                                          */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__edit-form {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: 100%;
+}
+
+.nav-panel__edit-input {
+  flex: 1;
+  padding: 0.375rem 0.5rem;
+  font-size: 12px;
+  border: 1px solid #5B8C5A;
+  border-radius: 4px;
+  background: white;
+  color: #2C3E50;
+  min-width: 0;
+}
+
+.nav-panel__edit-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(91, 140, 90, 0.2);
+}
+
+.nav-panel__edit-submit {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: #5B8C5A;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.nav-panel__edit-submit:hover {
+  background: rgba(91, 140, 90, 0.1);
+}
+
+.nav-panel__edit-submit svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    EMPTY STATES                                       */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__empty {
+  padding: 1rem 1.5rem;
+  text-align: center;
+}
+
+.nav-panel__empty-text {
+  font-size: 12px;
+  color: #6C757D;
+  margin-bottom: 0.25rem;
+}
+
+.nav-panel__empty-hint {
+  font-size: 11px;
+  color: #9CA3AF;
+  line-height: 1.4;
+}
+
+.nav-panel__hint {
+  padding: 0.5rem 1.5rem;
+  font-size: 12px;
+  color: #6C757D;
+  font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    FOOTER - Sticky                                    */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__footer {
+  flex-shrink: 0;
+  padding: 0.75rem 0;
+  border-top: 1px solid #E8E7E5;
+  background: #ffffff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    CONTEXT MENU                                       */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__context-menu {
+  position: fixed;
+  min-width: 140px;
+  background: white;
+  border: 1px solid #E8E7E5;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 0.375rem 0;
+  z-index: 100;
+}
+
+.nav-panel__context-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  color: #2C3E50;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 150ms ease;
+  text-align: left;
+}
+
+.nav-panel__context-item:hover {
+  background: #FAF8F5;
+}
+
+.nav-panel__context-item--danger {
+  color: #EF4444;
+}
+
+.nav-panel__context-item--danger:hover {
+  background: #FEE2E2;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    RESPONSIVE                                         */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .nav-panel {
+    width: 18rem;
+  }
+}
+
+@media (max-height: 700px) {
+  .nav-panel__nav-item {
+    padding: 0.625rem 1.5rem;
+  }
+  
+  .nav-panel__list-item {
+    padding: 0.5rem 1.5rem;
+    min-height: 34px;
+  }
+  
+  .nav-panel__list {
+    max-height: 160px;
+  }
+}
+
+@media (max-height: 500px) {
+  .nav-panel {
+    max-height: 90vh;
+  }
+  
+  .nav-panel__list {
+    max-height: 120px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    FOCUS STATES                                       */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.nav-panel__nav-item:focus-visible,
+.nav-panel__list-item:focus-visible,
+.nav-panel__icon-btn:focus-visible,
+.nav-panel__action-btn:focus-visible {
+  outline: 2px solid #5B8C5A;
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-panel,
+  .nav-panel__nav-item,
+  .nav-panel__list-item,
+  .nav-panel__icon-btn,
+  .nav-panel__action-btn {
+    transition: none;
+  }
+}

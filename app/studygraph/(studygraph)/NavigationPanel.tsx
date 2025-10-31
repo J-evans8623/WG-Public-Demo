@@ -33,6 +33,7 @@ import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
 import { useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
 import { useAccountStatus } from '@/app/src/context/ApiContext';
 import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
+import './NavigationPanel.css';
 
 /** Top-level view types */
 type TopLevelView = 'home' | 'map' | 'user';
@@ -332,315 +333,276 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   // ------------------------------------------------------------------------------------
   // Render
   // ------------------------------------------------------------------------------------
-  return (
-    <div className="relative">
-      {/* Hover trigger (always-on) */}
-      <div
-        className="fixed left-0 top-0 w-4 h-screen z-50 bg-transparent"
-        onMouseEnter={handleMouseEnter}
-      />
+return (
+    <div className="nav-panel-wrapper">
+      {/* Hover trigger */}
+      <div className="nav-panel-trigger" onMouseEnter={handleMouseEnter} />
 
-      {/* Main panel */}
+      {/* Main panel with three-region layout */}
       <div
-        className={`
-          fixed
-          left-0
-          top-1/2
-          -translate-y-1/2
-          bg-white
-          shadow-lg
-          transition-all
-          duration-300
-          ease-in-out
-          z-50
-        `}
+        className={`nav-panel ${isExpanded ? 'nav-panel--expanded' : ''}`}
         onMouseLeave={handleMouseLeave}
-        style={{
-          width: isExpanded ? '20rem' : '0',
-          height: 'auto',
-          maxHeight: '80vh',
-          overflow: 'hidden',
-          border: '1px solid #E8E7E5',
-        }}
       >
-        <div className="flex flex-col">
-          {/* Header */}
-          <div className="flex items-center p-4 border-b">
-            <div className="w-8 h-8 flex items-center justify-center bg-orange-500 text-white rounded mr-3">
-              <span className="font-bold">W</span>
-            </div>
-            <span className="font-semibold text-gray-800">Wisegraph</span>
-            {!canEdit && <span className="text-xs text-blue-600 ml-2">Read-Only</span>}
+        {/* HEADER - Fixed */}
+        <div className="nav-panel__header">
+          <div className="nav-panel__brand">
+            <div className="nav-panel__logo">W</div>
+            <span className="nav-panel__brand-text">Wisegraph</span>
+            {!canEdit && <span className="nav-panel__badge">Read-Only</span>}
           </div>
+        </div>
 
-          {/* Primary nav */}
-          <nav className="py-2">
-            {/* Home */}
-            <div
-              className="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 cursor-pointer"
-              onClick={handleHomeClick}
-            >
-              <div className="w-6 h-6 mr-3 flex items-center justify-center text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                </svg>
-              </div>
-              <span>Home</span>
+        {/* CONTENT - Scrollable */}
+        <div className="nav-panel__content">
+          {/* Home Navigation */}
+          <button
+            className={`nav-panel__nav-item ${currentView === 'home' ? 'nav-panel__nav-item--active' : ''}`}
+            onClick={handleHomeClick}
+          >
+            <svg className="nav-panel__icon" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+            </svg>
+            <span>Home</span>
+          </button>
+
+          {/* Workspace Section */}
+          <div className="nav-panel__section">
+            <div className="nav-panel__section-header">
+              <svg className="nav-panel__icon" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
+              </svg>
+              <span>Workspace</span>
             </div>
 
-            {/* Workspace */}
-            <div>
-              <div className="flex items-center px-4 py-3 text-gray-700">
-                <div className="flex items-center">
-                  <div className="w-6 h-6 mr-3 flex items-center justify-center text-gray-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
-                    </svg>
-                  </div>
-                  <span>Workspace</span>
+            {/* Document Title */}
+            <div className="nav-panel__doc-title">
+              {canEdit && editingFileName ? (
+                <Input
+                  value={fileNameDraft}
+                  onChange={(e) => setFileNameDraft(e.target.value)}
+                  onBlur={handleFileNameSave}
+                  onKeyDown={(e) => e.key === 'Enter' && handleFileNameSave()}
+                  className="nav-panel__title-input"
+                  autoFocus
+                />
+              ) : (
+                <span
+                  className={`nav-panel__title-text ${canEdit ? 'nav-panel__title-text--editable' : ''}`}
+                  onClick={() => canEdit && setEditingFileName(true)}
+                  title={canEdit ? 'Click to edit' : ydocFileName}
+                >
+                  {ydocFileName}
+                </span>
+              )}
+            </div>
+
+            {/* Lessons */}
+            <div className="nav-panel__subsection">
+              <div className="nav-panel__subsection-header">
+                <span className="nav-panel__subsection-title">Lessons</span>
+                <div className="nav-panel__subsection-actions">
+                  {canEdit && (
+                    <>
+                      <button
+                        className="nav-panel__icon-btn"
+                        title="Add lesson"
+                        onClick={handleAddLesson}
+                      >
+                        <Plus className="nav-panel__icon--sm" />
+                      </button>
+                      <button
+                        className="nav-panel__icon-btn"
+                        title="Generate lesson"
+                        onClick={handleGenerateLessonClick}
+                      >
+                        <svg
+                          className="nav-panel__icon--sm"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
+                        </svg>
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <div className="bg-gray-50 py-1">
-                {/* File name (gated edit) */}
-                <div className="px-4 py-2 border-b border-gray-200">
-                  <div className="flex items-center text-blue-800">
-                    {canEdit && editingFileName ? (
-                      <Input
-                        value={fileNameDraft}
-                        onChange={(e) => setFileNameDraft(e.target.value)}
-                        onBlur={handleFileNameSave}
-                        onKeyDown={(e) => e.key === 'Enter' && handleFileNameSave()}
-                        className="text-sm h-6 py-1 flex-1"
-                        autoFocus
-                      />
-                    ) : (
-                      <div className="flex justify-center w-full">
-                        <span
-                          className={`font-medium ${canEdit ? 'cursor-text' : ''}`}
-                          title={canEdit ? 'Click to edit file name' : 'Document name'}
-                          onClick={() => canEdit && setEditingFileName(true)}
-                        >
-                          {ydocFileName}
-                        </span>
-                      </div>
+              {isGeneratingLesson && (
+                <div className="nav-panel__hint">Generating lesson...</div>
+              )}
+
+              <div className="nav-panel__list">
+                {lessons.length === 0 ? (
+                  <div className="nav-panel__empty">
+                    <div className="nav-panel__empty-text">No lessons yet.</div>
+                    {canEdit && (
+                      <div className="nav-panel__empty-hint">Create or Generate to get started.</div>
                     )}
                   </div>
-                </div>
-
-                {/* Lessons */}
-                <div className="mt-2">
-                  <div className="px-4 py-2 flex items-center justify-between text-sm text-gray-700 font-medium">
-                    <span>Lessons</span>
-                    <div className="flex items-center space-x-2">
-                      {/* Add lesson (gated) */}
-                      {canEdit && (
-                        <button
-                          className="h-5 w-5 flex items-center justify-center rounded hover:bg-gray-200 text-gray-500"
-                          title="Add new lesson"
-                          onClick={handleAddLesson}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
-                      )}
-                      {/* Generate lesson (gated) */}
-                      {canEdit && (
-                        <button
-                          className="p-1 rounded hover:bg-gray-200 text-gray-500"
-                          title="Generate Lesson"
-                          onClick={handleGenerateLessonClick}
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                ) : (
+                  lessons.map((lesson) => {
+                    const isSelected = activeConceptMapId === lesson.id;
+                    return (
+                      <div
+                        key={lesson.id}
+                        className={`nav-panel__list-item ${
+                          isSelected ? 'nav-panel__list-item--active' : ''
+                        }`}
+                        onClick={() => handleLessonClick(lesson.id)}
+                        onContextMenu={(e) => {
+                          if (!canEdit) return;
+                          e.preventDefault();
+                          setContextMenu({ x: e.clientX, y: e.clientY, lesson });
+                        }}
+                      >
+                        {canEdit && editingLessonId === lesson.id ? (
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              handleLessonTitleSave();
+                            }}
+                            className="nav-panel__edit-form"
                           >
-                            <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
-                          </svg>
-                        </button>
-                      )}
+                            <input
+                              type="text"
+                              value={editingTitle}
+                              onChange={(ev) => setEditingTitle(ev.target.value)}
+                              className="nav-panel__edit-input"
+                              autoFocus
+                            />
+                            <button type="submit" className="nav-panel__edit-submit">
+                              <svg viewBox="0 0 20 20" fill="currentColor">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </button>
+                          </form>
+                        ) : (
+                          <>
+                            <svg className="nav-panel__list-icon" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                            </svg>
+                            <span className="nav-panel__list-text">{lesson.title}</span>
+                            {canEdit && (
+                              <div className="nav-panel__list-actions">
+                                <button
+                                  onClick={(ev) => {
+                                    ev.stopPropagation();
+                                    startEditingLesson(lesson);
+                                  }}
+                                  className="nav-panel__action-btn"
+                                  title="Edit"
+                                >
+                                  <Pencil className="nav-panel__icon--xs" />
+                                </button>
+                                <button
+                                  onClick={(ev) => {
+                                    ev.stopPropagation();
+                                    handleDeleteLesson(lesson.id);
+                                  }}
+                                  className="nav-panel__action-btn"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="nav-panel__icon--xs" />
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Uploads */}
+            <div className="nav-panel__subsection">
+              <div className="nav-panel__subsection-header">
+                <span className="nav-panel__subsection-title">Uploads</span>
+                <button
+                  className="nav-panel__icon-btn"
+                  title={canEdit ? 'Upload file' : 'Upload private file'}
+                  onClick={handleUploadClick}
+                >
+                  <FolderOpen className="nav-panel__icon--sm" />
+                </button>
+              </div>
+
+              <div className="nav-panel__list">
+                {getAllFiles().length === 0 ? (
+                  <div className="nav-panel__empty">
+                    <div className="nav-panel__empty-text">No uploads yet.</div>
+                    <div className="nav-panel__empty-hint">
+                      {canEdit ? 'PDF, PPTX, DOCX, TXT supported.' : 'Upload private files only.'}
                     </div>
                   </div>
-
-                  {isGeneratingLesson && (
-                    <div className="px-4 py-2 text-sm text-gray-500">Generating lesson module...</div>
-                  )}
-
-                  {/* Lessons list */}
-                  <div className="max-h-20 overflow-y-auto scrollbar-thin">
-                    {lessons.map((lesson) => {
-                      const isSelected = activeConceptMapId === lesson.id;
-                      const showContextMenu = canEdit; // gated
-                      const showInlineActions = canEdit; // gated
-
-                      return (
-                        <div
-                          key={lesson.id}
-                          className={`pl-4 pr-2 py-2 hover:bg-gray-200 cursor-pointer group ${
-                            isSelected ? 'bg-gray-200' : ''
-                          }`}
-                          onClick={() => handleLessonClick(lesson.id)}
-                          onContextMenu={(e) => {
-                            if (!showContextMenu) return;
-                            e.preventDefault();
-                            setContextMenu({ x: e.clientX, y: e.clientY, lesson });
-                          }}
-                        >
-                          {canEdit && editingLessonId === lesson.id ? (
-                            <form
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                handleLessonTitleSave();
-                              }}
-                              className="flex items-center"
-                            >
-                              <input
-                                type="text"
-                                value={editingTitle}
-                                onChange={(ev) => setEditingTitle(ev.target.value)}
-                                className="flex-1 px-2 py-1 text-sm border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                autoFocus
-                              />
-                              <button type="submit" className="ml-1 text-green-600 hover:text-green-800">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                              </button>
-                            </form>
-                          ) : (
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                                  <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
-                                </svg>
-                                <span className="text-sm">{lesson.title}</span>
-                              </div>
-                              {showInlineActions && (
-                                <div className="hidden group-hover:flex items-center">
-                                  <button
-                                    onClick={(ev) => {
-                                      ev.stopPropagation();
-                                      startEditingLesson(lesson);
-                                    }}
-                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-gray-300 text-gray-500"
-                                    title="Edit lesson"
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                  </button>
-                                  <button
-                                    onClick={(ev) => {
-                                      ev.stopPropagation();
-                                      handleDeleteLesson(lesson.id);
-                                    }}
-                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-gray-300 text-gray-500 ml-1"
-                                    title="Delete lesson"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Uploads */}
-                <div className="mt-2">
-                  <div className="px-4 py-2 flex items-center justify-between text-sm text-gray-700 font-medium">
-                    <span>Uploads</span>
-                    <button
-                      className="h-5 w-5 flex items-center justify-center rounded hover:bg-gray-200 text-gray-500"
-                      title={canEdit ? 'Upload file' : 'Upload private file'}
-                      onClick={handleUploadClick}
+                ) : (
+                  getAllFiles().map((file) => (
+                    <div
+                      key={file.id}
+                      className="nav-panel__list-item"
+                      onClick={() => handleFileEntryClick(file)}
                     >
-                      <FolderOpen className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  <div className="max-h-20 overflow-y-auto scrollbar-thin">
-                    {getAllFiles().length === 0 ? (
-                      <div className="px-4 py-2 text-sm text-gray-500">
-                        {canEdit ? 'Supported file types: PDF, PPTX, DOCX, TXT.' : 'Upload private files: PDF, PPTX, DOCX, TXT.'}
-                      </div>
-                    ) : (
-                      getAllFiles().map((file) => (
-                        <div
-                          key={file.id}
-                          className="pl-4 pr-2 py-2 hover:bg-gray-200 cursor-pointer flex items-center"
-                          onClick={() => handleFileEntryClick(file)}
-                        >
-                          <FileText className="w-4 h-4 text-red-500 mr-2" />
-                          <span className="text-sm truncate flex-1">{file.title}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="px-4 py-2" />
-                </div>
+                      <FileText className="nav-panel__list-icon nav-panel__list-icon--file" />
+                      <span className="nav-panel__list-text">{file.title}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Profile */}
-            <div
-              className="flex items-center px-4 py-1 text-gray-700 hover:bg-gray-100 cursor-pointer"
-              onClick={handleProfileClick}
-            >
-              <div className="w-6 h-6 mr-3 flex items-center justify-center text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <span>Profile</span>
-            </div>
-          </nav>
+        {/* FOOTER - Sticky */}
+        <div className="nav-panel__footer">
+          <button
+            className={`nav-panel__nav-item ${currentView === 'user' ? 'nav-panel__nav-item--active' : ''}`}
+            onClick={handleProfileClick}
+          >
+            <svg className="nav-panel__icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+            </svg>
+            <span>Profile</span>
+          </button>
         </div>
       </div>
 
-      {/* Context menu (only when canEdit) */}
+      {/* Context menu */}
       {canEdit && contextMenu && (
         <div
-          className="absolute bg-white border border-gray-200 shadow-md z-50"
-          style={{ top: contextMenu.y, left: contextMenu.x, width: '8rem' }}
+          className="nav-panel__context-menu"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
           onContextMenu={(e) => e.preventDefault()}
         >
-          <div className="py-1">
-            <button
-              className="flex items-center w-full px-2 py-1 hover:bg-gray-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                startEditingLesson(contextMenu.lesson);
-                setContextMenu(null);
-              }}
-            >
-              <Pencil className="w-3 h-3 mr-2" />
-              Edit
-            </button>
-            <button
-              className="flex items-center w-full px-2 py-1 hover:bg-gray-100 text-red-600"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteLesson(contextMenu.lesson.id);
-                setContextMenu(null);
-              }}
-            >
-              <Trash2 className="w-3 h-3 mr-2" />
-              Delete
-            </button>
-          </div>
+          <button
+            className="nav-panel__context-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              startEditingLesson(contextMenu.lesson);
+              setContextMenu(null);
+            }}
+          >
+            <Pencil className="nav-panel__icon--xs" />
+            Edit
+          </button>
+          <button
+            className="nav-panel__context-item nav-panel__context-item--danger"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteLesson(contextMenu.lesson.id);
+              setContextMenu(null);
+            }}
+          >
+            <Trash2 className="nav-panel__icon--xs" />
+            Delete
+          </button>
         </div>
       )}
     </div>

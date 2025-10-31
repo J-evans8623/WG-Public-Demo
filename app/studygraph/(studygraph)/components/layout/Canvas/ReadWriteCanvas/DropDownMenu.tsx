@@ -26,7 +26,7 @@ import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
 import { useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
 import { useAccountStatus } from '@/app/src/context/ApiContext';
 import type { TextFileMessage } from '@/app/Library/Definitions/Definitions';
-import '@/app/studygraph/(studygraph)/components/layout/Canvas/bottomUtilityBar/DropdownComponents.css'
+import './DropdownComponents.css'
 type Mode = 'edit' | 'readonly';
 
 /* -------------------------------------------------------------------------------------------------

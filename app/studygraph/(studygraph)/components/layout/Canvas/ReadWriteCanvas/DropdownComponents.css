@@ -1,0 +1,569 @@
+/**
+ * @file DropdownStyles.css
+ * @description
+ * Comprehensive CSS styles for the modular dropdown components in the CanvasHeader with enhanced
+ * overflow handling and improved layout for long titles. This implementation now features Prototype 2
+ * design for active menu items, utilizing a professional border accent approach with sage green theming.
+ * The file addresses critical UI issues including fixed height constraints with scrolling for unlimited
+ * content, sophisticated active item indicators using subtle background washes and clean border accents,
+ * and enhanced layout strategies that ensure indicators remain visible regardless of title length.
+ * 
+ * The Prototype 2 design implementation provides a refined, academic-appropriate visual hierarchy through
+ * subtle sage green background gradients combined with clean left border accents and refined indicator
+ * dots. This approach maintains professional elegance while providing clear visual feedback for selected
+ * states. The design scales effectively across responsive breakpoints and maintains accessibility compliance
+ * through proper contrast ratios and keyboard navigation support.
+ *
+ * Key enhancements include fixed-height dropdown menus with smooth scrolling, sophisticated multi-layered
+ * active item indicators that combine border accents with subtle background treatments, responsive height
+ * adjustments for different screen sizes, and enhanced accessibility features. The styles integrate
+ * seamlessly with the existing tokenized CSS system while introducing the professional warm aesthetic
+ * defined in the brand guidelines with sage green (#5B8C5A) primary accents and professional blue-gray
+ * text (#2C3E50).
+ *
+ * Responsibilities:
+ * - Implement Prototype 2 selection design with sage green border and background treatments
+ * - Provide fixed-height dropdown containers with overflow scrolling capabilities
+ * - Maintain sophisticated multi-layered active item indicators for professional appearance
+ * - Ensure proper brand color integration using sage green (#5B8C5A) and professional text colors
+ * - Preserve tokenized color system integration for consistent theming across application
+ * - Maintain responsive design across different screen sizes and orientations
+ * - Preserve accessibility compliance and keyboard navigation support for inclusive design
+ * - Handle edge cases for content overflow and text truncation in scrollable containers
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+/*                                    DROPDOWN NAVIGATION STYLES                                    */
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+.ch-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ch-nav__item {
+  position: relative;
+}
+
+/* ─────────────────────────────────── Dropdown Triggers ─────────────────────────────────── */
+
+.ch-nav__trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-base, #2C3E50);
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  user-select: none;
+}
+
+.ch-nav__trigger:hover {
+  background-color: var(--surface-2, #FAF8F5);
+  color: var(--ink-high, #2C3E50);
+}
+
+.ch-nav__trigger:focus {
+  outline: none;
+  ring: 2px solid var(--accent-base, #5B8C5A);
+  ring-offset: 2px;
+}
+
+.ch-nav__trigger[aria-expanded="true"] {
+  background-color: var(--surface-2, #FAF8F5);
+  color: var(--ink-high, #2C3E50);
+  border-color: var(--edge-base, #D4C4B0);
+}
+
+.ch-nav__trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ─────────────────────────────────── Dropdown Menus with Fixed Height ─────────────────────────────────── */
+
+.ch-menu {
+  /* Step 1: Fixed height constraints to prevent indefinite extension */
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  min-width: 200px;
+  max-width: 280px;
+  max-height: 320px; /* Critical fix: Limit to approximately 8 menu items */
+  
+  /* Step 2: Enable smooth scrolling for overflow content */
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  
+  /* Step 3: Preserve existing visual styling with brand color integration */
+  background-color: var(--surface-base, #ffffff);
+  border: 1px solid var(--edge-base, #D4C4B0);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(44, 62, 80, 0.12), 0 4px 6px -2px rgba(44, 62, 80, 0.08);
+  padding: 0.5rem 0;
+  z-index: 50;
+  animation: dropdownFadeIn 0.15s ease-out;
+}
+
+/* Step 4: Custom scrollbar styling for better UX with brand colors */
+.ch-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ch-menu::-webkit-scrollbar-track {
+  background: var(--surface-2, #FAF8F5);
+  border-radius: 3px;
+}
+
+.ch-menu::-webkit-scrollbar-thumb {
+  background: rgba(91, 140, 90, 0.3);
+  border-radius: 3px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.ch-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(91, 140, 90, 0.5);
+  opacity: 1;
+}
+
+/* Step 5: Firefox scrollbar styling with brand colors */
+.ch-menu {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(91, 140, 90, 0.3) var(--surface-2, #FAF8F5);
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ─────────────────────────────────── Menu Items with Enhanced Layout ─────────────────────────────────── */
+
+.ch-menu__item {
+  /* Step 6: Enhanced layout for better indicator visibility */
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  color: var(--ink-base, #2C3E50);
+  background-color: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  user-select: none;
+  
+  /* Step 7: Prevent item compression in scrollable container */
+  flex-shrink: 0;
+  min-height: 40px; /* Ensures consistent item height */
+}
+
+.ch-menu__item:hover {
+  background-color: var(--surface-2, #FAF8F5);
+  color: var(--ink-high, #2C3E50);
+}
+
+.ch-menu__item:focus {
+  outline: none;
+  background-color: var(--surface-2, #FAF8F5);
+  color: var(--ink-high, #2C3E50);
+  
+  /* Step 8: Ensure focused items scroll into view properly */
+  scroll-margin: 8px;
+}
+
+.ch-menu__item:active {
+  background-color: rgba(91, 140, 90, 0.05);
+}
+
+/* Step 9: Enhanced text layout to prevent indicator hiding */
+.ch-menu__item span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0; /* Critical for text ellipsis to work in flex containers */
+}
+
+/* ─────────────────────────────── Menu Item Variants with Prototype 2 Indicators ─────────────────────────────── */
+
+.ch-menu__item--primary {
+  color: var(--accent-base, #5B8C5A);
+  font-weight: 500;
+}
+
+.ch-menu__item--primary:hover,
+.ch-menu__item--primary:focus {
+  background-color: rgba(91, 140, 90, 0.05);
+  color: #4A7749;
+}
+
+/* Step 10: Prototype 2 Implementation - Professional Border Accent Design */
+.ch-menu__item--active {
+  /* Step 10a: Subtle sage green background wash with gradient */
+  background: linear-gradient(90deg, rgba(91, 140, 90, 0.08) 0%, rgba(91, 140, 90, 0.02) 100%);
+  
+  /* Step 10b: Clean left border accent in sage green */
+  border-left: 4px solid #5B8C5A;
+  padding-left: calc(1rem - 4px); /* Adjust padding to maintain alignment */
+  
+  /* Step 10c: Enhanced typography for selected state */
+  font-weight: 500;
+  color: #2C3E50;
+  
+  /* Step 10d: Position context for indicator dot */
+  position: relative;
+  
+  /* Step 10e: Reserve space for right indicator */
+  padding-right: 2.5rem;
+}
+
+
+/* Step 12: Enhanced hover state for active items */
+.ch-menu__item--active:hover {
+  background: linear-gradient(90deg, rgba(91, 140, 90, 0.12) 0%, rgba(91, 140, 90, 0.04) 100%);
+  border-left-color: #4A7749;
+}
+
+/* Step 13: Focus state enhancement for active items */
+.ch-menu__item--active:focus {
+  background: linear-gradient(90deg, rgba(91, 140, 90, 0.12) 0%, rgba(91, 140, 90, 0.04) 100%);
+  border-left-color: #4A7749;
+  outline: 2px solid rgba(91, 140, 90, 0.3);
+  outline-offset: -2px;
+}
+
+.ch-menu__item--disabled {
+  color: var(--ink-muted, #9ca3af);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ─────────────────────────────────── Menu Dividers ─────────────────────────────────── */
+
+.ch-menu__divider {
+  height: 1px;
+  background-color: var(--edge-base, #D4C4B0);
+  margin: 0.5rem 0;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────── Empty State Styling ─────────────────────────────── */
+
+.ch-menu__empty {
+  font-style: italic;
+  color: var(--ink-muted, #9ca3af);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+/*                                    UPLOAD PROGRESS STYLES                                        */
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+.ch-menu__progress {
+  padding: 0.5rem 0;
+  width: 100%;
+  flex-shrink: 0;
+  min-height: 60px; /* Ensure progress elements have adequate space */
+}
+
+.ch-menu__progress-text {
+  font-size: 0.75rem;
+  color: var(--ink-base, #2C3E50);
+  font-weight: 500;
+  margin-bottom: 0.375rem;
+  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ch-menu__progress-bar {
+  width: 100%;
+  height: 0.25rem;
+  background-color: rgba(91, 140, 90, 0.1);
+  border-radius: 0.125rem;
+  overflow: hidden;
+  margin-bottom: 0.375rem;
+}
+
+.ch-menu__progress-fill {
+  height: 100%;
+  background-color: #5B8C5A;
+  transition: width 0.3s ease-in-out;
+  border-radius: 0.125rem;
+}
+
+.ch-menu__progress-status {
+  font-size: 0.75rem;
+  color: var(--ink-muted, #6b7280);
+  font-weight: 400;
+}
+
+/* ─────────────────────────────── Loading Animation with Brand Colors ─────────────────────────────── */
+
+.ch-menu__loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--ink-muted, #6b7280);
+  flex-shrink: 0;
+  min-height: 40px;
+}
+
+.ch-menu__loading::before {
+  content: '';
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(91, 140, 90, 0.2);
+  border-top-color: #5B8C5A;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+/*                                    RESPONSIVE DESIGN WITH HEIGHT ADJUSTMENTS                    */
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* Step 14: Responsive height adjustments for different screen sizes */
+@media (max-width: 768px) and (min-height: 600px) {
+  .ch-nav {
+    gap: 0.25rem;
+  }
+  
+  .ch-nav__trigger {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.8125rem;
+  }
+  
+  .ch-menu {
+    min-width: 180px;
+    max-width: 240px;
+    max-height: 280px; /* Reduced for tablet screens */
+  }
+  
+  .ch-menu__item {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    min-height: 36px;
+  }
+  
+  .ch-menu__item--active {
+    padding-left: calc(0.75rem - 4px); /* Adjust for smaller padding */
+  }
+}
+
+/* Step 15: Mobile screen optimizations */
+@media (max-width: 480px) {
+  .ch-nav__trigger span {
+    display: none;
+  }
+  
+  .ch-nav__trigger {
+    padding: 0.5rem;
+  }
+  
+  .ch-menu {
+    min-width: 160px;
+    max-width: 220px;
+    max-height: 240px; /* Further reduced for mobile */
+    right: 0;
+    left: auto;
+  }
+  
+  .ch-menu__item--active {
+    padding-right: 2rem; /* Adjusted for smaller screens */
+  }
+}
+
+/* Step 16: Small mobile screen constraints */
+@media (max-width: 320px) {
+  .ch-menu {
+    max-height: 200px; /* Minimal height for very small screens */
+  }
+}
+
+/* Step 17: Landscape mobile and short screen adjustments */
+@media (max-height: 500px) {
+  .ch-menu {
+    max-height: 180px; /* Accommodate short screens */
+  }
+}
+
+@media (max-height: 400px) {
+  .ch-menu {
+    max-height: 120px; /* Ultra-compact for very short screens */
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+/*                                    ACCESSIBILITY ENHANCEMENTS                                    */
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* High contrast mode support with enhanced brand color indicators */
+@media (prefers-contrast: high) {
+  .ch-nav__trigger {
+    border-color: var(--edge-base, #D4C4B0);
+  }
+  
+  .ch-menu {
+    border-width: 2px;
+  }
+  
+  .ch-menu__item:focus {
+    outline: 2px solid #5B8C5A;
+    outline-offset: -2px;
+  }
+  
+  /* Step 18: Enhanced indicators for high contrast with brand colors */
+  .ch-menu__item--active::after {
+    background-color: #4A7749;
+    width: 8px;
+    height: 8px;
+    box-shadow: 0 0 0 2px rgba(74, 119, 73, 0.3);
+  }
+  
+  .ch-menu__item--active {
+    border-left-color: #4A7749;
+    border-left-width: 5px;
+    padding-left: calc(1rem - 5px);
+  }
+  
+  .ch-menu::-webkit-scrollbar-thumb {
+    background: rgba(91, 140, 90, 0.8);
+    opacity: 1;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .ch-nav__trigger,
+  .ch-menu__item,
+  .ch-menu__progress-fill {
+    transition: none;
+  }
+  
+  .ch-menu {
+    animation: none;
+    scroll-behavior: auto;
+  }
+  
+  .ch-menu__loading::before {
+    animation: none;
+    border-top-color: #5B8C5A;
+  }
+  
+  .ch-menu::-webkit-scrollbar-thumb {
+    transition: none;
+  }
+}
+
+/* Focus visible support for better keyboard navigation with brand colors */
+.ch-nav__trigger:focus-visible {
+  outline: 2px solid #5B8C5A;
+  outline-offset: 2px;
+}
+
+.ch-menu__item:focus-visible {
+  outline: 2px solid #5B8C5A;
+  outline-offset: -2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+/*                                    BRAND THEME INTEGRATION                                       */
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* Step 19: Brand-specific theme integration with warm professional colors */
+.theme-warm-board .ch-nav__trigger,
+.theme-warm-board .ch-menu,
+.theme-warm-board .ch-menu__item {
+  /* Enhanced warm board theme integration */
+}
+
+.theme-warm-board .ch-nav__trigger {
+  color: #2C3E50;
+}
+
+.theme-warm-board .ch-nav__trigger:hover {
+  background-color: #FAF8F5;
+}
+
+.theme-warm-board .ch-menu {
+  background-color: #ffffff;
+  border-color: #D4C4B0;
+}
+
+.theme-warm-board .ch-menu__item--active {
+  background: linear-gradient(90deg, rgba(91, 140, 90, 0.08) 0%, rgba(91, 140, 90, 0.02) 100%);
+  border-left-color: #5B8C5A;
+  color: #2C3E50;
+}
+
+.theme-warm-board .ch-menu__item--active::after {
+  background: #5B8C5A;
+  box-shadow: 0 0 0 2px rgba(91, 140, 90, 0.2);
+}
+
+/* Dark theme support with enhanced brand color integration */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-base: #1f2937;
+    --surface-2: #374151;
+    --surface-3: #4b5563;
+    --ink-base: #d1d5db;
+    --ink-high: #f9fafb;
+    --ink-muted: #9ca3af;
+    --edge-base: #4b5563;
+    --accent-base: #60a5fa;
+    --accent-high: #93c5fd;
+    --accent-subtle: #1e3a8a;
+  }
+  
+  /* Step 20: Dark theme scrollbar adjustments with brand colors */
+  .ch-menu::-webkit-scrollbar-track {
+    background: var(--surface-3, #4b5563);
+  }
+  
+  .ch-menu::-webkit-scrollbar-thumb {
+    background: rgba(91, 140, 90, 0.4);
+  }
+  
+  .ch-menu {
+    scrollbar-color: rgba(91, 140, 90, 0.4) var(--surface-3, #4b5563);
+  }
+  
+  /* Step 21: Dark theme active item adjustments */
+  .ch-menu__item--active {
+    background: linear-gradient(90deg, rgba(91, 140, 90, 0.15) 0%, rgba(91, 140, 90, 0.05) 100%);
+    border-left-color: #5B8C5A;
+  }
+  
+  .ch-menu__item--active::after {
+    background: #5B8C5A;
+    box-shadow: 0 0 0 2px rgba(91, 140, 90, 0.3);
+  }
+}

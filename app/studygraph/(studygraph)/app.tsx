@@ -313,9 +313,9 @@ const AppLayoutContent: React.FC = () => {
 
   const renderMenuIcon = () => {
     return isPanelExpanded ? (
-      <ChevronsLeft className="w-5 h-5 text-gray-600" />
+      <ChevronsLeft className="w-4 h-4 text-gray-600" />
     ) : (
-      <Menu className="w-5 h-5 text-gray-600" />
+      <Menu className="w-4 h-4 text-gray-600" />
     );
   };
 

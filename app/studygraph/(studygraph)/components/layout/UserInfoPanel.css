@@ -1,0 +1,524 @@
+/**
+ * @file UserInfoPanel.css
+ * @description
+ *   Comprehensive styling for the centered profile card with subscription management.
+ *   Features warm board brand colors, professional typography, and enhanced accessibility.
+ *   Implements the design from Image 2 with centered layout and clear visual hierarchy.
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    PANEL WRAPPER                                      */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.user-info-panel {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(to bottom, #FEFEFE 0%, #FAF8F5 100%);
+}
+
+.user-info-container {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    MAIN CARD                                          */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.user-info-card {
+  background: white;
+  border: 1px solid #E8E8E8;
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    LOADING STATE                                      */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.user-info-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
+  gap: 1.5rem;
+}
+
+.user-info-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(91, 140, 90, 0.2);
+  border-top-color: #5B8C5A;
+  border-radius: 50%;
+  animation: user-info-spin 0.8s linear infinite;
+}
+
+@keyframes user-info-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.user-info-loading-text {
+  font-size: 14px;
+  color: #6C757D;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    HEADER SECTION                                     */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.user-info-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.user-info-avatar-wrapper {
+  margin-bottom: 0.5rem;
+}
+
+.user-info-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #E8E8E8;
+}
+
+.user-info-avatar-placeholder {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5B8C5A, #6C8EBF);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 600;
+  border: 3px solid #E8E8E8;
+}
+
+.user-info-name {
+  font-family: 'Crimson Text', serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: #2C3E50;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.user-info-email {
+  font-size: 14px;
+  color: #6C757D;
+  margin: 0;
+}
+
+.user-info-title {
+  font-family: 'Crimson Text', serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: #2C3E50;
+  margin: 0;
+}
+
+.user-info-subtitle {
+  font-size: 14px;
+  color: #6C757D;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.user-info-icon-wrapper {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #FAF8F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.user-info-icon {
+  width: 36px;
+  height: 36px;
+  color: #5B8C5A;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    SECTIONS                                           */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.user-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.user-info-section--compact {
+  gap: 0.75rem;
+}
+
+.user-info-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2C3E50;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    BUTTONS                                            */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.user-info-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.user-info-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 140px;
+}
+
+.user-info-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.user-info-btn:focus-visible {
+  outline: 2px solid #5B8C5A;
+  outline-offset: 2px;
+}
+
+/* Primary Button (Subscribe) */
+.user-info-btn--primary {
+  background: #5B8C5A;
+  color: white;
+}
+
+.user-info-btn--primary:hover:not(:disabled) {
+  background: #4A7749;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(91, 140, 90, 0.2);
+}
+
+.user-info-btn--primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Secondary Button (Manage Billing) */
+.user-info-btn--secondary {
+  background: transparent;
+  color: #2C3E50;
+  border: 1px solid #D4C4B0;
+}
+
+.user-info-btn--secondary:hover:not(:disabled) {
+  background: #FAF8F5;
+  border-color: #C4B4A0;
+}
+
+/* Danger Outline Button (Unsubscribe) */
+.user-info-btn--danger-outline {
+  background: transparent;
+  color: #DC2626;
+  border: 1px solid #DC2626;
+}
+
+.user-info-btn--danger-outline:hover:not(:disabled) {
+  background: #FEE2E2;
+  border-color: #B91C1C;
+  color: #B91C1C;
+}
+
+/* Tertiary Button (Sign Out) */
+.user-info-btn--tertiary {
+  background: transparent;
+  color: #6C757D;
+  border: 1px solid #E8E8E8;
+}
+
+.user-info-btn--tertiary:hover:not(:disabled) {
+  background: #F8F9FA;
+  color: #2C3E50;
+  border-color: #D4C4B0;
+}
+
+/* Google Sign In Button */
+.user-info-btn--google {
+  background: white;
+  color: #2C3E50;
+  border: 1px solid #E8E8E8;
+  font-weight: 500;
+  padding: 0.875rem 1.5rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.user-info-btn--google:hover:not(:disabled) {
+  background: #F8F9FA;
+  border-color: #D4C4B0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.user-info-btn-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    RENEWAL DETAILS                                    */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.user-info-renewal {
+  background: #FAF8F5;
+  border: 1px solid #E8E7E5;
+  border-radius: 8px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.user-info-renewal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-info-renewal-label {
+  font-size: 13px;
+  color: #6C757D;
+  font-weight: 500;
+}
+
+.user-info-renewal-value {
+  font-size: 13px;
+  color: #2C3E50;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    HINTS                                              */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.user-info-hint {
+  font-size: 13px;
+  color: #6C757D;
+  line-height: 1.5;
+  margin: 0;
+  text-align: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    BACK BUTTON                                        */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.user-info-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: none;
+  color: #6C757D;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 150ms ease;
+  align-self: center;
+}
+
+.user-info-back:hover {
+  color: #2C3E50;
+}
+
+.user-info-back:focus-visible {
+  outline: 2px solid #5B8C5A;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.user-info-back svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    RESPONSIVE                                         */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+  .user-info-panel {
+    padding: 1.5rem 1rem;
+  }
+
+  .user-info-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .user-info-avatar,
+  .user-info-avatar-placeholder,
+  .user-info-icon-wrapper {
+    width: 64px;
+    height: 64px;
+  }
+
+  .user-info-avatar-placeholder {
+    font-size: 24px;
+  }
+
+  .user-info-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .user-info-name,
+  .user-info-title {
+    font-size: 20px;
+  }
+
+  .user-info-actions {
+    flex-direction: column;
+  }
+
+  .user-info-btn {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .user-info-renewal {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-info-panel {
+    padding: 1rem 0.75rem;
+  }
+
+  .user-info-card {
+    padding: 1.5rem 1.25rem;
+    gap: 1.5rem;
+  }
+
+  .user-info-header {
+    padding-bottom: 1rem;
+  }
+
+  .user-info-name,
+  .user-info-title {
+    font-size: 18px;
+  }
+
+  .user-info-email,
+  .user-info-subtitle {
+    font-size: 13px;
+  }
+
+  .user-info-btn {
+    padding: 0.625rem 1.25rem;
+    font-size: 13px;
+  }
+
+  .user-info-renewal-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .user-info-renewal-value {
+    text-align: left;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    ACCESSIBILITY                                      */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .user-info-btn,
+  .user-info-back,
+  .user-info-spinner {
+    animation: none;
+    transition: none;
+  }
+
+  .user-info-btn:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .user-info-card {
+    border-width: 2px;
+    border-color: #2C3E50;
+  }
+
+  .user-info-btn {
+    border-width: 2px;
+  }
+
+  .user-info-btn--primary {
+    background: #4A7749;
+  }
+
+  .user-info-renewal {
+    border-width: 2px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+/*                                    PRINT STYLES                                       */
+/* ═══════════════════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  .user-info-panel {
+    background: white;
+  }
+
+  .user-info-card {
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+
+  .user-info-btn,
+  .user-info-back {
+    display: none;
+  }
+}
