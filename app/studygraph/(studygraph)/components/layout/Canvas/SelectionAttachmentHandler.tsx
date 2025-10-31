@@ -14,6 +14,7 @@
 
 import React from 'react';
 import { useSelectionAttachment } from '@/app/Library/Context/SelectionAttachmentContext';
+import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import TopicGeneratorModal from './TopicGeneratorModal';
 import QuizGeneratorModal from './QuizGeneratorModal';
 
@@ -24,6 +25,8 @@ const SelectionAttachmentHandler: React.FC = () => {
     isQuizOpen,
     clearAttachment,
   } = useSelectionAttachment();
+
+  const {activeConceptMapId} = useLessonModule()
 
   return (
     <>
@@ -42,6 +45,7 @@ const SelectionAttachmentHandler: React.FC = () => {
           isOpen={true}
           onClose={clearAttachment}
           preselectedTopicIds={[]}
+          mapId={activeConceptMapId}
         />
       )}
     </>

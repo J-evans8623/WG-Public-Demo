@@ -55,7 +55,7 @@ export async function generateAILesson(
     // Step 5: Construct FormData with enhanced parameter support
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('fileID', docId);
+    formData.append('DocID', docId);
     
     // Step 6: Add visibility parameter for new account type system
     formData.append('visibility', isPublic ? 'public' : 'private');

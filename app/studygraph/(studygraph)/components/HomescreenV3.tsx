@@ -34,6 +34,7 @@ import ReactDOM from 'react-dom';
 import CalendarModal from '@/app/studygraph/(studygraph)/components/layout/Calendar/CalendarModal'; 
 import type { PickerFileMeta as CalendarPickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
 
+
 /**
  * @type PickerFileMeta
  * @description
@@ -526,11 +527,11 @@ useEffect(() => {
       isOpen={isCalendarModalOpen}
       onClose={closeCalendarModal}
       onFileSelect={(meta: CalendarPickerFileMeta) => {
-        // Step 1: Log the selection for traceability
-        // console.log('HomescreenV3.tsx [4003] › Calendar selected file', meta);
-
-        // Step 2: Forward to parent handler to trigger file switch/navigation
-        onFileSelect(meta);
+        const param = {
+          ...meta,
+           fileId: meta.docId,
+        } satisfies PickerFileMeta
+        onFileSelect(param);
       }}
     />,
     document.body

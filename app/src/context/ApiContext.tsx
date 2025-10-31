@@ -940,14 +940,14 @@ const refreshFileList = async (): Promise<void> => {
 
       try {
         // Shape params for the new EnhancedApiService signature
+        const exportedData = exportData ? exportData : textSelection
         const response = await apiService.createQuiz(
           {
             lessonId,          // mapped to topicIds internally by the service
             quizTypes,
             fileID,
             questionCount,
-            exportData,
-            textSelection,
+            exportData :exportedData,
           },
           config
         );

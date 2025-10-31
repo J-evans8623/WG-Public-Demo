@@ -22,6 +22,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import admin from 'firebase-admin';
 import { deleteDocumentFile, removeEditor } from '@/app/src/services/firebase';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
+import { performOwnerCascades } from '@/app/src/services/cascadeOps/DocumentDeleteCascade'; // update - 3
+import { DocumentCascadeSummary } from '@/app/src/services/cascadeOps/cascadeTypes'; // update - 4
 
 export default async function handler(
   req: NextApiRequest,
@@ -101,9 +103,41 @@ export default async function handler(
     await firestore.recursiveDelete(documentsRootRef);
     console.log('delete.ts 1016 › recursiveDelete complete');
 
+    // 4) update - 5: Perform forward-only cascades (non-critical best-effort)
+    let cascades: DocumentCascadeSummary | null = null;
+    try {
+      cascades = await performOwnerCascades(docId, {
+        email: ownerId,
+        accountType: 'educator', // not used for cascade auth; email is used defensively
+        subscriptionTier: 'premium',
+        features: {
+          canCreatePublicFiles: true,
+          canInviteEditors: true,
+          hasAdvancedFeatures: true,
+        },
+        limits: {
+          maxCollaborators: 100,
+          maxDocuments: 10000,
+          maxStorageGB: 1000,
+        },
+      } as any);
+      console.log('delete.ts 1017 › cascades complete', {
+        gridfsDeleted: cascades.gridfs.deletedCount,
+        embedDeleted: cascades.embeddings.deletedCount,
+        warnings: cascades.warnings.length,
+      });
+    } catch (cascadeErr) {
+      console.warn('delete.ts 1018 › cascade orchestration failed (non-fatal):', cascadeErr);
+    }
+
     return res
       .status(200)
-      .json({ message: 'Document, metadata, and chat history deleted.' });
+      .json({
+      message: 'Document, metadata, and chat history deleted.',
+      docId,
+      cascades, // update - 6: surfaced result (can be null if orchestration failed early)
+      warnings: cascades?.warnings ?? [],
+    });
   } catch (error) {
     console.error('delete.ts 1999 › Delete endpoint error:', error);
     return res.status(500).json({ error: 'Internal Server Error' });

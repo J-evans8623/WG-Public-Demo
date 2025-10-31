@@ -17,7 +17,7 @@
 
 import { persistLessonContext }            from './persistLessonContext';
 import {
-  generateBatchedUnitSyllabus,        // non-blocking metadata util
+  generateBatchedUnitSyllabus,        
 } from './aiTextPreProcessingV33';
 import {
   secondaryNode,

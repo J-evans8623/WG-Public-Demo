@@ -38,9 +38,9 @@ import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import { useComments } from '@/app/Library/Context/forum/CommentContext';
 import { useSelectionAttachment } from '@/app/Library/Context/SelectionAttachmentContext';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
-import PDFRenderer from '../Canvas/PDFRenderer';
-import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
-import { PdfViewerRefType } from '../Canvas/PdfViewer';
+import PDFRenderer from '../Canvas/pdf/PDFRenderer';
+import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
+import { PdfViewerRefType } from '../Canvas/pdf/PdfViewer';
 
 
 

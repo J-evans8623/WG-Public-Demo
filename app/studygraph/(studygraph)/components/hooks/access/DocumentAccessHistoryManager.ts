@@ -84,11 +84,7 @@ class DocumentAccessHistoryManager {
    *   triggers during document loading operations.
    */
   initializeDocumentHistory(docId: string, initialRole: Role, source: AccessSource = 'bootstrap'): void {
-    console.log('[DocumentAccessHistoryManager.ts][2002] › Initializing document history', { 
-      docId, 
-      initialRole, 
-      source 
-    });
+
 
     // Step 1: Create initial history record with null previous role
     const historyRecord: DocumentAccessHistory = {
@@ -105,12 +101,6 @@ class DocumentAccessHistoryManager {
 
     // Step 3: Update active document tracking
     this.currentActiveDocId = docId;
-
-    console.log('[DocumentAccessHistoryManager.ts][2003] › Document history initialized', { 
-      docId, 
-      role: initialRole,
-      totalDocuments: this.documentHistory.size 
-    });
   }
 
   /**
@@ -122,12 +112,6 @@ class DocumentAccessHistoryManager {
    *   state management. Returns whether this update represents a significant access change.
    */
   updateDocumentAccess(docId: string, newRole: Role, source: AccessSource): boolean {
-    console.log('[DocumentAccessHistoryManager.ts][2004] › Updating document access', { 
-      docId, 
-      newRole, 
-      source,
-      currentActive: this.currentActiveDocId 
-    });
 
     // Step 1: Handle file switching scenario
     if (this.currentActiveDocId && this.currentActiveDocId !== docId) {
@@ -170,13 +154,6 @@ class DocumentAccessHistoryManager {
     this.documentHistory.set(docId, updatedHistory);
     this.currentActiveDocId = docId;
 
-    console.log('[DocumentAccessHistoryManager.ts][2008] › Access history updated with role change', { 
-      docId, 
-      from: existingHistory.currentRole, 
-      to: newRole,
-      source 
-    });
-
     return true; // Legitimate access change occurred
   }
 
@@ -188,13 +165,12 @@ class DocumentAccessHistoryManager {
    *   temporal cooldown, and document context validation. Implements the core business
    *   logic for distinguishing meaningful access changes from routine operations.
    */
-  shouldTriggerModal(docId: string, newRole: Role, source: AccessSource): boolean {
+  shouldTriggerModal(docId: string, newRole: Role): boolean {
     const history = this.documentHistory.get(docId);
     
     console.log('[DocumentAccessHistoryManager.ts][2009] › Evaluating modal trigger conditions', { 
       docId, 
       newRole, 
-      source,
       hasHistory: !!history,
       isInitialized: history?.isInitialized 
     });
@@ -217,12 +193,6 @@ class DocumentAccessHistoryManager {
       return false;
     }
 
-    // Step 4: Apply source filtering for meaningful changes
-    const meaningfulSources: AccessSource[] = ['save', 'yjs'];
-    if (!meaningfulSources.includes(source)) {
-      console.log('[DocumentAccessHistoryManager.ts][2013] › Modal trigger blocked: non-meaningful source', { source });
-      return false;
-    }
 
     // Step 5: Check for significant role transition (edit capability change)
     const isSignificant = this.isSignificantRoleChange(history.currentRole, newRole);
@@ -243,12 +213,6 @@ class DocumentAccessHistoryManager {
 
     // Step 7: All conditions met, trigger modal
     this.lastModalTriggerTime = now;
-    console.log('[DocumentAccessHistoryManager.ts][2016] › Modal trigger approved', {
-      docId,
-      from: history.currentRole,
-      to: newRole,
-      source
-    });
 
     return true;
   }

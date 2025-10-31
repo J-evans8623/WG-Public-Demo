@@ -40,6 +40,8 @@ export interface FileUploadRequest {
   fileSize: number;
   userProfile: UserProfile;
   visibility: 'public' | 'private';
+  documentId: string;
+  sourceFileId?: string;
   uploadContext?: string; // Optional context identifier (e.g., 'lesson-generation', 'direct-upload')
 }
 
@@ -64,6 +66,8 @@ export interface StoredFileResult {
     subscriptionTier: string;
     originalMimeType: string;
     uploadContext?: string;
+    document_id: string;
+    file_id?: string | null;
   };
 }
 
@@ -168,6 +172,15 @@ export class FileUploadService {
           allowed: false,
           reason: 'Unsupported file type. Only PDF, TXT, DOC, DOCX, and PPTX files are allowed.',
           recommendedAction: 'Please convert your file to a supported format and try again.'
+        };
+      }
+
+       //  hard-require documentId
+      if (!request.documentId || typeof request.documentId !== 'string' || request.documentId.trim().length === 0) {
+        return {
+          allowed: false,
+          reason: 'Missing required documentId for upload.',
+          recommendedAction: 'Please retry the upload from a document context so we can tag it correctly.'
         };
       }
 
@@ -311,7 +324,9 @@ export class FileUploadService {
     userProfile: UserProfile,
     visibility: 'public' | 'private',
     originalMimeType: string,
-    uploadContext?: string
+    documentId: string,
+    sourceFileId?: string,
+    uploadContext?: string    
   ): Promise<StoredFileResult> {
     console.log('[FileUploadService.ts][3021] Storing file with user context - Owner:', userProfile.email, 'Visibility:', visibility);
 
@@ -333,6 +348,8 @@ export class FileUploadService {
         subscriptionTier: userProfile.subscriptionTier,
         originalMimeType: originalMimeType,
         uploadedAt: new Date(),
+        document_id: documentId,
+        file_id: sourceFileId ?? null,
         uploadContext: uploadContext,
         // Step 10: Privacy scoping based on account policy
         scope: visibility === 'public'
@@ -379,6 +396,8 @@ export class FileUploadService {
           accountType: userProfile.accountType,
           subscriptionTier: userProfile.subscriptionTier,
           originalMimeType: originalMimeType,
+          document_id: documentId,
+          file_id: sourceFileId ?? null,
           uploadContext: uploadContext
         }
       };
@@ -421,6 +440,8 @@ export class FileUploadService {
         request.userProfile,
         request.visibility,
         request.mimeType,
+        request.documentId,
+        request.sourceFileId,
         request.uploadContext
       );
 

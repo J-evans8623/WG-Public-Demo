@@ -1,3 +1,4 @@
+'use client'
 // app/studygraph/(studygraph)/components/modals/ModalRegistry.ts
 /**
  * @file ModalRegistry.ts

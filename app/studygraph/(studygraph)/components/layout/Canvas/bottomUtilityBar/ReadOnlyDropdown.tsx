@@ -41,7 +41,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ChevronDown, FileText } from 'lucide-react';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
-import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
+import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
 
 /**

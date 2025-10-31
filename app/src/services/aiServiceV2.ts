@@ -48,6 +48,8 @@ class AIService {
     console.log("[aiServiceV2.ts][1000] Initialized @google/genai SDK with Gemini 2.5-Flash");
   }
 
+  
+
   public async generateStructuredOutput(
     jsonSchema: JSONSchemaValidation,
     userInput: string,
@@ -156,38 +158,64 @@ class AIService {
     }
   }
 
-  private convertSchemaToTypeEnums(schema: any): any {
-    if (!schema || typeof schema !== "object") return schema;
-    const converted: any = { ...schema };
+  // inside AIService
+private convertSchemaToTypeEnums(schema: any): any {
+  if (!schema || typeof schema !== "object") return schema;
+  const converted: any = { ...schema };
 
-    if (converted.type) {
-      if (typeof converted.type === "string") {
-        converted.type = this.stringToTypeEnum(converted.type);
-      } else if (Array.isArray(converted.type)) {
-        converted.type = converted.type.map((t: string) => this.stringToTypeEnum(t));
-      }
+  // --- normalize "nullable object" shapes ---
+  // If type includes NULL and OBJECT and we have object-specific keywords at this level,
+  // rewrite to anyOf: [ {type: NULL}, {type: OBJECT, ...objectBits} ]
+  const toArray = (v: any) => Array.isArray(v) ? v : [v];
+  const hasObjBits = (s: any) => !!(s && (s.properties || s.required || s.additionalProperties !== undefined || s.items));
+
+  if (converted.type) {
+    const types = toArray(converted.type).map((t: string) => String(t).toLowerCase());
+    const isNullableObject = types.includes("null") && types.includes("object") && hasObjBits(converted);
+
+    if (isNullableObject) {
+      const objectBranch: any = { type: "object" };
+      if (converted.properties) objectBranch.properties = converted.properties;
+      if (converted.required) objectBranch.required = converted.required;
+      if (converted.additionalProperties !== undefined) objectBranch.additionalProperties = converted.additionalProperties;
+      if (converted.items) objectBranch.items = converted.items;
+
+      // Build anyOf and remove the conflicting top-level bits
+      converted.anyOf = [{ type: "null" }, objectBranch];
+      delete converted.type;
+      delete converted.properties;
+      delete converted.required;
+      delete converted.additionalProperties;
+      delete converted.items;
     }
-
-    if (converted.properties) {
-      for (const key of Object.keys(converted.properties)) {
-        converted.properties[key] = this.convertSchemaToTypeEnums(
-          converted.properties[key]
-        );
-      }
-    }
-
-    if (converted.items) {
-      converted.items = this.convertSchemaToTypeEnums(converted.items);
-    }
-
-    if (converted.anyOf && Array.isArray(converted.anyOf)) {
-      converted.anyOf = converted.anyOf.map((sub: any) =>
-        this.convertSchemaToTypeEnums(sub)
-      );
-    }
-
-    return converted;
   }
+
+  // now proceed with your existing enum conversion
+  if (converted.type) {
+    if (typeof converted.type === "string") {
+      converted.type = this.stringToTypeEnum(converted.type);
+    } else if (Array.isArray(converted.type)) {
+      converted.type = converted.type.map((t: string) => this.stringToTypeEnum(t));
+    }
+  }
+
+  if (converted.properties) {
+    for (const key of Object.keys(converted.properties)) {
+      converted.properties[key] = this.convertSchemaToTypeEnums(converted.properties[key]);
+    }
+  }
+
+  if (converted.items) {
+    converted.items = this.convertSchemaToTypeEnums(converted.items);
+  }
+
+  if (converted.anyOf && Array.isArray(converted.anyOf)) {
+    converted.anyOf = converted.anyOf.map((sub: any) => this.convertSchemaToTypeEnums(sub));
+  }
+
+  return converted;
+}
+
 
   private stringToTypeEnum(type: string): Type {
     switch (type.toLowerCase()) {

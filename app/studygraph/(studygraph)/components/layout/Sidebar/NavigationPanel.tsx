@@ -34,7 +34,7 @@ import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
-import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
+import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
 import { useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider'
 import { useAccountStatus } from '@/app/src/context/ApiContext';

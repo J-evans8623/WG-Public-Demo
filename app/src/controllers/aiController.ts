@@ -22,15 +22,14 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import AIService from "../services/aiService";
-import { lessonPrompt, predefinedPrompts, buildSubtreePromptV2, buildSubtreePrompt,  buildQuestionCountInstruction, getQuizSystemPrompt, buildSubtreePromptV22 } from "../config/predefined-prompts";
-import { subtreeSchemaV3OpenAI as subtreeSchemaV3 } from '../schemas/openai/subtreeSchemaV3.openai';
-import { lessonSchema, topicSchema, subtreeSchemaV4, EnrichedPrimary, Citation } from "../schemas/lessonSchema";
+import AIService from "../services/aiServiceV2";
+import { predefinedPrompts,  getQuizSystemPrompt, buildSubtreePromptV22 } from "../config/predefined-prompts";
+//import { subtreeSchemaV3OpenAI as subtreeSchemaV3 } from '../schemas/openai/subtreeSchemaV3.openai';
+import { subtreeSchemaV3 } from '../schemas/gemini/subtreeschemaV3.gemini';
+import {topicSchema,  EnrichedPrimary} from "../schemas/lessonSchema";
 import { MatchingQuizSchema, MultipleChoiceSchema, FillInBlankSchema, TrueFalseSchema } from "../schemas/quizSchema";
-import { LessonModule } from "../services/TextPreprocessing/LessonModuleServiceV2";
 import { getTextContext } from '@/app/src/services/TextPreprocessing/QuestionContextService';
 import { QAschema } from '@/app/src/schemas/QASchema';
-import { formatLessonMetadata } from "../services/TextPreprocessing/MetaDataFormatter";
 import { formatSyllabusForPrompt, PrimaryForPrompt } from './formatSyllabus';
 import UsageTracker from '../services/UsageTracker'; 
 
@@ -48,45 +47,7 @@ class AIController {
     return this.aiService;
   }
 
-/**
-   * generateLesson
-   * @description
-   *   Generates the full lesson content for a given LessonModule.
-   *   It constructs a dynamic prompt based on the lesson module metadata,
-   *   calls the AI service to generate structured lesson content, and returns
-   *   the updated LessonModule with the AI-generated content attached.
-   *
-   * @param lessonModule - The LessonModule object containing basic metadata.
-   * @returns A Promise that resolves to the updated LessonModule with full lesson content.
-   */
-public static async generateLesson(lessonModule: LessonModule): Promise<LessonModule> {
-  try {
-    // Step 1: Format the lesson metadata into a human-readable string.
-    const formattedMetadata = formatLessonMetadata(lessonModule.metadata);
-    // Step 2: Construct a dynamic prompt using the formatted metadata.
-    const dynamicLessonPrompt = lessonPrompt(formattedMetadata);
-    // Step 3: Retrieve the aggregated text from the lesson module.
-    const aggregatedText = lessonModule.original_text;
-    
-    // Step 4: Obtain the AI service instance.
-    const aiService = this.getAIService();
-    
-    // Step 5: Call the AI service to generate structured lesson content.
-    // The generateStructuredOutput method is expected to return the full lesson content.
-    const structuredResponse = await aiService.generateStructuredOutput(
-      lessonSchema,
-      `[start of user input]${aggregatedText}[end of user input]`,
-      dynamicLessonPrompt
-    );
-  
-    
-    // Return the updated lesson module.
-    return structuredResponse;
-  } catch (error) {
-    console.error("Error in AIController.generateLesson:", error);
-    throw error;
-  }
-}
+
 
 
 /**
@@ -324,81 +285,6 @@ public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): P
 
 
   /**
-   * generateSubtreeLesson
-   *
-   * Generates detailed lesson content, flash cards, optional secondary subtree,
-   * and a quiz for a single depth-1 PrimaryNode and its children.
-   *
-   * @param root - A PrimaryNode with .title, .aggregated_text, and optional depth2_subtopics.
-   * @returns Promise resolving to the enriched PrimaryNode with:
-   *   - lesson: { lecture_note, flash_cards }
-   *   - secondary_subtopic: ...[]
-   *   - quiz: matching_quiz object
-   */
-  public static async generateSubtreeLesson(root: any, mainTopic:string): Promise<any> {
-    const aiService = this.getAIService();
-
-    
-      const primary: PrimaryForPrompt = {
-    title: root.title!,
-    Learning_Objectives: root.Learning_Objectives!,
-    LessonOutline: root.LessonOutline!,
-    secondary_topics: (root.depth2_subtopics || []).map((s: any) => ({
-      title: s.title,
-      Learning_Objectives: s.Learning_Objectives,
-      LessonOutline: s.LessonOutline
-    }))
-  };
-
-  
-  // produce the formatted string
-  const syllabusBlock = formatSyllabusForPrompt(primary);
-  console.log(`[aiController 444442] ${JSON.stringify(syllabusBlock)} `);
-    // System prompt to guide structured subtree output
-  const systemPrompt = buildSubtreePrompt(mainTopic, syllabusBlock);
-
-    // User content: pass the root object with its title, text, and nested children
-    const userInput = JSON.stringify({
-      primary_subtopics: {
-        title: root.title,
-        aggregated_text: root.unit_text,
-        depth2_subtopics: root.depth2_subtopics || []
-      }
-    });
-
-    console.log(`1111 userInput Check ${userInput}`);
-
-    // Perform the structured call
-    const response = await aiService.generateStructuredOutput(
-      { name: subtreeSchemaV4.name, schema: subtreeSchemaV4.schema, strict: subtreeSchemaV4.strict },
-      userInput,
-      systemPrompt
-    );
-
-     const subtree = (response as any).primary_subtopics;
-
-  // ─── Hydrate PRIMARY node ────────────────────────────────────────
-  root.lesson          = subtree.lesson;
-  root.lesson_citation = subtree.lesson_citation ?? null;
-  root.ChronologicalOrder = root.lessonOrder;
-  // ─── Hydrate SECONDARY nodes (keep citations!) ───────────────────
-  root.secondary_subtopic = Array.isArray(subtree.secondary_subtopic)
-    ? subtree.secondary_subtopic.map((ss: any) => ({
-        title           : ss.title,
-        lecture_note    : ss.lecture_note,
-        flash_cards     : ss.flash_cards,
-      }))
-    : null;
-
-  // ─── Quiz  ────────────────────────────────────────────────────────
-  root.quiz = subtree.quiz;
-
-
-  console.log(`\n\n\n ############################ \n [Aicontroller] #9292 lesson unit output ${JSON.stringify(subtree)} \n ###########################`)
-
-  return root;
-  }
-
  
 
     /**

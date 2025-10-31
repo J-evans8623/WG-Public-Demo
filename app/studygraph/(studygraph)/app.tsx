@@ -44,7 +44,7 @@ import { NodeSelectionProvider, useNodeSelection } from '@/app/Library/Context/N
 import { SubTreeProvider } from '@/app/Library/Context/SubTreeProvider';
 import { NodesProvider } from '@/app/Library/Context/NodesProvider';
 import { ZoomProvider } from '@/app/Library/Context/ZoomProvider';
-import { ViewSwitchProvider, useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
+import { ViewSwitchProvider, useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
 import { LayoutProvider } from '@/app/Library/Context/LayoutProvider';
 import { ColorThemeProvider } from '@/app/Library/Context/ColorThemeProvider';
 import { UndoRedoProvider, useUndoRedo } from './components/Context/UndoRedoContext';

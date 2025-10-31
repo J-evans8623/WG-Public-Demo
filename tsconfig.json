@@ -6,8 +6,7 @@
       "dom.iterable",
       "esnext",
     ],
-    "typeRoots": ["./app/studygraph/(studygraph)/types",
-      "./node_modules/@types"],
+   "types": ["node"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -38,15 +37,20 @@
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+     "app/**/*.{ts,tsx,d.ts}",
+     "pages/**/*.{ts,tsx,d.ts}",
+      "components/**/*.{ts,tsx,d.ts}",
+     "lib/**/*.{ts,tsx,d.ts}",
+      "src/**/*.{ts,tsx,d.ts}",
     ".next/types/**/*.ts",
     "app/**/*.d.ts",
-    "app/src/services/*.js", "app/src/services/yjs/yjs-server.js", "../archive-v1-bloom/ConceptNode.tsx", "../archive-v1-bloom/shareToken.ts", "../archive-v1-bloom/invites.d.ts", "../archive-v1-bloom/ImageCard.tsx", "../archive-v1-bloom/ROAcardisplay.tsx", "../archive-v1-bloom/HomeScreen.tsx", "../archive-v1-bloom/CardDisplay.tsx", "../archive-v1-bloom/ChatTab.tsx", "../archive-v1-bloom/useCollabProvider.ts", "../archive-v1-bloom/ROSlideShowContext.tsx", "../archive-v1-bloom/CalendarContext.tsx", "../archive-v1-bloom/documentSession.ts", "../archive-v1-bloom/CanvasView.tsx", "../archive-v1-bloom/GenerateLessonModal.tsx", "../archive-v1-bloom/MapRenderer.tsx", 
+    "app/src/services/*.js", "app/src/services/yjs/yjs-server.js",  
   ],
   "exclude": [
     "node_modules",
     "Archived",
     "Archived/**/*",
+    "../archive-v1-bloom/**",
+     "**/*.test.ts",
   ]
 }

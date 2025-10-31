@@ -1,3 +1,4 @@
+'use client'
 /**
  * @file ApiService.ts
  * @description

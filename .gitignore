@@ -51,3 +51,6 @@ next-env.d.ts
 ./workflow
 /Archived
 /Archived/**
+./big-output.txt
+*.pdf
+"__pycache__/"

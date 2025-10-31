@@ -1,3 +1,4 @@
+'use client'
 // app/studygraph/(studygraph)/components/modals/registerLoadingOverlay.ts
 /**
  * @file registerLoadingOverlay.ts

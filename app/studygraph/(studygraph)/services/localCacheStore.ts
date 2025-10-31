@@ -54,7 +54,8 @@ const DB_VERSION = 1;
 
 // LocalStorage key for the identifiers + LRU index
 const INDEX_KEY_START = '__doc_cache_index_start__';   
-const INDEX_KEY_REVIEW = '__doc_cache_index_review__'            
+const INDEX_KEY_REVIEW = '__doc_cache_index_review__';
+const INDEX_KEY_SESSION = '__doc_cache_index_session__'             
 
 // Default cap for tiny eviction policy (can be overridden per-call in saveDocBytes)
 const DEFAULT_CAP = 10;                                
@@ -194,11 +195,14 @@ async function idbClearAll(): Promise<void> {
  * =======================================================================================
  */
 
-export type cachetype = "start" | "review";
+export type cachetype = "start" | "review" | "session";
 
 function getIndexType(cachetype:cachetype | undefined): string {
   if (cachetype =="review"){
     return INDEX_KEY_REVIEW
+  }
+  else if (cachetype==="session"){
+    return INDEX_KEY_SESSION
   }
     return INDEX_KEY_START
 }
@@ -307,6 +311,7 @@ export function clearAllIdentifiers(): void {
   try {
     localStorage.removeItem(INDEX_KEY_START);
     localStorage.removeItem(INDEX_KEY_REVIEW);
+    localStorage.removeItem(INDEX_KEY_SESSION);
     console.log('[localCacheStore.ts][4015] clearAllIdentifiers: index cleared'); 
   } catch (e) {
     console.warn('[localCacheStore.ts][4016] clearAllIdentifiers: failed', e); 

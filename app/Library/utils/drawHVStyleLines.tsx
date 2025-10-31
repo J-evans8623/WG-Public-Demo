@@ -34,7 +34,7 @@ export function drawHVStyleLines(
 
   if (filteredSubtrees.size === 1) {
     // Only one subtree (ignoring the sentinel)
-    const [nodeid ,subtreeData] = filteredSubtrees.entries().next().value;
+    const [nodeid ,subtreeData] = filteredSubtrees.entries().next().value!;
 
     // Fallback to 0 if position is undefined
     const childCCP = {

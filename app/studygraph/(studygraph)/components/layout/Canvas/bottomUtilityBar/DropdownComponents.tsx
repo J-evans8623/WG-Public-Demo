@@ -29,7 +29,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Plus, Sparkles, FolderOpen, FileText } from 'lucide-react';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useFileAsset } from '@/app/Library/Context/FileAssetContext';
-import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
+import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
 import { useLessonData } from '@/app/Library/Context/LessonDataContext';

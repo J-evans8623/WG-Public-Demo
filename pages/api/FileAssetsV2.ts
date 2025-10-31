@@ -29,7 +29,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import multer from 'multer';
-import { persistRawEmbeddings } from '@/app/src/services/TextPreprocessing/LessonModuleServiceV2';
+import { persistLessonContext } from '@/app/src/services/TextPreprocessing/persistLessonContext';
 import { extractTextFromFileService } from '@/doc-preprocessing-service/text-extraction-client';
 import { authenticateRequest, EnhancedSession, requireUserProfile } from '@/app/src/auth/authenticateRequest';
 import { FileUploadService, FileUploadRequest } from '@/app/src/services/FileUploadService';
@@ -95,7 +95,7 @@ export const config = {
  * duplicated upload logic while preserving all existing functionality including text extraction,
  * lesson module integration, and comprehensive error handling.
  */
- async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     try {
         console.log('[FileAssetsV2.ts][4004] Handling request - Method:', req.method);
         
@@ -153,6 +153,18 @@ async function handleUploadWithService(
                 userGuidance: 'Please select a file to upload'
             });
         }
+
+        // Step 4.1: Validate documentId is present (forward-only contract)
+    const documentId = typeof req.body?.DocID === 'string' ? req.body.DocID.trim() : '';
+    const sourceFileId = typeof req.body?.fileID === 'string' ? req.body.fileID.trim() : undefined;
+    if (!documentId) {
+      console.log('[FileAssetsV2.ts][4010a] Missing DocID in upload form-data');
+      return res.status(400).json({
+        error: 'Missing required DocID',
+        code: 'MISSING_DOCID',
+        userGuidance: 'Please retry the upload from within a document so we can tag it correctly.'
+      });
+    }
         
         // Step 5: Extract visibility preference and user profile
         const requestedVisibility = (req.body.visibility as 'public' | 'private') || 'private';
@@ -168,6 +180,8 @@ async function handleUploadWithService(
             fileSize: req.file.size,
             userProfile: userProfile,
             visibility: requestedVisibility,
+            documentId,
+            sourceFileId,
             uploadContext: 'direct-upload'
         };
         
@@ -197,7 +211,7 @@ async function handleUploadWithService(
                 const documentID = req.body.DocID;
                 const fileID = req.body.fileID;
                 
-                await persistRawEmbeddings(extractedText, documentID, fileID);
+                await persistLessonContext(extractedText, documentID, fileID);
                 console.log('[FileAssetsV2.ts][4014] Text embeddings persisted successfully');
                 
                 extraData.textExtracted = true;
@@ -402,4 +416,3 @@ const runMiddleware = (req: NextApiRequest, res: NextApiResponse, fn: any): Prom
     });
 }
 
-export default withRateLimitNP('np:fileUpload')(handler);

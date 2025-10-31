@@ -622,7 +622,7 @@ const saveEditwithNewNode = useCallback(
   (nodeTitle: string) => {
         if (isReadOnly) {
       console.warn('NodesProvider.tsx 2003 › Read-only mode: initNewDocument blocked');
-      return;
+      return "";
     }
     const rootNodeId = getRootNode();
     const newNodeId = `node-${Date.now()}`;

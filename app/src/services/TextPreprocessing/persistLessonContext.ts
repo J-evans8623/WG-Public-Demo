@@ -11,7 +11,7 @@
  */
 
 import weaviate from 'weaviate-ts-client';
-import { generateEmbedding } from './aiTextPreProcessing';
+import { generateEmbedding } from './aiTextPreProcessingV33';
 
 export interface EmbeddingProvider {
   generate(text: string): Promise<number[]>;

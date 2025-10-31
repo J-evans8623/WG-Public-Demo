@@ -16,7 +16,7 @@
  ***************************************************************************************/
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
+import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';

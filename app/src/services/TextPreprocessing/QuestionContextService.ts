@@ -21,7 +21,7 @@
  */
 
 import weaviate from 'weaviate-ts-client';
-import { generateEmbedding } from './aiTextPreProcessing';
+import { generateEmbedding } from './aiTextPreProcessingV33';
 
 interface TextChunkResult {
   text:  string;

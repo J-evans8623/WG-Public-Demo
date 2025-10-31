@@ -38,6 +38,8 @@ function mapToDisplayType(r: ResourceCard): 'cuecard' | 'note'| 'quiz' {
       return 'note';
     case 'practiceSheet':
       return 'quiz';
+    case 'quizAssessment':
+      return 'quiz'
   }
 }
 

@@ -500,7 +500,7 @@ const gotoPrev = useCallback(() => {                                            
               throw new Error('No slides generated for session - empty content collection');
             }
 
-            openCustom(generatedSlides, undefined ,false);
+            openCustom(generatedSlides, "session" ,true);
             // console.log('[SlideShowContext.tsx][6033] › Session launched successfully with', generatedSlides.length, 'slides');
             setSessionLaunchState({ type: 'IDLE' });
             break;

@@ -46,7 +46,7 @@ import {
   ChevronsLeft,
   Calendar as CalendarIcon
 } from 'lucide-react';
-import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
+import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { LessonsDropdown, UploadsDropdown } from './DropdownComponents';

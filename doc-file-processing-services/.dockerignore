@@ -1,0 +1,26 @@
+# Python junk
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local envs & tooling
+.env
+.env.*
+.venv/
+env/
+venv/
+
+# VCS & OS noise
+.git/
+.gitignore
+.DS_Store
+
+# Test artifacts & local files
+test.pdf
+tests/
+*.log
+
+# Optional: exclude all PDFs except a docs folder
+# *.pdf
+# !docs/**/*.pdf

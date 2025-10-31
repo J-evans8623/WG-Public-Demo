@@ -324,7 +324,12 @@ export const FileAssetProvider: React.FC<{ children: ReactNode }> = ({ children 
  */
 const addFile = useCallback(async (file: File, options: FileUploadOptions = {}) => { // ✨ update - 3
   // console.log('[FileAssetContext.tsx][3025] Starting enhanced file upload - File:', file.name, 'Options:', options);
-
+  if (!docFileID || typeof docFileID !== 'string' || docFileID.trim().length === 0) {
+      console.error('[FileAssetContext.tsx] Missing document identifier for upload.');
+      alert('Cannot upload: missing document context. Please try reopening the document and uploading again.');
+      throw new Error('Missing document context (DocID).'); // short-circuit; prevents server-side ambiguity
+    }
+    
   // (pre-existing logic) validate type, resolve visibility, ids, etc...
   if (!validateFileType(file)) throw new Error('Invalid file type. Only PDF, TXT, DOC, DOCX, and PPTX files are allowed.');
   const currentAccountType = accountStatus?.accountType || 'scholar';

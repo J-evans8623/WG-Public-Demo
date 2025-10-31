@@ -23,7 +23,7 @@ import { modalEventManager } from '@/app/src/services/modalEventManager';
 import { getModal } from '@/app/studygraph/(studygraph)/components/modals/ModalRegistry';
 
 // Modal types and props interfaces
-export type ModalType = 'subscribe' | 'rateLimit' | 'fileUpload' | 'lessonGeneration' |'loadingOverlay';
+export type ModalType = 'subscribe' | 'rateLimit' | 'fileUpload' | 'lessonGeneration' |'loadingOverlay'  | 'blockingProgress';
 
 interface BaseModalProps {
   onClose: () => void;
@@ -54,6 +54,53 @@ interface LessonGenerationModalProps extends BaseModalProps {
   onSuccess: (responseData: any) => void;
   docFileId: string;
 }
+
+/** ─────────────────────────────────────────────────────────────────────────────
+ * BlockingProgressModal (brand-styled, dimmed background like other modals)
+ * Non-cancellable; no close button; no click-outside to dismiss.
+ * Exactly the same overlay look/feel as Upload / LessonGeneration modals.
+ * ─────────────────────────────────────────────────────────────────────────── */
+interface BlockingProgressModalProps extends BaseModalProps {
+  title?: string;
+  message?: string;
+  ariaLabel?: string;
+}
+
+export const BlockingProgressModal: React.FC<BlockingProgressModalProps> = ({
+  // onClose is required by the infra but we don't expose any way to close while running
+  onClose,
+  title = 'Working…',
+  message = '',
+  ariaLabel = 'Progress',
+}) => {
+  const modalContent = (
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={ariaLabel}
+      // prevent closing by overlay click
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+        <h2 className="modal-title" style={{ textAlign: 'center' }}>{title}</h2>
+        <div className="loading-section" style={{ marginTop: 8 }}>
+          <PulsingDots />
+          {message ? (
+            <div className="loading-text" style={{ marginTop: 8 }}>
+              {message}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  return ReactDOM.createPortal(
+    modalContent,
+    document.getElementById('modal-root') as HTMLElement
+  );
+};
 
 /**
  * @function LoadingDots
@@ -436,7 +483,7 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
     errorContext 
   });
 
-  const { accountStatus, hasFeature } = useAccountStatus();
+  const { hasFeature } = useAccountStatus();
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isPublic, setIsPublic] = useState(false);
@@ -597,11 +644,10 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
  * type and props while supporting enhanced error context for improved user feedback.
  */
 export const createModal = (type: ModalType, props: any) => {
-  console.log('[AppModals.tsx][5020] Creating modal of type with enhanced context:', type);
+
 
   const externalFactory = getModal(type as string);
   if (externalFactory) {
-    console.log('[AppModals.tsx][5030] External modal factory found via registry', { type });
     return externalFactory(props);
   }
   
@@ -614,6 +660,8 @@ export const createModal = (type: ModalType, props: any) => {
       return <FileUploadModal {...props} />;
     case 'lessonGeneration':
       return <EnhancedLessonGenerationModal {...props} />;
+    case 'blockingProgress':                             
+      return <BlockingProgressModal {...props} />;
     default:
       console.error('[AppModals.tsx][5021] Unknown modal type requested:', type);
       return null;

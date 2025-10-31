@@ -74,7 +74,7 @@ export const RefreshModal: React.FC<RefreshModalProps> = ({ onRefresh }) => {
     const accessChanged = historyManager.updateDocumentAccess(
       access.docId,
       access.role,
-      access.lastEvent.source
+      'bootstrap'
     );
 
     if (!accessChanged) {
@@ -86,7 +86,6 @@ export const RefreshModal: React.FC<RefreshModalProps> = ({ onRefresh }) => {
     const shouldTrigger = historyManager.shouldTriggerModal(
       access.docId,
       access.role,
-      access.lastEvent.source
     );
 
     if (shouldTrigger) {

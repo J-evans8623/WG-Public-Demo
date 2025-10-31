@@ -1,3 +1,4 @@
+'use client'
 /**
  * @file modalEventManager.ts
  * @description

@@ -48,6 +48,7 @@ import './calendar-theme.css';
 
 interface CalendarMonthViewProps {
   onFileSelect: (meta: PickerFileMeta) => void;
+   onSessionLaunch: (sessionId: string) => void;  
 }
 
 /**
@@ -58,9 +59,7 @@ interface CalendarMonthViewProps {
  * Portal/UX note: This root component now owns hover-intent timers and forwards viewport
  * coordinates to tooltip/popover portals for smooth, stable rendering anchored to the cursor.
  */
-const CalendarMonthView: React.FC<
-  CalendarMonthViewProps & { onSessionLaunch?: (sessionId: string) => void }
-> = ({ onFileSelect, onSessionLaunch }) => {
+const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({ onFileSelect, onSessionLaunch }) => {
   console.log('[CalendarMonthView.tsx][2001] › Render CalendarMonthView');
 
   // 1) Context + services
@@ -70,12 +69,11 @@ const CalendarMonthView: React.FC<
     navigateMonth,
     isLoading,
     error,
-    createSessionLauncher,
    markSessionCompleted,
    markSessionIncomplete,
    completedSessions,
   } = useCalendar();
-  const { requestSessionLaunch } = useSlideShow();
+
 
   // 2) Local UI state (tooltip + popover)
   const [tooltip, setTooltip] = useState<SessionTooltipData>({
@@ -190,38 +188,14 @@ const CalendarMonthView: React.FC<
    *   It also clears any active tooltip/popover to minimize UI clutter when navigating away.
    *   Ensures PickerFileMeta is prepared and handed to onFileSelect for file switching.
    */
-  const handleSessionClick = useCallback(
+ const handleSessionClick = useCallback(
     (session: StudySession) => {
       console.log('[CalendarMonthView.tsx][2002] › Session clicked:', session.id);
       setTooltip((prev) => ({ ...prev, visible: false }));
       setSessionPopover((prev) => ({ ...prev, visible: false }));
-
-      try {
-        if (onSessionLaunch) {
-          console.log('[CalendarMonthView.tsx][2003] › Delegate launch to parent');
-          onSessionLaunch(session.id);
-          return;
-        }
-
-        const pickerMeta = createSessionLauncher(session.id);
-        if (!pickerMeta) {
-          console.error('[CalendarMonthView.tsx][2004] › createSessionLauncher failed');
-          return;
-        }
-
-        requestSessionLaunch({
-          sessionId: session.id,
-          sessionData: session,
-          targetFileId: session.notebookMeta.fileId,
-        });
-
-        onFileSelect(pickerMeta);
-        console.log('[CalendarMonthView.tsx][2005] › Launch flow complete');
-      } catch (e) {
-        console.error('[CalendarMonthView.tsx][2006] › Launch error:', e);
-      }
+      onSessionLaunch(session.id); 
     },
-    [createSessionLauncher, onFileSelect, onSessionLaunch, requestSessionLaunch]
+    [onSessionLaunch]
   );
 
   /**

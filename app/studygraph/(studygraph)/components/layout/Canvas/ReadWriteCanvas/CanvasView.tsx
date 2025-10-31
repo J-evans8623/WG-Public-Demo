@@ -27,11 +27,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import MapRenderer from './Map/MapRendererv2';
-import PDFRenderer from '../PDFRenderer';
+import PDFRenderer from '../pdf/PDFRenderer';
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
-import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
+import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
 import { useUndoRedo } from '@/app/studygraph/(studygraph)/components/Context/UndoRedoContext';
 import BottomToolbar from '../toolbar/BottomToolbar';
 import QuizGeneratorModal from '../QuizGeneratorModal';

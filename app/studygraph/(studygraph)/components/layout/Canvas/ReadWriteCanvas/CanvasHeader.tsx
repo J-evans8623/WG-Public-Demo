@@ -40,7 +40,7 @@ import {
 
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
-import { useViewSwitch } from '@/app/Library/Context/ViewSwitchContext';
+import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
 
 // update - 1: Replace split dropdown implementations with the converged, mode-aware menus
 import { UnifiedLessonsDropdown, UnifiedUploadsDropdown } from './DropDownMenu'; // update - 2

@@ -1,7 +1,7 @@
-// lessonSchema.ts
+// lessonSchema.ts 
 
 /**
- * schemas/lessonSchema.ts
+ * schemas/lessonSchema.ts (depr)
  *
  * Defines the schema for structured lesson outputs.
  *
@@ -623,15 +623,15 @@ export const topicSchema = {
           },
           "lesson": {
             "type": "object",
-            "description": "Contains details of the lesson for the primary subtopic.",
+            "description": "Contains the learning content for the primary subtopic.",
             "properties": {
               "lecture_note": {
                 "type": "string",
-                "description": "Detailed lecture note on the subtopic."
+                "description": " The primary subtopic must adequately cover the main idea(s) central to the user’s requested topic. The uploaded material ( typically excerpts from a textbook or lecture recordings) will provide supplementary context on the user’s requested topic. The learning content of the primary subtopic should target the understand level of bloom taxonomy. However, you should never mention bloom’s taxonomy or its levels in the returned response to the user, you are simply using it to structure the learning content of the study notes you are creating."
               },
               "flash_cards": {
                 "type": "array",
-                "description": "Flash cards relevant to the lesson.",
+                "description": "Flash cards relevant to the lesson. ",
                 "items": {
                   "type": "object",
                   "properties": {
@@ -941,139 +941,6 @@ export const subtreeSchemaV30 = {
   strict: true
 };
 
-
-export const subtreeSchemaV3 = {
-  name: "batch_study_notes",
-  schema: {
-    type: "object",
-    properties: {
-      primary_subtopic: {
-        type: "object",
-        description: "List of enriched primary subtopics.",
-          properties: {
-            ChronologicalOrder: {
-              type: "number",
-              description: "Order of this primary subtopic."
-            },
-            title: {
-              type: "string",
-              description: "Title of the primary subtopic."
-            },
-            lesson: {
-              type: "object",
-              description: "Lesson content for this primary subtopic.",
-              properties: {
-                lecture_note: {
-                  type: "string",
-                  description: "Detailed lecture note."
-                },
-                flash_cards: {
-                  type: "array",
-                  description: "Flash cards for this lesson.",
-                  items: {
-                    type: "object",
-                    properties: {
-                      term: { type: "string" },
-                      definition: { type: "string" }
-                    },
-                    required: ["term", "definition"],
-                    additionalProperties: false
-                  }
-                }
-              },
-              required: ["lecture_note", "flash_cards"],
-              additionalProperties: false
-            },
-            secondary_subtopic: {
-              anyOf: [
-                { type: "null" },
-                {
-                  type: "array",
-                  description: "Optional secondary subtopics.",
-                  items: {
-                    type: "object",
-                    properties: {
-                      title: { type: "string" },
-                      lecture_note: { type: "string" },
-                      flash_cards: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            term: { type: "string" },
-                            definition: { type: "string" }
-                          },
-                          required: ["term", "definition"],
-                          additionalProperties: false
-                        }
-                      }
-                    },
-                    required: ["title", "lecture_note", "flash_cards"],
-                    additionalProperties: false
-                  }
-                }
-              ]
-            },
-            quiz: {
-              type: "object",
-              description: "Matching quiz for this subtopic.",
-              properties: {
-                id: { type: "string" },
-                title: { type: "string" },
-                questions: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      id: { type: "string" },
-                      type: { type: "string", enum: ["matching"] },
-                      matchingTerm: { type: "string" },
-                      matchingAnswer: { type: "string" }
-                    },
-                    required: ["id", "type", "matchingTerm", "matchingAnswer"],
-                    additionalProperties: false
-                  }
-                }
-              },
-              required: ["id", "title", "questions"],
-              additionalProperties: false
-            },
-          },
-          required: [
-            "ChronologicalOrder",
-            "title",
-            "lesson",
-            "secondary_subtopic",
-            "quiz",
-          ],
-          additionalProperties: false
-      },
-      lesson_citation: {
-              anyOf: [
-                { type: "null" },
-                {
-                  type: "array",
-                  description: "Citations for this subtopic.",
-                  items: {
-                    type: "object",
-                    properties: {
-                      index: { type: "number" },
-                      textsource: { type: "string" },
-                      page_number: { type: "number" }
-                    },
-                    required: ["index", "textsource", "page_number"],
-                    additionalProperties: false
-                  }
-                }
-              ]
-            }
-
-    },
-    required: ["primary_subtopic", "lesson_citation"],
-    additionalProperties: false
-  },
-  strict: true
-};
 
 
 export const subtreeSchemaV4 = {

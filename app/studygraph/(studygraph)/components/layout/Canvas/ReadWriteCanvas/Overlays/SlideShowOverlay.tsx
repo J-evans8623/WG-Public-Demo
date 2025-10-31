@@ -127,7 +127,8 @@ const SlideShowOverlay: React.FC = () => {
 
   // update - 6: Bookmark action (O(1))
   const handleToggleBookmark = () => {
-    if (!currentSlide) return;
+
+    if (!currentSlide || currentSlide.type == 'quizAssessment') return;
     console.log('[SlideShowOverlay.tsx][1301] toggle bookmark', { id: currentSlide.id });
     toggleBookmark({
       resourceId: currentSlide.id,

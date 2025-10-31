@@ -235,6 +235,24 @@ export default async function handler(
       size: req.file.size 
     });
 
+
+    // Step 6.1: Extract and validate forward-only identifiers
+    const docId =
+  (typeof req.body?.DocID === 'string' && req.body.DocID.trim()) ||
+  (typeof req.body?.docId === 'string' && req.body.docId.trim());
+
+  const fileId = uuidv4()
+
+
+    if (!docId) {
+      console.log('[GenerateLesson.ts][4008a] Missing DocID in lesson-generation upload form-data');
+      return res.status(400).json({
+        error: 'MISSING_DOCID',
+        message: 'Missing required DocID for lesson generation upload.',
+        service: 'lessonGeneration'
+      });
+    }
+
     // Step 7: Create upload request for centralized service (preserved from original)
     const requestedVisibility = (req.body.visibility as 'public' | 'private') || 'private';
     
@@ -245,6 +263,8 @@ export default async function handler(
       fileSize: req.file.size,
       userProfile: sessionData.userProfile,
       visibility: requestedVisibility,
+      documentId: docId,
+      sourceFileId: fileId,
       uploadContext: 'lesson-generation'
     };
 
@@ -315,14 +335,8 @@ export default async function handler(
     const moduleSize = textSegments.moduleSize;
 
     // Step 12: Prepare lesson generation parameters (preserved from original)
-    const documentID = req.body.fileID;
-    const fileId = uuidv4();
+    const documentID = docId;
     
-    console.log('[GenerateLesson.ts][4016] Starting lesson module generation', { 
-      segments: textSegments.modules.length,
-      documentID,
-      fileId
-    });
 
     // Step 13: Generate lesson modules concurrently (preserved from original)
     console.time('[GenerateLesson.ts][4017] Lesson generation timer');
