@@ -92,12 +92,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return; // authenticateRequest already sent 401 response
   }
 
-  console.log('[aiServiceLayer.ts][3003] AI service request authenticated', { 
-    email: sessionData.user.email,
-    accountType: sessionData.userProfile.accountType,
-    subscriptionTier: sessionData.userProfile.subscriptionTier
-  });
-
   try {
     const { action } = req.query;
 

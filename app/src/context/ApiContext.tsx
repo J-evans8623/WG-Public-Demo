@@ -39,7 +39,11 @@ import { insertDedupSorted, updateByIdSorted,
 import { getFileListCache, setFileListCache, clearFileListCache } from '@/app/studygraph/(studygraph)/services/fileListCache';
 import { gradebookClient, AssignMetaPatchReq, AssignMetaPatchRes, AssignMetaUpsertReq, AssignMetaUpsertRes, GradebookQueryRes, AttemptStartReq, AttemptStartRes, AttemptSubmitReq, AttemptSubmitRes } from '@/app/studygraph/(studygraph)/services/gradebook/gradebookClient';
 import { supersedingCall } from '../net/SupersedingCaller';
-
+import type {
+  BillingSnapshot,                    
+  SubscriptionUiSnapshot,               
+} from '@/app/src/billing/types';
+import { deriveSubscriptionUiSnapshot } from '@/app/src/billing/types'; 
 
 type AccessMode = 'edit' | 'readonly'; 
 type AccessStatus = 'PENDING' | 'READY';
@@ -73,6 +77,7 @@ interface AccountStatus {
     maxDocuments: number;
     maxStorageGB: number;
   };
+  billing: BillingSnapshot | null;
 }
 
 interface ApiContextType {
@@ -136,51 +141,29 @@ export const useAccountStatus = () => {
   if (!context) {
     throw new Error('useAccountStatus must be used within ApiProvider');
   }
+
+
+    /* Derive a normalized, UI-friendly subscription snapshot in O(1). */
+  const subscriptionUi: SubscriptionUiSnapshot | null = React.useMemo(() => {
+    if (!context.accountStatus) return null;
+    return deriveSubscriptionUiSnapshot({
+      accountType: context.accountStatus.accountType,
+      subscriptionTier: context.accountStatus.subscriptionTier,
+      billing: context.accountStatus.billing,
+    });
+  }, [context.accountStatus]);
+
+
   return {
     accountStatus: context.accountStatus,
     isLoading: context.isAccountLoading,
     refresh: context.refreshAccountStatus,
     hasFeature: context.hasFeature,
     canUpgrade: context.canUpgrade,
+    subscriptionUi,
   };
 };
 
-/**
- * @function useAccessSnapshot
- * @description
- *   Read the centralized document access snapshot `{ mode, status, docId }` owned by `ApiProvider`.
- *   This hook is intentionally narrow: it only triggers re-renders for callers that explicitly opt-in
- *   to reading access state. By living in a tiny dedicated context, it avoids invalidating unrelated
- *   `ApiContext` consumers when access changes. O(1) lookups; throws if used outside `ApiProvider`.
-
-// update - 2006
-export const useAccessSnapshot = () => {
-  const v = React.useContext(AccessSnapshotContext);
-  if (v === undefined) {
-    throw new Error('useAccessSnapshot must be used within ApiProvider');
-  }
-  return v;
-};
- */
-
-
-/**
- * @function useEditReady
- * @description
- *   Read the `editReady` boolean derived by the centralized DAM subscription inside `ApiProvider`. This
- *   keeps leaf components simple and efficient: they can guard mutating handlers with a single boolean,
- *   without re-rendering on changes to `mode` or `status` when the boolean didn’t change. The context
- *   is minimal by design to limit fan-out churn. O(1) lookups; throws if used outside `ApiProvider`.
-
-// update - 2007
-export const useEditReady = () => {
-  const v = React.useContext(EditReadyContext);
-  if (v === undefined) {
-    throw new Error('useEditReady must be used within ApiProvider');
-  }
-  return v;
-};
- */
 
 /**
  * @function useFileList
@@ -190,8 +173,8 @@ export const useEditReady = () => {
  *   re-renders beyond state changes in the provider. It also provides `refresh()` to force a
  *   foreground revalidation when a user action (like delete) requires it.
  */
-export const useFileList = () => { // update - 1
-  const ctx = useContext(ApiContext); // update - 2
+export const useFileList = () => { 
+  const ctx = useContext(ApiContext);
   if (!ctx) throw new Error('useFileList must be used within ApiProvider'); // update - 3
   // Expose only the read model + flags + refresh; keep mutations centralized in ApiContext // update - 4
   return {
@@ -312,9 +295,6 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
    */
   const fetchAccountStatus = useCallback(async (): Promise<void> => {
 
-    
-
-    console.log('[ApiContext.tsx][1001] Starting account status fetch');
     setIsAccountLoading(true);
     setError(null);
     
@@ -332,7 +312,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
         throw new Error(`Account status fetch failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: AccountStatus = await response.json();
 
       if (mountedRef.current) {
         setAccountStatus(data);
@@ -364,6 +344,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
           maxDocuments: 5,
           maxStorageGB: 1,
         },
+        billing:null,
       };
       
       setAccountStatus(fallbackStatus);
@@ -630,11 +611,11 @@ const refreshFileList = async (): Promise<void> => {
         const cached = getFileListCache(userKey);
         if (cached) {
           setFileList(cached);
-          setIsFileListHydrated(true); // update - 50
+          setIsFileListHydrated(true); 
         }
       }
     } finally {
-      setIsFileListRefreshing(false); // update - 51
+      setIsFileListRefreshing(false); 
       setIsFileListLoading(false);
     }
   };
@@ -1053,7 +1034,7 @@ useEffect(() => {
         signal: ac.signal,
       });
       if (!res.ok) throw new Error(res.statusText);
-      const data = await res.json();
+      const data:AccountStatus = await res.json();
       setAccountStatus(data); // safe: only runs if not aborted
     } catch (e) {
       if ((e as any)?.name === 'AbortError') return; // expected on cleanup/supersede
@@ -1068,7 +1049,7 @@ useEffect(() => {
 
 
 
-useEffect(() => { // update - 57
+useEffect(() => {
     if (status !== 'authenticated' || !normalizedEmail) return;
     // Call listFiles which will hydrate from cache and revalidate in background 
     listFiles().catch((e) => {

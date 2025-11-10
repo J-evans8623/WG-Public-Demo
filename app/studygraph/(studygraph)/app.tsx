@@ -313,9 +313,9 @@ const AppLayoutContent: React.FC = () => {
 
   const renderMenuIcon = () => {
     return isPanelExpanded ? (
-      <ChevronsLeft className="w-4 h-4 text-gray-600" />
+      <ChevronsLeft className="w-5 h-5 text-gray-600" />
     ) : (
-      <Menu className="w-4 h-4 text-gray-600" />
+      <Menu className="w-5 h-5 text-gray-600" />
     );
   };
 
@@ -344,7 +344,7 @@ const AppLayoutContent: React.FC = () => {
       {currentView === 'home' && (
         <button
           onClick={handleTogglePanel}
-          className="p-2 bg-gray-100 rounded shadow hover:bg-gray-200 transition-colors"
+          className="p-2  hover:bg-gray-200 transition-colors"
           style={getNavButtonPosition()}
           title="Toggle Navigation Panel"
           data-testid="nav-toggle-button"

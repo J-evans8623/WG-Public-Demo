@@ -17,6 +17,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import { resolveRole } from '@/app/src/services/firebase';
 import { getGradebookSnapshot } from '@/app/src/services/gradebook/gradebookFB';
+import { UserService } from '@/app/src/services/userService';
 
 /* ──────────────────────────────────────────────────────────────────────────────
  * [Local utilities]
@@ -95,6 +96,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return sendJson(res, 401, { error: 'UNAUTHORIZED' });
     }
 
+    const userProfile = await UserService.getUserProfile(session.user.email);
+
     // 3) Read and validate ?docId=...
     let docId = '';
     try {
@@ -106,7 +109,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 4) Authorization: must be Owner on the doc and an Educator account.
     const role = await resolveRole(docId, session.user.email);
-    const isEducator = session.user.accountType === 'educator';
+    const isEducator = userProfile.accountType === 'educator';
     console.log('pages/api/gradebook/index.ts [7404] › ACL guard', { docId, role, isEducator });
     if (role !== 'Owner' || !isEducator) {
       return sendJson(res, 403, { error: 'ACL_DENIED_OWNER_EDUCATOR_REQUIRED' });

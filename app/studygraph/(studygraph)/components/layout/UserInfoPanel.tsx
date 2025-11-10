@@ -1,65 +1,117 @@
 /**
- * @file UserInfoPanel.tsx — Polished & Centered Profile View
+ * @file UserInfoPanel.tsx
  * @description
- *   Completely redesigned user profile panel with centered card layout, subscription
- *   management controls, and renewal details display. Implements warm board brand
- *   styling with professional typography and enhanced accessibility.
- *
- *   Features:
- *   - Centered card layout with avatar, name, and email
- *   - Conditional Subscribe/Unsubscribe button based on subscription status
- *   - Renewal details display (date, plan, price, payment method)
- *   - Sign-in/Sign-out states with Google OAuth integration
- *   - Loading and error states with proper feedback
- *   - Full WCAG accessibility compliance
+ *   Production-ready user profile side panel that presents authenticated session details and
+ *   subscription status in a single, cohesive view. This component is responsible for rendering
+ *   the user’s avatar, name, and email, exposing clear sign-in and sign-out controls, and
+ *   surfacing subscription information that is fully aligned with backend billing state. Rather
+ *   than relying on mock data, it now integrates directly with the shared `ApiContext` and
+ *   `useAccountStatus` hook to consume the authoritative `/api/account/status` payload and the
+ *   derived `SubscriptionUiSnapshot`. Using this abstraction, the panel can distinguish between
+ *   freemium and premium users, render a human-readable plan label (for example, “Scholar •
+ *   Premium • Monthly”), and show either a “Renews on” or “Ends on” date depending on whether
+ *   the subscription is set to cancel at period end. All actions are wired into authenticated
+ *   flows: subscribing routes users to `/billing/offer`, while managing billing launches the
+ *   Stripe Billing Portal via the secure `/api/stripe/portal` endpoint, which itself validates
+ *   the NextAuth session using `authenticateRequest`. The component preserves all existing CSS
+ *   classes and layout structure, maintains strict WCAG accessibility practices, and performs
+ *   only O(1) computations per render by branching on the precomputed subscription phase, making
+ *   it safe and efficient for frequent display in the application shell.
  */
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import Image from "next/image";
 import "./UserInfoPanel.css";
+import { useAccountStatus } from "@/app/src/context/ApiContext"; 
 
 interface UserInfoPanelProps {
   onClose: () => void;
 }
 
-// Mock subscription data - replace with actual API integration
-interface SubscriptionData {
-  isSubscribed: boolean;
-  renewalDate?: string;
-  planName?: string;
-  price?: number;
-  period?: 'month' | 'year';
-  paymentMethod?: string;
-}
-
-// Stub function for subscription data - implement with your actual API
-const useSubscriptionData = (): SubscriptionData => {
-  // TODO: Replace with actual subscription API call
-  return {
-    isSubscribed: false, // Change to true to test subscribed state
-    renewalDate: "2025-11-30",
-    planName: "Premium",
-    price: 11.99,
-    period: "month",
-    paymentMethod: "****1234",
-  };
-};
-
+/**
+ * @function UserInfoPanel
+ * @description
+ *   React component that renders the authenticated user’s profile card, subscription status,
+ *   and session controls inside a centered modal-style panel. It combines NextAuth session data
+ *   with the shared `useAccountStatus` hook to display a normalized view of the user’s billing
+ *   state, including plan label and renewal or end date. Based on the derived subscription phase
+ *   (UNSUBSCRIBED, ACTIVE, CANCEL_AT_PERIOD_END), it conditionally shows a primary “Subscribe”
+ *   CTA, premium-only “Unsubscribe” and “Manage billing” actions, or a sign-in prompt when no
+ *   session exists. All network interactions are O(1) and rely on backend endpoints that enforce
+ *   authentication, ensuring users must be signed in before subscribing or entering the billing
+ *   portal. The component preserves existing styling and accessibility while removing mock data
+ *   in favor of real backend-driven subscription information.
+ */
 export const UserInfoPanel: React.FC<UserInfoPanelProps> = ({ onClose }) => {
   const { data: session, status } = useSession();
-  const isLoading = status === "loading";
+  const isSessionLoading = status === "loading";
   const isAuthed = status === "authenticated";
 
-  const subscriptionData = useSubscriptionData();
-  const [isProcessing, setIsProcessing] = useState(false);
+  // update - 2: Real account status + derived subscription snapshot
+  const {
+    accountStatus,
+    isLoading: isAccountLoading,
+    subscriptionUi,
+  } = useAccountStatus();
 
-  const userName = (session?.user?.name || session?.user?.email || "User") ?? "";
+  const [isProcessing, setIsProcessing] = useState(false); // shared spinner for actions  // update - 3
+
+  const userName =
+    (session?.user?.name || session?.user?.email || "User") ?? "";
   const userEmail = session?.user?.email ?? "";
   const userImage = session?.user?.image ?? "";
 
+  // update - 4: Derive simple booleans from subscription snapshot in O(1).
+  const subscriptionFlags = useMemo(() => {
+    if (!subscriptionUi) {
+      return {
+        isSubscribed: false,
+        isCanceledAtPeriodEnd: false,
+      };
+    }
+
+    const isSubscribed =
+      subscriptionUi.phase === "ACTIVE" ||
+      subscriptionUi.phase === "CANCEL_AT_PERIOD_END";
+
+    const isCanceledAtPeriodEnd =
+      subscriptionUi.phase === "CANCEL_AT_PERIOD_END";
+
+    return { isSubscribed, isCanceledAtPeriodEnd };
+  }, [subscriptionUi]);
+
+  // update - 5: Format renewal/end date once per render using Stripe-based epoch seconds.
+  const formattedRenewalDate = useMemo(() => {
+    if (!subscriptionUi?.renewalDate) return null;
+    try {
+      return subscriptionUi.renewalDate.toLocaleDateString("en-CA", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "America/St_Johns",
+      });
+    } catch {
+      // Fallback without explicit time zone if environment lacks the IANA zone.
+      return subscriptionUi.renewalDate.toLocaleDateString("en-CA", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    }
+  }, [subscriptionUi]);
+
+  /**
+   * @function handleSignIn
+   * @description
+   *   Starts the Google OAuth sign-in flow using NextAuth, while displaying a processing state
+   *   so users receive feedback that authentication is in progress. On success, users are routed
+   *   back into the studygraph space; on failure, errors are logged to the console without
+   *   disrupting the rest of the panel. Time complexity is O(1), with the heavy lifting handled
+   *   by the NextAuth infrastructure and external identity provider.
+   */
   const handleSignIn = async () => {
     setIsProcessing(true);
     try {
@@ -71,6 +123,14 @@ export const UserInfoPanel: React.FC<UserInfoPanelProps> = ({ onClose }) => {
     }
   };
 
+  /**
+   * @function handleSignOut
+   * @description
+   *   Signs the user out via NextAuth while toggling a processing state to avoid duplicate clicks.
+   *   After sign-out, the user is redirected to the `/signin` page and the panel is closed to
+   *   prevent stale UI. This function does not manage any billing state directly; instead, it
+   *   defers to the existing authentication flow and allows `ApiContext` to clear cached data.
+   */
   const handleSignOut = async () => {
     setIsProcessing(true);
     try {
@@ -83,47 +143,92 @@ export const UserInfoPanel: React.FC<UserInfoPanelProps> = ({ onClose }) => {
     }
   };
 
-  // Stub functions for subscription management - implement with actual API
+  /**
+   * @function handleSubscribe
+   * @description
+   *   Navigates authenticated users to the `/billing/offer` page where the server-side gated
+   *   Stripe checkout flow begins. This function does not talk to Stripe directly; instead, it
+   *   relies on the Offers page and the `/api/stripe/checkout` endpoint, both of which enforce
+   *   authentication via `authenticateRequest`. If a non-authenticated user somehow triggers this
+   *   action, the server path will still enforce sign-in before any subscription is created.
+   */
   const handleSubscribe = async () => {
-    setIsProcessing(true);
+    setIsProcessing(true); // update - 6
     try {
-      // TODO: Implement actual subscription flow
-      console.log("Subscribe clicked - implement checkout flow");
-      // Example: await createCheckoutSession();
+      window.location.assign("/billing/offer"); // update - 6
     } catch (error) {
-      console.error("Subscribe error:", error);
+      console.error("Subscribe navigation error:", error); // update - 6
     } finally {
-      setIsProcessing(false);
+      setIsProcessing(false); // update - 6
     }
   };
 
+  /**
+   * @function handleUnsubscribe
+   * @description
+   *   Entry point for unsubscribe intent. In this implementation, we direct users into the Stripe
+   *   Billing Portal, where cancellation can be performed safely on Stripe’s side without WiseGraph
+   *   needing to manage payment methods directly. The same `/api/stripe/portal` endpoint is used
+   *   as for general billing management, and it is already protected by `authenticateRequest`, so
+   *   only signed-in users can access it. A more specialized unsubscribe endpoint could be wired
+   *   here in the future if product requirements evolve.
+   */
   const handleUnsubscribe = async () => {
-    setIsProcessing(true);
+    setIsProcessing(true); // update - 7
     try {
-      // TODO: Implement actual unsubscribe flow with confirmation
-      console.log("Unsubscribe clicked - implement cancellation flow");
-      // Example: await cancelSubscription();
+      // For now, treat unsubscribe as “open portal where you can cancel”.
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      if (res.status === 401) {
+        window.location.assign("/signin?returnTo=/billing/offer");
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (data?.url) {
+        window.location.assign(data.url);
+      }
     } catch (error) {
-      console.error("Unsubscribe error:", error);
+      console.error("Unsubscribe / portal error:", error);
     } finally {
       setIsProcessing(false);
     }
   };
 
+  /**
+   * @function handleManageBilling
+   * @description
+   *   Launches the Stripe Billing Portal via the authenticated `/api/stripe/portal` BFF endpoint.
+   *   The endpoint validates the current NextAuth session using `authenticateRequest`, creates a
+   *   portal session for the user’s Stripe customer, and returns a one-time portal URL. On 401
+   *   responses, the user is redirected to `/signin` with a return hint so they can resume billing
+   *   management after authentication. All heavy lifting remains server-side; time complexity for
+   *   this client function is constant.
+   */
   const handleManageBilling = async () => {
+    setIsProcessing(true); // update - 8
     try {
-      // TODO: Implement billing portal redirect
-      console.log("Manage billing clicked - open billing portal");
-      // Example: window.location.href = await getBillingPortalUrl();
+      const res = await fetch("/api/stripe/portal", { method: "POST" }); // same endpoint as before
+      if (res.status === 401) {
+        window.location.assign("/signin?returnTo=/billing/offer");
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (data?.url) {
+        window.location.assign(data.url);
+      }
     } catch (error) {
       console.error("Billing portal error:", error);
+    } finally {
+      setIsProcessing(false);
     }
   };
+
+  const showSubscriptionSkeleton = isAccountLoading && isAuthed; // update - 9
 
   return (
     <div className="user-info-panel">
       <div className="user-info-container">
-        {isLoading && (
+        {/* Loading state for session resolution */}
+        {isSessionLoading && (
           <div className="user-info-card">
             <div className="user-info-loading">
               <div className="user-info-spinner" />
@@ -132,7 +237,8 @@ export const UserInfoPanel: React.FC<UserInfoPanelProps> = ({ onClose }) => {
           </div>
         )}
 
-        {!isLoading && isAuthed && (
+        {/* Authenticated state with real subscription data */}
+        {!isSessionLoading && isAuthed && (
           <div className="user-info-card">
             {/* Header Section */}
             <div className="user-info-header">
@@ -159,71 +265,94 @@ export const UserInfoPanel: React.FC<UserInfoPanelProps> = ({ onClose }) => {
             <div className="user-info-section">
               <h3 className="user-info-section-title">Subscription</h3>
 
-              {subscriptionData.isSubscribed ? (
-                <>
-                  {/* Subscribed State */}
-                  <div className="user-info-actions">
-                    <button
-                      onClick={handleUnsubscribe}
-                      disabled={isProcessing}
-                      className="user-info-btn user-info-btn--danger-outline"
-                      aria-label="Unsubscribe from current plan"
-                    >
-                      {isProcessing ? "Processing..." : "Unsubscribe"}
-                    </button>
-                    <button
-                      onClick={handleManageBilling}
-                      className="user-info-btn user-info-btn--secondary"
-                      aria-label="Manage billing information"
-                    >
-                      Manage billing
-                    </button>
-                  </div>
-
-                  {/* Renewal Details */}
-                  <div className="user-info-renewal">
-                    <div className="user-info-renewal-row">
-                      <span className="user-info-renewal-label">Renews on</span>
-                      <span className="user-info-renewal-value">
-                        {new Date(subscriptionData.renewalDate!).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </span>
-                    </div>
-                    <div className="user-info-renewal-row">
-                      <span className="user-info-renewal-label">Plan</span>
-                      <span className="user-info-renewal-value">{subscriptionData.planName}</span>
-                    </div>
-                    <div className="user-info-renewal-row">
-                      <span className="user-info-renewal-label">Price</span>
-                      <span className="user-info-renewal-value">
-                        ${subscriptionData.price?.toFixed(2)}/{subscriptionData.period}
-                      </span>
-                    </div>
-                    <div className="user-info-renewal-row">
-                      <span className="user-info-renewal-label">Payment method</span>
-                      <span className="user-info-renewal-value">{subscriptionData.paymentMethod}</span>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Not Subscribed State */}
-                  <div className="user-info-actions">
-                    <button
-                      onClick={handleSubscribe}
-                      disabled={isProcessing}
-                      className="user-info-btn user-info-btn--primary"
-                      aria-label="Subscribe to premium plan"
-                    >
-                      {isProcessing ? "Processing..." : "Subscribe"}
-                    </button>
-                  </div>
+              {showSubscriptionSkeleton && (
+                <div className="user-info-renewal"> {/* update - 10 */}
                   <p className="user-info-hint">
-                    Get access to premium features.
+                    Loading your subscription details…
                   </p>
+                </div>
+              )}
+
+              {!showSubscriptionSkeleton && (
+                <>
+                  {subscriptionFlags.isSubscribed ? (
+                    <>
+                      {/* Subscribed State — premium or cancel-at-period-end */}
+                      <div className="user-info-actions">
+                        <button
+                          onClick={handleUnsubscribe}
+                          disabled={isProcessing}
+                          className="user-info-btn user-info-btn--danger-outline"
+                          aria-label="Unsubscribe from current plan"
+                        >
+                          {isProcessing ? "Processing..." : "Unsubscribe"}
+                        </button>
+                        <button
+                          onClick={handleManageBilling}
+                          disabled={isProcessing}
+                          className="user-info-btn user-info-btn--secondary"
+                          aria-label="Manage billing information"
+                        >
+                          {isProcessing ? "Opening portal..." : "Manage billing"}
+                        </button>
+                      </div>
+
+                      {/* Renewal / Plan Details */}
+                      <div className="user-info-renewal">
+                        {subscriptionUi?.planLabel && (
+                          <div className="user-info-renewal-row">
+                            <span className="user-info-renewal-label">
+                              Plan
+                            </span>
+                            <span className="user-info-renewal-value">
+                              {subscriptionUi.planLabel}
+                            </span>
+                          </div>
+                        )}
+
+                        {formattedRenewalDate && subscriptionUi?.renewalCopy && (
+                          <div className="user-info-renewal-row">
+                            <span className="user-info-renewal-label">
+                              {subscriptionUi.renewalCopy}
+                            </span>
+                            <span className="user-info-renewal-value">
+                              {formattedRenewalDate}
+                            </span>
+                          </div>
+                        )}
+
+                        {subscriptionFlags.isCanceledAtPeriodEnd && (
+                          <div className="user-info-renewal-row">
+                            <span className="user-info-renewal-label">
+                              Status
+                            </span>
+                            <span className="user-info-renewal-value">
+                              Will end at period close
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Not Subscribed State (freemium) */}
+                      <div className="user-info-actions">
+                        <button
+                          onClick={handleSubscribe}
+                          disabled={isProcessing}
+                          className="user-info-btn user-info-btn--primary"
+                          aria-label="Subscribe to premium plan"
+                        >
+                          {isProcessing ? "Processing..." : "Subscribe"}
+                        </button>
+                      </div>
+                      <p className="user-info-hint">
+                        {subscriptionUi?.planLabel
+                          ? `Current: ${subscriptionUi.planLabel}. Upgrade to unlock premium features.`
+                          : "Get access to premium features."}
+                      </p>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -242,7 +371,8 @@ export const UserInfoPanel: React.FC<UserInfoPanelProps> = ({ onClose }) => {
           </div>
         )}
 
-        {!isLoading && !isAuthed && (
+        {/* Unauthenticated state: invite user to sign in */}
+        {!isSessionLoading && !isAuthed && (
           <div className="user-info-card">
             <div className="user-info-header">
               <div className="user-info-icon-wrapper">
@@ -258,7 +388,9 @@ export const UserInfoPanel: React.FC<UserInfoPanelProps> = ({ onClose }) => {
                 </svg>
               </div>
               <h2 className="user-info-title">Welcome to Wisegraph</h2>
-              <p className="user-info-subtitle">Sign in to access your account and premium features.</p>
+              <p className="user-info-subtitle">
+                Sign in to access your account and premium features.
+              </p>
             </div>
 
             <div className="user-info-section">

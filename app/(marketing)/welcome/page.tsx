@@ -1,4 +1,4 @@
-// app/(marketing)/welcome/page.tsx
+// app/(marketing)/welcome/page.tsx 
 'use client';
 
 import React, { useState } from 'react';
@@ -28,10 +28,10 @@ export default function Page() {
               <p>Concept-map notebooks, lesson generation, a planner and study groups—together at last.</p>
 
               <div className="cta-buttons">
-                <a href="#" className="btn-primary" aria-label="Start free">
+                <a href="/signin?returnTo=/studygraph" className="btn-primary" aria-label="Start free">
                   Start free
                 </a>
-                <a href="#" className="btn-secondary" aria-label="View pricing">
+                <a href="/billing/offer" className="btn-secondary" aria-label="View pricing">
                   View pricing
                 </a>
               </div>
@@ -142,87 +142,20 @@ export default function Page() {
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section className="pricing-section">
+      {/* CTA Section */}
+      <section className="cta-section">
         <div className="container">
-          <h2>Choose Your Plan</h2>
-
-          <div className="pricing-toggle" role="tablist" aria-label="Billing period">
-            <div className="toggle-container">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={billing === 'monthly'}
-                className={`toggle-option ${billing === 'monthly' ? 'active' : ''}`}
-                onClick={() => setBilling('monthly')}
-              >
-                Monthly
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={billing === 'annual'}
-                className={`toggle-option ${billing === 'annual' ? 'active' : ''}`}
-                onClick={() => setBilling('annual')}
-              >
-                Annual <small>(10% off)</small>
-              </button>
-            </div>
+          <div className="cta-box">
+            <h2 className="brand-name">Ready to transform your learning?</h2>
+            <p className="cta-description">
+              Join students and educators using WiseGraph to organize their knowledge, 
+              generate lessons, and collaborate effectively.
+            </p>
+            <a href="/billing/offer" className="btn-primary btn-large" aria-label="Start today">
+              Start today
+            </a>
+            <p className="cta-note">Explore our plans and find the perfect fit for your needs.</p>
           </div>
-
-          <div className="pricing-cards">
-            <div className="pricing-card">
-              <h3>Free</h3>
-              <div className="price">
-                $0<span className="price-subtext">/month</span>
-              </div>
-              <ul className="feature-list">
-                <li>50 lessons</li>
-                <li>25 lessons</li>
-                <li>No planner</li>
-                <li>Basic features</li>
-              </ul>
-              <a href="#" className="btn-secondary block-button" aria-label="Upgrade to Free">
-                Upgrade
-              </a>
-            </div>
-
-            <div className="pricing-card">
-              <h3>Scholar Premium</h3>
-              <div className="price">
-                {billing === 'annual' ? '$10.80' : '$12'}
-                <span className="price-subtext">/month</span>
-              </div>
-              <ul className="feature-list">
-                <li>Unlimited lessons</li>
-                <li>Full planner access</li>
-                <li>Study groups</li>
-                <li>Priority support</li>
-              </ul>
-              <a href="#" className="btn-primary block-button" aria-label="Upgrade to Scholar Premium">
-                Upgrade
-              </a>
-            </div>
-
-            <div className="pricing-card">
-              <h3>Educator Premium</h3>
-              <div className="price">
-                {billing === 'annual' ? '$22.50' : '$25'}
-                <span className="price-subtext">/month</span>
-              </div>
-              <ul className="feature-list">
-                <li>600 lessons</li>
-                <li>Advanced analytics</li>
-                <li>Unlimited groups</li>
-                <li>White-label options</li>
-              </ul>
-              <a href="#" className="btn-secondary block-button" aria-label="Contact us for Educator Premium">
-                Contact us
-              </a>
-            </div>
-          </div>
-
-          <p className="pricing-footnote">Exact limits may evolve; changes appear in the Changelog first.</p>
         </div>
       </section>
 

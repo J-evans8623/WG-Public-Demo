@@ -1,6 +1,6 @@
-// lib/redis.ts
+// bloom-maps\app\src\services\redisCache\redis.ts
 /***************************************************************************************************
- * @file lib/redis.ts
+ * @file bloom-maps\app\src\services\redisCache\redis.ts
  * @description
  *   Centralized, production-ready Redis client factory used by all cache and rate-gate utilities.
  *   This module enforces a single shared connection per process (including dev hot-reload), hides
@@ -45,9 +45,9 @@ export function getRedis(): Redis {
     REDIS_PORT = '6379',
     REDIS_PASSWORD,
     REDIS_TLS,
-    REDIS_CONNECT_TIMEOUT_MS = '8000',
-    REDIS_COMMAND_TIMEOUT_MS = '5000',
-    REDIS_MAX_RETRY_MS = '120000',
+    REDIS_CONNECT_TIMEOUT_MS,
+    REDIS_COMMAND_TIMEOUT_MS ,
+    REDIS_MAX_RETRY_MS ,
   } = process.env;
 
   const connectTimeout = Number(REDIS_CONNECT_TIMEOUT_MS);
@@ -90,11 +90,11 @@ export function getRedis(): Redis {
   _client = REDIS_URL ? new Redis(REDIS_URL, opts) : new Redis(opts);
 
   // [3102] Lifecycle logs (low-noise)
-  _client.on('connect', () => console.log('lib/redis.ts [3102] connect'));
-  _client.on('ready',   () => console.log('lib/redis.ts [3103] ready'));
-  _client.on('close',   () => console.log('lib/redis.ts [3104] close'));
-  _client.on('reconnecting', (delayMs: number) => console.log('lib/redis.ts [3105] reconnecting', delayMs)); // update - 5
-  _client.on('error',   (err) => console.warn('lib/redis.ts [3106] error', err?.message));
+  _client.on('connect', () => console.log('src\\services\\redisCache\\redis.ts [3102] connect'));
+  _client.on('ready',   () => console.log('src\\services\\redisCache\\redis.ts [3103] ready'));
+  _client.on('close',   () => console.log('src\\services\\redisCache\\redis.ts [3104] close'));
+  _client.on('reconnecting', (delayMs: number) => console.log('src\\services\\redisCache\\redis.ts [3105] reconnecting', delayMs)); // update - 5
+  _client.on('error',   (err) => console.warn('src\\services\\redisCache\\redis.ts [3106] error', err?.message));
 
   return _client;
 }
@@ -111,10 +111,10 @@ export async function pingRedis(): Promise<boolean> {
     const client = getRedis();
     const res = await client.ping();
     const ok = res?.toUpperCase() === 'PONG';
-    console.log('lib/redis.ts [3107] ping', { ok });
+    console.log('src\\services\\redisCache\\redis.ts [3107] ping', { ok });
     return ok;
   } catch (e) {
-    console.warn('lib/redis.ts [3108] ping failed', e);
+    console.warn('src\\services\\redisCache\\redis.ts [3108] ping failed', e);
     return false;
   }
 }

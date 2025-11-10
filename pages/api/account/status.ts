@@ -28,7 +28,9 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { authenticateRequest, getUserFromSession } from '@/app/src/auth/authenticateRequest';
+import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
+import type { BillingSnapshot } from '@/app/src/billing/types';
+import { UserService } from '@/app/src/services/userService';
 
 interface AccountStatusResponse {
   email:string,
@@ -44,6 +46,7 @@ interface AccountStatusResponse {
     maxDocuments: number;
     maxStorageGB: number;
   };
+  billing: BillingSnapshot | null;
 }
 
 /**
@@ -78,8 +81,8 @@ export default async function handler(
 
     console.log('[api/account/status.ts][2004] Authentication successful for user:', session.user.email);
 
-    // Step 3: Retrieve user profile from session
-    const userProfile = getUserFromSession(session);
+
+    const userProfile = await UserService.getUserProfile(session.user.email);
     if (!userProfile) {
       console.error('[api/account/status.ts][2005] User profile not found in session');
       return res.status(500).json({ error: 'User profile not available' });
@@ -97,6 +100,7 @@ export default async function handler(
       subscriptionTier: userProfile.subscriptionTier,
       features: userProfile.features,
       limits: userProfile.limits,
+      billing: userProfile.billing ?? null,
     };
 
     console.log('[api/account/status.ts][2007] Account status response prepared');
@@ -107,7 +111,7 @@ export default async function handler(
     
     // Step 6: Send successful response
     res.status(200).json(accountStatus);
-    console.log(`[api/account/status.ts][2008] Account status response sent successfully ${JSON.stringify(accountStatus)}`);
+    console.log(`[api/account/status.ts][8000] Account status response sent successfully ${JSON.stringify(accountStatus)}`);
 
   } catch (error) {
     console.error('[api/account/status.ts][2009] Account status request failed:', error);

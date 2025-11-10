@@ -35,6 +35,7 @@ import type {
   AssignMetaUpsertReq,
   AssignMetaUpsertRes,
 } from '@/app/src/services/gradebook/gradebook.types';
+import { UserService } from '@/app/src/services/userService';
 
 /* ──────────────────────────────────────────────────────────────────────────────
  * [Local utilities]
@@ -143,7 +144,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 4) Authorization: Owner role + Educator account type.                        // update - 15
     const role = await resolveRole(body.docId, session.user.email);
-    const isEducator = session.user.accountType === 'educator';
+    const userProfile = await UserService.getUserProfile(session.user.email);
+    const isEducator = userProfile.accountType === 'educator';
     console.log('pages/api/gradebook/assign-meta.ts [7103] › ACL guard', { docId: body.docId, role, isEducator }); // update - 16
     if (role !== 'Owner' || !isEducator) {
       return sendJson(res, 403, { error: 'ACL_DENIED_OWNER_EDUCATOR_REQUIRED' });

@@ -1,6 +1,6 @@
-// lib/rateGate.ts
+// bloom-maps\app\src\services\redisCache\rateGate.ts
 /***************************************************************************************************
- * @file lib/rateGate.ts
+ * @file bloom-maps\app\src\services\redisCache\rateGate.ts
  * @description
  *   Lightweight Redis-backed rate-gating utilities to cheaply throttle abusive bursts **before**
  *   touching Firestore. Two primitives are provided:
@@ -51,15 +51,15 @@ export async function fixedWindowTry(
     const remaining = Math.max(0, limit - count);
     if (count > limit) {
       const ttl = await client.ttl(key);
-      console.log('lib/rateGate.ts [5201] BLOCK fw', { service, subject, key, ttl });
+      console.log('bloom-maps\\app\\src\\services\\redisCache\\rateGate.ts [5201] BLOCK fw', { service, subject, key, ttl });
       return { allowed: false, remaining: 0, retryAfterSec: ttl > 0 ? ttl : windowSec, key };
     }
 
-    console.log('lib/rateGate.ts [5202] ALLOW fw', { service, subject, key, count, remaining });
+    console.log('bloom-maps\\app\\src\\services\\redisCache\\rateGate.ts [5202] ALLOW fw', { service, subject, key, count, remaining });
     return { allowed: true, remaining, key };
   } catch (e) {
     // Fail-open: do not break the request if Redis is down.
-    console.warn('lib/rateGate.ts [5203] fw error fail-open', { service, subject, err: (e as Error)?.message });
+    console.warn('bloom-maps\\app\\src\\services\\redisCache\\rateGate.ts [5203] fw error fail-open', { service, subject, err: (e as Error)?.message });
     return { allowed: true, remaining: -1 };
   }
 }
@@ -127,9 +127,9 @@ export async function tokenBucketTry(
       try {
         const sha = await client.script('LOAD', TOKEN_BUCKET_LUA) as unknown as string; // update - 1
         _tbSha = sha; // update - 1
-        console.log('lib/rateGate.ts [5204] tb script loaded', { sha: _tbSha });
+        console.log('bloom-maps\\app\\src\\services\\redisCache\\rateGate.ts [5204] tb script loaded', { sha: _tbSha });
       } catch (e) {
-        console.warn('lib/rateGate.ts [5205] tb script load failed; will EVAL', (e as Error)?.message);
+        console.warn('bloom-maps\\app\\src\\services\\redisCache\\rateGate.ts [5205] tb script load failed; will EVAL', (e as Error)?.message);
       }
     }
 
@@ -147,14 +147,14 @@ export async function tokenBucketTry(
       // Compute advisory retryAfter: how long to accrue enough tokens for `cost`.
       const needed = Math.max(0, cost - tokensLeft);
       const retryAfterSec = Math.ceil(needed / Math.max(0.0001, refillPerSec));
-      console.log('lib/rateGate.ts [5206] BLOCK tb', { service, subject, key, tokensLeft, retryAfterSec });
+      console.log('bloom-maps\\app\\src\\services\\redisCache\\rateGate.ts [5206] BLOCK tb', { service, subject, key, tokensLeft, retryAfterSec });
       return { allowed: false, remaining: tokensLeft, retryAfterSec, key };
     }
 
-    console.log('lib/rateGate.ts [5207] ALLOW tb', { service, subject, key, tokensLeft });
+    console.log('bloom-maps\\app\\src\\services\\redisCache\\rateGate.ts [5207] ALLOW tb', { service, subject, key, tokensLeft });
     return { allowed: true, remaining: tokensLeft, key };
   } catch (e) {
-    console.warn('lib/rateGate.ts [5208] tb error fail-open', { service, subject, err: (e as Error)?.message });
+    console.warn('bloom-maps\\app\\src\\services\\redisCache\\rateGate.ts [5208] tb error fail-open', { service, subject, err: (e as Error)?.message });
     return { allowed: true, remaining: -1 };
   }
 }

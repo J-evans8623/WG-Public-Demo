@@ -28,9 +28,7 @@ import { UserService, UserProfile } from "../services/userService";
 export interface EnhancedSession {
   user: {
     email: string;
-    accountType: string;
   };
-  userProfile: UserProfile;
 }
 
 /**
@@ -64,9 +62,11 @@ export async function authenticateRequest(
     console.log('[authenticateRequest.ts][8003] Base session validated for user:', session.user.email);
     
     // Step 3: Retrieve or create user profile
-    const userProfile = await UserService.getUserProfile(session.user.email);
+    //const userProfile = await UserService.getUserProfile(session.user.email);
+
+    //console.log(`8000 authenticateREquest result from await UserService.getUserProfile(session.user.email)  ${JSON.stringify({userProfile})}`)
     
-    console.log('[authenticateRequest.ts][8004] User profile loaded - Account type:', userProfile.accountType, 'Subscription:', userProfile.subscriptionTier);
+    //console.log('[authenticateRequest.ts][8004] User profile loaded - Account type:', userProfile.accountType, 'Subscription:', userProfile.subscriptionTier);
     
     // Step 4: Update last active timestamp
     await UserService.updateLastActive(session.user.email);
@@ -75,9 +75,7 @@ export async function authenticateRequest(
     const enhancedSession: EnhancedSession = {
       user: {
         email: session.user.email,
-        accountType: userProfile.accountType,
       },
-      userProfile,
     };
     
     console.log('[authenticateRequest.ts][8005] Enhanced session created successfully');
@@ -88,42 +86,4 @@ export async function authenticateRequest(
     res.status(500).json({ error: "Internal server error during authentication" });
     return null;
   }
-}
-
-/**
- * getUserFromSession
- * @description
- *   Utility function to extract user profile from enhanced session data. This function provides
- *   a clean interface for accessing user data within API endpoints and ensures consistent
- *   handling of user profile information across the application. The function includes proper
- *   type safety and null checking to prevent runtime errors.
- * @param session - Enhanced session object from authenticateRequest
- * @returns User profile data or null if session is invalid
- */
-export function getUserFromSession(session: EnhancedSession | null): UserProfile | null {
-  if (!session?.userProfile) {
-    console.warn('[authenticateRequest.ts][8007] Attempted to get user from invalid session');
-    return null;
-  }
-  
-  return session.userProfile;
-}
-
-/**
- * requireUserProfile
- * @description
- *   Helper function that ensures a valid user profile exists or throws an error. This function
- *   is useful for API endpoints that must have user context to operate correctly. It provides
- *   consistent error handling and reduces boilerplate code in route handlers.
- * @param session - Enhanced session object from authenticateRequest
- * @returns User profile data (guaranteed to be non-null)
- * @throws Error if session or user profile is invalid
- */
-export function requireUserProfile(session: EnhancedSession | null): UserProfile {
-  const userProfile = getUserFromSession(session);
-  if (!userProfile) {
-    throw new Error('Valid user profile required for this operation');
-  }
-  
-  return userProfile;
 }

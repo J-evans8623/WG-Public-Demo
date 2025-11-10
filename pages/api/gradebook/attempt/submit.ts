@@ -28,6 +28,7 @@ import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import { resolveRole } from '@/app/src/services/firebase';
 import { submitAttempt } from '@/app/src/services/gradebook/gradebookFB';
 import type { AttemptSubmitReq, AttemptSubmitRes } from '@/app/src/services/gradebook/gradebook.types';
+import { UserService } from '@/app/src/services/userService';
 
 /* ──────────────────────────────────────────────────────────────────────────────
  * [Local utilities]
@@ -101,9 +102,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return sendJson(res, 401, { error: 'UNAUTHORIZED' });
     }
 
+    const userProfile = await UserService.getUserProfile(session.user.email);
+
     // 3) Enforce Scholar account type.
-    if (session.user.accountType !== 'scholar') {
-      console.warn('pages/api/gradebook/attempt/submit.ts [7303] › aclDeniedNotScholar', { accountType: session.user.accountType });
+    if (userProfile.accountType !== 'scholar') {
+      console.warn('pages/api/gradebook/attempt/submit.ts [7303] › aclDeniedNotScholar', { accountType: userProfile.accountType });
       return sendJson(res, 403, { error: 'ACL_DENIED_SCHOLAR_REQUIRED' });
     }
 

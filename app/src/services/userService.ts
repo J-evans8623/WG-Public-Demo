@@ -37,7 +37,7 @@ import {
   bumpUserVersion,
 } from './redisCache/userCache';
 import { computeLessonLimitState } from './redisCache/rateLogic';
-
+import type { BillingSnapshot } from '@/app/src/billing/types';
 
 // Step 1: Core type definitions (preserved from original)
 export type AccountType = 'scholar' | 'educator';
@@ -71,6 +71,7 @@ export interface UserProfile {
   // Stripe integration (future)
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
+  billing?: BillingSnapshot;
 }
 
 // Step 2: Enhanced UserUsage interface with secondary services support
@@ -305,15 +306,15 @@ export class UserService {
    * @param email User email for profile lookup
    * @returns Promise resolving to the user profile (existing or newly created)
    */
-static async getUserProfile(email: string): Promise<UserProfile> { // update - 3
-    const normalizedEmail = email.toLowerCase().trim(); // update - 3
-    const loader = async (): Promise<UserProfile | null> => { // update - 3
+static async getUserProfile(email: string): Promise<UserProfile> { 
+    const normalizedEmail = email.toLowerCase().trim(); 
+    const loader = async (): Promise<UserProfile | null> => {
       const userRef = firestore.collection('users').doc(normalizedEmail);
       const snapshot = await userRef.get();
       if (snapshot.exists) {
-        const profile = snapshot.data() as UserProfile;
-        console.log('[userService.ts][7004] Profile loader found', { email: normalizedEmail, tier: profile.subscriptionTier });
-        return profile;
+        const profile = snapshot.data() ;
+        console.log(`8000 getUSerProfile profile response from firebase ${JSON.stringify({profile})}`);
+        return profile as UserProfile;
       }
       console.log('[userService.ts][7005] Profile loader creating default', { email: normalizedEmail });
       const created = await this.createUserProfile(normalizedEmail); // creates usage too
@@ -321,13 +322,13 @@ static async getUserProfile(email: string): Promise<UserProfile> { // update - 3
       return created;
     };
 
-    const hit = await cacheReadUserProfile(normalizedEmail, loader); // update - 3
+    const hit = await cacheReadUserProfile(normalizedEmail, loader); 
     if (!hit) {
       // Defensive: should not happen because loader creates; return a minimal default if needed.
-      console.warn('[userService.ts][7005a] Profile cache returned null after loader (unexpected)', { email: normalizedEmail }); // update - 3
-      return await this.createUserProfile(normalizedEmail); // update - 3
+      console.warn('[userService.ts][7005a] Profile cache returned null after loader (unexpected)', { email: normalizedEmail }); 
+      return await this.createUserProfile(normalizedEmail); 
     }
-    return hit; // update - 3
+    return hit;
   }
   
   /**
@@ -375,7 +376,7 @@ static async getUserProfile(email: string): Promise<UserProfile> { // update - 3
   }
   
 /**
- * updateSubscriptionTier - FIXED
+ * updateSubscriptionTier - 
  * @description
  * Updates a user's subscription tier with comprehensive limit and feature recalculation. This method
  * is designed to integrate seamlessly with Stripe webhooks for automated subscription management.
@@ -439,6 +440,36 @@ static async updateSubscriptionTier(
     return updatedProfile;
   });
 }
+
+
+/**
+   * updateBillingSnapshot
+   * @description
+   *   Atomically persists the Minimal Billing Snapshot on the user profile. This is the single
+   *   write path for billing details and is intended to be invoked exclusively by Stripe webhook
+   *   handlers. The snapshot captures status, product/price IDs, interval, renewal and cancellation
+   *   flags, and a local event timestamp. It merges into the user profile and bumps the cache
+   *   version so downstream readers (e.g., /api/account/status) see the update immediately.
+   * @param email User email (normalized internally)
+   * @param billing The minimal, authoritative billing snapshot
+   */
+  static async updateBillingSnapshot(email: string, billing: BillingSnapshot): Promise<void> {
+
+    console.log(`8000 step 1 updateBillingSnapshot(....) called with parameters ${JSON.stringify({email,billing})}`)
+    const normalizedEmail = email.toLowerCase().trim();
+    const userRef = firestore.collection('users').doc(normalizedEmail);
+
+    await firestore.runTransaction(async (tx) => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists) {
+        throw new Error('User profile not found for billing snapshot write');
+      }
+      tx.set(userRef, { billing, updatedAt: admin.firestore.Timestamp.now() }, { merge: true });
+    });
+    console.log(`8000 step 2 updateBillingSnapshot(....) transaction successful with data written : ${JSON.stringify({ billing, updatedAt: admin.firestore.Timestamp.now() })}`)
+
+    await bumpUserVersion(normalizedEmail);
+  }
   
   /**
    * consumeDemoCredit

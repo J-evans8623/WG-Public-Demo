@@ -19,6 +19,7 @@ import { NextResponse } from 'next/server';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import { resolveRole } from '@/app/src/services/firebase';
 import { getGradebookSnapshot } from '@/app/src/services/gradebook/gradebookFB';
+import { UserService } from '@/app/src/services/userService';
 
 function json(data: unknown, init?: number): NextResponse {
   return new NextResponse(JSON.stringify(data), {
@@ -48,7 +49,8 @@ export async function GET(req: Request): Promise<NextResponse> {
 
     // 3) Role + account type checks
     const role = await resolveRole(docId, session.user.email);
-    const isEducator = session.user.accountType === 'educator';
+    const userProfile = await UserService.getUserProfile(session.user.email);
+    const isEducator = userProfile.accountType === 'educator';
     console.log('app/api/gradebook/route.ts [9301] › GET snapshot guard', { docId, role, isEducator });
     if (role !== 'Owner' || !isEducator) {
       return json({ error: 'ACL_DENIED_OWNER_EDUCATOR_REQUIRED' }, 403);

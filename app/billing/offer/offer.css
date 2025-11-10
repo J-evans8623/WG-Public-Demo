@@ -1,0 +1,260 @@
+/**
+ * @file app/(billing)/offer/offer.css
+ * @description
+ *   Stylesheet for the offer page. Matches the welcome page pricing section design
+ *   with two-column layout, premium card styling, and billing toggle.
+ * 
+ * @updates
+ *   - Welcome page pricing aesthetic applied
+ *   - Two-column grid layout for Scholar/Educator plans
+ *   - Consistent premium card styling with hover effects
+ *   - Billing toggle component styling
+ */
+
+/* Import Inter font for consistency */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:wght@400;600;700&display=swap');
+
+/* Offer Page Container */
+.offer-page {
+  min-height: 100vh;
+  background-color: #FFFBEF;
+  padding: 60px 20px;
+  font-family: 'Inter', sans-serif;
+}
+
+.offer-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Header Section */
+.offer-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.offer-title {
+  font-family: 'Crimson Text', serif;
+  font-size: 36px;
+  font-weight: 500;
+  color: #8B0000;
+  margin-bottom: 12px;
+}
+
+.offer-subtitle {
+  color: #666;
+  font-size: 15px;
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+/* (new update - billing toggle matching welcome page) */
+.offer-toggle {
+  display: inline-flex;
+  gap: 8px;
+  background: #F8F8F8;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.offer-toggle-btn {
+  padding: 8px 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+  font-family: inherit;
+  color: #333;
+}
+
+.offer-toggle-btn.active {
+  background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.offer-toggle-btn small {
+  color: #7FB685;
+  font-weight: 500;
+}
+
+/* Error Display */
+.offer-error {
+  border: 1px solid #f2c7c7;
+  background: #fff6f6;
+  color: #a20000;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* (new update - two-column grid layout) */
+.offer-plans-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+/* Plan Card Styling - Matches Welcome Page Premium Cards */
+.offer-plan-card {
+  background: white;
+  border-radius: 16px;
+  padding: 32px 24px;
+  border: 1.5px solid #E8E8E8;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.offer-plan-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  border-color: #D0D0D0;
+}
+
+.offer-plan-card.premium {
+  border: 2px solid #7FB685;
+  box-shadow: 0 4px 12px rgba(127,182,133,0.15);
+}
+
+.offer-plan-card.premium:hover {
+  box-shadow: 0 8px 20px rgba(127,182,133,0.25);
+  border-color: #6A9F6F;
+}
+
+/* Card Label */
+.offer-card-label {
+  font-size: 12px;
+  color: #7FB685;
+  margin-bottom: 8px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Card Icon */
+.offer-card-icon {
+  width: 40px;
+  height: 40px;
+  background: #7FB685;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  font-size: 20px;
+}
+
+/* Card Title */
+.offer-card-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+/* Card Price */
+.offer-card-price {
+  font-size: 40px;
+  font-weight: 700;
+  margin: 16px 0 24px;
+  color: #333;
+}
+
+.offer-price-period {
+  font-size: 16px;
+  font-weight: 400;
+  color: #666;
+}
+
+/* Card Features List */
+.offer-card-features {
+  list-style: none;
+  margin-bottom: 28px;
+  flex-grow: 1;
+}
+
+.offer-card-features li {
+  padding: 8px 0;
+  font-size: 14px;
+  color: #555;
+  line-height: 1.6;
+}
+
+.offer-card-features li::before {
+  content: "•";
+  margin-right: 10px;
+  color: #7FB685;
+}
+
+/* Card Button */
+.offer-card-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: #7FB685;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.offer-card-btn:hover:not(:disabled) {
+  background: #6A9F6F;
+}
+
+.offer-card-btn:disabled {
+  background: #D0D0D0;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Footer Note */
+.offer-footer-note {
+  text-align: center;
+  font-size: 12px;
+  color: #888;
+  line-height: 1.6;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .offer-plans-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .offer-title {
+    font-size: 28px;
+  }
+
+  .offer-card-price {
+    font-size: 32px;
+  }
+
+  .offer-page {
+    padding: 40px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .offer-toggle {
+    width: 100%;
+    display: flex;
+  }
+
+  .offer-toggle-btn {
+    flex: 1;
+    padding: 10px 12px;
+  }
+}

@@ -175,11 +175,6 @@ export default async function handler(
     }
     
     const userEmail = sessionData.user.email;
-    console.log('[GenerateLesson.ts][4005] User authenticated for lesson generation', { 
-      email: userEmail,
-      accountType: sessionData.userProfile.accountType,
-      subscriptionTier: sessionData.userProfile.subscriptionTier
-    });
 
     // Step 4: Enhanced premium access validation using centralized system
     const validation = await validatePremiumAccess(userEmail, 'lessonGeneration');
@@ -255,13 +250,16 @@ export default async function handler(
 
     // Step 7: Create upload request for centralized service (preserved from original)
     const requestedVisibility = (req.body.visibility as 'public' | 'private') || 'private';
+
+
+    const userProfile = await UserService.getUserProfile(userEmail);
     
     const uploadRequest: FileUploadRequest = {
       fileBuffer: req.file.buffer,
       fileName: req.file.originalname,
       mimeType: req.file.mimetype,
       fileSize: req.file.size,
-      userProfile: sessionData.userProfile,
+      userProfile: userProfile,
       visibility: requestedVisibility,
       documentId: docId,
       sourceFileId: fileId,

@@ -31,9 +31,9 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import multer from 'multer';
 import { persistLessonContext } from '@/app/src/services/TextPreprocessing/persistLessonContext';
 import { extractTextFromFileService } from '@/doc-preprocessing-service/text-extraction-client';
-import { authenticateRequest, EnhancedSession, requireUserProfile } from '@/app/src/auth/authenticateRequest';
+import { authenticateRequest, EnhancedSession} from '@/app/src/auth/authenticateRequest';
 import { FileUploadService, FileUploadRequest } from '@/app/src/services/FileUploadService';
-import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
+import { UserService } from '@/app/src/services/userService';
 
 // Step 1: Preserve existing interfaces for API compatibility
 interface StoredFile {
@@ -168,7 +168,9 @@ async function handleUploadWithService(
         
         // Step 5: Extract visibility preference and user profile
         const requestedVisibility = (req.body.visibility as 'public' | 'private') || 'private';
-        const userProfile = requireUserProfile(session);
+
+        const userProfile = await UserService.getUserProfile(session.user.email);
+        //const userProfile = requireUserProfile(session);
         
         console.log('[FileAssetsV2.ts][4009] Upload request - File:', req.file.originalname, 'Visibility:', requestedVisibility, 'User:', userProfile.email);
         
@@ -295,7 +297,8 @@ async function handleSecureRetrieval(
             });
         }
         
-        const userProfile = requireUserProfile(session);
+       
+        const userProfile = await UserService.getUserProfile(session.user.email);
         
         // Step 12: Use centralized service for access validation
         const accessCheck = await FileUploadService.checkFileAccess(id, userProfile);
@@ -367,7 +370,7 @@ async function handleSecureDeletion(
             });
         }
         
-        const userProfile = requireUserProfile(session);
+        const userProfile = await UserService.getUserProfile(session.user.email);
         
         // Step 14: Use centralized service for deletion with ownership validation
         const deletionResult = await FileUploadService.deleteFile(id, userProfile);

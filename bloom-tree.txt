@@ -1,0 +1,1183 @@
+﻿ROOT: C:\Users\jneva\Desktop\Portfolio\Bloom\bloom-maps
+├─ .next
+│  ├─ cache
+│  │  ├─ eslint
+│  │  │  └─ .cache_o8rrn1
+│  │  ├─ images
+│  │  │  ├─ 0A8dkxxrCpywQ3T3pvLLlC8cOGkiLCBZuxVbJdIxtmg=
+│  │  │  │  └─ 86400.1762115455357.xXDCBxDC6AOz9x2TvQxCviaaMJMVMT5NjLDIOS+n2CM=.webp
+│  │  │  ├─ 0vwRUBXbJb70U8Nz40LAthXwDu74Pr+hb4vxPKE4XWM=
+│  │  │  │  └─ 31536000.1771683683895.o+Rd3NzBDiWkWIpzdz+X1bBbvsHIMTjGenxpy9vlSxA=.webp
+│  │  │  ├─ 1bBMy1A+7oEBH5hKtsT3dUQzfS4rowJM08wnBZf07F4=
+│  │  │  │  └─ 31536000.1771517762477.o+Rd3NzBDiWkWIpzdz+X1bBbvsHIMTjGenxpy9vlSxA=.webp
+│  │  │  ├─ 1M8RwQY7Zn0+W7DupLgHmqHXqUSn-I6KeCYpXYY6zRQ=
+│  │  │  │  └─ 31536000.1775690548034.tmmFh6O0fiaCHUaY5TnJCZIbEUUoBIVntc4P0iTcv-0=.webp
+│  │  │  ├─ 43m8gUOIyhx-dQ83kOaJE-EhSX+ZF69dxeE1UQ7bsSY=
+│  │  │  │  └─ 31536000.1775763510347.tmmFh6O0fiaCHUaY5TnJCZIbEUUoBIVntc4P0iTcv-0=.webp
+│  │  │  ├─ 5ShAX5JL4W+A8FafjGg6SViKbYYm8NivumJfQuXx2GM=
+│  │  │  │  └─ 31536000.1775402151374.oTP2jCz3jPXxfNJz-QE369JJUcx47j00ntVIcPRUGwU=.webp
+│  │  │  ├─ 73pO75S1Q8S7Nt3gYhjHlWqmmUZOcsT-M7n3+OUuxOo=
+│  │  │  │  └─ 31536000.1771517634763.SK-K7KOKUywW7+P39T++WASnvwcMqPh9RsZvrvTPrQE=.webp
+│  │  │  ├─ 7SGmC2RhbLdxKDLxvUUwhdMJVVrQ8b2XLGRBCD3DX9c=
+│  │  │  │  └─ 31536000.1771421357296.PHTeQ9NlXTHCPBfmbbn+hdOfjotCuf+20SgsnXvd7Ws=.webp
+│  │  │  ├─ aPEWkXjgT5rSQC38MRxhj3PdGuFp46yE+I3rkIE165s=
+│  │  │  │  └─ 31536000.1771510260646.SK-K7KOKUywW7+P39T++WASnvwcMqPh9RsZvrvTPrQE=.webp
+│  │  │  ├─ b0u-RIhNBUsiQUnkyseeiXKK62Z4w7I2s9e1OPtQVjU=
+│  │  │  │  └─ 31536000.1769987756684.+2WkibQfZLGmc2b4AvtM4PkJHinWhzZF6aY8yHYaD48=.webp
+│  │  │  ├─ B5PsWr2MCr+jo6wzpgF4XFJqnAIBJnlCa+Bx2Ygf2RQ=
+│  │  │  │  └─ 31536000.1769987653019.3jMbYsd1qenBKZ+J41s3r2uW-0462UttePRBajGTFaY=.webp
+│  │  │  ├─ BA2gvKaMLv5sY+AoaqiQcVDR5DHEfw4kFxvC7I+06Rg=
+│  │  │  │  └─ 31536000.1775477563332.oTP2jCz3jPXxfNJz-QE369JJUcx47j00ntVIcPRUGwU=.webp
+│  │  │  ├─ BxUcLYHdugqTrJWBGwZeWcU1+hbMXOoHOHgHkwrVG78=
+│  │  │  │  └─ 31536000.1771419980755.8x8KaBwh2nkwKPMUsWxvSaNgaiu-xLIujK1-P9E9klY=.webp
+│  │  │  ├─ Cq2LcQrpzxIq5aRHG9wtDEJr1f5aQJlcytbXqnZxZB4=
+│  │  │  │  └─ 31536000.1769987632693.s2U0iLr7DE9ErLSAcgoDfkW6AOFoBlqo7ImGLmQDFMY=.webp
+│  │  │  ├─ D7XmDf4RoN+fC95nrx08mKq3wbVHXu0yu3+J4NSglDo=
+│  │  │  │  └─ 86400.1758755114181.FZPX1FuHqfCEHmiV7RQ5k39g05XZZBIoZxJSCBi8ja8=.webp
+│  │  │  ├─ dixZGa2xJTWZuAHhL7lHEf75wVcJy3fh4+JbfaXGfyI=
+│  │  │  │  └─ 31536000.1774442248572.802Rf4PMRl88FAsJHfkntdYH-hvtHVUuEZhv4EdRYpA=.webp
+│  │  │  ├─ DnZFDgRLaQSQuSdIEDmAWpFf8zWQFCJIRgW7zb7eR14=
+│  │  │  │  └─ 31536000.1771533180989.i9gUQLcoaKNwBzMgRWF4L1YGXLvzW6fd5jDPB3bva4A=.webp
+│  │  │  ├─ dtDBX1TyB8KDLk7u2EnY9X+w-jAO5J0HnKDDxgvegCA=
+│  │  │  │  └─ 31536000.1771362351322.WUooKNoBPZvtaqqf+oKSMJfc0RiaQxNWM3Av7tO6BWc=.webp
+│  │  │  ├─ E4Q-PgTKzGmLX9PzeQB2mgePnPGvjjipKG82TuNCW98=
+│  │  │  │  └─ 31536000.1770994394346.ag7jjbsRr+OnYqFgf3t-YROICqs9gbrGwPtaN5DcOJ8=.webp
+│  │  │  ├─ Emmg62ZejtDGoWHcsjO6dd5Q638SGNw-oDmoonldOXY=
+│  │  │  │  └─ 31536000.1770073399579.cvw7pyvbOXdwYDRxbd3kRr4XuikpNg28KAjLzkfFLKA=.webp
+│  │  │  ├─ fd-q+mCF+kwdWSagh3+GFnl7umUkbA+caJKzR060x6w=
+│  │  │  │  └─ 31536000.1769987536495.3jMbYsd1qenBKZ+J41s3r2uW-0462UttePRBajGTFaY=.webp
+│  │  │  ├─ fNKLHK8C1VAHC0+sGXizU7rrDfAl5bMbsNweXCFDV9s=
+│  │  │  │  └─ 31536000.1775477591919.26pAsUvz6Nj1ZaBX8LaGl9bKfQwZHUWZ-vNfUMfaRkY=.webp
+│  │  │  ├─ fXNPMjU7qznKfoPhSOf6l0nX4z8TqmnsgSynqWmUj34=
+│  │  │  │  └─ 31536000.1776302370197.2cZ37t8gxZ1Y0L1IBhfzCGJhzPy9nwzW-0debDB1umY=.webp
+│  │  │  ├─ g+pj2pEgmfQqujgToIuXvK4di1aTpeesM4tpaPrO6Qs=
+│  │  │  │  └─ 31536000.1769987738919.+2WkibQfZLGmc2b4AvtM4PkJHinWhzZF6aY8yHYaD48=.webp
+│  │  │  ├─ g8Y7CgU97ECkKTK85Dr08aCEU9J9BNNuEOu1yjQFd+k=
+│  │  │  │  └─ 86400.1761963014464.irX44AsoeYAJe0cTFNyXZiCZ9Y+TyjwdOSAWcaT8rBg=.webp
+│  │  │  ├─ gBfOBhIm6bMCf7DOffv+01eTKTvBVJCIlYBYD+ldPU4=
+│  │  │  │  └─ 31536000.1771517635228.T6j5ePAvi5yeDrQPDDEhmJyI5VpOdROvMK9YVMeLWho=.webp
+│  │  │  ├─ GPgfuPXxhCjjbF7ns3L9quU1HGLE4ljCE5+3gOSb7Qk=
+│  │  │  │  └─ 31536000.1775402459659.n8g-K9rGLN4tCEsFF3v0SQ+oR-J4rsyCrgiaFg78sV0=.webp
+│  │  │  ├─ GvrG69LzUry9nsAa+LOpAzTZ8Ln-TziTrzNqu1p6y2U=
+│  │  │  │  └─ 31536000.1769987685781.s2U0iLr7DE9ErLSAcgoDfkW6AOFoBlqo7ImGLmQDFMY=.webp
+│  │  │  ├─ h3YWJLPUI05xA9agoSVQbOQ1NHRQrid6Ppmqm1K54zc=
+│  │  │  │  └─ 31536000.1771356813740.9lp6JpZ0Mdn2K-DfmIDQSeZGgE6F8QHEXbOl7-KJvqo=.webp
+│  │  │  ├─ hG7Hv0ZLFeaB31-rdYBlDKELXr622YZfCJD79zZzBbs=
+│  │  │  │  └─ 31536000.1775477733917.EPgaC9Xy95v0ayYlwJ8luUvAR2hH+AWDHUQ-lx-4W7M=.webp
+│  │  │  ├─ HzZ2V8rXp2V3dikiQRSFbl39A0U1aylUv23mMgsuhOM=
+│  │  │  │  └─ 31536000.1775270598492.HZbRdpekTFq3lGySHp0TZRG4Gn2cIIVk2z6-QT6CK24=.webp
+│  │  │  ├─ i1IlOEscQsPQo+eppCokXVXLrcSI2ihiNK1shR2iyTs=
+│  │  │  │  └─ 31536000.1771515867600.PHTeQ9NlXTHCPBfmbbn+hdOfjotCuf+20SgsnXvd7Ws=.webp
+│  │  │  ├─ IjfwqiyaM+s4tsHdUu1cDik6AKDHKvLWbhbDyiObBYw=
+│  │  │  │  └─ 31536000.1769987700005.s2U0iLr7DE9ErLSAcgoDfkW6AOFoBlqo7ImGLmQDFMY=.webp
+│  │  │  ├─ jhYWx5ZBJ9PHsqkJzPgFIfP8lCcMcwg245VoqQM52LQ=
+│  │  │  │  └─ 31536000.1776270364536.Vwb2fXRXuhH1DVSlxgDnjKACp+HFeFOcJK0Ss7-f1Is=.webp
+│  │  │  ├─ JqeD7WOiL9OyxHu1+y9WmC0ZdzvqSDdZ3ONqToEF0ug=
+│  │  │  │  └─ 31536000.1777456727143.AMx-2KAj97U1+oV4hnHsqMf1rGlRhfWaUgQNojRYJlI=.webp
+│  │  │  ├─ k5hCGSce0h9Y5Mcq3x2oy7B5p9VCrmGBOt00vlikauc=
+│  │  │  │  └─ 31536000.1771355908101.XiGDPDky0Ganw6BxOE1xTQMcAR1727SQYOyqcTWOeVw=.webp
+│  │  │  ├─ KSRwj1b6IWDEw0bnfa7QEQ85aGbLfxmIBLZ2U9NIAUc=
+│  │  │  │  └─ 31536000.1771420143659.8x8KaBwh2nkwKPMUsWxvSaNgaiu-xLIujK1-P9E9klY=.webp
+│  │  │  ├─ LfmsFDeGFTg6cXfNr7bvZuH447VDHYGJmIABj2x-Hh8=
+│  │  │  │  └─ 31536000.1775402459687.HZbRdpekTFq3lGySHp0TZRG4Gn2cIIVk2z6-QT6CK24=.webp
+│  │  │  ├─ mo-NjrwG+7QUjnrFR+zsmk8fK89eT9RJkOzsjC3VVoE=
+│  │  │  │  └─ 86400.1758898167880.FZPX1FuHqfCEHmiV7RQ5k39g05XZZBIoZxJSCBi8ja8=.webp
+│  │  │  ├─ M-po-0MM16AKrJf3Tq1EnS+rnMY8ybGhkqzOsVhKxX4=
+│  │  │  │  └─ 31536000.1769987479447.6vC5qqTihskTM-wZO5M34jWkhwznr4tXukM2uswmMHg=.webp
+│  │  │  ├─ O1jlR-q6luG3vc6lGVfAyd87VaRjNDqJMK-mlKfM9-o=
+│  │  │  │  └─ 31536000.1771358981669.WUooKNoBPZvtaqqf+oKSMJfc0RiaQxNWM3Av7tO6BWc=.webp
+│  │  │  ├─ oLEpn84QDdFAjwjAEhOB14dYMgvMzX+49sRfYq4GpD4=
+│  │  │  │  └─ 31536000.1769987497538.6vC5qqTihskTM-wZO5M34jWkhwznr4tXukM2uswmMHg=.webp
+│  │  │  ├─ PrmJzTXo6iuJEvl8+Kx60kJgvqCYSaX5yHbYHc3a50k=
+│  │  │  │  └─ 31536000.1769987562252.s2U0iLr7DE9ErLSAcgoDfkW6AOFoBlqo7ImGLmQDFMY=.webp
+│  │  │  ├─ PxhQ4-kjvIjURaQexZc3I2+W-gHj8LBtwu7iNuRiK4U=
+│  │  │  │  └─ 31536000.1771355897496.XiGDPDky0Ganw6BxOE1xTQMcAR1727SQYOyqcTWOeVw=.webp
+│  │  │  ├─ PZHlITYDtBcFO8JSzoriwSBRYbIcdo6jp8Y895cxeZA=
+│  │  │  │  └─ 31536000.1769987711574.s2U0iLr7DE9ErLSAcgoDfkW6AOFoBlqo7ImGLmQDFMY=.webp
+│  │  │  ├─ qJs77SfPZjvay8IrjVja0sHkVKqS6uHdCytnllIDF4E=
+│  │  │  │  └─ 31536000.1775160449192.mXjjQZrV0WzIN0N5kH1Sk8sVGwshiHM8N9AvbiRN14U=.webp
+│  │  │  ├─ qnCj0GCg8zs-+qV3NdlI-oWpmXujrAin7VVvmtUE7l4=
+│  │  │  │  └─ 31536000.1771517812600.o+Rd3NzBDiWkWIpzdz+X1bBbvsHIMTjGenxpy9vlSxA=.webp
+│  │  │  ├─ qnrcOscMTOADMwcgzlyQ1Oyn56jQfR4AbKSIqUHWE+U=
+│  │  │  │  └─ 31536000.1774925277401.r5ju1tmqanoBSsCmaPn+i3YVyD0hePA1nz8V-OOUs0I=.webp
+│  │  │  ├─ sL1dEuuNBfUHaYKIEpplYa08C+2m41+hwYOu9LzwL+8=
+│  │  │  │  └─ 31536000.1775758825074.tmmFh6O0fiaCHUaY5TnJCZIbEUUoBIVntc4P0iTcv-0=.webp
+│  │  │  ├─ teO9eAYNCT-MgkrvpO00uPUEd9bI7cpXf-cMthIzwQo=
+│  │  │  │  └─ 31536000.1769987653035.s2U0iLr7DE9ErLSAcgoDfkW6AOFoBlqo7ImGLmQDFMY=.webp
+│  │  │  ├─ tJa115XTI62-Q-aHcr35ctuYi-wwM5nEsIQcoYUENC8=
+│  │  │  │  └─ 31536000.1769987653033.s2U0iLr7DE9ErLSAcgoDfkW6AOFoBlqo7ImGLmQDFMY=.webp
+│  │  │  ├─ TVe7QgJbadcMo2r2XodtJ3GXVfhTHjagWHU-3DMQVvA=
+│  │  │  │  └─ 86400.1758928945178.pKlI5SO+rwhaEb0toPgSD8kkB1AK6kfVUg9i12F28nk=.webp
+│  │  │  ├─ vcQCNZ2vUnNNNuC4MAPqFb1gXLGc3Pqmfr1fysm8xDo=
+│  │  │  │  └─ 31536000.1775270321257.n8g-K9rGLN4tCEsFF3v0SQ+oR-J4rsyCrgiaFg78sV0=.webp
+│  │  │  ├─ vn+WABCxkSEuzoWJr-I+hiCyfwodSTle9hNk0ni30zk=
+│  │  │  │  └─ 31536000.1771510322709.T6j5ePAvi5yeDrQPDDEhmJyI5VpOdROvMK9YVMeLWho=.webp
+│  │  │  ├─ VOF7lfQcRyxJCDtJqMOeJpZcc4WdgocUN7JvlBApDbE=
+│  │  │  │  └─ 31536000.1777940278836.ConfJiPrw1Fgz8SaPALjthg9CzV5bmD5U4GJFABiuB0=.webp
+│  │  │  ├─ wCrhSEwwzcWYRQ0KrrzQ-2+XTwlNJoD5sLOZ5o398pU=
+│  │  │  │  └─ 31536000.1769987777446.+2WkibQfZLGmc2b4AvtM4PkJHinWhzZF6aY8yHYaD48=.webp
+│  │  │  ├─ WP1DuuUneN1BMJXIJ92+zmwDc8ku3dPLhiY-oO9xByY=
+│  │  │  │  └─ 31536000.1769986972385.Zub2tZ+IpeD2Jbix6mmt7tUZ2uiAnN+sJHl+8xzltnY=.webp
+│  │  │  ├─ WxezvHsLiESMhYBrB9li2feMGyIAPyNuNgJYR2txQSw=
+│  │  │  │  └─ 31536000.1776621834447.1sNvC2oc+fQ15ifiuOQ+Pklvb77tPwaf4ebj0YCe3Pc=.webp
+│  │  │  ├─ x9hJQPzHqGzFxdnSrSi3FDv-0C9hBM-p04ABLIQ6ccU=
+│  │  │  │  └─ 31536000.1775151329614.zKedxKJXZJtcv1BYAfgGDolqP6X8JWPLj8lrrmt9jd8=.webp
+│  │  ├─ swc
+│  │  │  ├─ plugins
+│  │  │  │  ├─ v7_windows_x86_64_0.106.15
+│  │  ├─ webpack
+│  │  │  ├─ client-development
+│  │  │  │  └─ 0.pack.gz
+│  │  │  │  └─ 1.pack.gz
+│  │  │  │  └─ 10.pack.gz
+│  │  │  │  └─ 11.pack.gz
+│  │  │  │  └─ 12.pack.gz
+│  │  │  │  └─ 13.pack.gz
+│  │  │  │  └─ 14.pack.gz
+│  │  │  │  └─ 15.pack.gz
+│  │  │  │  └─ 16.pack.gz
+│  │  │  │  └─ 17.pack.gz
+│  │  │  │  └─ 18.pack.gz
+│  │  │  │  └─ 19.pack.gz
+│  │  │  │  └─ 2.pack.gz
+│  │  │  │  └─ 20.pack.gz
+│  │  │  │  └─ 21.pack.gz
+│  │  │  │  └─ 22.pack.gz
+│  │  │  │  └─ 23.pack.gz
+│  │  │  │  └─ 24.pack.gz
+│  │  │  │  └─ 25.pack.gz
+│  │  │  │  └─ 26.pack.gz
+│  │  │  │  └─ 27.pack.gz
+│  │  │  │  └─ 28.pack.gz
+│  │  │  │  └─ 29.pack.gz
+│  │  │  │  └─ 3.pack.gz
+│  │  │  │  └─ 30.pack.gz
+│  │  │  │  └─ 31.pack.gz
+│  │  │  │  └─ 32.pack.gz
+│  │  │  │  └─ 33.pack.gz
+│  │  │  │  └─ 34.pack.gz
+│  │  │  │  └─ 35.pack.gz
+│  │  │  │  └─ 36.pack.gz
+│  │  │  │  └─ 37.pack.gz
+│  │  │  │  └─ 38.pack.gz
+│  │  │  │  └─ 39.pack.gz
+│  │  │  │  └─ 4.pack.gz
+│  │  │  │  └─ 40.pack.gz
+│  │  │  │  └─ 41.pack.gz
+│  │  │  │  └─ 42.pack.gz
+│  │  │  │  └─ 43.pack.gz
+│  │  │  │  └─ 44.pack.gz
+│  │  │  │  └─ 45.pack.gz
+│  │  │  │  └─ 46.pack.gz
+│  │  │  │  └─ 47.pack.gz
+│  │  │  │  └─ 48.pack.gz
+│  │  │  │  └─ 49.pack.gz
+│  │  │  │  └─ 5.pack.gz
+│  │  │  │  └─ 50.pack.gz
+│  │  │  │  └─ 51.pack.gz
+│  │  │  │  └─ 52.pack.gz
+│  │  │  │  └─ 53.pack.gz
+│  │  │  │  └─ 6.pack.gz
+│  │  │  │  └─ 7.pack.gz
+│  │  │  │  └─ 8.pack.gz
+│  │  │  │  └─ 9.pack.gz
+│  │  │  │  └─ index.pack.gz
+│  │  │  │  └─ index.pack.gz.old
+│  │  │  ├─ client-development-fallback
+│  │  │  │  └─ 0.pack.gz
+│  │  │  │  └─ 1.pack.gz
+│  │  │  │  └─ 2.pack.gz
+│  │  │  │  └─ 3.pack.gz
+│  │  │  │  └─ index.pack.gz
+│  │  │  │  └─ index.pack.gz.old
+│  │  │  ├─ client-production
+│  │  │  │  └─ 0.pack
+│  │  │  │  └─ 1.pack
+│  │  │  │  └─ 10.pack
+│  │  │  │  └─ 11.pack
+│  │  │  │  └─ 12.pack
+│  │  │  │  └─ 13.pack
+│  │  │  │  └─ 2.pack
+│  │  │  │  └─ 3.pack
+│  │  │  │  └─ 4.pack
+│  │  │  │  └─ 5.pack
+│  │  │  │  └─ 6.pack
+│  │  │  │  └─ 7.pack
+│  │  │  │  └─ 8.pack
+│  │  │  │  └─ 9.pack
+│  │  │  │  └─ index.pack
+│  │  │  │  └─ index.pack.old
+│  │  │  ├─ edge-server-production
+│  │  │  │  └─ 0.pack
+│  │  │  │  └─ index.pack
+│  │  │  │  └─ index.pack.old
+│  │  │  ├─ server-development
+│  │  │  │  └─ 0.pack.gz
+│  │  │  │  └─ 1.pack.gz
+│  │  │  │  └─ 10.pack.gz
+│  │  │  │  └─ 11.pack.gz
+│  │  │  │  └─ 12.pack.gz
+│  │  │  │  └─ 13.pack.gz
+│  │  │  │  └─ 14.pack.gz
+│  │  │  │  └─ 15.pack.gz
+│  │  │  │  └─ 16.pack.gz
+│  │  │  │  └─ 17.pack.gz
+│  │  │  │  └─ 18.pack.gz
+│  │  │  │  └─ 19.pack.gz
+│  │  │  │  └─ 2.pack.gz
+│  │  │  │  └─ 20.pack.gz
+│  │  │  │  └─ 21.pack.gz
+│  │  │  │  └─ 22.pack.gz
+│  │  │  │  └─ 23.pack.gz
+│  │  │  │  └─ 24.pack.gz
+│  │  │  │  └─ 25.pack.gz
+│  │  │  │  └─ 26.pack.gz
+│  │  │  │  └─ 27.pack.gz
+│  │  │  │  └─ 28.pack.gz
+│  │  │  │  └─ 29.pack.gz
+│  │  │  │  └─ 3.pack.gz
+│  │  │  │  └─ 30.pack.gz
+│  │  │  │  └─ 31.pack.gz
+│  │  │  │  └─ 32.pack.gz
+│  │  │  │  └─ 33.pack.gz
+│  │  │  │  └─ 34.pack.gz
+│  │  │  │  └─ 35.pack.gz
+│  │  │  │  └─ 36.pack.gz
+│  │  │  │  └─ 37.pack.gz
+│  │  │  │  └─ 38.pack.gz
+│  │  │  │  └─ 39.pack.gz
+│  │  │  │  └─ 4.pack.gz
+│  │  │  │  └─ 40.pack.gz
+│  │  │  │  └─ 41.pack.gz
+│  │  │  │  └─ 42.pack.gz
+│  │  │  │  └─ 43.pack.gz
+│  │  │  │  └─ 44.pack.gz
+│  │  │  │  └─ 45.pack.gz
+│  │  │  │  └─ 46.pack.gz
+│  │  │  │  └─ 47.pack.gz
+│  │  │  │  └─ 48.pack.gz
+│  │  │  │  └─ 49.pack.gz
+│  │  │  │  └─ 5.pack.gz
+│  │  │  │  └─ 50.pack.gz
+│  │  │  │  └─ 51.pack.gz
+│  │  │  │  └─ 52.pack.gz
+│  │  │  │  └─ 53.pack.gz
+│  │  │  │  └─ 54.pack.gz
+│  │  │  │  └─ 55.pack.gz
+│  │  │  │  └─ 56.pack.gz
+│  │  │  │  └─ 57.pack.gz
+│  │  │  │  └─ 58.pack.gz
+│  │  │  │  └─ 59.pack.gz
+│  │  │  │  └─ 6.pack.gz
+│  │  │  │  └─ 60.pack.gz
+│  │  │  │  └─ 61.pack.gz
+│  │  │  │  └─ 62.pack.gz
+│  │  │  │  └─ 63.pack.gz
+│  │  │  │  └─ 64.pack.gz
+│  │  │  │  └─ 65.pack.gz
+│  │  │  │  └─ 66.pack.gz
+│  │  │  │  └─ 67.pack.gz
+│  │  │  │  └─ 68.pack.gz
+│  │  │  │  └─ 69.pack.gz
+│  │  │  │  └─ 7.pack.gz
+│  │  │  │  └─ 70.pack.gz
+│  │  │  │  └─ 71.pack.gz
+│  │  │  │  └─ 72.pack.gz
+│  │  │  │  └─ 73.pack.gz
+│  │  │  │  └─ 74.pack.gz
+│  │  │  │  └─ 75.pack.gz
+│  │  │  │  └─ 76.pack.gz
+│  │  │  │  └─ 77.pack.gz
+│  │  │  │  └─ 78.pack.gz
+│  │  │  │  └─ 79.pack.gz
+│  │  │  │  └─ 8.pack.gz
+│  │  │  │  └─ 80.pack.gz
+│  │  │  │  └─ 81.pack.gz
+│  │  │  │  └─ 82.pack.gz
+│  │  │  │  └─ 9.pack.gz
+│  │  │  │  └─ index.pack.gz
+│  │  │  │  └─ index.pack.gz.old
+│  │  │  ├─ server-production
+│  │  │  │  └─ 0.pack
+│  │  │  │  └─ 1.pack
+│  │  │  │  └─ 10.pack
+│  │  │  │  └─ 11.pack
+│  │  │  │  └─ 12.pack
+│  │  │  │  └─ 13.pack
+│  │  │  │  └─ 14.pack
+│  │  │  │  └─ 15.pack
+│  │  │  │  └─ 2.pack
+│  │  │  │  └─ 3.pack
+│  │  │  │  └─ 4.pack
+│  │  │  │  └─ 5.pack
+│  │  │  │  └─ 6.pack
+│  │  │  │  └─ 7.pack
+│  │  │  │  └─ 8.pack
+│  │  │  │  └─ 9.pack
+│  │  │  │  └─ index.pack
+│  │  │  │  └─ index.pack.old
+│  │  └─ .tsbuildinfo
+│  ├─ server
+│  │  └─ app-paths-manifest.json
+│  │  └─ interception-route-rewrite-manifest.js
+│  │  └─ middleware-build-manifest.js
+│  │  └─ middleware-manifest.json
+│  │  └─ middleware-react-loadable-manifest.js
+│  │  └─ next-font-manifest.js
+│  │  └─ next-font-manifest.json
+│  │  └─ pages-manifest.json
+│  │  └─ server-reference-manifest.js
+│  │  └─ server-reference-manifest.json
+│  ├─ static
+│  │  ├─ chunks
+│  │  │  └─ polyfills.js
+│  │  ├─ development
+│  │  │  └─ _buildManifest.js
+│  │  │  └─ _ssgManifest.js
+│  ├─ types
+│  │  └─ package.json
+│  └─ app-build-manifest.json
+│  └─ build-manifest.json
+│  └─ package.json
+│  └─ react-loadable-manifest.json
+│  └─ trace
+├─ app
+│  ├─ (marketing)
+│  │  ├─ welcome
+│  │  │  └─ page.tsx
+│  │  │  └─ welcome.css
+│  ├─ billing
+│  │  ├─ canceled
+│  │  │  └─ page.tsx
+│  │  ├─ offer
+│  │  │  └─ OfferClient.tsx
+│  │  │  └─ OfferPageClient.tsx
+│  │  │  └─ page.tsx
+│  │  ├─ portal-return
+│  │  │  └─ page.tsx
+│  │  ├─ success
+│  │  │  └─ page.tsx
+│  ├─ icons-custom
+│  │  ├─ active
+│  │  │  └─ AddConceptActiveSq.svg
+│  │  │  └─ add-concept-new.svg
+│  │  │  └─ AddCueCard.svg
+│  │  │  └─ AddPictureActive.svg
+│  │  │  └─ MergeBranch.svg
+│  │  │  └─ MergeBranch1.svg
+│  │  │  └─ quiz_tool_button.svg
+│  │  │  └─ redo.svg
+│  │  │  └─ undo.svg
+│  │  └─ add_photo_inactive.svg
+│  │  └─ AddConceptActive.svg
+│  │  └─ AddConceptActive1.png
+│  │  └─ AddConceptActive1.svg
+│  │  └─ AddConceptInActive.svg
+│  │  └─ ai-icon.svg
+│  │  └─ AppIcon.svg
+│  │  └─ clear_all.svg
+│  │  └─ ConceptNodeAdd.svg
+│  │  └─ Inactive_Add Cue Card.svg
+│  │  └─ inactive_quiz.svg
+│  │  └─ Launch.svg
+│  │  └─ Quiz.svg
+│  │  └─ search.svg
+│  ├─ Library
+│  │  ├─ Context
+│  │  │  ├─ AccessLayer
+│  │  │  │  └─ selectors.ts
+│  │  │  ├─ collab
+│  │  │  │  └─ CollabContext.tsx
+│  │  │  ├─ forum
+│  │  │  │  └─ CommentContext.tsx
+│  │  │  │  └─ useForumCollaboration.ts
+│  │  │  ├─ ops
+│  │  │  │  └─ pureOps.createFast.ts
+│  │  │  │  └─ pureOps.ts
+│  │  │  │  └─ pureOps.types.ts
+│  │  │  ├─ pdf
+│  │  │  │  ├─ draft
+│  │  │  │  │  └─ ViewSwitchContext.tsx
+│  │  │  │  └─ LruPdfCache.ts
+│  │  │  │  └─ PdfJsWorkerProvider.tsx
+│  │  │  │  └─ SingleFlight.ts
+│  │  │  │  └─ ViewSwitchContext.tsx
+│  │  │  └─ AccessLayerContext.tsx
+│  │  │  └─ CalendarContextv2.tsx
+│  │  │  └─ ChatHistoryContext.tsx
+│  │  │  └─ colorThemeActions.ts
+│  │  │  └─ ColorThemeProvider.tsx
+│  │  │  └─ colorThemeReducer.ts
+│  │  │  └─ CommentContext.tsx
+│  │  │  └─ FileAssetContext.tsx
+│  │  │  └─ LayoutActions.ts
+│  │  │  └─ LayoutProvider.tsx
+│  │  │  └─ layoutReducer.ts
+│  │  │  └─ LessonDataContext.tsx
+│  │  │  └─ LessonModuleContext.tsx
+│  │  │  └─ LoadingContext.tsx
+│  │  │  └─ NodeSelectionContext.tsx
+│  │  │  └─ NodesProvider.tsx
+│  │  │  └─ ResourceContext.tsx
+│  │  │  └─ SearchContext.tsx
+│  │  │  └─ SelectionAttachmentContext.tsx
+│  │  │  └─ SlideShowContext.tsx
+│  │  │  └─ SubTreeProvider.tsx
+│  │  │  └─ UserDataContext.tsx
+│  │  │  └─ VersionHistoryContext.tsx
+│  │  │  └─ YDocContext.tsx
+│  │  │  └─ YDocContextv2.tsx
+│  │  │  └─ zoomActions.ts
+│  │  │  └─ ZoomProvider.tsx
+│  │  │  └─ zoomReducer.ts
+│  │  ├─ Definitions
+│  │  │  └─ CalendarDefinitions.ts
+│  │  │  └─ Definitions.tsx
+│  │  │  └─ deltaTypes.ts
+│  │  │  └─ UserDataDefinitions.ts
+│  │  ├─ hooks
+│  │  │  └─ useAutoMapResize.tsx
+│  │  │  └─ useGradebook.ts
+│  │  │  └─ useKeepMapInView.tsx
+│  │  │  └─ useTreePositioning.tsx
+│  │  ├─ utils
+│  │  │  ├─ calendar
+│  │  │  │  └─ lessoUnitExtractor.ts
+│  │  │  ├─ copycutpaste
+│  │  │  │  └─ CutCopyPasteUtils.ts
+│  │  │  ├─ map
+│  │  │  │  └─ centerUtils.ts
+│  │  │  ├─ notifications
+│  │  │  │  └─ NotificationUtils.ts
+│  │  │  ├─ ResourceSave
+│  │  │  │  └─ saveResource.ts
+│  │  │  ├─ undoredo
+│  │  │  │  └─ historyutils.ts
+│  │  │  └─ aiServiceApi.ts
+│  │  │  └─ colorSet.ts
+│  │  │  └─ compositeLayout.tsx
+│  │  │  └─ drawHVStyleLines.tsx
+│  │  │  └─ drawIndentedStyleLines.tsx
+│  │  │  └─ hvLayout.ts
+│  │  │  └─ indentedLayout.ts
+│  │  │  └─ QuizUtils.ts
+│  ├─ signin
+│  │  └─ layout.tsx
+│  │  └─ page.tsx
+│  │  └─ SignInClient.tsx
+│  │  └─ singnin.module.css
+│  ├─ src
+│  │  ├─ auth
+│  │  │  └─ authenticateRequest.ts
+│  │  │  └─ oauth.ts
+│  │  │  └─ session.ts
+│  │  │  └─ singletons.ts
+│  │  │  └─ types.ts
+│  │  ├─ billing
+│  │  │  └─ config.ts
+│  │  │  └─ stripeAdapter.ts
+│  │  │  └─ types.ts
+│  │  ├─ config
+│  │  │  ├─ __tests__
+│  │  │  │  └─ db.test.ts
+│  │  │  └─ db.ts
+│  │  │  └─ openai.ts
+│  │  │  └─ predefined-prompts.ts
+│  │  │  └─ Test
+│  │  ├─ context
+│  │  │  ├─ __tests__
+│  │  │  └─ ApiContext.tsx
+│  │  │  └─ authUtils.ts
+│  │  ├─ controllers
+│  │  │  └─ aiController.ts
+│  │  │  └─ formatSyllabus.ts
+│  │  ├─ middleware
+│  │  │  └─ rateLimit.ts
+│  │  │  └─ rateLimiter-depr.ts
+│  │  ├─ models
+│  │  │  ├─ __tests__
+│  │  │  │  └─ aiRequestLog.test.ts
+│  │  │  │  └─ userModel.test.ts
+│  │  │  └─ aiRequestLog.ts
+│  │  │  └─ userModel.ts
+│  │  ├─ net
+│  │  │  └─ SupersedingAwait.ts
+│  │  │  └─ SupersedingCaller.ts
+│  │  ├─ schemas
+│  │  │  ├─ gemini
+│  │  │  │  └─ subtreeschemaV3.gemini.ts
+│  │  │  ├─ openai
+│  │  │  │  └─ subtreeSchemaV3.openai.ts
+│  │  │  │  └─ unitSyllabus.openai.ts
+│  │  │  └─ lessonSchema.ts
+│  │  │  └─ lessonSchemaV2.ts
+│  │  │  └─ QASchema.ts
+│  │  │  └─ quizSchema.ts
+│  │  ├─ services
+│  │  │  ├─ calendar
+│  │  │  │  ├─ versionhistory
+│  │  │  │  │  └─ VersionHistoryFb.ts
+│  │  │  │  └─ CalendarPersistApi.ts
+│  │  │  │  └─ NotebooksApi.ts
+│  │  │  │  └─ RollingWindowUtil.ts
+│  │  │  ├─ cascadeOps
+│  │  │  │  └─ cascadeTypes.ts
+│  │  │  │  └─ DocumentDeleteCascade.ts
+│  │  │  │  └─ FileUploadCascade.ts
+│  │  │  ├─ forum
+│  │  │  │  └─ ForumFb.ts
+│  │  │  ├─ gradebook
+│  │  │  │  └─ gradebook.types.ts
+│  │  │  │  └─ gradebookFB.ts
+│  │  │  ├─ lessonExtraction
+│  │  │  │  └─ lessonExtractionService.ts
+│  │  │  ├─ rate-np
+│  │  │  │  └─ policies.ts
+│  │  │  │  └─ rateGuardNP.ts
+│  │  │  │  └─ types.ts
+│  │  │  │  └─ withRateLimitNP.ts
+│  │  │  ├─ redisCache
+│  │  │  │  └─ aclCache.ts
+│  │  │  │  └─ cacheAside.ts
+│  │  │  │  └─ cacheKeys.ts
+│  │  │  │  └─ cachePolicies.ts
+│  │  │  │  └─ docCache.ts
+│  │  │  │  └─ rateGate.ts
+│  │  │  │  └─ rateLogic.ts
+│  │  │  │  └─ redis.ts
+│  │  │  │  └─ userCache.ts
+│  │  │  ├─ studyplanfb
+│  │  │  │  └─ StudyPlanFB.ts
+│  │  │  ├─ TextPreprocessing
+│  │  │  │  ├─ test
+│  │  │  │  ├─ utils
+│  │  │  │  │  └─ lessonMetadataSchema.ts
+│  │  │  │  │  └─ logger.ts
+│  │  │  │  │  └─ syllabusSchema.ts
+│  │  │  │  │  └─ syllabusSchemav1.ts
+│  │  │  │  │  └─ syllabusSchemav2.ts
+│  │  │  │  └─ aiTextPreProcessingV33.ts
+│  │  │  │  └─ callWithRetry.ts
+│  │  │  │  └─ LessonModulePipeline.ts
+│  │  │  │  └─ LessonModuleServiceV8.ts
+│  │  │  │  └─ LessonModuleTypes.ts
+│  │  │  │  └─ mergeToLessonSchema.ts
+│  │  │  │  └─ MetaDataFormatter.ts
+│  │  │  │  └─ persistLessonContext.ts
+│  │  │  │  └─ QuestionContextService.ts
+│  │  │  │  └─ TextKeys.ts
+│  │  │  │  └─ unitContextFormatter.ts
+│  │  │  ├─ yjs
+│  │  │  │  ├─ keys
+│  │  │  │  │  └─ jwt_2025.key
+│  │  │  │  │  └─ jwt_2025.pub
+│  │  │  │  └─ .dockerignore
+│  │  │  │  └─ .env
+│  │  │  │  └─ docker-compose.yjs-v1.yml
+│  │  │  │  └─ docker-compose.yjs-v2.yml
+│  │  │  │  └─ docker-compose.yml
+│  │  │  │  └─ Dockerfile
+│  │  │  │  └─ Dockerfile.yjs-v1
+│  │  │  │  └─ Dockerfile.yjs-v2
+│  │  │  │  └─ package.json
+│  │  │  │  └─ package-lock.json
+│  │  │  │  └─ secureSetupWSConnection.ts
+│  │  │  │  └─ yjs-server.js
+│  │  │  │  └─ yjs-serverv1.js
+│  │  │  │  └─ yjs-serverv2.js
+│  │  │  └─ aiService.ts
+│  │  │  └─ aiServiceV2.ts
+│  │  │  └─ ApiService.ts
+│  │  │  └─ FileUploadService.ts
+│  │  │  └─ firebase.ts
+│  │  │  └─ modalEventManager.ts
+│  │  │  └─ sessionStore.ts
+│  │  │  └─ standardizedErrorHandler.ts
+│  │  │  └─ TextIndexService.ts
+│  │  │  └─ UsageTracker.ts
+│  │  │  └─ userService.ts
+│  │  │  └─ validatePremiumAccess.ts
+│  │  ├─ share
+│  │  │  └─ flyerRenderer.ts
+│  │  │  └─ generateQr.ts
+│  │  │  └─ qrService.ts
+│  │  ├─ types
+│  │  │  └─ errorCodes.ts
+│  │  │  └─ fileTypes.ts
+│  │  ├─ utils
+│  │  │  ├─ __tests__
+│  │  │  │  └─ moderation.test.ts
+│  │  │  │  └─ promptEngineering.test.ts
+│  │  │  ├─ share
+│  │  │  └─ jwtUtils.ts
+│  │  │  └─ redisClient.ts
+│  │  │  └─ redisConfig.ts
+│  │  │  └─ refreshTokenUtils.ts
+│  │  │  └─ resolveAcl.ts
+│  │  │  └─ revocationBus.ts
+│  │  │  └─ webSocketToken.js
+│  │  │  └─ webSocketToken.ts
+│  ├─ studygraph
+│  │  ├─ (studygraph)
+│  │  │  ├─ canvas
+│  │  │  │  ├─ Map
+│  │  │  │  │  └─ NodeGraph.css
+│  │  │  │  │  └─ NodeGraphOriginal.css
+│  │  │  │  └─ Canvas.css
+│  │  │  ├─ components
+│  │  │  │  ├─ access
+│  │  │  │  │  └─ RefreshModal.tsx
+│  │  │  │  ├─ Context
+│  │  │  │  │  └─ UndoRedoContext.tsx
+│  │  │  │  ├─ hooks
+│  │  │  │  │  ├─ access
+│  │  │  │  │  │  └─ DocumentAccessHistoryManager.ts
+│  │  │  │  │  │  └─ DocumentAccessManager.ts
+│  │  │  │  │  │  └─ useDocumentAccessMode.ts
+│  │  │  │  │  ├─ calendar
+│  │  │  │  │  │  └─ useBlockStudySession.ts
+│  │  │  │  │  ├─ sharing
+│  │  │  │  │  │  └─ usePublicShare.ts
+│  │  │  │  │  ├─ streaming
+│  │  │  │  │  │  └─ aiService.ts
+│  │  │  │  │  │  └─ parseConceptMap.ts
+│  │  │  │  │  │  └─ parseConceptMapStream.ts
+│  │  │  │  │  │  └─ SkeletonNode.tsx
+│  │  │  │  │  │  └─ stream-lesson.ts
+│  │  │  │  │  └─ layoutUtils.ts
+│  │  │  │  │  └─ mathPlaceholder.ts
+│  │  │  │  │  └─ parseConceptMap.ts
+│  │  │  │  │  └─ parseQuizResponse.ts
+│  │  │  │  │  └─ renderMarkdownWithMath.ts
+│  │  │  │  │  └─ resourceScanner.ts
+│  │  │  │  │  └─ topicResponseParser.ts
+│  │  │  │  │  └─ useCardCrudOperations.ts
+│  │  │  │  │  └─ useFirestoreStream.ts
+│  │  │  │  │  └─ useLessonModuleMapper.ts
+│  │  │  │  │  └─ useLessonUnitOrder.ts
+│  │  │  │  │  └─ useOrderedResources.ts
+│  │  │  │  │  └─ usePreorderTraversal.ts
+│  │  │  │  │  └─ useResourceSync.ts
+│  │  │  │  │  └─ useSearchResults.ts
+│  │  │  │  ├─ layout
+│  │  │  │  │  ├─ Calendar
+│  │  │  │  │  │  ├─ study-planner
+│  │  │  │  │  │  │  ├─ constants
+│  │  │  │  │  │  │  │  └─ schedulingConstants.ts
+│  │  │  │  │  │  │  ├─ core
+│  │  │  │  │  │  │  │  └─ BlockLearningScheduler.ts
+│  │  │  │  │  │  │  │  └─ BlockRevisionScheduler.ts
+│  │  │  │  │  │  │  │  └─ InterLeavedRevisionScheduler.ts
+│  │  │  │  │  │  │  │  └─ LearningSetDistributor.ts
+│  │  │  │  │  │  │  │  └─ LearningSetScheduler.ts
+│  │  │  │  │  │  │  │  └─ LessonCompletionDetector.ts
+│  │  │  │  │  │  │  │  └─ LessonParser.ts
+│  │  │  │  │  │  │  │  └─ NotebookAnchorPlanner.ts
+│  │  │  │  │  │  │  │  └─ SessionAggregator.ts
+│  │  │  │  │  │  │  │  └─ StudyPlanOrchestrator.ts
+│  │  │  │  │  │  │  ├─ models
+│  │  │  │  │  │  │  │  └─ Configuration.ts
+│  │  │  │  │  │  │  │  └─ index.ts
+│  │  │  │  │  │  │  │  └─ LearningSet.ts
+│  │  │  │  │  │  │  │  └─ Lesson.ts
+│  │  │  │  │  │  │  │  └─ Progress.ts
+│  │  │  │  │  │  │  │  └─ StudyPlanOutput.ts
+│  │  │  │  │  │  │  ├─ types
+│  │  │  │  │  │  │  │  └─ index.ts
+│  │  │  │  │  │  │  ├─ utils
+│  │  │  │  │  │  │  │  └─ dateUtils.ts
+│  │  │  │  │  │  │  │  └─ lessonUtils.ts
+│  │  │  │  │  │  │  │  └─ sessionUtils.ts
+│  │  │  │  │  │  │  │  └─ validators.ts
+│  │  │  │  │  │  │  └─ index.ts
+│  │  │  │  │  │  │  └─ mergeStudyPlan.ts
+│  │  │  │  │  │  │  └─ StudyPlanService.ts
+│  │  │  │  │  │  └─ CalendarModal.tsx
+│  │  │  │  │  │  └─ CalendarMonthView.tsx
+│  │  │  │  │  │  └─ calendar-theme.css
+│  │  │  │  │  │  └─ NotebookSelector.tsx
+│  │  │  │  │  │  └─ SessionContextMenuPortal.tsx
+│  │  │  │  │  │  └─ temp.txt
+│  │  │  │  │  ├─ Canvas
+│  │  │  │  │  │  ├─ Bookmarks
+│  │  │  │  │  │  │  └─ BookmarkModal.tsx
+│  │  │  │  │  │  ├─ bottomUtilityBar
+│  │  │  │  │  │  │  └─ BottomActions.tsx
+│  │  │  │  │  │  │  └─ CanvasHeader.css
+│  │  │  │  │  │  │  └─ CanvasHeader.tsx
+│  │  │  │  │  │  │  └─ DropdownComponents.tsx
+│  │  │  │  │  │  │  └─ ReadOnlyDropdown.tsx
+│  │  │  │  │  │  │  └─ RoCanvasHeader.tsx
+│  │  │  │  │  │  ├─ pdf
+│  │  │  │  │  │  │  ├─ draft
+│  │  │  │  │  │  │  │  └─ PDFRenderer.tsx
+│  │  │  │  │  │  │  │  └─ PdfViewer.tsx
+│  │  │  │  │  │  │  └─ PDFRenderer.tsx
+│  │  │  │  │  │  │  └─ PdfViewer.tsx
+│  │  │  │  │  │  ├─ ReadWriteCanvas
+│  │  │  │  │  │  │  ├─ CardDisplay
+│  │  │  │  │  │  │  │  └─ ActionFooter.tsx
+│  │  │  │  │  │  │  │  └─ CardDisplay.tsx
+│  │  │  │  │  │  │  │  └─ DefaultEmptyResourceCard.tsx
+│  │  │  │  │  │  │  │  └─ EditTab.tsx
+│  │  │  │  │  │  │  │  └─ NotesTab.tsx
+│  │  │  │  │  │  │  │  └─ UnifiedHeader.tsx
+│  │  │  │  │  │  │  ├─ Cards
+│  │  │  │  │  │  │  │  └─ QuizCard.tsx
+│  │  │  │  │  │  │  │  └─ ResourceDisplay.tsx
+│  │  │  │  │  │  │  ├─ Context
+│  │  │  │  │  │  │  │  └─ SlideShowContext.tsx
+│  │  │  │  │  │  │  ├─ Map
+│  │  │  │  │  │  │  │  └─ ConceptNode.tsx
+│  │  │  │  │  │  │  │  └─ GridBackground.tsx
+│  │  │  │  │  │  │  │  └─ MapRendererv2.tsx
+│  │  │  │  │  │  │  ├─ Overlays
+│  │  │  │  │  │  │  │  ├─ quiz
+│  │  │  │  │  │  │  │  │  └─ FillInBlankQuiz.tsx
+│  │  │  │  │  │  │  │  │  └─ MatchingQuiz.tsx
+│  │  │  │  │  │  │  │  │  └─ MultipleChoiceQuiz.tsx
+│  │  │  │  │  │  │  │  │  └─ scoringUtils.ts
+│  │  │  │  │  │  │  │  │  └─ TrueFalseQuiz.tsx
+│  │  │  │  │  │  │  │  └─ OverlayBehaviors.ts
+│  │  │  │  │  │  │  │  └─ QuizExitWarningModal.tsx
+│  │  │  │  │  │  │  │  └─ QuizOverlay.tsx
+│  │  │  │  │  │  │  │  └─ SlideShowOverlay.tsx
+│  │  │  │  │  │  │  └─ CanvasHeader.tsx
+│  │  │  │  │  │  │  └─ CanvasView.tsx
+│  │  │  │  │  │  │  └─ DropdownComponents.css
+│  │  │  │  │  │  │  └─ DropDownMenu.tsx
+│  │  │  │  │  │  │  └─ ResourceQuickActionsContext.tsx
+│  │  │  │  │  │  ├─ toolbar
+│  │  │  │  │  │  │  └─ BottomToolbar.tsx
+│  │  │  │  │  │  │  └─ BottomToolbarV2.tsx
+│  │  │  │  │  │  │  └─ CanvasToolbar.css
+│  │  │  │  │  │  │  └─ ToolbarButton.css
+│  │  │  │  │  │  │  └─ ToolBarButtons.tsx
+│  │  │  │  │  │  │  └─ TopToolbar.tsx
+│  │  │  │  │  │  └─ AiTutorChatButton.tsx
+│  │  │  │  │  │  └─ AttachedTextBubble.tsx
+│  │  │  │  │  │  └─ CanvasView.css
+│  │  │  │  │  │  └─ ConceptNode.tsx
+│  │  │  │  │  │  └─ MapRenderer.css
+│  │  │  │  │  │  └─ MapRenderer.tsx
+│  │  │  │  │  │  └─ pdfActions.ts
+│  │  │  │  │  │  └─ PdfContextMenu.tsx
+│  │  │  │  │  │  └─ QuizGeneratorModal.tsx
+│  │  │  │  │  │  └─ QuizTopicSelector.tsx
+│  │  │  │  │  │  └─ SelectionAttachmentHandler.tsx
+│  │  │  │  │  │  └─ StatusBar.tsx
+│  │  │  │  │  │  └─ Subtree.tsx
+│  │  │  │  │  │  └─ TopicGeneratorModal.tsx
+│  │  │  │  │  ├─ CardDisplay
+│  │  │  │  │  │  ├─ buttons
+│  │  │  │  │  │  │  └─ AddResourceDropdown.tsx
+│  │  │  │  │  │  │  └─ AIAssistantButton.tsx
+│  │  │  │  │  │  │  └─ FontSizeButton.tsx
+│  │  │  │  │  │  │  └─ SlideshowButton.tsx
+│  │  │  │  │  │  ├─ Cards
+│  │  │  │  │  │  │  └─ ActionFooter.tsx
+│  │  │  │  │  │  │  └─ AskAssistantPanel.css
+│  │  │  │  │  │  │  └─ AskAssistantPanel.tsx
+│  │  │  │  │  │  │  └─ BaseResourceCard.tsx
+│  │  │  │  │  │  │  └─ CueCard.tsx
+│  │  │  │  │  │  │  └─ NoteCard.tsx
+│  │  │  │  │  │  │  └─ QuizCard.tsx
+│  │  │  │  │  │  │  └─ quizUtils.ts
+│  │  │  │  │  │  │  └─ slideshow.css
+│  │  │  │  │  │  │  └─ SlideShowEditForm.css
+│  │  │  │  │  │  │  └─ SlideShowEditForm.tsx
+│  │  │  │  │  │  │  └─ SlideShowv2.css
+│  │  │  │  │  │  ├─ chatTab
+│  │  │  │  │  │  │  └─ AskTab.tsx
+│  │  │  │  │  │  │  └─ ChatTab.css
+│  │  │  │  │  │  ├─ dialog
+│  │  │  │  │  │  │  └─ CitationDialog.tsx
+│  │  │  │  │  │  ├─ types
+│  │  │  │  │  │  │  └─ resourceForm.ts
+│  │  │  │  │  │  ├─ v2
+│  │  │  │  │  │  │  └─ ActionFooter.tsx
+│  │  │  │  │  │  │  └─ actionfooterbuttons.css
+│  │  │  │  │  │  │  └─ AddResourceDropdown.tsx
+│  │  │  │  │  │  │  └─ BaseResourceCard.tsx
+│  │  │  │  │  │  │  └─ CardDisplay.css
+│  │  │  │  │  │  │  └─ CardDisplay.tsx
+│  │  │  │  │  │  │  └─ ChatTab.css
+│  │  │  │  │  │  │  └─ ChatTab.tsx
+│  │  │  │  │  │  │  └─ EditTab.css
+│  │  │  │  │  │  │  └─ EditTab.tsx
+│  │  │  │  │  │  │  └─ notesTab.css
+│  │  │  │  │  │  │  └─ NotesTab.tsx
+│  │  │  │  │  │  │  └─ resourceDisplay.css
+│  │  │  │  │  │  │  └─ ResourceDisplay.tsx
+│  │  │  │  │  │  │  └─ ROactionFooter.tsx
+│  │  │  │  │  │  │  └─ ROAddResourceDropdown.tsx
+│  │  │  │  │  │  │  └─ UnifiedHeader.tsx
+│  │  │  │  │  │  └─ BackButton.css
+│  │  │  │  │  │  └─ BackButton.tsx
+│  │  │  │  │  │  └─ EditTab.tsx
+│  │  │  │  │  │  └─ notesTab.css
+│  │  │  │  │  │  └─ NotesTab.tsx
+│  │  │  │  │  │  └─ resourceDisplay.css
+│  │  │  │  │  │  └─ ResourceDisplay.tsx
+│  │  │  │  │  │  └─ ResourceMenu.tsx
+│  │  │  │  │  │  └─ SearchButton.css
+│  │  │  │  │  │  └─ SearchButton.tsx
+│  │  │  │  │  │  └─ temp.txt
+│  │  │  │  │  │  └─ UnifiedHeader.tsx
+│  │  │  │  │  ├─ forum
+│  │  │  │  │  │  ├─ comment
+│  │  │  │  │  │  │  └─ CommentDefinitions.ts
+│  │  │  │  │  │  │  └─ ForumPost.css
+│  │  │  │  │  │  │  └─ ForumPost.tsx
+│  │  │  │  │  │  └─ branded-forum.css
+│  │  │  │  │  │  └─ CommentInputModal.tsx
+│  │  │  │  │  │  └─ DiscussButton.tsx
+│  │  │  │  │  │  └─ DiscussionFormInput.tsx
+│  │  │  │  │  │  └─ DiscussionInputForm.css
+│  │  │  │  │  │  └─ DiscussionThread.tsx
+│  │  │  │  │  │  └─ Discussthreadv2.tsx
+│  │  │  │  │  │  └─ ForumModal.css
+│  │  │  │  │  │  └─ forum-modal.css
+│  │  │  │  │  │  └─ ForumModal.tsx
+│  │  │  │  │  │  └─ ForumPostDetail.css
+│  │  │  │  │  │  └─ ForumPostDetail.tsx
+│  │  │  │  │  │  └─ MentionBadge.tsx
+│  │  │  │  │  │  └─ ThreadView.css
+│  │  │  │  │  ├─ loading
+│  │  │  │  │  ├─ ReadOnly
+│  │  │  │  │  │  ├─ CardDisplay
+│  │  │  │  │  │  │  └─ NotesTab.tsx
+│  │  │  │  │  │  │  └─ ResourceDisplay.tsx
+│  │  │  │  │  │  │  └─ ROcardDisplay.tsx
+│  │  │  │  │  │  │  └─ ROquizcard.tsx
+│  │  │  │  │  │  │  └─ ROunifiedHeader.tsx
+│  │  │  │  │  │  │  └─ VHcardDisplay.tsx
+│  │  │  │  │  │  │  └─ VHnotesTab.tsx
+│  │  │  │  │  │  │  └─ VHresourceDisplay.tsx
+│  │  │  │  │  │  │  └─ VHunifiedHeader.tsx
+│  │  │  │  │  │  ├─ map
+│  │  │  │  │  │  │  └─ ConceptNode.tsx
+│  │  │  │  │  │  │  └─ MapRenderer.tsx
+│  │  │  │  │  │  │  └─ StatusBanner.css
+│  │  │  │  │  │  │  └─ Subtree.tsx
+│  │  │  │  │  │  │  └─ VHcanvasView.tsx
+│  │  │  │  │  │  ├─ navigation
+│  │  │  │  │  │  │  └─ ReadOnlyNavigationPanel.tsx
+│  │  │  │  │  │  └─ ROCanvasView.tsx
+│  │  │  │  │  ├─ ResourcePanel
+│  │  │  │  │  │  ├─ prototype
+│  │  │  │  │  │  │  └─ combined.txt
+│  │  │  │  │  │  └─ CreateLessonModal.tsx
+│  │  │  │  │  ├─ Review
+│  │  │  │  │  │  └─ AssessmentLayout.css
+│  │  │  │  │  │  └─ AssessmentTab.tsx
+│  │  │  │  │  │  └─ AssignQuizModal.tsx
+│  │  │  │  │  │  └─ gradebook.css
+│  │  │  │  │  │  └─ GradebookModal.tsx
+│  │  │  │  │  │  └─ PerformanceTab.tsx
+│  │  │  │  │  │  └─ PracticeTab.tsx
+│  │  │  │  │  │  └─ quizStats.ts
+│  │  │  │  │  │  └─ ReviewModal.tsx
+│  │  │  │  │  │  └─ ReviewModalsv2.tsx
+│  │  │  │  │  │  └─ ReviewModalSystem.css
+│  │  │  │  │  │  └─ types.ts
+│  │  │  │  │  ├─ share
+│  │  │  │  │  │  └─ ShareModal.css
+│  │  │  │  │  │  └─ ShareModal.tsx
+│  │  │  │  │  ├─ shared
+│  │  │  │  │  │  └─ ResizeHandle.tsx
+│  │  │  │  │  ├─ Sidebar
+│  │  │  │  │  │  └─ NavigationPanel.tsx
+│  │  │  │  │  │  └─ NavItems.tsx
+│  │  │  │  │  │  └─ Sidebar.tsx
+│  │  │  │  │  └─ hiddenScrollbar.css
+│  │  │  │  │  └─ mapTheme.css
+│  │  │  │  │  └─ scrollbar.css
+│  │  │  │  │  └─ SearchModal.tsx
+│  │  │  │  │  └─ UserInfoPanel.css
+│  │  │  │  │  └─ UserInfoPanel.tsx
+│  │  │  │  ├─ modals
+│  │  │  │  │  └─ AppModals.tsx
+│  │  │  │  │  └─ GlobalModalProvider.tsx
+│  │  │  │  │  └─ LoadingOverlayModal.css
+│  │  │  │  │  └─ LoadingOverlayModal.tsx
+│  │  │  │  │  └─ ModalRegistry.ts
+│  │  │  │  │  └─ modalStyles.css
+│  │  │  │  │  └─ registerLoadingOverlay.ts
+│  │  │  │  ├─ share
+│  │  │  │  │  └─ ShareAccessModal.css
+│  │  │  │  │  └─ ShareAccessModal.tsx
+│  │  │  │  ├─ utils
+│  │  │  │  │  ├─ Autosave
+│  │  │  │  │  ├─ quiz
+│  │  │  │  │  │  ├─ progressTracking
+│  │  │  │  │  │  │  └─ FillInBlankQuiz.tsx
+│  │  │  │  │  │  │  └─ Matching.tsx
+│  │  │  │  │  │  │  └─ MultipleChoiceQuiz.tsx
+│  │  │  │  │  │  │  └─ TrueFalseQuiz.tsx
+│  │  │  │  │  │  ├─ quizStyles
+│  │  │  │  │  │  │  └─ FIB.css
+│  │  │  │  │  │  │  └─ MatchingQuizModal.css
+│  │  │  │  │  │  │  └─ MultipleChoiceQuiz.css
+│  │  │  │  │  │  │  └─ TrueFalseQuiz.css
+│  │  │  │  │  │  └─ FillInBlankQuiz.tsx
+│  │  │  │  │  │  └─ MatchingQuiz.tsx
+│  │  │  │  │  │  └─ mockQuizData.ts
+│  │  │  │  │  │  └─ MultipleChoiceQuiz.tsx
+│  │  │  │  │  │  └─ QuizBase.tsx
+│  │  │  │  │  │  └─ QuizStyles.css
+│  │  │  │  │  │  └─ ScoreDisplay.tsx
+│  │  │  │  │  │  └─ TrueFalseQuiz.tsx
+│  │  │  │  │  └─ ContentOverlay.tsx
+│  │  │  │  │  └─ cookies.ts
+│  │  │  │  │  └─ deltaEngine.ts
+│  │  │  │  │  └─ exportStudyData.ts
+│  │  │  │  │  └─ fileListOps.ts
+│  │  │  │  │  └─ interleaveReview.ts
+│  │  │  │  │  └─ pdfTextUtils.ts
+│  │  │  │  │  └─ SafeContent.tsx
+│  │  │  │  │  └─ storageUrls.ts
+│  │  │  │  │  └─ transformPlaceholders.ts
+│  │  │  │  │  └─ useDeepMapMirror.ts
+│  │  │  │  ├─ versionHistory
+│  │  │  │  │  ├─ ui
+│  │  │  │  │  │  └─ VersionHistoryPanel.css
+│  │  │  │  │  │  └─ VersionHistoryPanel.tsx
+│  │  │  │  │  └─ subDocExtractor.ts
+│  │  │  │  │  └─ versionHistory.ts
+│  │  │  │  └─ homeScreenV3.css
+│  │  │  │  └─ HomescreenV3.tsx
+│  │  │  ├─ Library
+│  │  │  │  ├─ tiptap
+│  │  │  │  │  └─ MathExtension.ts
+│  │  │  ├─ loading
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ services
+│  │  │  │  ├─ autosave
+│  │  │  │  │  └─ autoSaveBridge.ts
+│  │  │  │  │  └─ AutoSaveManager.ts
+│  │  │  │  ├─ collab
+│  │  │  │  │  └─ CollaborationManager.ts
+│  │  │  │  │  └─ collabSwitchGuards.ts
+│  │  │  │  │  └─ useCollaborationManager.ts
+│  │  │  │  ├─ documentSession
+│  │  │  │  │  └─ abortableFetch.ts
+│  │  │  │  │  └─ documentSessionv2.ts
+│  │  │  │  │  └─ singleFlight.ts
+│  │  │  │  │  └─ yIdentity.ts
+│  │  │  │  ├─ gradebook
+│  │  │  │  │  └─ gradebookClient.ts
+│  │  │  │  └─ fileListCache.ts
+│  │  │  │  └─ localCacheStore.ts
+│  │  │  ├─ types
+│  │  │  │  └─ access.ts
+│  │  │  │  └─ katex-auto-render.d.ts
+│  │  │  └─ app.tsx
+│  │  │  └─ appLayout.css
+│  │  │  └─ layout.tsx
+│  │  │  └─ LoadingAnimation.tsx
+│  │  │  └─ NavigationPanel.css
+│  │  │  └─ NavigationPanel.tsx
+│  │  │  └─ page.tsx
+│  │  ├─ canvasLayout
+│  │  │  └─ warm-map-theme.css
+│  │  ├─ styles
+│  │  │  ├─ brand
+│  │  │  │  └─ brand-utilities.css
+│  │  │  │  └─ theme-scopes.css
+│  │  │  └─ theme-warm-board.css
+│  │  │  └─ tokens.css
+│  │  ├─ types
+│  │  │  └─ slides.ts
+│  │  └─ customTooltip.css
+│  └─ AuthProvider.tsx
+│  └─ custom-types.d.ts
+│  └─ globals.css
+│  └─ icon.png
+│  └─ layout.tsx
+│  └─ page.tsx
+│  └─ tsconfig.jest.json
+├─ components
+│  ├─ ui
+│  │  └─ badge.tsx
+│  │  └─ button.tsx
+│  │  └─ card.tsx
+│  │  └─ context-menu.tsx
+│  │  └─ dialog.tsx
+│  │  └─ dropdown-menu.tsx
+│  │  └─ input.tsx
+│  │  └─ scroll-area.tsx
+│  │  └─ tabs.tsx
+│  │  └─ textarea.tsx
+│  │  └─ toggle.tsx
+│  └─ CitationExtension.ts
+│  └─ ImageExtension.ts
+│  └─ RichTextEditor.tsx
+├─ coverage
+│  ├─ lcov-report
+│  │  └─ base.css
+│  │  └─ block-navigation.js
+│  │  └─ favicon.png
+│  │  └─ index.html
+│  │  └─ prettify.css
+│  │  └─ prettify.js
+│  │  └─ sort-arrow-sprite.png
+│  │  └─ sorter.js
+│  └─ clover.xml
+│  └─ coverage-final.json
+│  └─ lcov.info
+├─ dist
+│  └─ setSchema.js
+│  └─ tsconfig.scripts.tsbuildinfo
+├─ doc-file-processing-services
+│  └─ .dockerignore
+│  └─ .env
+│  └─ docker-compose.yml
+│  └─ Dockerfile
+│  └─ main.py
+│  └─ mistral_ocr_adapter.py
+│  └─ requirements.txt
+│  └─ text_extraction_service.py
+├─ doc-preprocessing-service
+│  └─ gotenberg-service-client.ts
+│  └─ text-extraction-client.ts
+├─ docs
+│  └─ migrate-init-helpers-to-ydoc-v2.md
+├─ functions
+│  ├─ lib
+│  │  ├─ src
+│  │  │  └─ index.js
+│  │  │  └─ index.js.map
+│  │  └─ index.js
+│  │  └─ index.js.map
+│  │  └─ purgeExpiredInvites.js
+│  │  └─ purgeExpiredInvites.js.map
+│  │  └─ retentionJob.js
+│  │  └─ retentionJob.js.map
+│  ├─ src
+│  │  └─ index.ts
+│  │  └─ purgeExpiredInvites.ts
+│  │  └─ retentionJob.ts
+│  └─ .eslintrc.js
+│  └─ .gitignore
+│  └─ package.json
+│  └─ package-lock.json
+│  └─ tsconfig.dev.json
+│  └─ tsconfig.json
+├─ lib
+│  └─ utils.ts
+├─ pages
+│  ├─ api
+│  │  ├─ account
+│  │  │  └─ status.ts
+│  │  ├─ auth
+│  │  │  └─ [...nextauth].ts
+│  │  ├─ calendar
+│  │  │  └─ notebook-details.ts
+│  │  │  └─ persist.ts
+│  │  ├─ collab
+│  │  │  ├─ ws
+│  │  │  │  └─ [docId].ts
+│  │  │  └─ startv1.ts
+│  │  ├─ document
+│  │  │  ├─ acl
+│  │  │  │  └─ access-level.ts
+│  │  │  │  └─ editors.ts
+│  │  │  └─ bootsrap.ts
+│  │  │  └─ delete.ts
+│  │  │  └─ download-urlv1.ts
+│  │  │  └─ public-share.ts
+│  │  │  └─ save.ts
+│  │  │  └─ upload-urlv1.ts
+│  │  ├─ files
+│  │  │  └─ list.ts
+│  │  ├─ flyer
+│  │  │  └─ [docId].pdf.ts
+│  │  │  └─ [tokenId].pdf.ts
+│  │  ├─ forum
+│  │  │  └─ load.ts
+│  │  │  └─ save.ts
+│  │  │  └─ start.ts
+│  │  ├─ gradebook
+│  │  │  ├─ attempt
+│  │  │  │  └─ start.ts
+│  │  │  │  └─ submit.ts
+│  │  │  └─ assign-meta.ts
+│  │  │  └─ index.ts
+│  │  │  └─ route.ts
+│  │  ├─ history
+│  │  │  └─ download.ts
+│  │  │  └─ list.ts
+│  │  │  └─ snapshot.ts
+│  │  ├─ stripe
+│  │  │  └─ checkout.ts
+│  │  │  └─ portal.ts
+│  │  │  └─ webhook.ts
+│  │  ├─ token
+│  │  │  └─ update.ts
+│  │  └─ aiServiceLayer.ts
+│  │  └─ asset.ts
+│  │  └─ FileAssetsV2.ts
+│  │  └─ GenerateLesson.ts
+│  │  └─ userData.ts
+├─ pdf-test
+│  └─ PDFTextExtract.ts
+├─ public
+│  ├─ vendor
+│  │  ├─ pdfjs
+│  │  │  └─ pdf.worker.min.mjs
+│  └─ icon.svg
+│  └─ next.svg
+│  └─ vercel.svg
+├─ scripts
+│  ├─ dev
+│  │  └─ accounts.seed.json
+│  │  └─ seedAccounts.ts
+├─ test
+│  └─ delete
+│  └─ draft.txt
+│  └─ newlessonschema.txt
+│  └─ preAutosavev2.txt
+│  └─ preMultifileformat.txt
+│  └─ schema
+├─ workflow
+│  └─ authenticationLogic.txt
+│  └─ AuthpromptDependencies.txt
+│  └─ DebugAuthenticationFlow.txt
+│  └─ DEMOENV.txt
+│  └─ DocumentUtils.txt
+│  └─ genschema.txt
+│  └─ GoogleAPISFailedProposal.txt
+│  └─ instruction.txt
+│  └─ lessonPromphist.txt
+│  └─ menubarexcerpts.txt
+│  └─ newLessonSchema.txt
+│  └─ proposal.txt
+│  └─ quizSchema.txt
+│  └─ RelevantContext.txt
+│  └─ relevantFile.txt
+│  └─ ServerClientSeparation.txt
+│  └─ ServerClientSideSeparationP2.txt
+│  └─ updates.txt
+└─ .env
+└─ .eslintignore
+└─ .eslintrc.json
+└─ .firebaserc
+└─ .gitignore
+└─ bloom-tree.txt
+└─ components.json
+└─ cors.json
+└─ firebase.json
+└─ full-terminal.log
+└─ next.config.mjs
+└─ next-env.d.ts
+└─ package.json
+└─ package-lock.json
+└─ postcss.config.mjs
+└─ README.md
+└─ setSchema.ts
+└─ tailwind.config.ts
+└─ test.ts
+└─ tsconfig.json
+└─ tsconfig.scripts.json
+└─ tsconfig.tsbuildinfo

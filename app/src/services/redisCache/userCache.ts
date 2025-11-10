@@ -16,14 +16,15 @@
  *     3) `readValidationResult(service,email,ver)` / `writeValidationResult(...)` micro-cache helpers.
  *
  *   Design principles:
- *     - Firestore remains the source of truth; Redis is an accelerator.
- *     - Fail-open posture: if Redis is down, we still call loaders and return fresh data.
- *     - Purposeful logs with unique trace codes for hit/miss and version bumps.
- *     - All Redis operations are O(1); network dominates latency.
- *
- *   This file is intentionally policy-light. TTLs, SWR, and negative TTLs are sourced from
- *   `lib/cachePolicies.ts`. Key formats come from `lib/cacheKeys.ts`. Higher layers decide when to
- *   bump versions (typically right after successful Firestore writes).
+ *     - Firestore remains the source of truth; Redis is an accelerator that must never block reads.
+ *     - Fail-open posture: if Redis is down or misbehaving, we still call loaders and return fresh
+ *       data so that user-facing endpoints (including authenticated Next.js handlers that rely on
+ *       `authenticateRequest.ts`) degrade gracefully rather than throwing 500s. Redis outages should
+ *       increase latency, not break core functionality or subscription flows. All Redis operations
+ *       remain O(1) with respect to algorithmic complexity; loader complexity is external and tied
+ *       to Firestore or other backing services. Logging is intentionally structured and location-
+ *       tagged, making it easy to understand whether a read came from cache, negative cache, or a
+ *       direct loader fallback when debugging production incidents or analyzing performance trends.
  ***************************************************************************************************/
 
 import { getRedis } from './redis';
@@ -43,7 +44,9 @@ import type { UserProfile, UserUsage } from '@/app/src/services/userService';
  * getUserVersion
  * @description
  *   Read the current user version from Redis; defaults to 1 if missing or on error. Callers include
- *   this value in cache keys to tie reads to the latest write. Time complexity is O(1).
+ *   this value in cache keys to tie reads to the latest write. Time complexity is O(1) for Redis
+ *   operations, and failures in this function deliberately fall back to version 0 so that version
+ *   resolution is never a reason to fail user-visible endpoints or subscription gating flows.
  */
 export async function getUserVersion(email: string): Promise<number> {
   const client = getRedis();
@@ -51,7 +54,9 @@ export async function getUserVersion(email: string): Promise<number> {
     const raw = await client.get(userVersionKey(email));
     const ver = raw ? Number(raw) : 0; // ← default 0 so first INCR moves 0→1
     return Number.isFinite(ver) && ver >= 0 ? ver : 0;
-  } catch { return 0; }
+  } catch {
+    return 0;
+  }
 }
 
 /**
@@ -59,7 +64,8 @@ export async function getUserVersion(email: string): Promise<number> {
  * @description
  *   Increment the per-user version counter. Call this immediately after successful Firestore writes
  *   that affect profile/usage/validation semantics. Readers will automatically shift to fresh keys.
- *   Returns the new version for observability. Time complexity is O(1).
+ *   Returns the new version for observability. Time complexity is O(1). A failure here is logged
+ *   but does not throw, because inability to bump the cache version must not break user flows.
  */
 export async function bumpUserVersion(email: string): Promise<number> {
   const client = getRedis();
@@ -78,7 +84,9 @@ export async function bumpUserVersion(email: string): Promise<number> {
  * @description
  *   Versioned, read-through cache for a user profile. The caller provides a loader that fetches the
  *   authoritative data (e.g., Firestore read/create). This helper constructs the versioned key and
- *   applies cache-aside with negative-cache protection for nulls. Time complexity is O(1) for Redis.
+ *   applies cache-aside with negative-cache protection for nulls. If the cache path fails (for
+ *   example due to Redis connectivity issues), the function fails open by invoking the loader
+ *   directly, ensuring user profile reads never return 500 purely because the cache is unhealthy.
  */
 export async function cacheReadUserProfile(
   email: string,
@@ -87,36 +95,72 @@ export async function cacheReadUserProfile(
   const ver = await getUserVersion(email);
   const key = userProfileKey(ver, email);
 
-  const wrapped = async () => {
+  // update - 2004
+  // (1) Wrap the caller-provided loader to normalize nullish values and add logging.
+  const wrapped = async (): Promise<UserProfile | null> => {
+    // (1.1) Execute the authoritative loader, which may create or read a profile from Firestore.
     const p = await loader();
+    // (1.2) On a nullish result, log and propagate a normalized null used for negative caching.
     if (!p) {
       console.log('lib/userCache.ts [6605] profile loader→NEG', { email, ver });
       return null;
     }
-    console.log('lib/userCache.ts [6606] profile loader→OK', { email, ver, tier: p.subscriptionTier, acct: p.accountType });
+    // (1.3) On a successful profile read, log key attributes for observability.
+    console.log('lib/userCache.ts [6606] profile loader→OK', {
+      email,
+      ver,
+      tier: p.subscriptionTier,
+      acct: p.accountType,
+    });
+    // (1.4) Return the strongly typed profile object.
     return p;
   };
 
-  const hit = await cacheAside<UserProfile>(
-    key,
-    CACHE_TTL.USER_PROFILE,
-    wrapped,
-    { negativeTtlSec: NEGATIVE_TTL.DEFAULT }
-  );
+  // (2) Attempt to read through cacheAside, mirroring the docCache.ts fail-open pattern.
+  try {
+    const hit = await cacheAside<UserProfile>(
+      key,
+      CACHE_TTL.USER_PROFILE,
+      wrapped,
+      { negativeTtlSec: NEGATIVE_TTL.DEFAULT }
+    );
 
-  if (hit == null) {
-    console.log('lib/userCache.ts [6607] profile NEG hit', { email, ver, key });
-  } else {
-    console.log('lib/userCache.ts [6608] profile HIT/SET', { email, ver, key });
+    // (2.1) Distinguish between a negative cache hit and a concrete profile.
+    if (hit == null) {
+      console.log('lib/userCache.ts [6607] profile NEG hit', { email, ver, key });
+    } else {
+      console.log('lib/userCache.ts [6608] profile HIT/SET', { email, ver, key });
+    }
+
+    // (2.2) Return the cached or just-loaded value to the caller.
+    return hit;
+  } catch (e) {
+    // (3) If the cache path itself fails (Redis offline, timeouts, serialization issues), fail open.
+    const msg = (e as Error)?.message ?? String(e);
+    console.warn('lib/userCache.ts [6609] profile cache path failed, falling back to loader', {
+      email,
+      ver,
+      key,
+      err: msg,
+    });
+
+    // (3.1) Bypass Redis on fallback to avoid recursive failures; call the loader directly.
+    const fresh = await wrapped();
+
+    // (3.2) Return the fresh profile (or null) back to the caller without additional cache attempts.
+    return fresh;
   }
-  return hit;
 }
 
 /**
  * cacheReadUserUsage
  * @description
  *   Versioned, read-through cache for a user’s usage snapshot. The caller provides a loader that
- *   reads or creates/migrates the usage document. Time complexity is O(1) for Redis operations.
+ *   reads or creates/migrates the usage document. The function mirrors `cacheReadUserProfile` by
+ *   first attempting a cache-aside read and then, on any cache-layer failure (such as Redis timeouts
+ *   or network errors), falling back to invoking the loader directly. This guarantees that usage-
+ *   dependent flows, including subscription checks and rate limits, continue to function even if
+ *   the cache is degraded, while retaining O(1) Redis-time complexity when the cache is healthy.
  */
 export async function cacheReadUserUsage(
   email: string,
@@ -125,29 +169,57 @@ export async function cacheReadUserUsage(
   const ver = await getUserVersion(email);
   const key = userUsageKey(ver, email);
 
-  const wrapped = async () => {
+  // update - 2005
+  // (1) Wrap the caller-provided loader to normalize nullish usage and add structured logging.
+  const wrapped = async (): Promise<UserUsage | null> => {
+    // (1.1) Execute the authoritative loader that reads or creates usage data in Firestore.
     const u = await loader();
+
+    // (1.2) When usage is absent, log a negative outcome and propagate null for negative caching.
     if (!u) {
       console.log('lib/userCache.ts [6611] usage loader→NEG', { email, ver });
       return null;
     }
+
+    // (1.3) On a successful usage read, log a concise success event.
     console.log('lib/userCache.ts [6612] usage loader→OK', { email, ver });
     return u;
   };
 
-  const hit = await cacheAside<UserUsage>(
-    key,
-    CACHE_TTL.USER_USAGE,
-    wrapped,
-    { negativeTtlSec: NEGATIVE_TTL.DEFAULT }
-  );
+  // (2) Attempt to read through cacheAside, catching cache-layer failures for fail-open behavior.
+  try {
+    const hit = await cacheAside<UserUsage>(
+      key,
+      CACHE_TTL.USER_USAGE,
+      wrapped,
+      { negativeTtlSec: NEGATIVE_TTL.DEFAULT }
+    );
 
-  if (hit == null) {
-    console.log('lib/userCache.ts [6613] usage NEG hit', { email, ver, key });
-  } else {
-    console.log('lib/userCache.ts [6614] usage HIT/SET', { email, ver, key });
+    // (2.1) Log whether the result came from a negative sentinel or a concrete cached value.
+    if (hit == null) {
+      console.log('lib/userCache.ts [6613] usage NEG hit', { email, ver, key });
+    } else {
+      console.log('lib/userCache.ts [6614] usage HIT/SET', { email, ver, key });
+    }
+
+    // (2.2) Return the cached or just-loaded usage snapshot to the caller.
+    return hit;
+  } catch (e) {
+    // (3) If the cache path throws (for example Redis outages), fall back directly to the loader.
+    const msg = (e as Error)?.message ?? String(e);
+    console.warn('lib/userCache.ts [6615] usage cache path failed, falling back to loader', {
+      email,
+      ver,
+      key,
+      err: msg,
+    });
+
+    // (3.1) Call the wrapped loader without touching Redis again to avoid repeated cache failures.
+    const fresh = await wrapped();
+
+    // (3.2) Return the freshly loaded usage snapshot (or null) back to the caller.
+    return fresh;
   }
-  return hit;
 }
 
 /**
@@ -155,7 +227,8 @@ export async function cacheReadUserUsage(
  * @description
  *   Reads a short-lived, composite validation result from Redis for (service,email,ver). This is an
  *   optional micro-cache that helps when multiple requests ask the same question within seconds.
- *   Time complexity is O(1).
+ *   Time complexity is O(1). Any Redis or JSON errors are caught and logged, and the function returns
+ *   null so the caller can recompute validation instead of failing, preserving fail-open semantics.
  */
 export async function readValidationResult(
   service: string,
@@ -230,7 +303,9 @@ export async function writeValidationResult( // update - 2003
     console.log('lib/userCache.ts [6623] validation SET (Phase 2)', { service, email, ver, ttl, allowed: value?.allowed });
   } catch (e) {
     console.warn('lib/userCache.ts [6624] validation write failed (non-fatal)', {
-      service, email, err: (e as Error)?.message
+      service,
+      email,
+      err: (e as Error)?.message,
     });
   }
 }

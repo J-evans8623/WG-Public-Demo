@@ -52,7 +52,7 @@ body {
 }
 
 .brand-name {
-  color: #5B8C5A;
+  color: #8B0000;
 }
 
 .hero-left p {
@@ -273,100 +273,48 @@ body {
   border-radius: 50%;
 }
 
-/* Pricing Section */
-.pricing-section {
-  padding: 80px 0;
+/* CTA Section */
+.cta-section {
+  padding: 100px 0;
+  background: white;
 }
 
-.pricing-section h2 {
+.cta-box {
+  max-width: 700px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 60px 40px;
+  background: linear-gradient(135deg, #FFFBEF 0%, #FFF5E1 100%);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.cta-box h2 {
   font-family: 'Crimson Text', serif;
-  font-size: 2.5rem;
-  text-align: center;
-  margin-bottom: 48px;
-}
-
-.pricing-toggle {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 48px;
-}
-
-.toggle-container {
-  background: white;
-  border-radius: 12px;
-  padding: 6px;
-  display: flex;
-  gap: 4px;
-}
-
-.toggle-option {
-  padding: 12px 24px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-}
-
-.toggle-option.active {
-  background: #5B8C5A;
-  color: white;
-}
-
-.pricing-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 32px;
+  font-size: 2.75rem;
   margin-bottom: 24px;
+  line-height: 1.2;
 }
 
-.pricing-card {
-  background: white;
-  padding: 40px 32px;
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  text-align: center;
-}
-
-.pricing-card h3 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-
-.price {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #5B8C5A;
-  margin-bottom: 24px;
-}
-
-.price-subtext {
-  font-size: 0.875rem;
+.cta-description {
+  font-size: 1.15rem;
   color: #2C3E50;
-  opacity: 0.6;
-  margin-left: 4px;
+  opacity: 0.85;
+  margin-bottom: 36px;
+  line-height: 1.7;
 }
 
-.feature-list {
-  list-style: none;
-  margin-bottom: 32px;
-  text-align: left;
-}
-
-.feature-list li {
-  padding: 8px 0;
-  font-size: 0.95rem;
-}
-
-.pricing-footnote {
-  text-align: center;
-  font-size: 0.875rem;
-  color: #2C3E50;
-  opacity: 0.6;
+.btn-large {
+  padding: 18px 48px;
+  font-size: 1.1rem;
   margin-bottom: 16px;
+}
+
+.cta-note {
+  font-size: 0.9rem;
+  color: #2C3E50;
+  opacity: 0.65;
+  margin-top: 16px;
 }
 
 /* Footer */
@@ -398,8 +346,7 @@ body {
 @media (max-width: 768px) {
   .hero-content,
   .feature-cards,
-  .proof-tiles,
-  .pricing-cards {
+  .proof-tiles {
     grid-template-columns: 1fr;
   }
 
@@ -410,5 +357,13 @@ body {
   .honesty-content {
     flex-direction: column;
     gap: 16px;
+  }
+
+  .cta-box {
+    padding: 40px 24px;
+  }
+
+  .cta-box h2 {
+    font-size: 2rem;
   }
 }
