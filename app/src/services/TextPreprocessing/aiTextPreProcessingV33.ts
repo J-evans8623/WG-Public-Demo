@@ -12,9 +12,9 @@
  *
  */
 
-import AIService from '../aiServiceV2';
-import {  unitSyllabusPromptV2, unitSyllabusArray  } from './utils/syllabusSchemav2';
-//import { unitSyllabusArrayOpenAI as unitSyllabusArray } from '../../schemas/openai/unitSyllabus.openai';
+import AIService from '../aiService';
+import {  unitSyllabusPromptV2  } from './utils/syllabusSchemav2'; // gemini -> unitSyllabusArray
+import { unitSyllabusArrayOpenAI as unitSyllabusArray } from '../../schemas/openai/unitSyllabus.openai';
 import OpenAI from 'openai';
 import UsageTracker from '../UsageTracker';
 
@@ -49,6 +49,7 @@ export interface BatchedSyllabus {
 }
 
 // ─── Combined Syllabus + Metadata Generation ────────────────────────────────────
+// ─── Combined Syllabus + Metadata Generation ────────────────────────────────────
 export async function generateBatchedUnitSyllabus(
   fullText: string,
   topicAmount: string,
@@ -57,15 +58,29 @@ export async function generateBatchedUnitSyllabus(
 ): Promise<BatchedSyllabus> {
   console.log('[aiTextPreProcessingV32.ts][2003] generateBatchedUnitSyllabus START', { topicAmount, max });
 
-  console.log(`-----------------Text input to aiTextPreProcessingV32.ts [2000] \n--------- ${JSON.stringify(fullText)} \n -----------------Text input to aiTextPreProcessingV32.ts [2000] end \n---------`)
+  console.log(
+    `-----------------Text input to aiTextPreProcessingV32.ts [2000] \n--------- ${JSON.stringify(
+      fullText
+    )} \n -----------------Text input to aiTextPreProcessingV32.ts [2000] end \n---------`
+  );
 
   const prompt = unitSyllabusPromptV2(topicAmount, max);
+
+  // #7575 syllabus Latency test – track time for the unit-syllabus LLM call
+  const syllabusStart = Date.now();
+
   const raw: any = await aiService.generateStructuredOutput(
     { name: unitSyllabusArray.name, schema: unitSyllabusArray.schema, strict: unitSyllabusArray.strict },
     fullText,
     prompt,
     { stream: false, tracker: usageTracker }
   );
+
+  const syllabusElapsedSec = (Date.now() - syllabusStart) / 1000;
+  console.log(
+    `#7575 syllabus Latency test | Unit syllabus : ${syllabusElapsedSec.toFixed(2)} seconds`
+  );
+
   console.log('[aiTextPreProcessingV32.ts][2004] generateBatchedUnitSyllabus RAW', raw);
 
   // Parse and shape into our TypeScript interfaces
@@ -79,17 +94,18 @@ export async function generateBatchedUnitSyllabus(
       LessonOutline: ps.LessonOutline,
       SecondarySubtopic: ps.SecondarySubtopic,
       ChronologicalOrder: ps.ChronologicalOrder,
-      relevantPages: ps.relevantPages  
+      relevantPages: ps.relevantPages
     }))
   };
 
-  console.log(
-    '[aiTextPreProcessingV32.ts][2005] generateBatchedUnitSyllabus PARSED',
-    { title: parsed.LessonTitle, count: parsed.unit_syllabus.length }
-  );
+  console.log('[aiTextPreProcessingV32.ts][2005] generateBatchedUnitSyllabus PARSED', {
+    title: parsed.LessonTitle,
+    count: parsed.unit_syllabus.length
+  });
 
   return parsed;
 }
+
 
 // ─── Legacy Embedding Support ───────────────────────────────────────────────────
 export async function generateEmbedding(text: string): Promise<number[]> {

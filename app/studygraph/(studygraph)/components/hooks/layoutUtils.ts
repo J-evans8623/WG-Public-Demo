@@ -1,6 +1,6 @@
 //bloom-maps\app\Library\components\AI\layoutUtils.ts
 /**
- * This layout algorithm determines the positioon of a newly created node. It
+ * This layout algorithm determines the position of a newly created node. It
  * can only process 1 new node at a time. The parent node postion must be defined 
  * before its child node.
  * 

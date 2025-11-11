@@ -1,13 +1,13 @@
 /**
  * @file app/src/services/TextPreprocessing/LessonModuleServiceV8.ts
  * @description
- *   Optimised version of LessonModuleServiceV4 that overlaps global-metadata
+ *   Optimised version of LessonModuleServiceV3 that overlaps global-metadata
  *   generation with structural work.  External API remains identical:
  *     generateLessonFromSegment(
  *        segment, documentID, sourceFileId, pageCount
  *     ) ➜ Promise<lessonSchema JSON>
  *
- *   Differences from the original V4:
+ *   Differences from the original V3:
  *     • Stage-D call to generateFinalizedSyllabus *removed* from processDocument.
  *     • generateFinalizedSyllabusv2(segment) is kicked off up-front and awaited
  *       only when merging, so the LLM can work in parallel.
@@ -115,7 +115,7 @@ async function structuralPass(
 }
 
 /* ------------------------------------------------------------------ */
-/* PUBLIC • identical signature to old V4                             */
+/* PUBLIC • identical signature to old V3                             */
 /* ------------------------------------------------------------------ */
 /* ------------------------------------------------------------------ */
 /*  generateLessonFromSegment – minimal, uses raw model JSON          */
@@ -144,6 +144,10 @@ console.log('[LessonModuleServiceV7.ts][6001] START generateLessonFromSegment', 
     nodesCount: nodes.length
   });
 
+
+   // #7575 subtree Latency test – track per-branch timings (one branch per node/unit)
+  const branchTimingsSeconds: number[] = [];
+
     // 1️⃣ Build per-node enrichment promises
   const enrichmentPromises = nodes.map((node, idx) => {
     // Adjust 1-based pageSequence to 0-based and extract text pages
@@ -171,10 +175,23 @@ console.log('[LessonModuleServiceV7.ts][6001] START generateLessonFromSegment', 
 
     let maxWordCount = Math.max(150, Math.min(maxWordsPerSubtopic, 400));
 
+    // --- timing starts here for this subtree branch ---
+    const start = Date.now();
+
     // Invoke V3 on this single-node slice
     return callWithRetry(() =>
-      AIController.generateSubtreeLessonV3([node], metadata.LessonTitle, LessonSegment, maxWordCount,  usageTracker)
-    );
+      AIController.generateSubtreeLessonV3([node], metadata.LessonTitle, LessonSegment, maxWordCount, usageTracker)
+    ).then(result => {
+      const elapsedSec = (Date.now() - start) / 1000;
+      branchTimingsSeconds[idx] = elapsedSec;
+
+      // Per-branch latency log
+      console.log(
+        `#7575 subtree Latency test | Subtree branch ${idx + 1} : ${elapsedSec.toFixed(2)} seconds`
+      );
+
+      return result;
+    });
 });
 
     // 2️⃣ Execute all V3 calls in parallel

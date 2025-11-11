@@ -22,16 +22,17 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import AIService from "../services/aiServiceV2";
+import AIService from "../services/aiService";
 import { predefinedPrompts,  getQuizSystemPrompt, buildSubtreePromptV22 } from "../config/predefined-prompts";
-//import { subtreeSchemaV3OpenAI as subtreeSchemaV3 } from '../schemas/openai/subtreeSchemaV3.openai';
-import { subtreeSchemaV3 } from '../schemas/gemini/subtreeschemaV3.gemini';
+import { subtreeSchemaV3OpenAI as subtreeSchemaV3 } from '../schemas/openai/subtreeSchemaV3.openai';
+//import { subtreeSchemaV3 } from '../schemas/gemini/subtreeschemaV3.gemini';
 import {topicSchema,  EnrichedPrimary} from "../schemas/lessonSchema";
 import { MatchingQuizSchema, MultipleChoiceSchema, FillInBlankSchema, TrueFalseSchema } from "../schemas/quizSchema";
 import { getTextContext } from '@/app/src/services/TextPreprocessing/QuestionContextService';
 import { QAschema } from '@/app/src/schemas/QASchema';
 import { formatSyllabusForPrompt, PrimaryForPrompt } from './formatSyllabus';
 import UsageTracker from '../services/UsageTracker'; 
+import { parallelProcessSubtree } from '../services/TextPreprocessing/ParallelProcessSubtree';
 
 
 class AIController {
@@ -356,6 +357,59 @@ public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): P
   };
    
     return {primary_subtopics:[enriched]}
+  }
+
+
+
+  /**
+   * generateSubtreeLessonV3  
+   *
+   * @description
+   *   Generates detailed lesson content for a single syllabus unit by delegating to
+   *   the `parallelProcessSubtree` utility. Instead of issuing one monolithic LLM
+   *   call that mixes the primary and secondary topics, this method now enriches the
+   *   main topic and each supporting topic in parallel using provider-specific
+   *   “head” schemas and a shared unit-level syllabus context. The public signature
+   *   and return shape remain unchanged so callers such as `LessonModuleServiceV8`
+   *   can continue to treat this as a black box that returns an array of
+   *   `EnrichedPrimary` entries. Quiz generation is still attached to the primary
+   *   topic only, and the same per-topic word budget is applied across all topics
+   *   within the unit. Time complexity is O(N) in the number of supporting topics,
+   *   with latency dominated by the slowest topic call thanks to parallelism.
+   *
+   * @param roots - Array containing a single PrimaryNode-like syllabus unit.
+   * @param mainTopic - The human-readable lesson title for this unit.
+   * @param LessonText - Textbook pages for this unit, joined into a single string.
+   * @param wordcount - Maximum word budget for each topic’s lecture note.
+   * @param usageTracker - Optional UsageTracker for recording token and retry usage.
+   * @returns Promise resolving to an object with `primary_subtopics: EnrichedPrimary[]`.
+   */
+  public static async generateSubtreeLessonV4(roots: any[], mainTopic:string, LessonText:string, wordcount:number,  usageTracker?: UsageTracker  ): Promise<{
+  primary_subtopics: EnrichedPrimary[];
+}> { 
+    // Step 1: Validate and normalize input roots (expect exactly one unit for this path). 
+    if (!roots || roots.length === 0) { 
+      throw new Error('generateSubtreeLessonV3 requires at least one root node'); 
+    } 
+
+    const unit = roots[0]; 
+
+    // Step 2: Select provider from configuration (default to Gemini). 
+    const providerEnv = process.env.LESSON_ENRICH_PROVIDER?.toLowerCase(); 
+    const provider = providerEnv === 'openai' ? 'openai' : 'gemini'; 
+
+    // Step 3: Delegate to the core parallel subtree processor. 
+    const enriched = await parallelProcessSubtree( 
+      unit, 
+      LessonText, 
+      mainTopic, 
+      wordcount, 
+      provider, 
+      usageTracker 
+    ); 
+
+    // Step 4: Preserve historical return shape by wrapping the single enriched unit. 
+    return { primary_subtopics: [enriched] }; 
   }
 
 }

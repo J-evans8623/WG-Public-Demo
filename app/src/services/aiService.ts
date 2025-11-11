@@ -109,6 +109,7 @@ class AIService {
           { role: "system", content: systemPrompt },
           { role: "user", content: userInput },
         ],
+        reasoning_effort: "low",
         response_format: { 
           type: "json_schema",
           json_schema: {
