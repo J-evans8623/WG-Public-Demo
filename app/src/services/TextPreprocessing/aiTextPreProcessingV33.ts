@@ -81,7 +81,7 @@ export async function generateBatchedUnitSyllabus(
     `#7575 syllabus Latency test | Unit syllabus : ${syllabusElapsedSec.toFixed(2)} seconds`
   );
 
-  console.log('[aiTextPreProcessingV32.ts][2004] generateBatchedUnitSyllabus RAW', raw);
+  console.log('[aiTextPreProcessingV32.ts][2004] generateBatchedUnitSyllabus RAW', JSON.stringify(raw));
 
   // Parse and shape into our TypeScript interfaces
   const parsed: BatchedSyllabus = {

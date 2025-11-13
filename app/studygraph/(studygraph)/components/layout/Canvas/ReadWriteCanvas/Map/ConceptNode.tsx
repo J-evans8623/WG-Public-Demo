@@ -480,7 +480,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
             />
           ) : (
             <p
-              className={canEdit ? 'node-title' : 'text-center font-bold line-clamp-2 text-gray-600'} // update - 16
+              className={ 'node-title' } // update - 16
               onDoubleClick={handleTitleDoubleClick} // harmless in RO due to gating
             >
               {title}
