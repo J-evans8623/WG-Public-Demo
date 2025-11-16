@@ -533,41 +533,13 @@
   position: relative;
   width: 100%;
   max-width: 540px;                 /* wider than old 420px demo frame */
-  border-radius: 20px;
+  border-radius: 2px;
   padding: clamp(14px, 2.4vw, 22px); /* slightly slimmer padding = more room for video */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   border: 1px solid rgba(212, 196, 176, 0.9);  /* thin beige border */
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16); /* soft but noticeable shadow */
 }
-
-
-/* Scene 1 stage uses the concept-map background plate */
-.wg-scene-stage-map {
-  background-image: url('/brand/scene1stage.png'); /* public/brand/scene1stage.png */
-}
-
-/* Video shell that the MP4 sits inside */
-.wg-scene-video-shell {
-  max-width: 100%;
-  aspect-ratio: 16 / 9;
-  margin: 0 auto;
-  border-radius: 18px;
-  overflow: hidden;
-  background-color: #000; /* avoids white bars before the video paints */
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
-}
-
-/* Actual video element */
-.wg-scene-video {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-
 
 .wg-brand-logo {
 height: 32px;  /* Fixed reasonable size for nav */

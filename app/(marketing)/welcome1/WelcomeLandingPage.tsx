@@ -54,7 +54,10 @@ function WelcomeLandingPage(): JSX.Element {
       observers.forEach((obs) => obs?.disconnect());
     };
   }, []);
-    // '/demo/calendar-scene-2-opt.mp4'
+
+
+    // "url('/brand/scene-4-stage.png')"
+    // public\brand\scene-4-stage.png
   // Scene data configuration
   const scenes: SceneConfig[] = [
     {
@@ -74,7 +77,7 @@ function WelcomeLandingPage(): JSX.Element {
       body:
         "Pick your notebooks and WiseGraph auto-builds a schedule that spaces lessons and weaves topics together. Instead of guessing what to review next, you see today's blocks laid out for you—calm, predictable, and aligned with how memory works.",
       videoSrc: '/demo/calendar-scene-2-opt.mp4',
-      stageBg: 'linear-gradient(135deg, #fff2e0 0%, #fde9ce 100%)',
+      stageBg: "url('/brand/scene-2-stage.png')",
       themeColor: '#e27312',
     },
     {
@@ -93,8 +96,8 @@ function WelcomeLandingPage(): JSX.Element {
       heading: 'Bring your classmates into the same map',
       body:
         "Invite friends into your notebook to ask questions, swap explanations, and keep each other accountable—right next to the concepts you're learning. Threads stay tied to specific nodes, so discussions are focused instead of getting lost in a chat history.",
-      videoSrc: null,
-      stageBg: 'linear-gradient(135deg, #f0fff4 0%, #dcfce7 100%)',
+      videoSrc: '/demo/scene-4-collab.mp4',
+      stageBg:  "url('/brand/scene-4-stage.png')",
       themeColor: '#16a34a',
     },
   ];

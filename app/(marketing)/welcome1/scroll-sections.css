@@ -56,17 +56,19 @@
   position: sticky;
   top: 100px; /* leaves room for nav */
   width: 100%;
-  max-width: 640px;
-  height: clamp(400px, 60vh, 600px);
-  border-radius: 20px;
+  max-width: 720px;
+  height: calc(100vh - 140px);
+  border-radius: 4px;
   padding: clamp(16px, 2.4vw, 24px);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   border: 1px solid rgba(212, 196, 176, 0.9);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
   transition: background-image 0.5s ease;
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .wg-stage-content {
@@ -79,19 +81,22 @@
 
 /* Video shell + video element inside stage */
 .wg-scene-video-shell {
+  /* horizontally generous card, but constrained by the stage width */
   width: 100%;
-  height: 100%;
-  border-radius: 16px;
+  max-width: 720px;      /* you can tweak between 640–800px */
+  aspect-ratio: 1/1;
+  height: auto;
+  max-height: 100%;
+  margin: 0 auto;
   overflow: hidden;
-  background-color: #000;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
 }
 
 .wg-scene-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
   display: block;
+  /* show entire frame (no cropping); you’ll get subtle bars if needed */
+  object-fit: contain;
 }
 
 /* Placeholder visuals for non-video scenes */
@@ -123,12 +128,9 @@
 
 /* Static illustration used in Scene 3 under the copy */
 .wg-scene-illustration {
-  margin-top: 20px;
-  max-width: 420px;
+  margin-top: 12px;
+  max-width: 5200px;
   width: 100%;
-  border-radius: 16px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(212, 196, 176, 0.7);
 }
 
 /* Responsive behaviour – stack on mobile, no sticky panel */
