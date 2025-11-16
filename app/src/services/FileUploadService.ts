@@ -27,7 +27,6 @@
  */
 
 import mongoose from 'mongoose';
-import { GridFSBucket } from 'mongodb';
 import connectDB from '@/app/src/config/db';
 import { convertFileToPdf } from '@/doc-preprocessing-service/gotenberg-service-client';
 import { UserService, UserProfile } from '@/app/src/services/userService';
@@ -90,7 +89,7 @@ const ALLOWED_MIME_TYPES = [
 // Step 3: GridFS bucket management with singleton pattern
 class GridFSManager {
   private static instance: GridFSManager;
-  private bucket: GridFSBucket | null = null;
+  private bucket: mongoose.mongo.GridFSBucket  | null = null;
   private isInitialized = false;
 
   private constructor() {}
@@ -115,7 +114,7 @@ class GridFSManager {
    * that the database connection is established before bucket operations and provides
    * proper error handling for initialization failures.
    */
-  async getBucket(): Promise<GridFSBucket> {
+  async getBucket(): Promise<mongoose.mongo.GridFSBucket > {
     if (this.isInitialized && this.bucket) {
       return this.bucket;
     }

@@ -107,10 +107,7 @@ const QuizCard: React.FC<QuizCardProps> = ({
           <div className="quiz-card-inner">
             {!hideHeader && (
               <div className="quiz-info-section">
-                <h4 className="quiz-info-title">Ready to Test Your Knowledge?</h4>
-                <p className="quiz-info-description">
-                  This {quizType === 'matching' ? 'matching quiz' : 'quiz'} will test your understanding of key concepts in {title}.
-                </p>
+                <h4 className="quiz-info-title">Test your knowledge</h4>
               </div>
             )}
 

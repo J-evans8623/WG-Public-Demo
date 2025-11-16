@@ -116,19 +116,19 @@
   /* 5) Keep truncation behavior; remove italics to reduce shimmer/blur on LCD */ /* update - 4 */
   font-style: normal; /* was italic */ /* update - 4 */
   display: -webkit-box; /* keep multi-line clamp intact */ /* update - 4 */
-  -webkit-line-clamp: 2; /* update - 4 */
+  -webkit-line-clamp: 1; /* update - 4 */
   -webkit-box-orient: vertical; /* update - 4 */
   overflow: hidden; /* update - 4 */
   word-wrap: break-word; /* update - 4 */
-  hyphens: auto; /* update - 4 */
+  hyphens: auto; 
 }
 
 /* update - 5: Ensure the secondary title scales down gracefully on small screens */
 @media (max-width: 480px) { /* update - 5 */
   .slideshow-concept-secondary { /* update - 5 */
-    font-size: 1rem;    /* keep hierarchy on narrow viewports */ /* update - 5 */
-    -webkit-line-clamp: 2; /* maintain two-line clamp */ /* update - 5 */
-  } /* update - 5 */
+    font-size: 1rem;    
+    -webkit-line-clamp: 1; 
+  } 
 }
 
 

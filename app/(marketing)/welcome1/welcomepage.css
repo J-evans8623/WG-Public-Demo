@@ -135,48 +135,214 @@
   transform: translateY(-1px);
   box-shadow: 0 8px 24px rgba(52, 111, 55, 0.35);
 }
+/* ===========================
+   HERO LAYOUT (with fade)
+   =========================== */
 
-/* Hero section */
 .wg-hero {
-  padding-top: 16px;
-  padding-bottom: 72px;
+  position: relative;
+  overflow: hidden;
+  padding: 80px 48px 88px;
+  background-color: #fff6ea;
+
+  /* desk stage artwork */
+  background-image: url('/brand/scene-0-desk-stage-A.png');
+  background-repeat: no-repeat;
+  background-position: right center;
+  background-size: min(60vw, 900px);
+}
+
+/* soft fade between left copy panel and right desk art */
+.wg-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    #fff6ea 0%,
+    #fff6ea 34%,
+    rgba(255, 246, 234, 0) 60%,
+    rgba(255, 246, 234, 0) 100%
+  );
+  z-index: 0; /* sits above background image, below content */
 }
 
 .wg-hero-inner {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  position: relative;
+  z-index: 1;           /* keep text + monitor above the fade */
+  max-width: 1160px;
+  margin: 0 auto;
+  display: flex;
   align-items: center;
+  gap: 48px;
 }
 
+/* 35% text column */
+.wg-hero-text {
+  flex: 0 0 35%;
+  max-width: 35%;
+  max-width: var(--wg-measure);
+  z-index: 1;
+}
+
+/* typography */
 .wg-hero-heading {
-  font-family: 'Crimson Text', serif;
-  font-size: 3rem;
-  line-height: 1.08;
-  font-weight: 700;
-  color: #2c3e50;
-  margin-bottom: 18px;
+  font-size: 2.6rem;
+  line-height: 1.1;
+  margin-bottom: 1.25rem;
 }
 
 .wg-hero-subtitle {
-  font-size: 1.1rem;
-  line-height: 1.7;
-  color: #2c3e50;
-  opacity: 0.85;
-  margin-bottom: 24px;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  color: #4b5563;
 }
 
 .wg-hero-cta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 0.75rem;
 }
 
 .wg-hero-reassurance {
   font-size: 0.85rem;
-  color: #2c3e50;
-  opacity: 0.7;
+  color: #6b7280;
 }
+
+/* 65% visual column (monitor only – desk is the background) */
+.wg-hero-visual {
+  flex: 0 0 65%;
+  position: relative;
+  min-height: 360px;
+}
+
+/* MONITOR FRAME OVERLAY */
+
+.wg-hero-monitor {
+  position: absolute;
+  right: 8%;
+  top: 8%;
+  width: min(720px, 58vw);   /* tweak to grow/shrink screenshot */
+  border-radius: 18px;
+  padding: 10px;
+  background-color: #151515; /* charcoal frame */
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+.wg-hero-monitor-inner {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.wg-hero-monitor-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ===========================
+   End of HERO LAYOUT
+   =========================== */
+
+
+/* ===========================
+   RESPONSIVE ADJUSTMENTS
+   (hero + existing sections)
+   =========================== */
+
+@media (max-width: 960px) {
+  .wg-main {
+    padding-top: 64px;
+  }
+
+  /* Hero: stack text + visual, keep bleed background */
+  .wg-hero {
+    padding: 64px 20px 72px;
+    background-position: center bottom;
+    background-size: 130%;
+  }
+
+  .wg-hero-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 28px;
+  }
+
+  .wg-hero-text {
+    max-width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .wg-hero-visual {
+    width: 100%;
+    min-height: 260px;
+    margin-top: 8px;
+  }
+
+  .wg-hero-monitor {
+    position: relative;
+    right: auto;
+    top: auto;
+    margin: 0 auto;
+    width: min(420px, 100%);
+  }
+
+  .wg-hero-heading {
+    font-size: 2.4rem;
+  }
+
+  /* keep section layout behaviour */
+  .wg-section-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .wg-section-visual,
+  .wg-section-visual-wide {
+    justify-content: flex-start;
+  }
+}
+
+@media (min-width: 961px) {
+  /* existing section behaviour, unchanged */
+  .wg-section-inner .wg-section-visual-wide {
+    flex: 1.1;
+  }
+
+  .wg-section-inner .wg-section-text {
+    flex: 1;
+  }
+
+  .wg-section-inner {
+    display: flex;
+    gap: var(--wg-gap);
+    align-items: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .wg-nav-inner {
+    padding-inline: 16px;
+  }
+
+  .wg-main {
+    padding-inline: 16px;
+  }
+
+  .wg-hero-heading {
+    font-size: 2.15rem;
+  }
+
+  .wg-hero-subtitle {
+    font-size: 1rem;
+  }
+
+  .wg-final-card {
+    padding-inline: 20px;
+  }
+}
+
 
 /* Generic button styles */
 .wg-btn {
@@ -223,111 +389,8 @@
   font-size: 1.02rem;
 }
 
-/* Hero visual mockup */
-.wg-hero-visual {
-  display: flex;
-  justify-content: flex-end;
-}
 
-.wg-hero-frame {
-  width: 100%;
-  max-width: 420px;
-  background-color: #ffffff;
-  border-radius: 18px;
-  padding: 18px 18px 22px;
-  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.12);
-  border: 1px solid rgba(212, 196, 176, 0.7);
-}
 
-.wg-hero-split {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) 32px minmax(0, 1.1fr);
-  align-items: center;
-  gap: 12px;
-}
-
-.wg-hero-panel {
-  border-radius: 12px;
-  background: #fff7ea;
-  padding: 12px 14px;
-}
-
-.wg-hero-panel-left {
-  background: #fff5e1;
-}
-
-.wg-hero-panel-right {
-  background: #f3faf6;
-}
-
-.wg-hero-panel-header {
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #d4c4b0, #f1e0c8);
-  margin-bottom: 10px;
-}
-
-.wg-hero-panel-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.wg-hero-panel-title {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.wg-hero-lines span {
-  display: block;
-  height: 4px;
-  border-radius: 999px;
-  background-color: rgba(44, 62, 80, 0.16);
-}
-
-.wg-hero-lines span + span {
-  margin-top: 4px;
-  width: 80%;
-}
-
-.wg-hero-lines span:nth-child(3) {
-  width: 60%;
-}
-
-.wg-hero-lines span:nth-child(4) {
-  width: 45%;
-}
-
-.wg-hero-arrow {
-  width: 100%;
-  height: 2px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #6c8ebf, #5b8c5a);
-}
-
-/* Concept-map side */
-.wg-hero-map {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-}
-
-.wg-hero-node {
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 0.76rem;
-  font-weight: 500;
-  background-color: #dbe7ff;
-  color: #25405f;
-}
-
-.wg-hero-node-main {
-  background-color: #b9dfbf;
-  color: #23402a;
-}
 
 /* Section shared styles */
 .wg-section {
@@ -346,7 +409,8 @@
 }
 
 
-.wg-hero-text,
+
+
 .wg-section-text{
   max-width: var(--wg-measure); /* prevents super-wide lines on desktops */
 }
@@ -464,6 +528,46 @@
 }
 
 
+/* Scene stages (background plates for demo videos) */
+.wg-scene-stage {
+  position: relative;
+  width: 100%;
+  max-width: 540px;                 /* wider than old 420px demo frame */
+  border-radius: 20px;
+  padding: clamp(14px, 2.4vw, 22px); /* slightly slimmer padding = more room for video */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: 1px solid rgba(212, 196, 176, 0.9);  /* thin beige border */
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16); /* soft but noticeable shadow */
+}
+
+
+/* Scene 1 stage uses the concept-map background plate */
+.wg-scene-stage-map {
+  background-image: url('/brand/scene1stage.png'); /* public/brand/scene1stage.png */
+}
+
+/* Video shell that the MP4 sits inside */
+.wg-scene-video-shell {
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  border-radius: 18px;
+  overflow: hidden;
+  background-color: #000; /* avoids white bars before the video paints */
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
+}
+
+/* Actual video element */
+.wg-scene-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+
 
 .wg-brand-logo {
 height: 32px;  /* Fixed reasonable size for nav */
@@ -473,22 +577,40 @@ height: 32px;  /* Fixed reasonable size for nav */
   color: #8B0000;
 }
 
+/* ===========================
+   HERO – RESPONSIVE
+   =========================== */
 
-/* Responsive adjustments */
 @media (max-width: 960px) {
-  .wg-main {
-    padding-top: 64px;
+  .wg-hero {
+    padding: 64px 20px 72px;
+    background-position: center bottom;
+    background-size: 130%;
   }
 
-  .wg-hero-inner,
-  .wg-section-inner {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 32px;
+  .wg-hero-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 28px;
   }
 
-  .wg-hero-visual,
-  .wg-section-visual {
-    justify-content: flex-start;
+  .wg-hero-text {
+    max-width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .wg-hero-visual {
+    width: 100%;
+    min-height: 260px;
+    margin-top: 8px;
+  }
+
+  .wg-hero-monitor {
+    position: relative;
+    right: auto;
+    top: auto;
+    margin: 0 auto;
+    width: min(420px, 100%);
   }
 
   .wg-hero-heading {
@@ -497,14 +619,6 @@ height: 32px;  /* Fixed reasonable size for nav */
 }
 
 @media (max-width: 640px) {
-  .wg-nav-inner {
-    padding-inline: 16px;
-  }
-
-  .wg-main {
-    padding-inline: 16px;
-  }
-
   .wg-hero-heading {
     font-size: 2.15rem;
   }
@@ -512,18 +626,4 @@ height: 32px;  /* Fixed reasonable size for nav */
   .wg-hero-subtitle {
     font-size: 1rem;
   }
-
-  .wg-hero-frame,
-  .wg-demo-frame {
-    max-width: 100%;
-  }
-
-  .wg-final-card {
-    padding-inline: 20px;
-  }
-
-
-
-
-
 }

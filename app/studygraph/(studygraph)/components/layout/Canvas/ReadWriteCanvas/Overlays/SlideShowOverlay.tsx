@@ -23,14 +23,10 @@ import ReactDOM from 'react-dom';
 // update - 1: Replace icon set usage to align with legacy buttons (text nav + icons only where used)
 import { X, BookmarkIcon, MessageSquare, Brain, Pencil } from 'lucide-react'; // update - 1
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
-// update - 2: Use access mode to compute capabilities (and hide Edit entirely in RO)
-// update - 3: Keep helpers but we’ll render legacy DOM/classes.
 import { parseJumpToIndex, makeKeydownHandler, focusInput, autoAdvanceOnAskCompletion } from './OverlayBehaviors'; // update - 3
-
-// update - 4: Use the same card components as before; QuizCard is the unified version.
 import NoteCard from '../../../CardDisplay/Cards/NoteCard';
 import CueCard from '../../../CardDisplay/Cards/CueCard';
-import QuizCard from '../Cards/QuizCard'; // update - 4
+import QuizCard from '../Cards/QuizCard'; 
 import AskAssistantPanel from '../../../CardDisplay/Cards/AskAssistantPanel';
 import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/Cards/SlideShowv2.css';
 
@@ -38,7 +34,7 @@ import { useComments } from '@/app/Library/Context/forum/CommentContext';
 import DiscussionFormInput from '../../../forum/DiscussionFormInput';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
-// update - 16: Restore the edit experience by importing the full-screen edit form
+
 import SlideShowEditForm from '../../../CardDisplay/Cards/SlideShowEditForm';
 import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
 
@@ -237,11 +233,11 @@ const SlideShowOverlay: React.FC = () => {
             onSave={() => { console.log('[SlideShowOverlay.tsx][1311] Edit saved, exiting edit mode'); setIsEditing(false); }} // update - 17
             onCancel={() => { console.log('[SlideShowOverlay.tsx][1312] Edit canceled, exiting edit mode'); setIsEditing(false); }} // update - 17
           /> {/* update - 17 */}
-        </div> {/* update - 17 */}
-      </>, // update - 17
-      document.body // update - 17
-    ); // update - 17
-  } // update - 17
+        </div> 
+      </>, 
+      document.body 
+    ); 
+  } 
 
   // update - 10: Legacy DOM/class tokens restored below (header/footer/counter/nav/buttons)
   return ReactDOM.createPortal(
@@ -252,9 +248,9 @@ const SlideShowOverlay: React.FC = () => {
         <header className="slideshow-header"> {/* update - 11 */}
           <div className="slideshow-header-left"> {/* update - 11 */}
             <div className="slideshow-header-concept"> {/* update - 11 */}
-              <h1 className="slideshow-concept-name">{nodetitle || 'Current Lesson'}</h1> {/* update - 11 */}
+              <h1 className="slideshow-concept-name">{nodetitle || 'Current Lesson'}</h1> 
               {currentSlide.title && (
-                <span className="slideshow-concept-secondary">{currentSlide.title}</span> /* update - 11 */
+                <span className="slideshow-concept-secondary">{currentSlide.title}</span> 
               )}
             </div>
           </div>

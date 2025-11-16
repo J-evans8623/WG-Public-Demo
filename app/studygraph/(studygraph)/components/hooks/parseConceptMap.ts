@@ -315,7 +315,7 @@ export async function parseConceptMap(
           await dependencies.createResource({
             nodeId: subtopicNodeId,
             type: 'quiz',
-            title: `${subtopic.title} Quiz`,
+            title: `Matching Quiz`,
             content: translatedNodeQuiz,
             mapId: mapID,
           });
@@ -446,7 +446,7 @@ if (responseData?.main_topic?.quiz) {
   await dependencies.createResource({
     nodeId: reviewNodeId,
     type: 'quiz', // This gets mapped to a 'practiceSheet' resource internally.
-    title: 'Module Quiz',
+    title: 'Unit Quiz',
     content: translatedQuiz,
     mapId: mapID,
   });

@@ -1,0 +1,155 @@
+/**
+ * @file app\(marketing)\welcome1\scroll-sections.css
+ * @description
+ *   Sticky “scrollytelling” section for the WiseGraph marketing page.
+ *   Handles the Todoist-style layout where the right-hand visual stays
+ *   pinned while the left-hand text scenes scroll past.
+ */
+
+/* Scroll section wrapper */
+.wg-scroll-section {
+  padding: 80px 0 120px;
+  min-height: 300vh; /* enough height to step through all scenes */
+}
+
+/* Two-column layout: left scenes, right sticky stage */
+.wg-scroll-container {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(32px, 6vw, 80px);
+  align-items: flex-start;
+}
+
+/* Left-hand column: stacked scene text blocks */
+.wg-scenes-column {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Each text scene behaves like a “page” in the scroll */
+.wg-scene-text-block {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(40px, 8vh, 80px) 0;
+  max-width: var(--wg-measure);
+}
+
+/* Let eyebrow color be themed per scene via CSS variable */
+.wg-section-eyebrow {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--scene-theme-color, #6c8ebf);
+  margin-bottom: 8px;
+}
+
+/* Right-hand column: sticky visual stage */
+.wg-sticky-column {
+  position: relative;
+  height: 100%;
+}
+
+.wg-sticky-stage {
+  position: sticky;
+  top: 100px; /* leaves room for nav */
+  width: 100%;
+  max-width: 640px;
+  height: clamp(400px, 60vh, 600px);
+  border-radius: 20px;
+  padding: clamp(16px, 2.4vw, 24px);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: 1px solid rgba(212, 196, 176, 0.9);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
+  transition: background-image 0.5s ease;
+  margin-left: auto;
+}
+
+.wg-stage-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Video shell + video element inside stage */
+.wg-scene-video-shell {
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  background-color: #000;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
+}
+
+.wg-scene-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Placeholder visuals for non-video scenes */
+.wg-demo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(231, 223, 205, 0.5),
+    rgba(231, 223, 205, 0.5) 6px,
+    rgba(255, 248, 233, 0.6) 6px,
+    rgba(255, 248, 233, 0.6) 12px
+  );
+}
+
+.wg-demo-label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #2c3e50;
+  opacity: 0.75;
+  text-align: center;
+  padding: 20px;
+}
+
+
+/* Static illustration used in Scene 3 under the copy */
+.wg-scene-illustration {
+  margin-top: 20px;
+  max-width: 420px;
+  width: 100%;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(212, 196, 176, 0.7);
+}
+
+/* Responsive behaviour – stack on mobile, no sticky panel */
+@media (max-width: 960px) {
+  .wg-scroll-container {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .wg-sticky-column {
+    display: none; /* mobile uses simple stacked scenes */
+  }
+
+  .wg-scene-text-block {
+    min-height: auto;
+    padding: 40px 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .wg-scroll-section {
+    padding: 40px 0 60px;
+  }
+}
