@@ -1,9 +1,11 @@
+// WelcomeLandingPage.tsx
+
 'use client';
 
 /**
  * @file app\(marketing)\welcome1\WelcomeLandingPage.tsx
  * @description
- *   WiseGraph marketing welcome page with sticky scroll “scenes”.
+ *   WiseGraph marketing welcome page with sticky scroll "scenes".
  *   Hero + Todoist-style scroll section (text scenes left, sticky stage
  *   right) + final CTA.
  */
@@ -55,9 +57,6 @@ function WelcomeLandingPage(): JSX.Element {
     };
   }, []);
 
-
-    // "url('/brand/scene-4-stage.png')"
-    // public\brand\scene-4-stage.png
   // Scene data configuration
   const scenes: SceneConfig[] = [
     {
@@ -79,24 +78,24 @@ function WelcomeLandingPage(): JSX.Element {
       videoSrc: '/demo/calendar-scene-2-opt.mp4',
       stageBg: "url('/brand/scene-2-stage.png')",
       themeColor: '#e27312',
-    },
+    }, 
     {
       id: 3,
       eyebrow: 'Built on real learning science',
-      heading: 'Spaced repetition and interleaving, baked in',
+      heading: 'Retention, Not Re-Learning',
       body:
-        'WiseGraph quietly spaces and mixes your practice over time, so concepts move into long-term memory instead of fading after the test. Short, repeated check-ins build confidence without burnout—cramming becomes the exception, not the rule.',
-      videoSrc: '/scene-3/craming-vs-spaced-repetition-scene3.mp4',
+        ' Built-in spacing and interleaving lock concepts into long-term memory, so exams feel like reviews, not rescues.',
+      videoSrc: '/scene-3/scene-3-stage.mp4',
       stageBg: 'linear-gradient(135deg, #ffefe5 0%, #fde7d8 100%)',
       themeColor: '#cf3520',
     },
     {
       id: 4,
       eyebrow: "You don't have to study alone",
-      heading: 'Bring your classmates into the same map',
+      heading: 'Stronger Notes, Built Together',
       body:
-        "Invite friends into your notebook to ask questions, swap explanations, and keep each other accountable—right next to the concepts you're learning. Threads stay tied to specific nodes, so discussions are focused instead of getting lost in a chat history.",
-      videoSrc: '/demo/scene-4-collab.mp4',
+        "Co-edit notes or flashcards and combine your strengths with your peers. So everyone learns faster together.",
+      videoSrc: '/demo/scene-4-16-9-aspect.mp4',
       stageBg:  "url('/brand/scene-4-stage.png')",
       themeColor: '#16a34a',
     },
@@ -130,47 +129,45 @@ function WelcomeLandingPage(): JSX.Element {
 
       <main className="wg-main">
         {/* Hero Section */}
-<section className="wg-hero" aria-labelledby="hero-heading">
-  <div className="wg-hero-inner">
-    <div className="wg-hero-text">
-      <h1 id="hero-heading" className="wg-hero-heading">
-        Unlock Your True Learning Potential
-      </h1>
-      <p className="wg-hero-subtitle">
-        Stay on track all semester long—without last-minute cramming.
-        WiseGraph turns chapters into clear maps, your notes into a
-        schedule, and your semester into steady progress.
-      </p>
-      <div className="wg-hero-cta-row">
-        <a
-          href="/signin?returnTo=/studygraph"
-          className="wg-btn wg-btn-primary"
-        >
-          Start Free
-        </a>
-      </div>
-      <p className="wg-hero-reassurance">
-        No credit card for free tier. Terms and conditions apply.
-      </p>
-    </div>
-    {/* Right side: overlay monitor only */}
-    <div className="wg-hero-visual" aria-hidden="true">
-      <div className="wg-hero-monitor">
-        <div className="wg-hero-monitor-inner">
-          <img
-            src="/brand/hero-shot-highest-res.png"
-            alt=""
-            className="wg-hero-monitor-img"
-          />
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
+        <section className="wg-hero" aria-labelledby="hero-heading">
+          <div className="wg-hero-inner">
+            <div className="wg-hero-text">
+              <h1 id="hero-heading" className="wg-hero-heading">
+                Unlock Your True Learning Potential
+              </h1>
+              <p className="wg-hero-subtitle">
+                Stay on track all semester long—without last-minute cramming.
+                WiseGraph turns every study session into lasting mastery.
+              </p>
+              <div className="wg-hero-cta-row">
+                <a
+                  href="/signin?returnTo=/studygraph"
+                  className="wg-btn wg-btn-primary"
+                >
+                  Start Free
+                </a>
+              </div>
+              <p className="wg-hero-reassurance">
+                No credit card for free tier. Terms and conditions apply.
+              </p>
+            </div>
+            {/* Right side: overlay monitor only */}
+            <div className="wg-hero-visual" aria-hidden="true">
+              <div className="wg-hero-monitor">
+                <div className="wg-hero-monitor-inner">
+                  <img
+                    src="/brand/hero-shot-highest-res.png"
+                    alt=""
+                    className="wg-hero-monitor-img"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* SCROLL SECTION - Todoist-style sticky pattern */}
-<div className="wg-scroll-section">
+        <div className="wg-scroll-section">
           <div className="wg-scroll-container">
             {/* Left: Scrolling text scenes */}
             <div className="wg-scenes-column">
@@ -235,25 +232,23 @@ function WelcomeLandingPage(): JSX.Element {
           </div>
         </div>
 
-        {/* Final CTA Section */}
+        {/* Final CTA Section - NEW DESIGN */}
         <section className="wg-final-cta" aria-labelledby="final-cta-heading">
-          <div className="wg-final-card">
-            <h2 id="final-cta-heading" className="wg-final-heading">
-              Ready to transform your learning?
-            </h2>
-            <p className="wg-final-body">
-              Cramming isnt discipline- its survival mode. It burns energy,
-              kills focus, and leaves you running on empty. Structured learning
-              isnt just efficient—its self-care. WiseGraph gives you a system
-              that works with your brain, not against it.
-            </p>
-            <a
-              href="/billing/offer"
-              className="wg-btn wg-btn-primary wg-btn-large"
-            >
-              Start Today — Take Back Control of Your Semester
-            </a>
-          </div>
+          <h2 id="final-cta-heading" className="wg-cta-heading">
+            Take Back Control of Your Semester
+          </h2>
+          <p className="wg-cta-body">
+            WiseGraph gives you a system that works with your brain, not against it. Start building lasting mastery today.
+          </p>
+          <a
+            href="/billing/offer"
+            className="wg-btn wg-btn-primary wg-btn-cta"
+          >
+            Start Today
+          </a>
+          <p className="wg-cta-footer">
+            Free demo available • No credit card needed. Terms and conditions apply.
+          </p>
         </section>
       </main>
     </div>
