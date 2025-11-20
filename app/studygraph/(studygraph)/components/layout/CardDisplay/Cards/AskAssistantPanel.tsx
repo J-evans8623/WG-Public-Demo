@@ -129,10 +129,6 @@ const AskAssistantPanel: React.FC<AskAssistantPanelProps> = ({
         const { question_title, question_response } = response.data;
         const html = mdParser.render(question_response);
         
-        console.log('[AskAssistantPanel.tsx][4003] Question response processed successfully', {
-          hasTitle: !!question_title,
-          hasResponse: !!question_response
-        });
         
         // Step 5: Create new Note card with processed response
         await createResource({

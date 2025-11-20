@@ -82,7 +82,11 @@ export function useLessonModuleMapper(): void {
                     ? rawCourseTitle.trim()
                     : null;
                 const nextName = courseTitle || mapTitle;
-                updateFileName(nextName);
+                const changeName = getFileName().toLowerCase() == "untitled document"
+                if (changeName){
+                  updateFileName(nextName);
+                }
+                
               } 
             const newMap = addConceptMap(mapTitle, uniqueId); 
             setGeneratedLessons((prev) => [...prev, uniqueId]);

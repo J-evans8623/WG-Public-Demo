@@ -1,0 +1,301 @@
+/***************************************************************************************
+ * @file file-tile.css
+ * @description
+ *   Stylesheet for file tile components featuring a sidebar accent design with horizontal
+ *   layout. This design uses a left-side vertical accent bar that grows on hover, paired
+ *   with a compact horizontal layout optimized for grid display within the files section.
+ *   
+ *   The design emphasizes brand colors including beige/tan tones (#D4C4B0, #FAF8F5) and
+ *   blue accents (#6C8EBF) to maintain visual consistency with the slideshow and other
+ *   application components. The tiles support color-coded accent bars for different
+ *   file types while maintaining a clean, professional aesthetic.
+ *   
+ *   Key features include smooth hover transitions, responsive touch-friendly sizing,
+ *   and accessibility-focused contrast ratios. The design accommodates multi-line
+ *   title truncation and includes a delete button overlay for file management.
+ ***************************************************************************************/
+
+/* Base file tile structure with sidebar accent design */
+.file-tile {
+  background: white;
+  border: 1px solid #E8E8E8;
+  border-radius: 8px;
+  padding: 14px 14px 14px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  min-height: 90px;
+}
+
+/* Left sidebar accent bar */
+.file-tile::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent-color, #C8E6C9);
+  transition: all 0.2s ease;
+}
+
+/* Hover state with slide effect */
+.file-tile:hover {
+  transform: translateX(3px);
+  box-shadow: 0 4px 12px rgba(108, 142, 191, 0.12);
+  border-color: #D4C4B0;
+}
+
+.file-tile:hover::before {
+  width: 4px;
+}
+
+/* Header row with icon and title */
+.file-tile .file-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-left: 6px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Small icon container */
+.file-tile .file-icon-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #FAF8F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8B7355;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* File title with multi-line truncation */
+.file-tile .file-title {
+  font-weight: 500;
+  font-size: 13.5px;
+  color: #2C3E50;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Footer metadata section */
+.file-tile .file-footer {
+  padding-left: 6px;
+  font-size: 11px;
+  color: #6C757D;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Meta information styling */
+.file-tile .file-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 6px;
+  flex-shrink: 0;
+}
+
+.file-tile .file-time {
+  font-size: 11px;
+  color: #6C757D;
+}
+
+/* Delete button overlay */
+.file-tile .delete-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #E0E0E0;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+  z-index: 10;
+}
+
+.file-tile:hover .delete-button {
+  opacity: 1;
+}
+
+.file-tile .delete-button:hover {
+  background: #FFF5F5;
+  border-color: #FCA5A5;
+  transform: scale(1.05);
+}
+
+.file-tile .trash-icon {
+  width: 12px;
+  height: 12px;
+  color: #EF4444;
+}
+
+/* Color variations for different file types */
+.file-tile[data-color="#C8E6C9"],
+.file-tile.color-sage { 
+  --accent-color: #C8E6C9; 
+}
+
+.file-tile[data-color="#FFE0B2"],
+.file-tile.color-peach { 
+  --accent-color: #FFE0B2; 
+}
+
+.file-tile[data-color="#BBDEFB"],
+.file-tile.color-sky { 
+  --accent-color: #BBDEFB; 
+}
+
+.file-tile[data-color="#E1BEE7"],
+.file-tile.color-lavender { 
+  --accent-color: #E1BEE7; 
+}
+
+.file-tile[data-color="#FFCDD2"],
+.file-tile.color-rose { 
+  --accent-color: #FFCDD2; 
+}
+
+.file-tile[data-color="#D4C4B0"],
+.file-tile.color-sand { 
+  --accent-color: #D4C4B0; 
+}
+
+.file-tile[data-color="#B2DFDB"],
+.file-tile.color-mint { 
+  --accent-color: #B2DFDB; 
+}
+
+.file-tile[data-color="#F0E6D2"],
+.file-tile.color-cream { 
+  --accent-color: #F0E6D2; 
+}
+
+.file-tile[data-color="#E8EAF6"],
+.file-tile.color-periwinkle { 
+  --accent-color: #E8EAF6; 
+}
+
+.file-tile[data-color="#FFF9C4"],
+.file-tile.color-butter { 
+  --accent-color: #FFF9C4; 
+}
+
+.file-tile[data-color="#CFD8DC"],
+.file-tile.color-slate { 
+  --accent-color: #CFD8DC; 
+}
+
+.file-tile[data-color="#F8BBD0"],
+.file-tile.color-blush { 
+  --accent-color: #F8BBD0; 
+}
+
+.file-tile[data-color="#DCEDC8"],
+.file-tile.color-leaf { 
+  --accent-color: #DCEDC8; 
+}
+
+.file-tile[data-color="#FFCCBC"],
+.file-tile.color-coral { 
+  --accent-color: #FFCCBC; 
+}
+
+.file-tile[data-color="#D1C4E9"],
+.file-tile.color-lilac { 
+  --accent-color: #D1C4E9; 
+}
+
+.file-tile[data-color="#C5CAE9"],
+.file-tile.color-iris { 
+  --accent-color: #C5CAE9; 
+}
+
+.file-tile[data-color="#B3E5FC"],
+.file-tile.color-azure { 
+  --accent-color: #B3E5FC; 
+}
+
+.file-tile[data-color="#E0F2F1"],
+.file-tile.color-aqua { 
+  --accent-color: #E0F2F1; 
+}
+
+.file-tile[data-color="#FFF3E0"],
+.file-tile.color-honey { 
+  --accent-color: #FFF3E0; 
+}
+
+.file-tile[data-color="#F3E5F5"],
+.file-tile.color-orchid { 
+  --accent-color: #F3E5F5; 
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .file-tile {
+    padding: 12px 12px 12px 8px;
+    min-height: 85px;
+  }
+
+  .file-tile .file-header-row {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .file-tile .file-icon-small {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  .file-tile .file-title {
+    font-size: 13px;
+  }
+
+  .file-tile .file-time {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .file-tile {
+    padding: 10px 10px 10px 6px;
+    min-height: 80px;
+  }
+
+  .file-tile .file-header-row {
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .file-tile .file-icon-small {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+  }
+
+  .file-tile .file-title {
+    font-size: 12.5px;
+  }
+}

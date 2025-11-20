@@ -245,20 +245,20 @@ const SlideShowOverlay: React.FC = () => {
       <div className="slideshow-backdrop" onClick={close} />
       <div className="slideshow-dialog" role="dialog" aria-modal="true" aria-label="Slideshow overlay">
         {/* update - 11: Legacy header structure */}
-        <header className="slideshow-header"> {/* update - 11 */}
-          <div className="slideshow-header-left"> {/* update - 11 */}
-            <div className="slideshow-header-concept"> {/* update - 11 */}
+        <header className="slideshow-header"> 
+          <div className="slideshow-header-left"> 
+            <div className="slideshow-header-concept"> 
               <h1 className="slideshow-concept-name">{nodetitle || 'Current Lesson'}</h1> 
               {currentSlide.title && (
                 <span className="slideshow-concept-secondary">{currentSlide.title}</span> 
               )}
             </div>
           </div>
-          <div className="slideshow-header-actions"> {/* update - 11 */}
+          <div className="slideshow-header-actions"> 
             {/* update - 12: Per requirement, hide Edit entirely when read-only (do not render at all) */}
-            {caps.canEdit && ( /* update - 12 */
+            {caps.canEdit && ( 
               <button
-                className="slideshow-header-btn edit-btn" /* update - 12 */
+                className="slideshow-header-btn edit-btn" 
                 onClick={handleStartEdit}
                 title="Edit this slide"
               >
@@ -267,13 +267,13 @@ const SlideShowOverlay: React.FC = () => {
               </button>
             )}
             <button
-              className="slideshow-bookmark-btn" /* update - 12 */
+              className="slideshow-bookmark-btn" 
               title={bookmarked ? 'Remove Bookmark' : 'Add Bookmark'}
               onClick={handleToggleBookmark}
             >
               <BookmarkIcon size={16} className={bookmarked ? 'bookmarked' : ''} />
             </button>
-            <button className="slideshow-close" onClick={close} aria-label="Close"> {/* update - 12 */}
+            <button className="slideshow-close" onClick={close} aria-label="Close"> {}
               <X size={16} />
             </button>
           </div>
@@ -291,8 +291,8 @@ const SlideShowOverlay: React.FC = () => {
         </main>
 
         {/* update - 14: Legacy footer structure and tokens */}
-        <div className="slideshow-footer"> {/* update - 14 */}
-          <div className="slideshow-footer-actions"> {/* update - 14 */}
+        <div className="slideshow-footer">
+          <div className="slideshow-footer-actions">
             {/* Ask AI: visible in both modes but disabled in RO. */}
             <button
               className="slideshow-header-btn ai-btn" /* update - 14 */

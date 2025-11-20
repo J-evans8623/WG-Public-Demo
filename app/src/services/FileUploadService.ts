@@ -1,33 +1,19 @@
 /**
  * @file FileUploadService.ts
  * @description
- *   Centralized file upload service that provides comprehensive file upload functionality including
- *   permission validation, file processing, GridFS storage, and usage tracking. This service ensures
- *   consistent enforcement of account-based permissions and subscription tier restrictions across all
- *   upload workflows in the application. The service abstracts all upload complexity from individual
- *   endpoints, providing a unified interface for both direct file uploads and lesson generation workflows.
- *   It handles Scholar/Educator account type validation, freemium/premium subscription tier checking,
- *   public/private visibility controls, file type validation, size restrictions, rate limiting, and
- *   comprehensive error handling. The service integrates seamlessly with the existing UserService for
- *   permission validation and usage tracking while maintaining optimal performance through efficient
- *   file processing and storage operations. All operations include detailed logging for debugging and
- *   observability, ensuring production-ready reliability and maintainability.
- *
- * Responsibilities:
- *   - Validate user permissions based on account type and subscription tier
- *   - Enforce file upload restrictions and visibility controls
- *   - Process uploaded files and convert to PDF format when necessary
- *   - Store files securely in GridFS with proper metadata and access control
- *   - Track usage metrics and enforce rate limiting
- *   - Provide comprehensive error handling with detailed user feedback
- *   - Maintain integration with existing authentication and user management systems
- *
- * @author System
- * @date Current
+ * Centralized file upload and retrieval service that coordinates permission validation, file
+ * processing, Cloudflare R2 object storage, and usage tracking for all upload workflows in
+ * the application. This implementation replaces the previous MongoDB GridFS storage layer
+ * with an S3-compatible R2 client while preserving the public API contract used by existing
+ * Next.js endpoints such as FileAssetsV2 and GenerateLesson. The service continues to enforce
+ * Scholar/Educator business rules, subscription tier constraints, file size and type limits,
+ * and rate limiting through the UserService integration. All operations include structured
+ * logging for observability in production, and the storage layout in R2 encodes owner,
+ * visibility, document, and context metadata to support access-control checks at retrieval
+ * and deletion time without requiring MongoDB.
  */
 
-import mongoose from 'mongoose';
-import connectDB from '@/app/src/config/db';
+import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'; // update - 1
 import { convertFileToPdf } from '@/doc-preprocessing-service/gotenberg-service-client';
 import { UserService, UserProfile } from '@/app/src/services/userService';
 
@@ -76,6 +62,13 @@ export interface UploadValidationResult {
   recommendedAction?: string;
 }
 
+interface R2AccessCheckResult { // update - 2
+  allowed: boolean;
+  metadata?: Record<string, string>;
+  contentType?: string;
+  reason?: string;
+}
+
 // Step 2: Supported file types configuration
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -86,72 +79,61 @@ const ALLOWED_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.presentationml.presentation'
 ];
 
-// Step 3: GridFS bucket management with singleton pattern
-class GridFSManager {
-  private static instance: GridFSManager;
-  private bucket: mongoose.mongo.GridFSBucket  | null = null;
-  private isInitialized = false;
-
-  private constructor() {}
-
-  /**
-   * getInstance
-   * @description
-   * Singleton pattern implementation to ensure only one GridFS manager instance exists.
-   * This prevents multiple bucket initializations and ensures consistent file storage operations.
-   */
-  static getInstance(): GridFSManager {
-    if (!GridFSManager.instance) {
-      GridFSManager.instance = new GridFSManager();
-    }
-    return GridFSManager.instance;
-  }
-
-  /**
-   * getBucket
-   * @description
-   * Returns the initialized GridFS bucket, creating it if necessary. This method ensures
-   * that the database connection is established before bucket operations and provides
-   * proper error handling for initialization failures.
-   */
-  async getBucket(): Promise<mongoose.mongo.GridFSBucket > {
-    if (this.isInitialized && this.bucket) {
-      return this.bucket;
-    }
-
-    try {
-      console.log('[FileUploadService.ts][3001] Initializing GridFS bucket');
-      await connectDB();
-      const db = mongoose.connection.db;
-
-      if (!db) {
-        throw new Error('Database connection not established');
-      }
-
-      this.bucket = new mongoose.mongo.GridFSBucket(db, {
-        bucketName: 'files'
-      });
-
-      this.isInitialized = true;
-      console.log('[FileUploadService.ts][3002] GridFS bucket initialized successfully');
-      return this.bucket;
-    } catch (error) {
-      console.error('[FileUploadService.ts][3003] Failed to initialize GridFS bucket:', error);
-      throw error;
-    }
-  }
-}
-
 /**
  * FileUploadService
  * @description
  * Main service class that provides centralized file upload functionality with comprehensive
- * permission validation, file processing, and storage operations. The service ensures consistent
- * enforcement of account-based restrictions while maintaining optimal performance through
- * efficient file handling and storage patterns.
+ * permission validation, file processing, and storage operations. The service now targets
+ * Cloudflare R2 using an S3-compatible client and keeps time complexity for each storage
+ * operation at O(1) by always addressing objects directly by key. Metadata written alongside
+ * each object encodes ownership and visibility so that access checks can be performed using
+ * cheap HEAD requests instead of full content downloads.
  */
-export class FileUploadService {
-  private static gridFSManager = GridFSManager.getInstance();
+export class FileUploadService { // update - 3
+  // Step 3: Initialize a single shared R2 client and bucket reference
+  private static r2Client: S3Client | null = null; // update - 4
+  private static bucketName: string | null = null;  // update - 5
+
+  /**
+   * getR2Client
+   * @description
+   * Lazily initializes and returns the S3Client instance configured for Cloudflare R2 using
+   * environment variables. This helper centralizes configuration so that all storage methods
+   * share the same client and bucket name. It throws a descriptive error if required
+   * environment variables are missing, allowing calling code to fail fast during deployment
+   * misconfiguration instead of silently corrupting uploads or access control.
+   */
+  private static getR2Client(): { client: S3Client; bucket: string } { // update - 6
+    if (!this.r2Client) {
+      const accountId = process.env.R2_ACCOUNT_ID;
+      const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+      const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+      const bucket = process.env.R2_BUCKET;
+
+      if (!accountId || !accessKeyId || !secretAccessKey || !bucket) {
+        console.error('[FileUploadService.ts][3100] Missing R2 environment configuration');
+        throw new Error('R2 storage is not configured correctly. Please set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET.');
+      }
+
+      this.bucketName = bucket;
+      this.r2Client = new S3Client({
+        region: 'auto',
+        endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId,
+          secretAccessKey,
+        },
+      });
+
+      console.log('[FileUploadService.ts][3101] R2 client initialized successfully');
+    }
+
+    if (!this.bucketName) {
+      throw new Error('R2 bucket name is not initialized.');
+    }
+
+    return { client: this.r2Client!, bucket: this.bucketName }; 
+  }
 
   /**
    * validateUploadPermissions
@@ -174,7 +156,7 @@ export class FileUploadService {
         };
       }
 
-       //  hard-require documentId
+      //  hard-require documentId
       if (!request.documentId || typeof request.documentId !== 'string' || request.documentId.trim().length === 0) {
         return {
           allowed: false,
@@ -219,7 +201,7 @@ export class FileUploadService {
         return {
           allowed: false,
           reason: uploadPermissions.reason || 'Upload not permitted',
-          recommendedAction: uploadPermissions.reason?.includes('rate limit') 
+          recommendedAction: uploadPermissions.reason?.includes('rate limit')
             ? 'Please wait before uploading more files or upgrade to premium for higher limits.'
             : 'Please check your account settings or contact support.'
         };
@@ -312,9 +294,11 @@ export class FileUploadService {
   /**
    * storeFile
    * @description
-   * Stores processed files in GridFS with comprehensive metadata including user context,
-   * ownership tracking, and privacy controls. This method ensures proper access control
-   * and supports the visibility scoping requirements for Scholar/Educator accounts.
+   * Stores processed files in Cloudflare R2 using an S3-compatible client and writes rich
+   * metadata describing ownership, visibility, account type, and document linkage. 
+   * * UPDATE (Phase 1): The R2 object key layout has been changed to `documents/{docId}/files/{fileId}`.
+   * This binds the file physically to the document for easier lifecycle management (cascading deletes).
+   * The metadata still includes `owner` to support existing permission checks.
    */
   static async storeFile(
     fileBuffer: Buffer,
@@ -325,84 +309,71 @@ export class FileUploadService {
     originalMimeType: string,
     documentId: string,
     sourceFileId?: string,
-    uploadContext?: string    
-  ): Promise<StoredFileResult> {
+    uploadContext?: string
+  ): Promise<StoredFileResult> { // update - 7
     console.log('[FileUploadService.ts][3021] Storing file with user context - Owner:', userProfile.email, 'Visibility:', visibility);
 
     try {
-      const bucket = await this.gridFSManager.getBucket();
+      const { client, bucket } = this.getR2Client(); // update - 8
 
-      // Step 8: Generate unique filename with user context
-      const timestamp = Date.now();
-      const filename = `${userProfile.accountType}_${timestamp}_${fileName}`;
+      // Step 8: Generate unique object key using Document-Centric Storage (Phase 1)
+      const timestamp = Date.now(); // update - 9
+      const safeFileName = fileName.replace(/\s+/g, '_'); // update - 10
+      
+      // update - 11: Switch from user-based prefix (`files/${email}`) to document-based prefix.
+      // Use sourceFileId if provided (typical for lesson generation), otherwise fallback to timestamp.
+      const uniqueFileId = sourceFileId || `${timestamp}_${safeFileName}`;
+      const objectKey = `documents/${documentId}/files/${uniqueFileId}`;
 
-      // Step 9: Create comprehensive metadata for access control and analytics
-      const fileMetadata = {
-        originalName: fileName,
+      // Step 9: Prepare flat metadata map for S3/R2
+      const now = new Date(); // update - 12
+      const metadata: Record<string, string> = { // update - 13
+        originalname: fileName,
         type: 'pdf',
-        size: fileSize,
-        owner: userProfile.email,
-        visibility: visibility,
-        accountType: userProfile.accountType,
-        subscriptionTier: userProfile.subscriptionTier,
-        originalMimeType: originalMimeType,
-        uploadedAt: new Date(),
+        size: String(fileSize),
+        owner: userProfile.email, // Retained for permission checks
+        visibility,
+        accounttype: userProfile.accountType,
+        subscriptiontier: userProfile.subscriptionTier,
+        originalmimetype: originalMimeType,
+        uploadedat: now.toISOString(),
         document_id: documentId,
-        file_id: sourceFileId ?? null,
-        uploadContext: uploadContext,
-        // Step 10: Privacy scoping based on account policy
-        scope: visibility === 'public'
-          ? 'bloomdocx' // Public files scoped to .bloomdocx documents only
-          : `bloomdocx_user_${userProfile.email}`, // Private files scoped to both .bloomdocx AND user
-        // Step 11: Access control flags
-        accessControl: {
-          publicRead: visibility === 'public' && userProfile.accountType === 'educator',
-          ownerRead: true,
-          ownerWrite: true,
-          ownerDelete: true
-        }
+        file_id: sourceFileId ?? '',
+        uploadcontext: uploadContext ?? '',
       };
 
-      const uploadStream = bucket.openUploadStream(filename, {
-        contentType: 'application/pdf',
-        metadata: fileMetadata
-      });
+      // Step 10: Upload object to R2
+      await client.send(new PutObjectCommand({ // update - 14
+        Bucket: bucket,
+        Key: objectKey,
+        Body: fileBuffer,
+        ContentType: 'application/pdf',
+        Metadata: metadata,
+      }));
 
-      await new Promise<void>((resolve, reject) => {
-        uploadStream.on('error', (error) => {
-          console.error('[FileUploadService.ts][3022] GridFS upload error:', error);
-          reject(error);
-        });
-
-        uploadStream.on('finish', () => {
-          console.log('[FileUploadService.ts][3023] File stored successfully - ID:', uploadStream.id);
-          resolve();
-        });
-
-        uploadStream.end(fileBuffer);
-      });
+      console.log('[FileUploadService.ts][3023] File stored successfully in R2 - Key:', objectKey);
 
       return {
-        id: uploadStream.id.toString(),
-        url: `/api/FileAssetsV2?id=${uploadStream.id}`,
+        id: objectKey,
+        url: `/api/FileAssetsV2?id=${encodeURIComponent(objectKey)}`,
         type: 'pdf',
         title: fileName,
         size: fileSize,
-        visibility: visibility,
+        visibility,
         owner: userProfile.email,
-        uploadedAt: new Date(),
+        uploadedAt: now,
         metadata: {
           accountType: userProfile.accountType,
           subscriptionTier: userProfile.subscriptionTier,
-          originalMimeType: originalMimeType,
+          originalMimeType,
           document_id: documentId,
           file_id: sourceFileId ?? null,
-          uploadContext: uploadContext
-        }
+          uploadContext: uploadContext,
+        },
       };
 
     } catch (error) {
-      console.error('[FileUploadService.ts][3024] Error storing file:', error);
+      console.error('[FileUploadService.ts][3024] Error storing file in R2:', error);
       throw new Error(`Failed to store file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -460,105 +431,142 @@ export class FileUploadService {
   /**
    * checkFileAccess
    * @description
-   * Validates whether a user can access a specific file based on ownership and visibility settings.
-   * This method implements the privacy controls where private files are only accessible to their
-   * owners and public files are accessible to all authenticated users.
+   * Validates whether a user can access a specific file based on ownership and visibility
+   * metadata stored alongside the object in R2. This replaces the previous GridFS lookup
+   * and uses a lightweight HEAD request to obtain metadata only, keeping the time complexity
+   * of each access check at O(1). Private files require ownership, while public files are
+   * readable by any authenticated user.
    */
-  static async checkFileAccess(fileId: string, userProfile: UserProfile): Promise<{
-    allowed: boolean;
-    file?: any;
-    reason?: string;
-  }> {
+  static async checkFileAccess(fileId: string, userProfile: UserProfile): Promise<R2AccessCheckResult> { // update - 15
     console.log('[FileUploadService.ts][3030] Checking file access - File ID:', fileId, 'User:', userProfile.email);
 
     try {
-      const bucket = await this.gridFSManager.getBucket();
-      const objectId = new mongoose.Types.ObjectId(fileId);
-      const file = await bucket.find({ _id: objectId }).next();
+      const { client, bucket } = this.getR2Client(); // update - 16
+      const key = fileId; // In the new model, the id is the R2 object key. // update - 17
 
-      if (!file) {
-        console.log('[FileUploadService.ts][3031] File not found');
+      const head = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key })); // update - 18
+      const metadata = head.Metadata ?? {}; // keys are lowercase // update - 19
+
+      const visibility = (metadata.visibility as 'public' | 'private') || 'private'; // update - 20
+      const owner = metadata.owner || metadata.owneremail || ''; // update - 21
+
+      if (visibility === 'private' && owner && owner !== userProfile.email) {
+        console.log('[FileUploadService.ts][3032] Access denied - private file not owned by user');
         return {
           allowed: false,
-          reason: 'File not found'
+          reason: 'Access denied: This is a private file',
         };
       }
 
-      // Step 17: Check ownership for private files
-      if (file.metadata?.visibility === 'private') {
-        if (file.metadata?.owner !== userProfile.email) {
-          console.log('[FileUploadService.ts][3032] Access denied - private file not owned by user');
-          return {
-            allowed: false,
-            reason: 'Access denied: This is a private file'
-          };
-        }
-      }
-
-      // Step 18: Public files are accessible to all authenticated users
       console.log('[FileUploadService.ts][3033] File access granted');
       return {
         allowed: true,
-        file: file
+        metadata: {
+          ...metadata,
+          contenttype: head.ContentType ?? 'application/pdf',
+          owner: owner || userProfile.email,
+          visibility,
+        },
+        contentType: head.ContentType ?? 'application/pdf',
       };
 
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.$metadata?.httpStatusCode === 404) {
+        console.log('[FileUploadService.ts][3031] File not found in R2');
+        return {
+          allowed: false,
+          reason: 'File not found',
+        };
+      }
+
       console.error('[FileUploadService.ts][3034] Error checking file access:', error);
       return {
         allowed: false,
-        reason: 'Error validating file access'
+        reason: 'Error validating file access',
       };
     }
   }
 
   /**
+   * getFileStream
+   * @description
+   * Retrieves the binary content stream for a previously uploaded file from Cloudflare R2.
+   * The method assumes that access control has already been enforced via checkFileAccess
+   * and focuses solely on streaming the object with its content type and metadata. The
+   * returned stream can be piped directly to a Next.js API response for efficient, O(1)
+   * time complexity downloads.
+   */
+  static async getFileStream(fileId: string): Promise<{ // update - 22
+    stream: NodeJS.ReadableStream;
+    contentType: string;
+    metadata: Record<string, string>;
+  }> {
+    const { client, bucket } = this.getR2Client();
+    const key = fileId;
+
+    const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    if (!result.Body) {
+      throw new Error('File content missing from R2 object.');
+    }
+
+    const contentType = result.ContentType ?? 'application/octet-stream';
+    const metadata = result.Metadata ?? {};
+
+    return {
+      stream: result.Body as NodeJS.ReadableStream,
+      contentType,
+      metadata,
+    };
+  }
+
+  /**
    * deleteFile
    * @description
-   * Securely deletes files with ownership validation to ensure only file owners can delete their
-   * files. This method provides proper access control and prevents unauthorized deletions while
-   * maintaining comprehensive audit logging for security purposes.
+   * Securely deletes files stored in R2 with ownership validation to ensure that only the
+   * file owner can perform deletion. This method first calls checkFileAccess to reuse the
+   * same visibility and ownership logic, and then executes a constant-time DeleteObject
+   * operation against Cloudflare R2. Comprehensive logging is retained for auditability
+   * and debugging of any deletion-related issues in production.
    */
   static async deleteFile(fileId: string, userProfile: UserProfile): Promise<{
     success: boolean;
     reason?: string;
-  }> {
+  }> { // update - 23
     console.log('[FileUploadService.ts][3035] Attempting file deletion - File ID:', fileId, 'User:', userProfile.email);
 
     try {
-      const bucket = await this.gridFSManager.getBucket();
-
       // Step 19: Check access and ownership
       const accessCheck = await this.checkFileAccess(fileId, userProfile);
       if (!accessCheck.allowed) {
         console.log('[FileUploadService.ts][3036] File deletion denied - access check failed');
         return {
           success: false,
-          reason: accessCheck.reason || 'Access denied'
+          reason: accessCheck.reason || 'Access denied',
         };
       }
 
-      // Step 20: Additional ownership validation for deletion
-      const file = accessCheck.file!;
-      if (file.metadata?.owner !== userProfile.email) {
+      const owner = accessCheck.metadata?.owner;
+      if (owner && owner !== userProfile.email) {
         console.log('[FileUploadService.ts][3037] File deletion denied - not owner');
         return {
           success: false,
-          reason: 'Only file owners can delete files'
+          reason: 'Only file owners can delete files',
         };
       }
 
-      // Step 21: Perform the deletion
-      const objectId = new mongoose.Types.ObjectId(fileId);
-      await bucket.delete(objectId);
+      const { client, bucket } = this.getR2Client();
+      const key = fileId;
 
-      console.log('[FileUploadService.ts][3038] File deleted successfully');
+      await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+      console.log('[FileUploadService.ts][3038] File deleted successfully from R2');
+
       return { success: true };
 
     } catch (error) {
-      console.error('[FileUploadService.ts][3039] Error deleting file:', error);
+      console.error('[FileUploadService.ts][3039] Error deleting file from R2:', error);
       return {
         success: false,
-        reason: 'Error deleting file'
+        reason: 'Error deleting file',
       };
     }
   }

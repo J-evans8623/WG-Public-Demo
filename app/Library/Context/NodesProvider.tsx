@@ -478,16 +478,12 @@ const restoreNode = useCallback(
           if (getFileName() === DEFAULT_FILE) {
             updateFileName(trimmed);
           }
-          // Lesson rename
-          const Lmodule = getLessonModule();
-          const first = Lmodule.conceptMaps[0];
-          if (first && first.title === DEFAULT_LESSON) {
-            updateConceptMapTitle(first.id, `Unit 1 : ${trimmed}`);
-          }
+                   
+
         }
       },  LOCAL_ORIGIN);
     },
-    [ydoc,isReadOnly, yNodesMap, mapKey, getFileName, updateFileName, getLessonModule, updateConceptMapTitle]
+    [ydoc, isReadOnly, yNodesMap, mapKey, getFileName, updateFileName]
   );
 
   // 5) deleteNode

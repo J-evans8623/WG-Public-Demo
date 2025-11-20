@@ -1,32 +1,19 @@
 /***************************************************************************************
  * @file HomescreenV3.tsx
  * @description
- *   The HomescreenV3 component represents the next generation of the BloomMap application's
- *   home interface, featuring a completely redesigned layout with enhanced visual hierarchy
- *   and improved user experience. This component maintains all core functionality from
- *   HomescreenV2 including stateful data fetching via ApiContext hooks, file management
- *   operations, deletion flows with confirmations, and modal displays for tutorials.
- *   
- *   The new design introduces a sophisticated grid-based layout with a collapsible navigation
- *   panel, streamlined quick actions, and a dedicated files section with internal scrolling
- *   and tabbed organization. The component features enhanced visual styling with improved
- *   color coding for file types, better contrast ratios, and modern card-based interfaces.
- *   The right-side assistant panel provides contextual help and suggestions to guide users
- *   through their workflow.
- *   
- *   Key architectural improvements include a fixed-height files section with internal
- *   scrolling to prevent layout shifts, responsive design patterns, and comprehensive
- *   accessibility features. The component preserves all existing API integration patterns
- *   while introducing enhanced error handling and user feedback mechanisms. Diagnostic
- *   console logging with unique identifiers continues to provide observability for
- *   debugging and performance monitoring across all major execution paths.
+ * The HomescreenV3 component represents the next generation of the BloomMap application's
+ * home interface.
+ * * UPDATES:
+ * - Implemented new "file-tile" JSX structure to support sidebar accent design.
  ***************************************************************************************/
 
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApiContext , useFileList} from '@/app/src/context/ApiContext';
 import { UserFileMetadata } from '@/app/src/types/fileTypes';
 import { Trash, Calendar, Users, Book, Sparkles } from 'lucide-react';
 import './homeScreenV3.css';
+// Make sure your new CSS file is imported here, or its contents are merged into homeScreenV3.css
+import './file-tile.css'; 
 import { Role } from '../types/access';
 import { deleteDocBytes } from '../services/localCacheStore';
 
@@ -34,17 +21,12 @@ import ReactDOM from 'react-dom';
 import CalendarModal from '@/app/studygraph/(studygraph)/components/layout/Calendar/CalendarModal'; 
 import type { PickerFileMeta as CalendarPickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
 
-
 /**
  * @type PickerFileMeta
- * @description
- *   Payload emitted to the parent on tile click. The parent uses this to update
- *   AccessLayer synchronously and then load the file's bytes. `updatedAt` prefers
- *   ISO strings to align with AccessLayer's newest-wins logic.
  */
 export type PickerFileMeta = {
   fileId: string;
-  docId:string // same as filleID
+  docId: string;
   colorCode?: string;
   fileStorageId?: string;
   fileName: string;
@@ -57,16 +39,8 @@ interface HomeScreenProps {
   onCreateNewDocument: () => void;
 }
 
-
-
-
 /**
  * @function HomescreenV3
- * @description
- *   Primary functional component that renders the new home screen interface with enhanced
- *   visual design and preserved functionality from V2. Manages navigation state, file
- *   operations, search functionality, and tab switching while maintaining compatibility
- *   with existing API patterns and data structures.
  */
 const HomescreenV3: React.FC<HomeScreenProps> = ({
   onFileSelect,
@@ -75,7 +49,6 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
   // Step 1: Initialize API context and state management hooks
   const { deleteFile } = useApiContext();
   const { ownedFiles, sharedFiles, isHydrated, isRefreshing, refresh } = useFileList();
-  const [loading, setLoading] = useState(true);
   const [greeting, setGreeting] = useState('');
 
   const [activeTab, setActiveTab] = useState<'recent' | 'favorites' | 'shared'>('recent');
@@ -88,86 +61,41 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
     description: string;
   } | null>(null);
 
+  /* ─────────────────────── Calendar modal state ──────────────────────────── */
+  const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
 
-  /**
- * @function openCalendarModal
- * @description
- *   Opens the study planner (CalendarModal) from Homescreen quick action.
- *   Mirrors CanvasView’s logging and modal-wiring approach for consistency.
- */
-const openCalendarModal = () => {
-  // Step 1: Log intent with file-scoped tag for observability
-  // console.log('HomescreenV3.tsx [4001] › Opening calendar modal via Quick Action');
-
-  // Step 2: Flip local visibility boolean
-  setIsCalendarModalOpen(true);
-};
-
-/**
- * @function closeCalendarModal
- * @description
- *   Closes the study planner modal and restores page scrolling if needed.
- */
-const closeCalendarModal = () => {
-  // Step 1: Log close intent
-  // console.log('HomescreenV3.tsx [4002] › Closing calendar modal');
-
-  // Step 2: Reset local state
-  setIsCalendarModalOpen(false);
-};
-
-/* ─────────────────────── Calendar modal state ──────────────────────────── */
-const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
-
-/**
- * @effect Scroll lock while CalendarModal is open (optional UX parity)
- * @description
- *   Prevent background scroll when the overlay is visible. Cleans up on close.
- */
-useEffect(() => {
-  // Step 1: Lock scroll on open
-  if (isCalendarModalOpen) {
-    document.body.style.overflow = 'hidden';
-  }
-
-  // Step 2: Cleanup / unlock on close or unmount
-  return () => {
-    document.body.style.overflow = '';
+  const openCalendarModal = () => {
+    setIsCalendarModalOpen(true);
   };
-}, [isCalendarModalOpen]);
 
+  const closeCalendarModal = () => {
+    setIsCalendarModalOpen(false);
+  };
+
+  useEffect(() => {
+    if (isCalendarModalOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isCalendarModalOpen]);
 
   // Step 4: Initialize component on mount
   useEffect(() => {
-    // console.log('HomescreenV3.tsx 3001 › Component initialization start');
-    
-    // Set greeting based on time of day
     const hour = new Date().getHours();
     setGreeting(
       hour < 12 ? 'Good morning' :
       hour < 18 ? 'Good afternoon' :
       'Good evening'
     );
-    
-    // console.log('HomescreenV3.tsx 3002 › Initial setup complete');
   }, []);
 
-
-
-  /**
-   * @function handleDeleteFile
-   * @description
-   *   Prompts user for confirmation before deleting a file, executes the deletion
-   *   via API context, and refreshes the file list. Includes comprehensive error
-   *   handling and user feedback mechanisms.
-   */
   const handleDeleteFile = async (path: string, docId:string) => {
     if (window.confirm('Are you sure you want to delete this file?')) {
-      // console.log('HomescreenV3.tsx 3009 › Delete confirmation received for:', path);
       try {
         await deleteFile(path);
-        // console.log('HomescreenV3.tsx 3010 › File deletion successful:', path);
-        await refresh(); // Refresh file list after deletion
+        await refresh(); 
         deleteDocBytes(docId);
       } catch (err) {
         console.error('HomescreenV3.tsx 3011 › File deletion error:', err);
@@ -175,13 +103,6 @@ useEffect(() => {
     }
   };
 
-  /**
-   * @function buildPickerMeta
-   * @description
-   *   Constructs the PickerFileMeta object from UserFileMetadata with proper
-   *   role information and ISO timestamp formatting for compatibility with
-   *   AccessLayer synchronization logic.
-   */
   const buildPickerMeta = (file: UserFileMetadata): PickerFileMeta => {
     const meta: PickerFileMeta = {
       fileId: file.fileId,
@@ -192,35 +113,17 @@ useEffect(() => {
       role: file.role,
       updatedAt: file.updatedAt,
     };
-    
-    // console.log('HomescreenV3.tsx 3012 › PickerMeta constructed with role:', meta);
     return meta;
   };
 
-
-
-  /**
-   * @function openLearningModal
-   * @description
-   *   Opens the learning modal with specified title and description content
-   *   for displaying tutorial information and guidance to users.
-   */
   const openLearningModal = (title: string, description: string) => {
     setModalContent({ title, description });
     setIsModalOpen(true);
-    // console.log('HomescreenV3.tsx 3015 › Learning modal opened:', title);
   };
 
-  /**
-   * @function closeLearningModal
-   * @description
-   *   Closes the learning modal and clears the modal content state to
-   *   reset the interface for subsequent modal interactions.
-   */
   const closeLearningModal = () => {
     setIsModalOpen(false);
     setModalContent(null);
-    // console.log('HomescreenV3.tsx 3016 › Learning modal closed');
   };
 
   // Step 5: Filter files based on active tab and search query
@@ -235,31 +138,21 @@ useEffect(() => {
         files = sharedFiles;
         break;
       case 'favorites':
-        // For now, show empty array - favorites functionality can be added later
         files = [];
         break;
       default:
         files = ownedFiles;
     }
 
-    // Apply search filter if query exists
     if (searchQuery.trim()) {
       files = files.filter(file => 
         file.fileName.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    // console.log('HomescreenV3.tsx 3017 › Filtered files count:', files.length, 'for tab:', activeTab);
     return files;
   };
 
-
-  /**
-   * @function formatFileTime
-   * @description
-   *   Formats file timestamps into human-readable relative time strings
-   *   for improved user experience and temporal context awareness.
-   */
   const formatFileTime = (timestamp?: string): string => {
     if (!timestamp) return 'Unknown date';
     
@@ -276,7 +169,6 @@ useEffect(() => {
     return date.toLocaleDateString();
   };
 
-  // Step 6: Learning topics configuration
   const learningTopics = [
     {
       title: 'Creating a New Document',
@@ -295,8 +187,6 @@ useEffect(() => {
       description: 'Explore interactive sessions with our AI tutor for personalized guidance and support.',
     },
   ];
-
-  // console.log('HomescreenV3.tsx 3018 › Rendering component with filtered files:', getFilteredFiles().length);
 
   return (
     <div className="home-screen-v3">
@@ -321,12 +211,11 @@ useEffect(() => {
                   <div className="action-title">New Notebook</div>
                   <div className="action-desc">Create fresh notes</div>
                 </div>
-              {/* update - 1: wire calendar quick action to open CalendarModal */}
-    <div className="action-tile" onClick={openCalendarModal}>
-      <Calendar className="action-icon" />
-      <div className="action-title">View Study Planner</div>
-      <div className="action-desc">Organize schedule</div>
-    </div>
+                <div className="action-tile" onClick={openCalendarModal}>
+                  <Calendar className="action-icon" />
+                  <div className="action-title">View Study Planner</div>
+                  <div className="action-desc">Organize schedule</div>
+                </div>
                 <div className="action-tile" onClick={onCreateNewDocument}>
                   <Sparkles className="action-icon" />
                   <div className="action-title">Generate Lesson</div>
@@ -340,7 +229,7 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* Files Section Card - Fixed Height with Internal Scrolling */}
+            {/* Files Section Card */}
             <div className="files-card">
               <div className="files-header">
                 <div className="files-header-top">
@@ -401,21 +290,34 @@ useEffect(() => {
                       <div
                         key={file.fileId}
                         className="file-tile"
+                        // FIX: Inject the variable directly. 
+                        // This bypasses the need for matching CSS selectors.
+                        style={{ 
+                          '--accent-color': file.colorCode || '#C8E6C9' 
+                        } as React.CSSProperties}
                         onClick={() => {
                           const meta = buildPickerMeta(file);
-                          // console.log('HomescreenV3.tsx 3019 › File tile clicked:', meta);
                           onFileSelect(meta);
                         }}
                       >
-                        <div 
-  className="file-header" 
-  style={{backgroundColor: file.colorCode || '#C8E6C9'}}
-></div>
-                        <div className="file-title">{file.fileName}</div>
-                        <div className="file-meta">
-                          <span className="file-time">{formatFileTime(file.updatedAt)}</span>
-                
+                        {/* Header Row with Icon and Title */}
+                        <div className="file-header-row">
+                          <div className="file-icon-small">
+                            <Book size={16} strokeWidth={1.5} />
+                          </div>
+                          <div className="file-title" title={file.fileName}>
+                            {file.fileName}
+                          </div>
                         </div>
+
+                        {/* Footer Section with Meta data */}
+                        <div className="file-footer">
+                          <div className="file-meta">
+                            <span className="file-time">{formatFileTime(file.updatedAt)}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Delete Button Overlay */}
                         {activeTab === 'recent' && (
                           <button
                             onClick={(e) => {
@@ -519,24 +421,23 @@ useEffect(() => {
         </div>
       )}
 
-
-      {/* Calendar Modal Portal (mirrors CanvasView pattern) */}
-{isCalendarModalOpen &&
-  ReactDOM.createPortal(
-    <CalendarModal
-      isOpen={isCalendarModalOpen}
-      onClose={closeCalendarModal}
-      onFileSelect={(meta: CalendarPickerFileMeta) => {
-        const param = {
-          ...meta,
-           fileId: meta.docId,
-        } satisfies PickerFileMeta
-        onFileSelect(param);
-      }}
-    />,
-    document.body
-  )
-}
+      {/* Calendar Modal Portal */}
+      {isCalendarModalOpen &&
+        ReactDOM.createPortal(
+          <CalendarModal
+            isOpen={isCalendarModalOpen}
+            onClose={closeCalendarModal}
+            onFileSelect={(meta: CalendarPickerFileMeta) => {
+              const param = {
+                ...meta,
+                 fileId: meta.docId,
+              } satisfies PickerFileMeta
+              onFileSelect(param);
+            }}
+          />,
+          document.body
+        )
+      }
 
     </div>
   );

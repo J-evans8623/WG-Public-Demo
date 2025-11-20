@@ -140,7 +140,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
     
     console.log('[CanvasView.tsx][3005] › Opening BookmarkModal');
     setBookmarkModalOpen(true);
-  }, []);                                                // update - 3
+  }, []);                                                
 
   /* ─── Interleaved Review Handler ───────────────────────────────────────── */
   const handleInterleavedReview = useCallback(() => {
@@ -149,7 +149,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
     if (!revision) return;
     const slides = [...revision.flashCards, ...revision.quizzes];
     console.log('[CanvasView.tsx][3007] › Opening slideshow with', slides.length, 'slides');
-    openCustom(slides);
+    openCustom(slides, undefined, false);
   }, [generateRevision, openCustom]);
 
   /* ─────────────────────── PDF navigation helpers ───────────────────────── */

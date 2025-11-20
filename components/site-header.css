@@ -1,0 +1,96 @@
+/**
+ * @file app/components/site-header.css
+ * @description Shared styles for the top navigation bar.
+ */
+
+/* Use the fluid variables if they are defined globally. 
+   If not, we set a fallback here to ensure it doesn't break. */
+:root {
+  --wg-nav-height: 64px;
+  --wg-gutter: clamp(12px, 2vw, 32px);
+  --wg-content: min(96vw, 1440px);
+}
+
+.wg-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100; /* High z-index to stay above content */
+  backdrop-filter: blur(16px);
+  background: rgba(254, 253, 252, 0.95); /* Slight transparency for blur effect */
+  border-bottom: 1px solid rgba(0,0,0,0.03); /* Optional: adds subtle separation */
+}
+
+.wg-nav-inner {
+  max-width: var(--wg-content);
+  margin: 0 auto;
+  padding: 14px var(--wg-gutter);
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Pushes Logo Left, Links Right */
+  min-height: var(--wg-nav-height);
+}
+
+/* LEFT SIDE (Logo) */
+.wg-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: auto;
+}
+
+.wg-nav-left a {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  color: #8b0000; /* Ensures SVG inherits this if set to currentColor */
+}
+
+/* RIGHT SIDE (Links + CTA) */
+.wg-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 24px; /* Space between links */
+}
+
+.wg-nav-link {
+  font-size: 0.95rem;
+  text-decoration: none;
+  color: #283849;
+  font-weight: 500;
+  opacity: 0.85;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.wg-nav-link:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+/* CTA BUTTON */
+.wg-nav-cta {
+  padding: 10px 20px;
+  border-radius: 999px;
+  background-color: #E34432; 
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(227, 68, 50, 0.25);
+  transition: all 0.2s ease;
+}
+
+.wg-nav-cta:hover {
+  background-color: #CF3520;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(227, 68, 50, 0.35);
+}
+
+/* Mobile Responsiveness for Nav */
+@media (max-width: 640px) {
+  .wg-nav-link {
+    display: none; /* Hide text links on very small screens if needed */
+  }
+  .wg-nav-inner {
+    padding-inline: 16px;
+  }
+}

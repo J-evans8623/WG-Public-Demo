@@ -1,31 +1,34 @@
-// components/RichTextEditor.tsx
-
 /**
  * @file RichTextEditor.tsx
  * @description
- *   Wraps the Tiptap editor to allow users to create and edit rich text content,
- *   including inline and block LaTeX math via KaTeX, and inline citations.
- *   Provides a toolbar with distinct icons for:
- *     • Bold, Italic, Lists
- *     • Inline math ($…$) — Sigma icon
- *     • Block math ($$…$$) — Code icon
- *     • Citation placeholders (via Citation mark)
+ * Wraps the Tiptap editor to allow users to create and edit rich text content,
+ * including inline and block LaTeX math via KaTeX, and inline citations.
+ * Provides a toolbar with distinct icons for:
+ * • Bold, Italic, Lists
+ * • Inline math ($…$) — Sigma icon
+ * • Block math ($$…$$) — Code icon
+ * • Citation placeholders (via Citation mark)
  *
- *   - Loads KaTeX CSS to style rendered math.
- *   - Uses StarterKit for core prose features.
- *   - Integrates MathExtension for math nodes.
- *   - Integrates Citation for recognizing <sup data-cite> citation marks.
- *   - Emits serialized HTML on each update via onChange callback.
- *   - Toolbar icons: Bold, Italic, Lists, Inline‐Math, Block‐Math.
+ * UPDATE (Phase 2):
+ * - Integrates YDocContext to retrieve the active `docFileID`.
+ * - Passes `docFileID` to ImageExtension for drag/drop/paste uploads.
+ * - Passes `docFileID` to the manual upload toolbar handler.
+ *
+ * - Loads KaTeX CSS to style rendered math.
+ * - Uses StarterKit for core prose features.
+ * - Integrates MathExtension for math nodes.
+ * - Integrates Citation for recognizing <sup data-cite> citation marks.
+ * - Emits serialized HTML on each update via onChange callback.
+ * - Toolbar icons: Bold, Italic, Lists, Inline‐Math, Block‐Math.
  */
 
-import React from 'react';
+import React, { useContext } from 'react'; // update - 1: Import useContext
 import 'katex/dist/katex.min.css'; // KaTeX styles
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { MathExtension } from '@/app/studygraph/(studygraph)/Library/tiptap/MathExtension';
-import { Citation } from './CitationExtension'; // <-- Correct export
+import { Citation } from './CitationExtension'; 
 import { ImageExtension } from './ImageExtension';
 
 import { Toggle } from '@/components/ui/toggle';
@@ -39,8 +42,8 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 
-// ✨ update - 2: add a stable per-editor key so multiple editors don’t collide
-// Purpose: if you ever render >1 RichTextEditor at once, each one will have its own upload lane.
+// ✨ update - 2: Import YDocContext to get the document ID
+import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useRef } from 'react';
 import { supersedingCall } from '@/app/src/net/SupersedingCaller';
 
@@ -53,8 +56,6 @@ function useStableEditorKey(prefix = 'asset:upload'): string {
   return keyRef.current;
 }
 
-
-
 interface RichTextEditorProps {
   /** Initial HTML content to load into the editor */
   content: string;
@@ -64,23 +65,19 @@ interface RichTextEditorProps {
   className?: string;
 }
 
-
-
 /**
  * handleImageUpload
  * Handles the image upload process triggered by the toolbar button.
  * Opens a file picker dialog and processes the selected image through the editor.
  * @param editor The Tiptap editor instance to insert the image into
+ * @param docId The ID of the current document to associate the upload with (update - 3)
  */
-const handleImageUpload = (editor: any) => {
-  console.log('[RichTextEditor.tsx][2001] Image upload button clicked');
+const handleImageUpload = (editor: any, docId?: string) => {
+  console.log('[RichTextEditor.tsx][2001] Image upload button clicked', { docId });
 
   // (2) get a stable key for *this* editor instance
   const key = (window as any).__rtuKey ??= `asset:upload:singleton`;
-  // NOTE: if you render multiple editors simultaneously, replace the line above with:
-  //   const key = useStableEditorKey();  // ← see update - 2 helper
-  // and hoist `handleImageUpload` inside the component so hooks are valid.
-
+  
   // 1) Create a hidden input to choose an image
   const input = document.createElement('input');
   input.type = 'file';
@@ -100,6 +97,11 @@ const handleImageUpload = (editor: any) => {
       // Rebuild FormData fresh each attempt so it’s valid for re-send
       const formData = new FormData();
       formData.append('image', payload.file as File);
+      
+      // update - 4: Append DocID if available
+      if (payload.docId) {
+        formData.append('DocID', payload.docId);
+      }
 
       return fetch('/api/asset', {
         method: 'POST',
@@ -111,7 +113,8 @@ const handleImageUpload = (editor: any) => {
 
     try {
       // 4) Call via superseding lane — handles 429 Retry-After, in-flight aborts, and stale flush
-      const resp = await supersedingCall(key, { file }, makeRequest);
+      // update - 5: Pass docId in payload
+      const resp = await supersedingCall(key, { file, docId }, makeRequest);
 
       // If we got superseded (null) or request failed, bail quietly.
       if (!resp) {
@@ -150,8 +153,9 @@ const handleImageUpload = (editor: any) => {
  * - Bold, Italic, Bullet / Ordered lists
  * - Inline math ($…$) — Sigma icon
  * - Block math ($$…$$) — Code icon
+ * - Image Upload (update - 6: passes docId)
  */
-const MenuBar: React.FC<{ editor: any }> = ({ editor }) => {
+const MenuBar: React.FC<{ editor: any; docId?: string }> = ({ editor, docId }) => {
   if (!editor) return null;
 
   return (
@@ -220,12 +224,11 @@ const MenuBar: React.FC<{ editor: any }> = ({ editor }) => {
         <Code className="h-4 w-4" />
       </Toggle>
 
-
       {/* Image upload */}
       <Toggle
         size="sm"
         pressed={false}
-        onPressedChange={() => handleImageUpload(editor)}
+        onPressedChange={() => handleImageUpload(editor, docId)}
         title="Insert Image (supports upload, drag & drop, and paste)"
       >
         <ImageIcon className="h-4 w-4" />
@@ -239,9 +242,10 @@ const MenuBar: React.FC<{ editor: any }> = ({ editor }) => {
  * RichTextEditor
  *
  * - Configures the Tiptap editor with:
- *     • StarterKit for core text tooling
- *     • MathExtension for inline/block math
- *     • Citation for <sup data-cite> marks
+ * • StarterKit for core text tooling
+ * • MathExtension for inline/block math
+ * • Citation for <sup data-cite> marks
+ * • ImageExtension for drag/drop/paste uploads (configured with docId)
  * - Calls `onChange` with `editor.getHTML()` on every update.
  */
 const RichTextEditor: React.FC<RichTextEditorProps> = ({
@@ -249,12 +253,18 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   onChange,
   className,
 }) => {
+  // update - 7: Consume the YDocContext to get the active docFileID
+  const { docFileID } = useYDoc();
+
   const editor = useEditor({
     extensions: [
       StarterKit,
       MathExtension,
       Citation, 
-       ImageExtension,
+      // update - 8: Configure ImageExtension with the docId so drag/drop/paste plugins can use it
+      ImageExtension.configure({
+        docId: docFileID!,
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -264,7 +274,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   return (
     <div className={`border rounded-md flex flex-col ${className}`}>
-      <MenuBar editor={editor} />
+      {/* update - 9: Pass docId to MenuBar for the manual upload button */}
+      <MenuBar editor={editor} docId={docFileID!} />
       <EditorContent
         editor={editor}
         className="prose max-w-none h-full p-3 [&_.ProseMirror]:min-h-full [&_.ProseMirror]:outline-none"

@@ -1,77 +1,191 @@
-// app/src/services/uploads/FileUploadCascade.ts
 /**
  * @file app/src/services/uploads/FileUploadCascade.ts
  * @description
- *   Deletes all GridFS-managed uploads that belong to a specific document. This utility provides a
- *   single public function `deleteAllFileDataForDocument(documentId, owner)` and hides Mongo/GridFS
- *   specifics from callers. It enforces a defensive ownership guard by verifying the stored file
- *   metadata’s `owner` matches the provided owner email before deletion. The function returns a
- *   `GridFSCascadeResult` containing a deletion count, concrete deleted IDs for auditability, and a
- *   collection of non-fatal failure messages for traceability. All operations are idempotent; running
- *   the cascade on an already-clean document produces zero matches. Time complexity is O(N) where N
- *   is the number of matched files; lookups use an indexed metadata field for O(1) targeting.
+ * R2-backed document upload cascade utility that deletes all Cloudflare R2 objects associated
+ * with a specific document.
+ *
+ * * UPDATE (Phase 3):
+ * - Switched scanning strategy from Owner-Centric (`files/{email}/`) to Document-Centric (`documents/{docId}/`).
+ * - This ensures that ALL assets (files and images) associated with the document are deleted,
+ * regardless of who uploaded them.
+ * - Removed expensive HEAD metadata checks; strictly deletes by path prefix.
  *
  * Responsibilities:
- *   1) Locate files by `metadata.document_id` with a precise indexable filter.
- *   2) Validate ownership prior to deletion for each matched file.
- *   3) Delete matched files and aggregate results/failures for observability.
+ * 1) Initialize and reuse a Cloudflare R2 S3 client.
+ * 2) Enumerate all R2 objects under `documents/{docId}/`.
+ * 3) Delete all found objects efficiently.
+ * 4) Preserve the legacy `GridFSCascadeResult` API contract for the orchestrator.
  */
 
-import mongoose from 'mongoose';
-import { GridFSBucket } from 'mongodb';
-import connectDB from '@/app/src/config/db';
-import type { GridFSCascadeResult, OwnerContext, DocumentId } from '@/app/src/services/cascadeOps/cascadeTypes';
+import {
+  S3Client,
+  ListObjectsV2Command,
+  ListObjectsV2CommandInput, // update - 1
+  ListObjectsV2CommandOutput, // update - 2
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3';
+import type {
+  GridFSCascadeResult,
+  OwnerContext,
+  DocumentId,
+} from '@/app/src/services/cascadeOps/cascadeTypes';
 
-async function getBucket(): Promise<GridFSBucket> {
-  await connectDB();
-  const db = mongoose.connection.db;
-  if (!db) throw new Error('GridFS not available: missing DB connection');
-  return new mongoose.mongo.GridFSBucket(db, { bucketName: 'files' });
+// Step 1: Maintain a lazily initialized, shared R2 client and bucket for all cascade calls.
+let r2Client: S3Client | null = null;
+let r2BucketName: string | null = null;
+
+/**
+ * @function getR2Client
+ * @description
+ * Lazily initializes and returns a Cloudflare R2 S3 client and bucket name using environment
+ * configuration. This helper centralizes connectivity details for this module so that all
+ * list/delete operations reuse the same underlying client.
+ */
+function getR2Client(): { client: S3Client; bucket: string } {
+  if (!r2Client) {
+    const accountId = process.env.R2_ACCOUNT_ID;
+    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+    const bucket = process.env.R2_BUCKET;
+
+    if (!accountId || !accessKeyId || !secretAccessKey || !bucket) {
+      console.error(
+        '[FileUploadCascade.ts][3100] Missing R2 configuration: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, or R2_BUCKET not set'
+      );
+      throw new Error(
+        'R2 storage is not configured correctly. Please set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET.'
+      );
+    }
+
+    r2BucketName = bucket;
+
+    r2Client = new S3Client({
+      region: 'auto',
+      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+      },
+    });
+
+    console.log('[FileUploadCascade.ts][3101] R2 client initialized successfully for cascade deletes');
+  }
+
+  if (!r2BucketName) {
+    throw new Error('[FileUploadCascade.ts][3102] R2 bucket name not initialized');
+  }
+
+  return { client: r2Client, bucket: r2BucketName };
 }
 
 /**
  * @function deleteAllFileDataForDocument
  * @description
- *   Finds all GridFS files tagged with `metadata.document_id === documentId`, verifies each file’s
- *   `metadata.owner` matches the provided `owner.email`, and deletes them from the bucket. Any file-level
- *   issues (owner mismatch, missing metadata, delete failure) are collected into `failures` rather than
- *   throwing, keeping the cascade best-effort and non-blocking for the caller’s HTTP lifecycle.
- *   Returns a `GridFSCascadeResult` and is idempotent by design.
+ * Deletes all uploaded files and images in Cloudflare R2 that belong to a specific document.
+ *
+ * * UPDATE (Phase 3):
+ * Scans the prefix `documents/{documentId}/`. This captures:
+ * 1. `documents/{documentId}/files/...` (PDFs, DOCX)
+ * 2. `documents/{documentId}/images/...` (Inline images)
+ *
+ * Since the prefix is strictly scoped to this document, we no longer need to filter by metadata owner.
+ * Any object found under this path is considered part of the document and is deleted.
+ *
+ * @param documentId - The ID of the document being deleted.
+ * @param owner - (Legacy/Logging) The owner context, used here only for audit logging.
  */
 export async function deleteAllFileDataForDocument(
   documentId: DocumentId,
   owner: OwnerContext
 ): Promise<GridFSCascadeResult> {
-  const bucket = await getBucket();
+  const targetDocumentId = String(documentId);
 
-  const cursor = bucket.find({ 'metadata.document_id': documentId });
+  console.log('[FileUploadCascade.ts][3200] Starting Doc-Scoped cascade delete', {
+    documentId: targetDocumentId,
+    triggeredBy: owner.email,
+  });
+
+  const { client, bucket } = getR2Client();
+
+  // update - 3: Switch prefix from `files/{email}/` to `documents/{docId}/`
+  // This targets the root folder for this specific document.
+  const docScopedPrefix = `documents/${targetDocumentId}/`;
+
   const deletedIds: string[] = [];
   const failures: string[] = [];
+  let continuationToken: string | undefined = undefined;
 
-  // 1) Iterate matches O(N) and delete one-by-one to preserve partial results
-  // 2) Enforce defensive ownership match at point of deletion
-  // 3) Collect failures without throwing
-  for await (const file of cursor as any as AsyncIterable<any>) {
+  // Step 3: Paginate through all objects under the document prefix using ListObjectsV2.
+  do {
     try {
-      const fileId = String(file._id);
-      const meta = file?.metadata ?? {};
-      const fileOwner = meta.owner;
+      const listCommandInput: ListObjectsV2CommandInput = {
+        Bucket: bucket,
+        Prefix: docScopedPrefix,
+        ContinuationToken: continuationToken,
+      };
 
-      if (!fileOwner || fileOwner !== owner.email) {
-        failures.push(`Owner mismatch or missing owner for file ${fileId}`);
-        continue;
+      const listCommand: ListObjectsV2Command = new ListObjectsV2Command(listCommandInput);
+      const listResult: ListObjectsV2CommandOutput = await client.send(listCommand);
+
+      const contents = listResult.Contents ?? [];
+      
+      console.log('[FileUploadCascade.ts][3201] R2 list page retrieved', {
+        prefix: docScopedPrefix,
+        itemCount: contents.length,
+        isTruncated: listResult.IsTruncated,
+      });
+
+      // Step 4: Iterate over listed objects and delete them immediately.
+      // update - 4: Removed HEAD/Metadata check loop. Everything under this prefix must die.
+      for (const obj of contents) {
+        const key = obj.Key;
+        if (!key) continue;
+
+        try {
+          // Execute DeleteObject
+          await client.send(
+            new DeleteObjectCommand({
+              Bucket: bucket,
+              Key: key,
+            })
+          );
+
+          deletedIds.push(key);
+          // console.log('[FileUploadCascade.ts][3203] Deleted R2 object', { key }); // Optional verbose logging
+
+        } catch (objError: any) {
+          const msg = `Delete failed for key ${key}: ${
+            objError?.message ?? 'unknown error'
+          }`;
+          console.error('[FileUploadCascade.ts][3204]', msg, objError);
+          failures.push(msg);
+        }
       }
 
-      await bucket.delete(file._id);
-      deletedIds.push(fileId);
-    } catch (err: any) {
-      failures.push(`Delete failed for ${String(file?._id)}: ${err?.message ?? 'unknown error'}`);
-    }
-  }
+      continuationToken = listResult.IsTruncated ? listResult.NextContinuationToken : undefined;
 
-  return {
+    } catch (pageError: any) {
+      const msg = `ListObjectsV2 failed for prefix ${docScopedPrefix}: ${
+        pageError?.message ?? 'unknown list error'
+      }`;
+      console.error('[FileUploadCascade.ts][3205]', msg, pageError);
+      failures.push(msg);
+      // If listing fails entirely, break to avoid infinite loop.
+      break;
+    }
+  } while (continuationToken);
+
+  const result: GridFSCascadeResult = {
     deletedCount: deletedIds.length,
     deletedIds,
     failures,
   };
+
+  console.log('[FileUploadCascade.ts][3206] Doc-Scoped cascade delete complete', {
+    documentId: targetDocumentId,
+    deletedCount: result.deletedCount,
+    failureCount: result.failures.length,
+  });
+
+  return result;
 }

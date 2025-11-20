@@ -1,18 +1,19 @@
 /**
  * @file ImageExtension.ts
  * @responsibility
- *   Tiptap Image node with drag-drop & paste upload pipeline.
- *   Now uses the general-purpose SupersedingCaller so that:
- *     1) A 429 schedules a single retry using the server’s Retry-After value.
- *     2) Newer images supersede older queued/in-flight uploads (flush stale).
- *     3) Each editor instance gets its own upload “lane” key to avoid cross-editor collisions.
+ * Tiptap Image node with drag-drop & paste upload pipeline.
+ * Now uses the general-purpose SupersedingCaller so that:
+ * 1) A 429 schedules a single retry using the server’s Retry-After value.
+ * 2) Newer images supersede older queued/in-flight uploads (flush stale).
+ * 3) Each editor instance gets its own upload “lane” key to avoid cross-editor collisions.
+ * * UPDATE (Phase 2):
+ * - Accepts `docId` in configuration options.
+ * - Appends `DocID` to the FormData payload to ensure backend stores image in doc-scoped path.
  *
- *   Notes:
- *     • Like the RichTextEditor integration, when a 429 defers the upload, we do not insert
- *       the image immediately; the retry will fire later but there’s no callback path to
- *       complete insertion. This mirrors the editor toolbar behavior you signed off on.
- *       If you want “retry → finally insert” behavior, we can extend SupersedingCaller
- *       with a completion callback channel (happy to do that next).
+ * Notes:
+ * • Like the RichTextEditor integration, when a 429 defers the upload, we do not insert
+ * the image immediately; the retry will fire later but there’s no callback path to
+ * complete insertion. This mirrors the editor toolbar behavior you signed off on.
  */
 
 import { Node, mergeAttributes, nodeInputRule } from '@tiptap/core';
@@ -25,6 +26,7 @@ export interface ImageOptions {
   inline: boolean;
   allowBase64: boolean;
   HTMLAttributes: Record<string, any>;
+  docId?: string; // update - 1: Add docId to options
 }
 
 declare module '@tiptap/core' {
@@ -43,10 +45,10 @@ declare module '@tiptap/core' {
 /**
  * buildLaneKey — update - 2
  * @purpose
- *   Create a per-editor-instance “lane” key so uploads from different editors don’t supersede each other.
+ * Create a per-editor-instance “lane” key so uploads from different editors don’t supersede each other.
  * @steps
- *   1) Prefix the lane.
- *   2) Append a short random token (sufficiently unique per view lifetime).
+ * 1) Prefix the lane.
+ * 2) Append a short random token (sufficiently unique per view lifetime).
  */
 function buildLaneKey(): string {
   return `asset:upload:editor:${Math.random().toString(36).slice(2, 10)}`;
@@ -55,20 +57,27 @@ function buildLaneKey(): string {
 /**
  * uploadImageToServer — update - 3
  * @purpose
- *   Upload a single File via SupersedingCaller, honoring Retry-After and “latest wins”.
- *   Returns the server URL string when the request succeeds immediately.
- *   If the call is deferred (429) or superseded, returns null (no insertion).
+ * Upload a single File via SupersedingCaller, honoring Retry-After and “latest wins”.
+ * Returns the server URL string when the request succeeds immediately.
+ * If the call is deferred (429) or superseded, returns null (no insertion).
+ * UPDATE (Phase 2): Now accepts `docId` to scope the asset storage.
  * @steps
- *   1) Define makeRequest that rebuilds FormData each attempt (Files/FormData must be fresh).
- *   2) Call supersedingCall(laneKey, {file}, makeRequest).
- *   3) If null → superseded/deferred; if 429 → retry scheduled; otherwise parse {url}.
+ * 1) Define makeRequest that rebuilds FormData each attempt (Files/FormData must be fresh).
+ * 2) Call supersedingCall(laneKey, {file}, makeRequest).
+ * 3) If null → superseded/deferred; if 429 → retry scheduled; otherwise parse {url}.
  */
-async function uploadImageToServer(file: File, laneKey: string): Promise<string | null> {
-  console.log('[ImageExtension.ts][1001] Starting image upload for file:', file.name);
+async function uploadImageToServer(file: File, laneKey: string, docId?: string): Promise<string | null> {
+  console.log('[ImageExtension.ts][1001] Starting image upload for file:', file.name, 'DocID:', docId);
 
   const makeRequest = async (signal: AbortSignal, payload: any): Promise<Response> => {
     const fd = new FormData();
     fd.append('image', payload.file as File);
+    
+    // update - 2: Append DocID if present
+    if (payload.docId) {
+      fd.append('DocID', payload.docId);
+    }
+
     return fetch('/api/asset', {
       method: 'POST',
       body: fd,
@@ -78,7 +87,8 @@ async function uploadImageToServer(file: File, laneKey: string): Promise<string 
   };
 
   try {
-    const resp = await supersedingCall(laneKey, { file }, makeRequest);
+    // update - 3: Pass docId in the payload object so makeRequest can access it
+    const resp = await supersedingCall(laneKey, { file, docId }, makeRequest);
 
     // Superseded or deferred due to Retry-After: do not insert now (matches RichTextEditor behavior)
     if (!resp) {
@@ -107,17 +117,18 @@ async function uploadImageToServer(file: File, laneKey: string): Promise<string 
 /**
  * createImageUploadPlugin — update - 4
  * @purpose
- *   ProseMirror plugin that:
- *     • Captures drop/paste of image files.
- *     • Uploads via SupersedingCaller using a per-editor lane key.
- *     • Inserts <img> only when the upload returns immediately OK.
+ * ProseMirror plugin that:
+ * • Captures drop/paste of image files.
+ * • Uploads via SupersedingCaller using a per-editor lane key.
+ * • Inserts <img> only when the upload returns immediately OK.
  * @steps
- *   1) On init, generate a laneKey and keep it in plugin state.
- *   2) handleDrop: collect image files, upload sequentially; insert each if URL available.
- *   3) handlePaste: same as drop with current selection position.
+ * 1) On init, generate a laneKey and keep it in plugin state.
+ * 2) handleDrop: collect image files, upload sequentially; insert each if URL available.
+ * 3) handlePaste: same as drop with current selection position.
+ * UPDATE (Phase 2): Accepts `docId` from the extension options.
  */
-function createImageUploadPlugin() {
-  type PState = { laneKey: string };
+function createImageUploadPlugin(docId?: string) {
+  type PState = { laneKey: string; docId?: string };
   const key = new PluginKey<PState>('imageUpload');
 
   return new Plugin<PState>({
@@ -125,8 +136,8 @@ function createImageUploadPlugin() {
     state: {
       init() {
         const laneKey = buildLaneKey();
-        console.log('[ImageExtension.ts][1005] imageUpload laneKey =', laneKey);
-        return { laneKey };
+        console.log('[ImageExtension.ts][1005] imageUpload laneKey =', laneKey, 'DocID context:', docId);
+        return { laneKey, docId };
       },
       apply(tr, prev) {
         return prev;
@@ -146,7 +157,8 @@ function createImageUploadPlugin() {
         if (!coords) return true;
 
         const { schema } = view.state;
-        const { laneKey } = key.getState(view.state)!;
+        const state = key.getState(view.state)!;
+        const { laneKey, docId } = state;
 
         // Sequentially upload and insert; if a file’s upload is deferred/superseded, skip insertion.
         (async () => {
@@ -154,7 +166,8 @@ function createImageUploadPlugin() {
             const file = imageFiles[i];
             try {
               console.log('[ImageExtension.ts][1007] Processing dropped image:', file.name);
-              const serverUrl = await uploadImageToServer(file, laneKey);
+              // update - 4: Pass docId to upload function
+              const serverUrl = await uploadImageToServer(file, laneKey, docId);
               if (!serverUrl) {
                 console.log('[ImageExtension.ts][1007a] No URL (deferred/superseded); skipping insert.');
                 continue;
@@ -181,7 +194,8 @@ function createImageUploadPlugin() {
 
         const { from } = view.state.selection;
         const { schema } = view.state;
-        const { laneKey } = key.getState(view.state)!;
+        const state = key.getState(view.state)!;
+        const { laneKey, docId } = state;
 
         (async () => {
           for (let i = 0; i < imageItems.length; i++) {
@@ -189,7 +203,8 @@ function createImageUploadPlugin() {
             if (!file) continue;
             try {
               console.log('[ImageExtension.ts][1009] Processing pasted image');
-              const serverUrl = await uploadImageToServer(file, laneKey);
+              // update - 5: Pass docId to upload function
+              const serverUrl = await uploadImageToServer(file, laneKey, docId);
               if (!serverUrl) {
                 console.log('[ImageExtension.ts][1009a] No URL (deferred/superseded); skipping insert.');
                 continue;
@@ -223,6 +238,7 @@ export const ImageExtension = Node.create<ImageOptions>({
     HTMLAttributes: {
       class: 'prose-image',
     },
+    docId: undefined, // update - 6: Default docId option
   },
 
   inline() {
@@ -299,7 +315,7 @@ export const ImageExtension = Node.create<ImageOptions>({
   },
 
   addProseMirrorPlugins() {
-    // ✨ update - 5: use the new plugin that routes uploads through SupersedingCaller
-    return [createImageUploadPlugin()];
+    // ✨ update - 7: Pass docId from options to the upload plugin
+    return [createImageUploadPlugin(this.options.docId)];
   },
 });
