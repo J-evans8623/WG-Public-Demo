@@ -12,8 +12,7 @@ import { RefreshCw, Check, BookOpen } from 'lucide-react'; // Ensure BookOpen is
 import { useCalendar } from '@/app/Library/Context/CalendarContextv2';
 import { NotebookSummary } from '@/app/Library/Definitions/CalendarDefinitions';
 import './calendar-theme.css';
-// Assuming file-tile.css is imported globally or via the parent component, 
-// otherwise import it here: import './file-tile.css';
+
 
 interface NotebookSelectorProps {
   notebooks: NotebookSummary[];

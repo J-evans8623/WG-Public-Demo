@@ -1,0 +1,185 @@
+/* src/components/modals/onboarding-modal.css */
+
+/* 1. Overlay Styles: Centers the modal and dims the background */
+.onboarding-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4); /* Dimmed background */
+  z-index: 1000; /* Ensure it sits on top of everything */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px); /* Subtle blur for focus */
+}
+
+/* 2. Modal Container: The "White Card" Aesthetic */
+.onboarding-modal-container {
+  background-color: #FFFFFF;
+  width: 90%;
+  max-width: 600px; /* Medium size constraint */
+  max-height: 85vh; /* Prevent overflowing viewport height */
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); /* Deep, soft shadow */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Contains the scrollbar within the body */
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 3. Header Styles */
+.onboarding-modal-header {
+  padding: 24px 32px;
+  border-bottom: 1px solid #F0F0F0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #FFFFFF;
+}
+
+.onboarding-modal-title {
+  font-family: 'Crimson Text', serif;
+  font-size: 26px;
+  font-weight: 600;
+  color: #2C3E50; /* Dark Blue-Gray */
+  margin: 0;
+}
+
+.onboarding-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #94A3B8;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.onboarding-close-btn:hover {
+  background-color: #F1F5F9;
+  color: #2C3E50;
+}
+
+/* 4. Body Styles: Vertical Scroll Layout */
+.onboarding-modal-body {
+  padding: 32px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  background-color: #FFFFFF;
+}
+
+/* Custom scrollbar for the modal body */
+.onboarding-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.onboarding-modal-body::-webkit-scrollbar-track {
+  background: #F8F9FA;
+}
+
+.onboarding-modal-body::-webkit-scrollbar-thumb {
+  background: #D4C4B0; /* Brand Tan color */
+  border-radius: 3px;
+}
+
+/* 5. Step Styles */
+.onboarding-step-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.onboarding-step-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.onboarding-step-badge {
+  background-color: #5B8C5A; /* Sage Green */
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 2px; /* Align with title text cap-height */
+}
+
+.onboarding-step-text {
+  flex: 1;
+}
+
+.onboarding-step-title {
+  font-family: 'Crimson Text', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2C3E50;
+  margin: 0 0 4px 0;
+}
+
+.onboarding-step-desc {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #64748B;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* 6. Image Styles */
+.onboarding-step-image-wrapper {
+  margin-left: 44px; /* Align with text (badge width + gap) */
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Lifted card look */
+  border: 1px solid #E2E8F0;
+}
+
+.onboarding-step-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+
+/* 7. Footer Styles */
+.onboarding-modal-footer {
+  padding: 24px 32px;
+  border-top: 1px solid #F0F0F0;
+  display: flex;
+  justify-content: flex-end;
+  background-color: #FAFAFA;
+}
+
+.onboarding-action-btn {
+  background-color: #5B8C5A; /* Sage Green */
+  color: white;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.onboarding-action-btn:hover {
+  background-color: #4A7549; /* Darker Sage on hover */
+}

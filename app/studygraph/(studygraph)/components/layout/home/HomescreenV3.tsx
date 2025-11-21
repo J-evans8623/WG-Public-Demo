@@ -1,24 +1,31 @@
+// src/app/dashboard/components/HomescreenV3.tsx
+
 /***************************************************************************************
  * @file HomescreenV3.tsx
  * @description
  * The HomescreenV3 component represents the next generation of the BloomMap application's
  * home interface.
  * * UPDATES:
- * - Implemented new "file-tile" JSX structure to support sidebar accent design.
+ * - Restored direct access to Calendar Modal for the "View Study Planner" Quick Action.
+ * - Sidebar "Learn" card still triggers the Study Planner Tutorial.
  ***************************************************************************************/
 
 import React, { useState, useEffect } from 'react';
-import { useApiContext , useFileList} from '@/app/src/context/ApiContext';
+import { useApiContext, useFileList } from '@/app/src/context/ApiContext';
 import { UserFileMetadata } from '@/app/src/types/fileTypes';
-import { Trash, Calendar, Users, Book, Sparkles } from 'lucide-react';
-import './homeScreenV3.css';
-// Make sure your new CSS file is imported here, or its contents are merged into homeScreenV3.css
-import './file-tile.css'; 
-import { Role } from '../types/access';
-import { deleteDocBytes } from '../services/localCacheStore';
-
+import { Trash, Calendar, Users, Book, Sparkles, Check } from 'lucide-react';
+import { Role } from '../../../types/access';
+import { deleteDocBytes } from '../../../services/localCacheStore';
 import ReactDOM from 'react-dom';
-import CalendarModal from '@/app/studygraph/(studygraph)/components/layout/Calendar/CalendarModal'; 
+
+// Import Modal Components
+import CalendarModal from '@/app/studygraph/(studygraph)/components/layout/Calendar/CalendarModal';
+import OnboardingModal, { TUTORIAL_DATA, TutorialContent } from './onboarding-modal';
+
+// Import Styles
+import './homeScreenV3.css';
+import './file-tile.css';
+
 import type { PickerFileMeta as CalendarPickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
 
 /**
@@ -48,20 +55,18 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
 }) => {
   // Step 1: Initialize API context and state management hooks
   const { deleteFile } = useApiContext();
-  const { ownedFiles, sharedFiles, isHydrated, isRefreshing, refresh } = useFileList();
+  const { ownedFiles, sharedFiles, isHydrated, refresh } = useFileList();
   const [greeting, setGreeting] = useState('');
 
   const [activeTab, setActiveTab] = useState<'recent' | 'favorites' | 'shared'>('recent');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Step 3: Modal state for learning content
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalContent, setModalContent] = useState<{
-    title: string;
-    description: string;
-  } | null>(null);
+  // Step 2: Modal state for Onboarding Tutorials
+  const [activeTutorial, setActiveTutorial] = useState<TutorialContent | null>(null);
+  const [postTutorialAction, setPostTutorialAction] = useState<(() => void) | null>(null);
+  const isTutorialOpen = !!activeTutorial;
 
-  /* ─────────────────────── Calendar modal state ──────────────────────────── */
+  // Step 3: Calendar modal state
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
 
   const openCalendarModal = () => {
@@ -73,13 +78,15 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
   };
 
   useEffect(() => {
-    if (isCalendarModalOpen) {
+    if (isCalendarModalOpen || isTutorialOpen) {
       document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
     }
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isCalendarModalOpen]);
+  }, [isCalendarModalOpen, isTutorialOpen]);
 
   // Step 4: Initialize component on mount
   useEffect(() => {
@@ -91,14 +98,16 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
     );
   }, []);
 
-  const handleDeleteFile = async (path: string, docId:string) => {
+  // --- Handlers ---
+
+  const handleDeleteFile = async (path: string, docId: string) => {
     if (window.confirm('Are you sure you want to delete this file?')) {
       try {
         await deleteFile(path);
-        await refresh(); 
+        await refresh();
         deleteDocBytes(docId);
       } catch (err) {
-        console.error('HomescreenV3.tsx 3011 › File deletion error:', err);
+        console.error('HomescreenV3.tsx › File deletion error:', err);
       }
     }
   };
@@ -116,20 +125,42 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
     return meta;
   };
 
-  const openLearningModal = (title: string, description: string) => {
-    setModalContent({ title, description });
-    setIsModalOpen(true);
+  // --- Tutorial Handling Logic ---
+
+  /**
+   * Opens a specific tutorial modal.
+   * @param tutorialKey - The key corresponding to TUTORIAL_DATA
+   * @param nextAction - Optional callback to execute after "Start Exploring" is clicked
+   */
+  const handleOpenTutorial = (tutorialKey: string, nextAction?: () => void) => {
+    const content = TUTORIAL_DATA[tutorialKey];
+    if (content) {
+      setActiveTutorial(content);
+      if (nextAction) {
+        setPostTutorialAction(() => nextAction);
+      } else {
+        setPostTutorialAction(null);
+      }
+    }
   };
 
-  const closeLearningModal = () => {
-    setIsModalOpen(false);
-    setModalContent(null);
+  const handleTutorialClose = () => {
+    setActiveTutorial(null);
+    setPostTutorialAction(null);
   };
 
-  // Step 5: Filter files based on active tab and search query
+  const handleTutorialComplete = () => {
+    if (postTutorialAction) {
+      postTutorialAction();
+    }
+    handleTutorialClose();
+  };
+
+  // --- Filtering Logic ---
+
   const getFilteredFiles = () => {
     let files: UserFileMetadata[] = [];
-    
+
     switch (activeTab) {
       case 'recent':
         files = ownedFiles;
@@ -145,7 +176,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
     }
 
     if (searchQuery.trim()) {
-      files = files.filter(file => 
+      files = files.filter(file =>
         file.fileName.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
@@ -155,36 +186,31 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
 
   const formatFileTime = (timestamp?: string): string => {
     if (!timestamp) return 'Unknown date';
-    
+
     const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffHours / 24);
-    
+
     if (diffHours < 1) return 'Just now';
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    
+
     return date.toLocaleDateString();
   };
 
+  // Static list for "Learn" section mapping
   const learningTopics = [
-    {
-      title: 'Creating a New Document',
-      description: 'Learn how to create a new concept map from scratch and explore its features.',
-    },
-    {
-      title: 'Navigating the Map',
-      description: 'Understand how to move around the canvas, zoom, and center your concept map.',
-    },
     {
       title: 'How to upload and view your personal documents',
       description: 'Discover how to upload your files and view them directly within your workspace.',
+      tutorialKey: 'uploads'
     },
     {
       title: 'Chat with your personal AI tutor',
       description: 'Explore interactive sessions with our AI tutor for personalized guidance and support.',
+      tutorialKey: 'ai_tutor'
     },
   ];
 
@@ -206,22 +232,38 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
             {/* Quick Actions Card */}
             <div className="actions-card">
               <div className="actions-grid">
+                {/* New Notebook - Standard Action */}
                 <div className="action-tile" onClick={onCreateNewDocument}>
                   <Book className="action-icon" />
                   <div className="action-title">New Notebook</div>
                   <div className="action-desc">Create fresh notes</div>
                 </div>
-                <div className="action-tile" onClick={openCalendarModal}>
+
+                {/* Study Planner - DIRECT LAUNCH (Updated) */}
+                <div 
+                  className="action-tile" 
+                  onClick={openCalendarModal}
+                >
                   <Calendar className="action-icon" />
                   <div className="action-title">View Study Planner</div>
                   <div className="action-desc">Organize schedule</div>
                 </div>
-                <div className="action-tile" onClick={onCreateNewDocument}>
+
+                {/* Generate Lesson - Opens Tutorial */}
+                <div 
+                  className="action-tile" 
+                  onClick={() => handleOpenTutorial('generate_lesson')}
+                >
                   <Sparkles className="action-icon" />
                   <div className="action-title">Generate Lesson</div>
                   <div className="action-desc">AI-powered creation</div>
                 </div>
-                <div className="action-tile">
+
+                {/* Study Group - Opens Tutorial */}
+                <div 
+                  className="action-tile" 
+                  onClick={() => handleOpenTutorial('study_group')}
+                >
                   <Users className="action-icon" />
                   <div className="action-title">Start Study Group</div>
                   <div className="action-desc">Collaborate</div>
@@ -235,9 +277,9 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                 <div className="files-header-top">
                   <div className="files-title">Your Notebooks</div>
                   <div className="files-search">
-                    <input 
-                      type="text" 
-                      className="files-search-input" 
+                    <input
+                      type="text"
+                      className="files-search-input"
                       placeholder="Search notebooks..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -245,19 +287,19 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                   </div>
                 </div>
                 <div className="tab-controls">
-                  <div 
+                  <div
                     className={`tab ${activeTab === 'recent' ? 'active' : ''}`}
                     onClick={() => setActiveTab('recent')}
                   >
                     Recent
                   </div>
-                  <div 
+                  <div
                     className={`tab ${activeTab === 'favorites' ? 'active' : ''}`}
                     onClick={() => setActiveTab('favorites')}
                   >
                     Favorites
                   </div>
-                  <div 
+                  <div
                     className={`tab ${activeTab === 'shared' ? 'active' : ''}`}
                     onClick={() => setActiveTab('shared')}
                   >
@@ -265,7 +307,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                   </div>
                 </div>
               </div>
-              
+
               <div className="files-content">
                 {!isHydrated ? (
                   <div style={{ textAlign: 'center', padding: '2rem', color: '#6C757D' }}>
@@ -275,13 +317,13 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                   <div className="empty-state">
                     <div className="empty-icon">📄</div>
                     <h3 className="empty-title">
-                      {activeTab === 'favorites' ? 'No pinned files' : 
-                       activeTab === 'shared' ? 'No shared files' : 'No recent files'}
+                      {activeTab === 'favorites' ? 'No pinned files' :
+                        activeTab === 'shared' ? 'No shared files' : 'No recent files'}
                     </h3>
                     <p className="empty-description">
                       {activeTab === 'favorites' ? 'You currently have no pinned files.' :
-                       activeTab === 'shared' ? 'No files have been shared with you.' :
-                       'Create your first document to get started.'}
+                        activeTab === 'shared' ? 'No files have been shared with you.' :
+                        'Create your first document to get started.'}
                     </p>
                   </div>
                 ) : (
@@ -290,10 +332,8 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                       <div
                         key={file.fileId}
                         className="file-tile"
-                        // FIX: Inject the variable directly. 
-                        // This bypasses the need for matching CSS selectors.
-                        style={{ 
-                          '--accent-color': file.colorCode || '#C8E6C9' 
+                        style={{
+                          '--accent-color': file.colorCode || '#C8E6C9'
                         } as React.CSSProperties}
                         onClick={() => {
                           const meta = buildPickerMeta(file);
@@ -316,7 +356,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                             <span className="file-time">{formatFileTime(file.updatedAt)}</span>
                           </div>
                         </div>
-                        
+
                         {/* Delete Button Overlay */}
                         {activeTab === 'recent' && (
                           <button
@@ -342,62 +382,59 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
           <div className="assistant-panel">
             <div className="assistant-card">
               <h3 className="panel-title">Assistant & Tips</h3>
+              
               <div className="checklist-item">
-                <div className="check-icon">✓</div>
+                <div className="check-icon"><Check size={12} /></div>
                 <div>
                   <div><strong>Get Started</strong></div>
-                  <div style={{fontSize: '11px', color: '#6C757D'}}>Create a new document</div>
+                  <div style={{ fontSize: '11px', color: '#6C757D' }}>Create a new document</div>
                 </div>
               </div>
-              <div className="checklist-item">
-                <div className="check-icon">✓</div>
+
+              {/* Uploads Tutorial Trigger */}
+              <div 
+                className="checklist-item" 
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleOpenTutorial('uploads')}
+              >
+                <div className="check-icon"><Check size={12} /></div>
                 <div>
                   <div><strong>Upload files</strong></div>
-                  <div style={{fontSize: '11px', color: '#6C757D'}}>Import your materials</div>
+                  <div style={{ fontSize: '11px', color: '#6C757D' }}>Import your materials</div>
                 </div>
               </div>
+
               <div className="checklist-item">
                 <div className="check-icon">3</div>
                 <div>
                   <div><strong>Learn with tutorials</strong></div>
-                  <div style={{fontSize: '11px', color: '#6C757D'}}>Master the features</div>
+                  <div style={{ fontSize: '11px', color: '#6C757D' }}>Master the features</div>
                 </div>
-              </div>
-            </div>
-
-            <div className="assistant-card">
-              <h3 className="panel-title">Suggestions</h3>
-              <div className="suggestion-item">
-                <div><strong>Plan Your Workflow</strong></div>
-                <div style={{fontSize: '11px', color: '#6C757D'}}>Set up study schedules</div>
-              </div>
-              <div className="suggestion-item">
-                <div><strong>Explore Recent Files</strong></div>
-                <div style={{fontSize: '11px', color: '#6C757D'}}>Continue where you left off</div>
               </div>
             </div>
 
             <div className="assistant-card">
               <h3 className="panel-title">Learn</h3>
-              <div 
+              
+              {/* Study Planner Hero Tutorial - Retains Tutorial + Action */}
+              <div
                 className="learn-card-content"
-                onClick={() => openLearningModal(
-                  'Create a Study Planner',
-                  'Learn how to organize and schedule your study sessions effectively'
-                )}
+                onClick={() => handleOpenTutorial('study_planner', openCalendarModal)}
               >
                 <div className="learn-title">Create a Study Planner</div>
                 <div className="learn-desc">Learn how to organize and schedule your study sessions effectively</div>
               </div>
-              {learningTopics.slice(0, 3).map((topic, i) => (
-                <div 
+
+              {/* Dynamic Learn Topics */}
+              {learningTopics.map((topic, i) => (
+                <div
                   key={i}
                   className="suggestion-item"
-                  onClick={() => openLearningModal(topic.title, topic.description)}
-                  style={{marginTop: '8px'}}
+                  onClick={() => handleOpenTutorial(topic.tutorialKey)}
+                  style={{ marginTop: '8px' }}
                 >
                   <div><strong>{topic.title}</strong></div>
-                  <div style={{fontSize: '11px', color: '#6C757D'}}>{topic.description}</div>
+                  <div style={{ fontSize: '11px', color: '#6C757D' }}>{topic.description}</div>
                 </div>
               ))}
             </div>
@@ -405,21 +442,13 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
         </div>
       </div>
 
-      {/* Learning Modal */}
-      {isModalOpen && modalContent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="modal-content">
-            <h3 className="modal-title">{modalContent.title}</h3>
-            <p className="modal-description">{modalContent.description}</p>
-            <button
-              onClick={closeLearningModal}
-              className="modal-button"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Onboarding Tutorial Modal */}
+      <OnboardingModal 
+        isOpen={!!activeTutorial}
+        content={activeTutorial}
+        onClose={handleTutorialClose}
+        onComplete={handleTutorialComplete}
+      />
 
       {/* Calendar Modal Portal */}
       {isCalendarModalOpen &&
@@ -430,7 +459,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
             onFileSelect={(meta: CalendarPickerFileMeta) => {
               const param = {
                 ...meta,
-                 fileId: meta.docId,
+                fileId: meta.docId,
               } satisfies PickerFileMeta
               onFileSelect(param);
             }}

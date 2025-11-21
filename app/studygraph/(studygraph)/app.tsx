@@ -34,6 +34,8 @@ import '@/app/studygraph/(studygraph)/canvas/Map/NodeGraphOriginal.css';
 import '@/app/studygraph/(studygraph)/components/layout/forum/ForumModal.css';
 import '@/app/studygraph/(studygraph)/components/layout/Canvas/CanvasView.css';
 import './appLayout.css';
+import '@/app/studygraph/(studygraph)/components/layout/home/file-tile.css'
+import '@/app/studygraph/(studygraph)/components/layout/home/homeScreenV3.css'
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -58,7 +60,7 @@ import { SelectionAttachmentProvider } from '@/app/Library/Context/SelectionAtta
 import { VersionHistoryProvider, useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import VersionHistoryPanel from './components/versionHistory/ui/VersionHistoryPanel';
 import SelectionAttachmentHandler from './components/layout/Canvas/SelectionAttachmentHandler';
-import HomeScreen from './components/HomescreenV3';
+import HomeScreen from './components/layout/home/HomescreenV3';
 import NavigationPanel from './NavigationPanel';
 import { CanvasView } from '@/app/studygraph/(studygraph)/components/layout/Canvas/ReadWriteCanvas/CanvasView';
 import VHcanvasView from './components/layout/ReadOnly/map/VHcanvasView';
