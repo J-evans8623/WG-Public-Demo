@@ -165,7 +165,7 @@ C. Analyze ~ A secondary subtopic can comprise a learning objective that targets
 3. For a given primary subtopic, it can only have one “Elaboration and Background” secondary subtopic; this constraint is necessary because this type of supplemental subtopic can “feel” redundant sometimes.  
 
 4. In general best practice for defining secondary subtopics will be to have a mixed range of secondary subtopics; some primary subtopics may have 0, others might have 3, most will typically have 2 or 1. 
-
+5. Finally avoid using repetitive sounding titles for the secondary subtopic, do not use the term "Elaborate" in the title of any topic. 
 
 Finishing touches :
 

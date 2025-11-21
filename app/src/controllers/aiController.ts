@@ -306,9 +306,10 @@ public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): P
     const aiService = this.getAIService();
 
     let syllabus: string = '';
+    let secondary_node_count = 0;
 
     roots.forEach(root => {
-      const primary: PrimaryForPrompt = {
+    const primary: PrimaryForPrompt = {
     title: root.title!,
     Learning_Objectives: root.Learning_Objectives!,
     LessonOutline: root.LessonOutline!,
@@ -319,6 +320,7 @@ public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): P
       LessonOutline: s.LessonOutline,
     }))
   };
+    secondary_node_count = root.depth2_subtopics.length;
     syllabus+= formatSyllabusForPrompt(primary);
     })
       
@@ -328,7 +330,7 @@ public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): P
   //const syllabusBlock = formatSyllabusForPrompt(primary);
   console.log(`[aiController 444442] ${JSON.stringify(syllabus)} `);
     // System prompt to guide structured subtree output
-  const systemPrompt = buildSubtreePromptV22(mainTopic, syllabus, roots.length, wordcount);
+  const systemPrompt = buildSubtreePromptV22(mainTopic, syllabus, roots.length, secondary_node_count,  wordcount);
   const uploadContents = `######## Start of User provided textbook material ######### ${LessonText}  ############ End of user provided textbook material########`
 
 

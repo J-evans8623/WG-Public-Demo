@@ -1,14 +1,32 @@
 // app/studygraph/(studygraph)/components/utils/quiz/TrueFalseQuiz.tsx
-// TrueFalseQuiz.tsx
+
+/**
+ * @file TrueFalseQuiz.tsx
+ * @description
+ * Standardized True/False Quiz component refactored for the unified portal architecture.
+ * This component presents binary choice questions using the consistent "Pro" design language.
+ * * The refactor eliminates the `QuizBase` wrapper and implements a robust flex/scroll
+ * layout structure. This ensures the footer remains fixed at the bottom of the modal ("sticky")
+ * while the question content scrolls independently, resolving previous layout bugs where
+ * the footer was incorrectly positioned in the document flow.
+ * * @responsibilities
+ * - Render T/F questions using standardized styling.
+ * - Maintain local selection state and support progress snapshotting.
+ * - Convert boolean selections into human-readable strings for detailed result reporting.
+ * - Provide a fixed layout with independent scrolling and a sticky footer.
+ */
+
 import React, { useState, forwardRef, useImperativeHandle } from 'react';
 import { IQuizQuestion, ITrueFalseQuestion } from '@/app/Library/Definitions/Definitions';
-import QuizBase from '@/app/studygraph/(studygraph)/components/utils/quiz/QuizBase';
-// update - 1
+import { CheckCircle } from 'lucide-react';
+// update - 1: Import unified styles
+import '@/app/studygraph/(studygraph)/components/utils/quiz/QuizStyles.css';
 import { type ProgressHandle, type ProgressSnapshot } from './scoringUtils';
 
 interface TrueFalseQuizProps {
   quizData: IQuizQuestion[];
-  onSubmit: (results: { id: string; correct: boolean }[]) => void;
+  // update - 2: Update signature to support detailed results
+  onSubmit: (results: { id: string; correct: boolean }[], detailed?: any[]) => void;
   onClose: () => void;
 }
 
@@ -17,9 +35,7 @@ const TrueFalseQuiz = forwardRef<ProgressHandle, TrueFalseQuizProps>(function Tr
   ref
 ) {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, boolean | null>>({});
-  const [showScore, setShowScore] = useState(false);
 
-  // update - 2: expose getProgress for early-exit scoring
   useImperativeHandle(ref, () => ({
     getProgress: (): ProgressSnapshot<Record<string, boolean | null>> => {
       console.log('[TrueFalseQuiz.tsx:5201] getProgress invoked', { answered: Object.keys(selectedAnswers).length });
@@ -32,82 +48,111 @@ const TrueFalseQuiz = forwardRef<ProgressHandle, TrueFalseQuizProps>(function Tr
   };
 
   const handleSubmit = () => {
-    const results = quizData.map((q) => ({
-      id: q.id,
-      correct:
-        (selectedAnswers[q.id] as boolean) ===
-        (q as ITrueFalseQuestion).correctAnswer,
-    }));
-    onSubmit(results);
+    const detailedResults: any[] = [];
+    const simpleResults = quizData.map((q) => {
+      const tfq = q as ITrueFalseQuestion;
+      const userVal = selectedAnswers[q.id];
+      const isCorrect = userVal === tfq.correctAnswer;
+      
+      const userDisplay = userVal === true ? 'True' : userVal === false ? 'False' : '(No Answer)';
+      const correctDisplay = tfq.correctAnswer ? 'True' : 'False';
+
+      // update - 3: Construct detailed result payload
+      detailedResults.push({
+        id: q.id,
+        question: q.question,
+        selectedAnswer: userDisplay,
+        correctAnswer: correctDisplay,
+        correct: isCorrect
+      });
+
+      return {
+        id: q.id,
+        correct: isCorrect,
+      };
+    });
+
+    console.log('[TrueFalseQuiz.tsx:5202] Submitting results', { count: simpleResults.length });
+    onSubmit(simpleResults, detailedResults);
   };
 
-  const allQuestionsAnswered = quizData.every(question => 
-    selectedAnswers[question.id] === true || selectedAnswers[question.id] === false
-  );
-
-  const footerContent = (
-    <div className="flex justify-end gap-4">
-      <button 
-        onClick={onClose} 
-        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors"
-      >
-        Cancel
-      </button>
-      <button
-        onClick={handleSubmit}
-        disabled={!allQuestionsAnswered}
-        className={`px-4 py-2 rounded-md transition-colors ${
-          allQuestionsAnswered
-            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-        }`}
-      >
-        Submit
-      </button>
-    </div>
-  );
+  const answeredCount = Object.keys(selectedAnswers).length;
+  const allQuestionsAnswered = quizData.every(q => selectedAnswers[q.id] !== undefined && selectedAnswers[q.id] !== null);
 
   return (
-    <QuizBase 
-      title="True/False Quiz" 
-      onClose={onClose} 
-      showScore={showScore}
-      footerContent={footerContent}
-    >
-      <div className="p-6 overflow-y-auto">
-        <div className="space-y-6">
-          {quizData.map((question, index) => (
-            <div key={question.id} className="bg-gray-50 p-4 rounded-lg shadow-sm">
-              <div className="text-sm text-gray-600 mb-2">Question {index + 1}</div>
-              <div className="text-gray-900 mb-4">{question.question}</div>
-              <div className="flex gap-4 justify-center">
-                {[true, false].map((option) => (
-                  <label key={option.toString()} className="flex-1">
-                    <div 
-                      className={`flex items-center justify-center p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 cursor-pointer transition-colors ${
-                        selectedAnswers[question.id] === option 
-                          ? 'border-blue-500 ring-2 ring-blue-200' 
-                          : ''
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name={question.id}
-                        value={option.toString()}
-                        checked={selectedAnswers[question.id] === option}
-                        onChange={() => handleAnswerSelect(question.id, option)}
-                        className="mr-3"
-                      />
-                      <span>{option ? 'True' : 'False'}</span>
-                    </div>
-                  </label>
-                ))}
+    // update - 4: Layout Wrapper with fixed height to manage scroll context
+    <div style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* Scrollable Content Area */}
+      <div 
+        className="quiz-scrollbar" 
+        style={{ flex: 1, overflowY: 'auto', width: '100%' }}
+      >
+        <div className="quiz-questions-container" style={{ paddingBottom: '120px' }}>
+          {quizData.map((question, index) => {
+            return (
+              <div key={question.id} className="quiz-question-item">
+                <div className="quiz-question-number">
+                  Question {index + 1}
+                </div>
+                <div className="quiz-question-text">{question.question}</div>
+                
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                  {[true, false].map((optionVal) => {
+                    const isSelected = selectedAnswers[question.id] === optionVal;
+                    const label = optionVal ? 'True' : 'False';
+                    
+                    return (
+                      <div
+                        key={label}
+                        onClick={() => handleAnswerSelect(question.id, optionVal)}
+                        className={`quiz-answer-option ${isSelected ? 'selected' : ''}`}
+                        style={{ 
+                          cursor: 'pointer', 
+                          flex: 1, 
+                          textAlign: 'center',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <span className="quiz-answer-option-text" style={{ fontWeight: isSelected ? 600 : 400 }}>
+                          {label}
+                        </span>
+                        {isSelected && <CheckCircle size={16} color="var(--quiz-success)" />}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
-    </QuizBase>
+
+      {/* update - 5: Sticky Footer */}
+      <div className="quiz-footer">
+        <div className="quiz-progress-text">
+          {answeredCount} of {quizData.length} questions answered
+        </div>
+        <div className="quiz-footer-actions">
+          <button
+            onClick={onClose}
+            className="quiz-btn quiz-btn-secondary"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!allQuestionsAnswered}
+            className="quiz-btn quiz-btn-primary"
+          >
+            Submit Quiz
+          </button>
+        </div>
+      </div>
+    </div>
   );
 });
 

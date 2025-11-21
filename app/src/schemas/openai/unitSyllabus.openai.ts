@@ -18,7 +18,7 @@ export const unitSyllabusArrayOpenAI = {
     properties: {
       LessonTitle: {
         type: "string",
-        description: "The generated title of the lesson module."
+        description: "The generated title of the lesson module. "
       },
       Introduction: {
         type: "string",
@@ -54,7 +54,7 @@ export const unitSyllabusArrayOpenAI = {
                 properties: {
                   Title: {
                     type: "string",
-                    description: "The title of the secondary subtopic."
+                    description: "The title of the secondary subtopic. Do not use the word Elaborate or Background in the title we do not want a repeititve naming covention used across the syllabus because it sound unnatural. The title should be short and natural sounding. "
                   },
                   Learning_Objectives: {
                     type: "string",

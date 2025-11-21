@@ -3,32 +3,22 @@
 /**
  * @file ScoreDisplay.tsx
  * @description
- *   Professional score display component that presents comprehensive quiz results with clean academic styling
- *   following the established brand theme. This component is responsible for rendering the final results screen 
- *   after quiz completion, showing users their performance across all questions with specific feedback on correct 
- *   and incorrect answers using a refined visual hierarchy. The component implements educational best practices by 
- *   providing immediate feedback, encouraging messages based on performance levels, and detailed answer comparisons 
- *   to support long-term knowledge retention. Key responsibilities include displaying aggregate scoring metrics with 
- *   professional typography, rendering individual question results with subtle visual indicators, providing contextual 
- *   feedback messages using the brand color palette, and offering navigation options for continued learning. The 
- *   enhanced design supports different quiz types through flexible result formatting while maintaining consistent 
- *   visual hierarchy and professional academic styling. The component integrates seamlessly with the portal-based 
- *   quiz architecture using the consolidated QuizStyles.css for consistent presentation. The design eliminates 
- *   redundant summary sections and focuses on educational value through clear question-by-question analysis with 
- *   restrained use of colors and professional spacing to maintain focus on learning outcomes.
+ * Professional score display component that presents comprehensive quiz results with clean academic styling
+ * following the established brand theme. This component is responsible for rendering the final results screen
+ * after quiz completion.
+ * * UX Update: Added an auto-scroll effect on mount. Since this component replaces the quiz content
+ * in-place within a scrollable modal, we must programmatically reset the scroll position to the top
+ * (0,0) to ensure the user sees their score summary immediately, rather than retaining the scroll
+ * position from the "Submit" button at the bottom of the previous view.
  *
  * @responsibilities
- *   - Display comprehensive quiz results with overall score and percentage calculations using professional typography.
- *   - Render detailed question-by-question analysis with correct answer comparisons using brand color palette.
- *   - Provide performance-based encouragement messages and learning guidance with academic tone.
- *   - Implement visual feedback through subtle color coding and iconography for immediate recognition.
- *   - Support navigation options for retrying quiz or returning to study materials positioned at bottom.
- *   - Ensure accessibility compliance and responsive design using consolidated CSS classes.
- *   - Maintain educational effectiveness through clean result presentation and actionable feedback.
- *   - Eliminate redundant visual elements and focus on essential learning information.
+ * - Display comprehensive quiz results with overall score and percentage calculations.
+ * - Render detailed question-by-question analysis with correct answer comparisons.
+ * - Provide performance-based encouragement messages.
+ * - Reset scroll position on mount to ensure top-of-page visibility.
  */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import './QuizStyles.css';
 
@@ -46,48 +36,66 @@ interface ScoreDisplayProps {
   onExit: () => void;
   results?: QuizResult[];
   onTryAgain?: () => void;
-  isAssessment?:boolean
+  isAssessment?: boolean;
 }
 
-const ScoreDisplay: React.FC<ScoreDisplayProps> = ({ 
-  score, 
-  total, 
-  onExit, 
-  results = [], 
+const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
+  score,
+  total,
+  onExit,
+  results = [],
   onTryAgain,
   isAssessment
 }) => {
+  // update - 1: Ref for the container to target scrolling
+  const containerRef = useRef<HTMLDivElement>(null);
+
   console.log('[ScoreDisplay.tsx:4001] Rendering score display with results:', results.length, 'items');
 
   // 1. Calculate performance metrics for user feedback
   const percentage = (score / total) * 100;
 
+  // update - 2: Auto-scroll to top on mount
+  // The component often mounts into a container that is already scrolled to the bottom (from the Submit button).
+  // We need to reset this to ensure the score header is visible.
+  useEffect(() => {
+    // Attempt to scroll the immediate container if it exists
+    if (containerRef.current) {
+      containerRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
+    }
+    
+    // Also target the common scrollable parent class used in QuizOverlay
+    const scrollableContent = document.querySelector('.quiz-content');
+    if (scrollableContent) {
+      scrollableContent.scrollTop = 0;
+    }
+    
+    // Fallback: scroll window (for mobile/different layout contexts)
+    window.scrollTo(0, 0);
+    
+    console.log('[ScoreDisplay.tsx:4005] Scroll position reset to top');
+  }, []);
+
   /**
    * getPerformanceMessage - Generates contextual feedback based on quiz performance with academic tone
-   * 
-   * This function analyzes the user's quiz performance and returns appropriate encouragement
-   * messages that provide educational guidance while maintaining a professional academic tone.
-   * The function uses performance thresholds to categorize results and provide tailored
-   * feedback that motivates continued learning while acknowledging current achievement levels.
-   * Messages are designed to be constructive and focused on learning outcomes rather than emotional responses.
-   * 
-   * @returns Object containing performance message for display with academic tone
    */
   const getPerformanceMessage = () => {
-    let messg:string;
-    if (percentage >= 90) messg= "Outstanding work! You've mastered this topic.";
-    if (percentage >= 80) messg ="Strong performance. You have a solid understanding.";
-    if (percentage >= 70) messg = "Good progress. Review the concepts below for improvement.";
-    if (percentage >= 60) messg = "Still room for improvement, Focus on the areas covered below.";
-    else messg = "Still room for improvement, Focus on the areas below."
-    messg = isAssessment ? "Your score has been submitted" : messg
-    return messg ;
+    let messg: string;
+    if (percentage >= 90) messg = "Outstanding work! You've mastered this topic.";
+    else if (percentage >= 80) messg = "Strong performance. You have a solid understanding.";
+    else if (percentage >= 70) messg = "Good progress. Review the concepts below for improvement.";
+    else if (percentage >= 60) messg = "Still room for improvement, Focus on the areas covered below.";
+    else messg = "Still room for improvement, Focus on the areas below.";
+    
+    messg = isAssessment ? "Your score has been submitted" : messg;
+    return messg;
   };
 
   const performanceMessage = getPerformanceMessage();
 
   return (
-    <div className="quiz-score-container" data-testid="ScoreDisplay">
+    // update - 3: Attach ref to top-level container
+    <div ref={containerRef} className="quiz-score-container" data-testid="ScoreDisplay">
       {/* Professional Score Header */}
       <div className="quiz-score-header">
         <div className="quiz-score-main">{score}/{total}</div>
@@ -96,13 +104,12 @@ const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
       </div>
 
       {/* Detailed Results Section */}
-      {results.length > 0 && (
+      {results.length > 0 && !isAssessment && (
         <div className="quiz-results-section">
-         
           <div className="quiz-results-list">
             {results.map((result, index) => (
-              <div 
-                key={result.id} 
+              <div
+                key={result.id}
                 className={`quiz-result-card ${result.correct ? 'correct' : 'incorrect'}`}
               >
                 <div className="quiz-result-header">
@@ -156,7 +163,7 @@ const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
           </div>
         </div>
       )}
-
+      
       {/* Action Buttons at Bottom */}
       <div className="quiz-score-actions">
         {onTryAgain && !isAssessment && (

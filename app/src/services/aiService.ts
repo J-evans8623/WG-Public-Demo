@@ -104,7 +104,7 @@ class AIService {
 
       // --- Batch Mode ---
       const response = await this.openai.beta.chat.completions.parse({
-        model: "gpt-5-nano",
+        model: "gpt-5-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userInput },
@@ -131,11 +131,13 @@ class AIService {
       }
 
       const parsed = response.choices?.[0]?.message?.parsed;
+
+      console.log(`Inspecting response: aiService.ts 7x7x : \n ${JSON.stringify(parsed)}`)
       if (!parsed) {
         throw new Error("AIService: no parsed output received");
       }
       return parsed;
-    }, options.tracker); // update - 3
+    }, options.tracker); 
   }
 
   /**

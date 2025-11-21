@@ -549,6 +549,7 @@ export function buildSubtreePromptV22(
   mainTopic: string,
 syllabusBlock: string,
 psAmount:number,
+secdonaryAmmount:number,
 wordCount:number,
 ): string {
   return `
@@ -559,7 +560,7 @@ The learning content your write must be coherent , and the primary intent of the
 
 
 The study material you are preparing is on a specific unit that is a part of a larger syllabus and you will be given a specific section from this syllabus covering a specific unit. This unit consists of primary subtopics and nested secondary subtopics, you must create study material for ALL of the given primary subtopics and their nested secondary subtopics (if present, otherwise you can leave the secondary subtopic null). Each lesson on a subtopic entails a lecture note, flash cards, and two - three matching quiz question-answer pairs. The lesson you are creating is a part of a larger syllabus whose main topic is "${mainTopic}".  :
-This lesson consists of exactly ${psAmount} primary subtopic, and the secondary subtopics listed in the syllabus below. Each primary subtopic and their nested secondary subtopics (if present)  are separated with the following delimiter #########.
+This lesson consists of exactly ${psAmount} primary subtopic, and ${secdonaryAmmount} secondary subtopic(s) listed in the syllabus below. You are expected to create exactly this amount primary and secondary subtopics in your response, do not add subtopics that are not a part of the given syllabus. Each primary subtopic and their nested secondary subtopics (if present)  are separated with the following delimiter #########. 
 
 
 ####Start of Syllabus###

@@ -232,8 +232,5 @@ console.log('[LessonModuleServiceV7.ts][6001] START generateLessonFromSegment', 
     }
   };
 
-
-  console.log(`XXX32 lessondata: ${JSON.stringify(payload)}`);
-
   return payload;
 }

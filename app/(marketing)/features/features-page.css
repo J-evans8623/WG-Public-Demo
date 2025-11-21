@@ -1,30 +1,24 @@
 /**
  * @file features-page.css
  * @description Styling for the WiseGraph Features/Getting Started page.
- * Implements the "Modern Intellectual" aesthetic with Zig-Zag layout.
+ * Implements the Zig-Zag layout with layered screenshots over background stages.
  */
 
 /* =========================================
    VARIABLES & TOKENS
    ========================================= */
 :root {
-  /* Palette */
-  --wg-bg-paper: #FEFDFC;       /* Clean White/Paper Background */
-  --wg-bg-tan: #F4F1EA;         /* Warm Tan Feature Card */
-  --wg-text-main: #2c3e50;      /* Charcoal/Navy mix */
-  --wg-text-muted: #546b81;     /* Soft slate */
-  --wg-accent-red: #E34432;     /* Terracotta Action Color */
-  --wg-accent-taupe: #8C7B6C;   /* Earth tone for Icons/Borders */
-  --wg-border-frame: #E2E4E7;   /* Subtle gray for app frames */
-  
-  /* Spacing */
+  --wg-bg-paper: #FEFDFC;
+  --wg-bg-tan: #F4F1EA;
+  --wg-text-main: #2c3e50;
+  --wg-text-muted: #546b81;
+  --wg-accent-red: #E34432;
+  --wg-accent-taupe: #8C7B6C;
+  --wg-border-frame: #E2E4E7;
   --wg-container: min(94vw, 1280px);
   --wg-section-gap: clamp(80px, 8vw, 120px);
 }
 
-/* =========================================
-   PAGE SHELL
-   ========================================= */
 .wg-feature-page {
   background-color: var(--wg-bg-paper);
   color: var(--wg-text-main);
@@ -95,224 +89,160 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: clamp(40px, 5vw, 80px);
-  align-items: stretch; /* Ensures both sides are equal height */
+  /* KEY: This ensures the visual side stretches to match the text side height */
+  align-items: stretch; 
 }
 
-/* Reverse order for alternating rows */
-.wg-zigzag-row.reverse .wg-zigzag-content {
-  order: 2;
-}
-.wg-zigzag-row.reverse .wg-zigzag-visual {
-  order: 1;
-}
+.wg-zigzag-row.reverse .wg-zigzag-content { order: 2; }
+.wg-zigzag-row.reverse .wg-zigzag-visual { order: 1; }
 
-/* Mobile Stack */
 @media (max-width: 900px) {
   .wg-zigzag-row, 
   .wg-zigzag-row.reverse {
     grid-template-columns: 1fr;
     gap: 40px;
   }
-  
-  .wg-zigzag-row.reverse .wg-zigzag-content {
-    order: 2; 
-  }
-  .wg-zigzag-row.reverse .wg-zigzag-visual {
-    order: 1;
-  }
+  .wg-zigzag-row.reverse .wg-zigzag-content { order: 2; }
+  .wg-zigzag-row.reverse .wg-zigzag-visual { order: 1; }
 }
 
 /* =========================================
-   THE TAN CARD (Text Container)
+   THE TAN CARD
    ========================================= */
 .wg-tan-card {
   background-color: var(--wg-bg-tan);
   padding: clamp(32px, 4vw, 56px);
   border-radius: 16px;
-  height: 100%; /* Stretches to fill the grid cell */
+  height: 100%; /* Fill the grid cell */
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-.wg-card-icon {
-  color: var(--wg-accent-taupe);
-  margin-bottom: 24px;
-}
+.wg-card-icon { color: var(--wg-accent-taupe); margin-bottom: 24px; }
+.wg-card-title { font-family: 'Crimson Text', serif; font-size: 2rem; margin-bottom: 16px; color: var(--wg-text-main); font-weight: 600; }
+.wg-card-body { font-size: 1rem; line-height: 1.7; color: #4a4a4a; margin-bottom: 24px; }
+.wg-card-list { list-style: none; padding: 0; margin: 0 0 24px 0; }
+.wg-card-list li { position: relative; padding-left: 24px; margin-bottom: 12px; font-size: 0.95rem; color: #4a4a4a; line-height: 1.5; }
+.wg-card-list li::before { content: "•"; color: var(--wg-accent-red); font-weight: bold; position: absolute; left: 0; top: 0; }
+.wg-tip-box { margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(140, 123, 108, 0.2); }
+.wg-tip-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--wg-accent-taupe); display: block; margin-bottom: 4px; }
+.wg-tip-text { font-size: 0.9rem; font-style: italic; color: var(--wg-text-muted); }
 
-.wg-card-title {
-  font-family: 'Crimson Text', serif;
-  font-size: 2rem;
-  margin-bottom: 16px;
-  color: var(--wg-text-main);
-  font-weight: 600;
-}
-
-.wg-card-body {
-  font-size: 1rem;
-  line-height: 1.7;
-  color: #4a4a4a; /* Slightly darker for readability on Tan */
-  margin-bottom: 24px;
-}
-
-.wg-card-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 24px 0;
-}
-
-.wg-card-list li {
-  position: relative;
-  padding-left: 24px;
-  margin-bottom: 12px;
-  font-size: 0.95rem;
-  color: #4a4a4a;
-  line-height: 1.5;
-}
-
-.wg-card-list li::before {
-  content: "•";
-  color: var(--wg-accent-red);
-  font-weight: bold;
-  position: absolute;
-  left: 0;
-  top: 0;
-}
-
-.wg-tip-box {
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid rgba(140, 123, 108, 0.2); /* Taupe low opacity */
-}
-
-.wg-tip-label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 700;
-  color: var(--wg-accent-taupe);
-  display: block;
-  margin-bottom: 4px;
-}
-
-.wg-tip-text {
-  font-size: 0.9rem;
-  font-style: italic;
-  color: var(--wg-text-muted);
-}
 
 /* =========================================
-   APP-STYLE VISUALS (Framed Images)
+   VISUAL STAGE (Layered)
    ========================================= */
 .wg-zigzag-visual {
   position: relative;
-  height: 100%; /* Ensures the container fills the grid cell */
+  height: 100%;
+  min-height: 500px; /* Ensures visual is large enough even if text is short */
 }
 
 .wg-app-frame {
+  position: relative;
   background-color: #fff;
   border: 1px solid var(--wg-border-frame);
   border-radius: 12px;
-  /* The modern, subtle shadow */
-  box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.05), 
-    0 10px 15px -3px rgba(0, 0, 0, 0.05),
-    0 0 0 1px rgba(0,0,0,0.02);
   overflow: hidden;
   width: 100%;
-  
-  /* UPDATED FOR TALLER IMAGES */
-  height: 100%;           /* Match the height of the text column */
-  min-height: 450px;      /* Ensure a generous minimum height so scene isn't cramped */
-  
+  height: 100%; /* Stretches to fill the grid cell */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate; /* Create stacking context */
+}
+
+/* LAYER 1: The Background Stage Image (Wallpaper) */
+.wg-frame-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Ensures it covers the frame without distortion */
+  z-index: 0;
+}
+
+/* LAYER 2: The Application Screenshots Overlay */
+.wg-screenshots {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  padding: 40px; /* Buffer from edges */
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.wg-app-frame img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* CRITICAL: This crops the stage image to fill the container */
+.wg-shot-img {
   display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  /* Distinct shadow to lift screenshot off the stage */
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0,0,0,0.03);
+  background-color: #fff; 
+  transition: transform 0.3s ease;
 }
 
-/* Placeholder style if image is missing */
-.wg-placeholder-art {
+.wg-shot-img:hover {
+  transform: translateY(-4px);
+}
+
+/* --- Variant: SINGLE Screenshot --- */
+.wg-screenshots.single .wg-shot-img {
+  max-width: 100%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* --- Variant: DUAL Screenshots (Staggered Grid) --- */
+.wg-screenshots.dual {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  align-items: center;
+  padding: 0; /* CHANGED: Removed padding to fill dead space */
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #fdfbf7 0%, #fff 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--wg-accent-taupe);
-  font-weight: 500;
 }
+
+/* First Image (Back/Left) */
+.wg-screenshots.dual .wg-shot-img:nth-child(1) {
+  /* CHANGED: Span 1 to 8 (7 cols) to reduce overlap zone */
+  grid-column: 1 / 8; 
+  grid-row: 1;
+  z-index: 4;
+  
+  /* CHANGED: Push further down and add left spacing */
+  margin-top: 15%; 
+  margin-left: 5%; 
+  
+  transform: scale(0.98); 
+}
+
+/* Second Image (Front/Right) */
+.wg-screenshots.dual .wg-shot-img:nth-child(2) {
+  /* CHANGED: Start at 6 (reduces overlap from 4 cols to 2 cols) */
+  grid-column: 6 / 13; 
+  grid-row: 1;
+  z-index: 5;
+  
+  /* CHANGED: Pull further up and add right spacing */
+  margin-bottom: 15%; 
+  margin-right: 5%; 
+  
+  /* Stronger shadow to emphasize depth */
+  box-shadow: -15px 30px 60px -15px rgba(0, 0, 0, 0.35); 
+}
+
 
 /* =========================================
-   EDUCATOR SECTION (The Separation)
+   EDUCATOR & CTA
    ========================================= */
-.wg-divider-line {
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--wg-accent-taupe), transparent);
-  opacity: 0.3;
-  margin: 0 auto var(--wg-section-gap);
-  max-width: 600px;
-}
-
-.wg-educator-block {
-  background-color: #FDFBF7; /* Very subtle distinction from white */
-  border-radius: 24px;
-  padding: clamp(40px, 5vw, 80px) clamp(24px, 4vw, 60px);
-  margin-bottom: var(--wg-section-gap);
-  border: 1px solid #F2EFE9;
-}
-
-.wg-educator-header {
-  text-align: center;
-  max-width: 600px;
-  margin: 0 auto 60px;
-}
-
-.wg-educator-badge {
-  background-color: var(--wg-text-main);
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 16px;
-  display: inline-block;
-}
-
-/* =========================================
-   FINAL CTA
-   ========================================= */
-.wg-get-started {
-  text-align: center;
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 60px 24px;
-}
-
-.wg-big-cta-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--wg-accent-red);
-  color: white;
-  padding: 16px 40px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 1.1rem;
-  text-decoration: none;
-  transition: background 0.2s ease, transform 0.2s ease;
-  margin-top: 24px;
-}
-
-.wg-big-cta-btn:hover {
-  background-color: #c53a2a;
-  transform: translateY(-2px);
-}
+.wg-divider-line { height: 1px; background: linear-gradient(to right, transparent, var(--wg-accent-taupe), transparent); opacity: 0.3; margin: 0 auto var(--wg-section-gap); max-width: 600px; }
+.wg-educator-block { background-color: #FDFBF7; border-radius: 24px; padding: clamp(40px, 5vw, 80px) clamp(24px, 4vw, 60px); margin-bottom: var(--wg-section-gap); border: 1px solid #F2EFE9; }
+.wg-educator-header { text-align: center; max-width: 600px; margin: 0 auto 60px; }
+.wg-educator-badge { background-color: var(--wg-text-main); color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px; display: inline-block; }
+.wg-get-started { text-align: center; max-width: 600px; margin: 0 auto; padding: 60px 24px; }
+.wg-big-cta-btn { display: inline-flex; align-items: center; justify-content: center; background-color: var(--wg-accent-red); color: white; padding: 16px 40px; border-radius: 999px; font-weight: 600; font-size: 1.1rem; text-decoration: none; transition: background 0.2s ease, transform 0.2s ease; margin-top: 24px; }
+.wg-big-cta-btn:hover { background-color: #c53a2a; transform: translateY(-2px); }

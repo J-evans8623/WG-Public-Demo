@@ -25,8 +25,7 @@
 
 import React, { useState } from 'react';
 // update - 1: point to the unified QuizOverlay (Phase 2 authority)
-import QuizOverlay from '../Overlays/QuizOverlay';  // Breaks when readWrite/quizoverlay is imported
-//import ROQuizOverlay from '../../../ReadOnly/CardDisplay/ROquizOverlay';  // Only works when ROQuizOverlay is used
+import QuizOverlay from '../Overlays/QuizOverlay';  
 import { IQuizQuestion, QuizType } from '@/app/Library/Definitions/Definitions';
 import { shuffleAndLimit } from '../../../CardDisplay/Cards/quizUtils';
 
