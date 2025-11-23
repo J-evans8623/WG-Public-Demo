@@ -1,20 +1,10 @@
-/**
- * @file app/(billing)/offer/OfferPageClient.tsx
- * @description
- *   Client shell for the Offer page. Enforces auth, manages billing toggle state,
- *   renders 2 plan tiles (Scholar/Educator) with monthly/annual options using the
- *   up-to-date styling from offer.css, and:
- *     - Calls `/api/account/status` to determine the user’s current plan.
- *     - Disables and labels the tile that matches the active subscription **by plan type
- *       (Scholar vs Educator), regardless of interval (monthly vs annual)**.
- *     - Handles 401 + 409 errors from `/api/stripe/checkout` gracefully.
- */
+// app/(billing)/offer/OfferPageClient.tsx
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react'; // update - 1: Import signOut
 import './offer.css';
 
 /**
@@ -35,25 +25,12 @@ interface Props {
   planConfig: PlanConfig;
 }
 
-/**
- * Minimal shape of /api/account/status response we care about
- * for determining the current Stripe priceId.
- */
 type AccountStatusShape = {
   billing: {
     priceId?: string | null;
   } | null;
 };
 
-/**
- * startCheckout
- * @purpose
- *   Post the chosen `priceId` to the authenticated API and redirect to Stripe
- *   Checkout when a URL is returned. This helper:
- *     - Redirects to `/signin` if the backend reports 401.
- *     - Surfaces a specific message for 409 "already subscribed" responses.
- *     - Throws on other non-OK responses so the caller can show inline errors.
- */
 async function startCheckout(priceId: string): Promise<string> {
   const res = await fetch('/api/stripe/checkout', {
     method: 'POST',
@@ -62,7 +39,8 @@ async function startCheckout(priceId: string): Promise<string> {
   });
 
   if (res.status === 401) {
-    window.location.assign('/signin?returnTo=/billing/offer');
+    // Hard redirect on 401 to ensure clean state
+    window.location.href = '/signin?returnTo=/billing/offer';
     throw new Error('Authentication required.');
   }
 
@@ -87,53 +65,55 @@ async function startCheckout(priceId: string): Promise<string> {
   return data.url;
 }
 
-/**
- * OfferPageClient Component
- * Main client component that renders the offer page with plan selection,
- * styling from offer.css, and correct "current plan type" disabling behavior.
- */
 export default function OfferPageClient({ planConfig }: Props) {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const redirectInitiated = useRef(false); // Prevent double-firing
 
   const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
   const [busyPlan, setBusyPlan] = useState<'scholar' | 'educator' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentPriceId, setCurrentPriceId] = useState<string | null>(null);
 
+  // update - 2: Handle Sign Out
+  const handleSignOut = async () => {
+    // Sign out and redirect back to this page (which will then trigger the auth guard to send them to signin)
+    // or directly to signin. Let's go to signin for a clean switch.
+    await signOut({ callbackUrl: '/signin?returnTo=/billing/offer' });
+  };
+
   /**
-   * Authentication guard - redirect unauthenticated users
+   * Enhanced Auth Guard
+   * Use window.location.href for auth redirects to break client-side routing loops.
+   * Added a ref to ensure we only trigger this once.
    */
   useEffect(() => {
     if (status === 'loading') return;
-    const email = session?.user?.email?.trim().toLowerCase();
-    if (status === 'unauthenticated' || !email) {
-      const returnTo = encodeURIComponent('/billing/offer');
-      router.replace(`/signin?returnTo=${returnTo}`);
-    }
-  }, [status, session?.user?.email, router]);
 
-  /**
-   * Load account status to determine active Stripe priceId.
-   * If this fails, we simply leave all plans enabled.
-   */
+    // Use strict check: if explicitly unauthenticated OR authenticated but missing email
+    const isInvalidSession = status === 'unauthenticated' || (status === 'authenticated' && !session?.user?.email);
+
+    if (isInvalidSession && !redirectInitiated.current) {
+      redirectInitiated.current = true;
+      const returnTo = encodeURIComponent('/billing/offer');
+      // Force a hard navigation to clear client state
+      window.location.href = `/signin?returnTo=${returnTo}`;
+    }
+  }, [status, session]);
+
+  // Fetch Account Status (Only when authenticated)
   useEffect(() => {
     if (status !== 'authenticated') return;
 
     let cancelled = false;
-
     const loadStatus = async () => {
       try {
         const res = await fetch('/api/account/status', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
         });
 
-        if (!res.ok) {
-          // Degrade gracefully (e.g., 401 from backend)
-          return;
-        }
+        if (!res.ok) return;
 
         const data = (await res.json()) as AccountStatusShape;
         if (!cancelled) {
@@ -146,17 +126,9 @@ export default function OfferPageClient({ planConfig }: Props) {
     };
 
     loadStatus();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [status]);
 
-  /**
-   * handlePlanSelect
-   * @purpose
-   *   Handles plan selection and initiates checkout flow
-   */
   const handlePlanSelect = async (planKey: 'scholar' | 'educator') => {
     setError(null);
     setBusyPlan(planKey);
@@ -172,26 +144,23 @@ export default function OfferPageClient({ planConfig }: Props) {
     }
   };
 
-  // Loading state during auth check
-  if (status === 'loading') {
+  // Stable Loading State
+  if (status === 'loading' || (status === 'unauthenticated' && !session)) {
     return (
       <main className="offer-page">
-        <div className="offer-container">
-          <p style={{ color: '#6C757D' }}>Checking your session…</p>
+        <div className="offer-container" style={{ textAlign: 'center', marginTop: '100px' }}>
+          <div className="offer-toggle-btn active" style={{ display: 'inline-block', cursor: 'default' }}>
+            {status === 'loading' ? 'Checking session...' : 'Redirecting to login...'}
+          </div>
         </div>
       </main>
     );
   }
 
-  // Don't render if not authenticated
-  if (status === 'unauthenticated' || !session?.user?.email) return null;
+  // If we passed the guard but explicitly have no email (edge case), don't render content
+  if (!session?.user?.email) return null;
 
-  /**
-   * Determine current plan **by plan type**, not by interval.
-   * If currentPriceId matches either scholar monthly OR scholar annual,
-   * we treat the Scholar card as "current" for both toggles.
-   * Same for Educator.
-   */
+  // Logic for determining current plan button state
   const scholarPriceIds = [
     planConfig.scholar.monthly.priceId,
     planConfig.scholar.annual.priceId,
@@ -203,16 +172,12 @@ export default function OfferPageClient({ planConfig }: Props) {
 
   let currentPlanType: 'scholar' | 'educator' | null = null;
   if (currentPriceId) {
-    if (scholarPriceIds.includes(currentPriceId)) {
-      currentPlanType = 'scholar';
-    } else if (educatorPriceIds.includes(currentPriceId)) {
-      currentPlanType = 'educator';
-    }
+    if (scholarPriceIds.includes(currentPriceId)) currentPlanType = 'scholar';
+    else if (educatorPriceIds.includes(currentPriceId)) currentPlanType = 'educator';
   }
 
   const scholarIsBusy = busyPlan === 'scholar';
   const educatorIsBusy = busyPlan === 'educator';
-
   const scholarIsCurrent = currentPlanType === 'scholar';
   const educatorIsCurrent = currentPlanType === 'educator';
 
@@ -231,14 +196,34 @@ export default function OfferPageClient({ planConfig }: Props) {
   return (
     <main className="offer-page">
       <div className="offer-container">
-        {/* Header Section */}
+        
+        {/* update - 3: Header with Account Context */}
+        <div className="offer-top-bar" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.9rem', color: '#555' }}>
+             <span>Signed in as <strong>{session.user.email}</strong></span>
+             <button 
+               onClick={handleSignOut}
+               style={{ 
+                 background: 'none', 
+                 border: 'none', 
+                 textDecoration: 'underline', 
+                 color: '#E34432', 
+                 cursor: 'pointer',
+                 padding: 0,
+                 fontSize: 'inherit'
+               }}
+             >
+               Sign out
+             </button>
+           </div>
+        </div>
+
         <header className="offer-header">
           <h1 className="offer-title">Choose your plan</h1>
           <p className="offer-subtitle">
-            Your payment is processed securely by Stripe. You can manage or cancel anytime in the Billing Portal.
+            Your payment is processed securely by Stripe. You can manage or cancel anytime.
           </p>
 
-          {/* Billing toggle matching welcome page */}
           <div className="offer-toggle">
             <button
               type="button"
@@ -257,17 +242,15 @@ export default function OfferPageClient({ planConfig }: Props) {
           </div>
         </header>
 
-        {/* Error Display */}
         {error && (
           <div className="offer-error" role="alert">
             {error}
           </div>
         )}
 
-        {/* Two-plan grid (Scholar / Educator) */}
         <div className="offer-plans-grid">
           {/* Scholar Plan */}
-          <div className="offer-plan-card premium">
+          <div className={`offer-plan-card ${scholarIsCurrent ? 'premium' : ''}`}>
             <div className="offer-card-label">Most popular</div>
             <div className="offer-card-icon">🎓</div>
             <h3 className="offer-card-title">Scholar Premium</h3>
@@ -291,18 +274,13 @@ export default function OfferPageClient({ planConfig }: Props) {
               className="offer-card-btn"
               onClick={() => handlePlanSelect('scholar')}
               disabled={scholarIsBusy || scholarIsCurrent}
-              aria-label={
-                scholarIsCurrent
-                  ? 'Current plan: Scholar Premium'
-                  : 'Select Scholar Premium'
-              }
             >
               {scholarButtonLabel}
             </button>
           </div>
 
           {/* Educator Plan */}
-          <div className="offer-plan-card premium">
+          <div className={`offer-plan-card ${educatorIsCurrent ? 'premium' : ''}`}>
             <div className="offer-card-label">For courses & cohorts</div>
             <div className="offer-card-icon">👥</div>
             <h3 className="offer-card-title">Educator Premium</h3>
@@ -326,18 +304,12 @@ export default function OfferPageClient({ planConfig }: Props) {
               className="offer-card-btn"
               onClick={() => handlePlanSelect('educator')}
               disabled={educatorIsBusy || educatorIsCurrent}
-              aria-label={
-                educatorIsCurrent
-                  ? 'Current plan: Educator Premium'
-                  : 'Select Educator Premium'
-              }
             >
               {educatorButtonLabel}
             </button>
           </div>
         </div>
 
-        {/* Footer Note */}
         <div className="offer-footer-note">
           Exact limits may evolve; we document changes in the Changelog first. No testimonials. No bait-and-switch.
         </div>
