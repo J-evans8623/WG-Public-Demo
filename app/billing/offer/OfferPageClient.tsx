@@ -1,15 +1,20 @@
 // app/(billing)/offer/OfferPageClient.tsx
 
+/**
+ * @file app/(billing)/offer/OfferPageClient.tsx
+ * @description
+ * Client component for the WiseGraph Pricing Page.
+ * Implements the "Comprehensive Ledger" design with an asymmetric layout and dense feature lists.
+ * Updated Phase 3: Applied "User Pill" and structural classes for better readability against texture.
+ */
+
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react'; // update - 1: Import signOut
-import './offer.css';
+import { useSession, signOut } from 'next-auth/react';
+import './pricing.css';
 
-/**
- * Type definition for plan configuration passed from server
- */
 type PlanConfig = {
   scholar: {
     monthly: { price: string; priceId: string };
@@ -31,6 +36,29 @@ type AccountStatusShape = {
   } | null;
 };
 
+const SCHOLAR_FEATURES = [
+  "Unlimited Concept Maps",
+  "Full Study Planner (Multi-notebook)",
+  "AI Tutor & Summary Generator",
+  "Monthly Cap + Free Daily Burst",
+  "Study Groups (Invite Collaborators)",
+  "Advanced Quiz Mode",
+  "Priority Email Support",
+  "Offline Access & Export",
+];
+
+const EDUCATOR_FEATURES = [
+  "Higher Daily AI Burst Limits",
+  "Planner for Multiple Classes",
+  "Expanded Collaboration Spaces",
+  "Class Management Tools",
+  "Student Progress Tracking",
+  "Custom Quiz Creation",
+  "Bulk Student Enrollment",
+  "Dedicated Priority Support",
+  "Early Access to New Features",
+];
+
 async function startCheckout(priceId: string): Promise<string> {
   const res = await fetch('/api/stripe/checkout', {
     method: 'POST',
@@ -39,7 +67,6 @@ async function startCheckout(priceId: string): Promise<string> {
   });
 
   if (res.status === 401) {
-    // Hard redirect on 401 to ensure clean state
     window.location.href = '/signin?returnTo=/billing/offer';
     throw new Error('Authentication required.');
   }
@@ -68,43 +95,30 @@ async function startCheckout(priceId: string): Promise<string> {
 export default function OfferPageClient({ planConfig }: Props) {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const redirectInitiated = useRef(false); // Prevent double-firing
+  const redirectInitiated = useRef(false);
 
   const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
   const [busyPlan, setBusyPlan] = useState<'scholar' | 'educator' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentPriceId, setCurrentPriceId] = useState<string | null>(null);
 
-  // update - 2: Handle Sign Out
   const handleSignOut = async () => {
-    // Sign out and redirect back to this page (which will then trigger the auth guard to send them to signin)
-    // or directly to signin. Let's go to signin for a clean switch.
     await signOut({ callbackUrl: '/signin?returnTo=/billing/offer' });
   };
 
-  /**
-   * Enhanced Auth Guard
-   * Use window.location.href for auth redirects to break client-side routing loops.
-   * Added a ref to ensure we only trigger this once.
-   */
   useEffect(() => {
     if (status === 'loading') return;
-
-    // Use strict check: if explicitly unauthenticated OR authenticated but missing email
     const isInvalidSession = status === 'unauthenticated' || (status === 'authenticated' && !session?.user?.email);
 
     if (isInvalidSession && !redirectInitiated.current) {
       redirectInitiated.current = true;
       const returnTo = encodeURIComponent('/billing/offer');
-      // Force a hard navigation to clear client state
       window.location.href = `/signin?returnTo=${returnTo}`;
     }
   }, [status, session]);
 
-  // Fetch Account Status (Only when authenticated)
   useEffect(() => {
     if (status !== 'authenticated') return;
-
     let cancelled = false;
     const loadStatus = async () => {
       try {
@@ -112,9 +126,7 @@ export default function OfferPageClient({ planConfig }: Props) {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
-
         if (!res.ok) return;
-
         const data = (await res.json()) as AccountStatusShape;
         if (!cancelled) {
           const priceFromBilling = data?.billing?.priceId ?? null;
@@ -124,7 +136,6 @@ export default function OfferPageClient({ planConfig }: Props) {
         console.warn('[OfferPageClient] Failed to load account status:', err);
       }
     };
-
     loadStatus();
     return () => { cancelled = true; };
   }, [status]);
@@ -132,7 +143,6 @@ export default function OfferPageClient({ planConfig }: Props) {
   const handlePlanSelect = async (planKey: 'scholar' | 'educator') => {
     setError(null);
     setBusyPlan(planKey);
-
     try {
       const priceId = planConfig[planKey][billing].priceId;
       const url = await startCheckout(priceId);
@@ -144,23 +154,20 @@ export default function OfferPageClient({ planConfig }: Props) {
     }
   };
 
-  // Stable Loading State
   if (status === 'loading' || (status === 'unauthenticated' && !session)) {
     return (
-      <main className="offer-page">
-        <div className="offer-container" style={{ textAlign: 'center', marginTop: '100px' }}>
-          <div className="offer-toggle-btn active" style={{ display: 'inline-block', cursor: 'default' }}>
-            {status === 'loading' ? 'Checking session...' : 'Redirecting to login...'}
-          </div>
-        </div>
+      <main className="wg-pricing-page">
+         <div className="wg-pricing-container" style={{ display: 'flex', justifyContent: 'center', paddingTop: '100px' }}>
+           <div className="wg-toggle-btn active" style={{ cursor: 'default' }}>
+             {status === 'loading' ? 'Checking session...' : 'Redirecting...'}
+           </div>
+         </div>
       </main>
     );
   }
 
-  // If we passed the guard but explicitly have no email (edge case), don't render content
   if (!session?.user?.email) return null;
 
-  // Logic for determining current plan button state
   const scholarPriceIds = [
     planConfig.scholar.monthly.priceId,
     planConfig.scholar.annual.priceId,
@@ -181,137 +188,127 @@ export default function OfferPageClient({ planConfig }: Props) {
   const scholarIsCurrent = currentPlanType === 'scholar';
   const educatorIsCurrent = currentPlanType === 'educator';
 
-  const scholarButtonLabel = scholarIsCurrent
-    ? 'Current plan'
-    : scholarIsBusy
-    ? 'Processing…'
-    : 'Continue to Checkout';
-
-  const educatorButtonLabel = educatorIsCurrent
-    ? 'Current plan'
-    : educatorIsBusy
-    ? 'Processing…'
-    : 'Continue to Checkout';
-
   return (
-    <main className="offer-page">
-      <div className="offer-container">
+    <main className="wg-pricing-page">
+      <div className="wg-pricing-container">
         
-        {/* update - 3: Header with Account Context */}
-        <div className="offer-top-bar" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.9rem', color: '#555' }}>
-             <span>Signed in as <strong>{session.user.email}</strong></span>
-             <button 
-               onClick={handleSignOut}
-               style={{ 
-                 background: 'none', 
-                 border: 'none', 
-                 textDecoration: 'underline', 
-                 color: '#E34432', 
-                 cursor: 'pointer',
-                 padding: 0,
-                 fontSize: 'inherit'
-               }}
-             >
-               Sign out
-             </button>
-           </div>
-        </div>
-
-        <header className="offer-header">
-          <h1 className="offer-title">Choose your plan</h1>
-          <p className="offer-subtitle">
-            Your payment is processed securely by Stripe. You can manage or cancel anytime.
-          </p>
-
-          <div className="offer-toggle">
-            <button
-              type="button"
-              className={`offer-toggle-btn ${billing === 'monthly' ? 'active' : ''}`}
-              onClick={() => setBilling('monthly')}
+        {/* update - 1: Applied .wg-user-pill for readability against texture */}
+        <div className="wg-top-bar-container">
+          <div className="wg-user-pill">
+            <span>Signed in as <strong>{session.user.email}</strong></span>
+            <button 
+              onClick={handleSignOut}
+              style={{ background: 'none', border: 'none', textDecoration: 'underline', color: 'var(--wg-accent-red)', cursor: 'pointer', padding: 0, fontSize: 'inherit' }}
             >
-              Monthly
-            </button>
-            <button
-              type="button"
-              className={`offer-toggle-btn ${billing === 'annual' ? 'active' : ''}`}
-              onClick={() => setBilling('annual')}
-            >
-              Annual <small>(save 20%)</small>
+              Sign out
             </button>
           </div>
-        </header>
+        </div>
 
         {error && (
-          <div className="offer-error" role="alert">
+          <div style={{ background: '#fee2e2', color: '#991b1b', padding: '12px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center' }}>
             {error}
           </div>
         )}
 
-        <div className="offer-plans-grid">
-          {/* Scholar Plan */}
-          <div className={`offer-plan-card ${scholarIsCurrent ? 'premium' : ''}`}>
-            <div className="offer-card-label">Most popular</div>
-            <div className="offer-card-icon">🎓</div>
-            <h3 className="offer-card-title">Scholar Premium</h3>
-            <div className="offer-card-price">
-              {planConfig.scholar[billing].price}
-              <span className="offer-price-period">
-                /{billing === 'monthly' ? 'mo' : 'yr'}
-              </span>
-            </div>
-            <ul className="offer-card-features">
-              <li>Premium subscription: monthly cap + free daily burst</li>
-              <li>Full Study Planner (multi-notebook)</li>
-              <li>Study Groups (invite collaborators)</li>
-            </ul>
-            {scholarIsCurrent && (
-              <p style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>
-                This is your current subscription.
-              </p>
-            )}
-            <button
-              className="offer-card-btn"
-              onClick={() => handlePlanSelect('scholar')}
-              disabled={scholarIsBusy || scholarIsCurrent}
-            >
-              {scholarButtonLabel}
-            </button>
-          </div>
+        <div className="wg-pricing-layout">
+          
+          {/* LEFT COLUMN: Narrative Panel */}
+          {/* update - 2: Class applies the new solid panel styling */}
+          <section className="wg-pricing-intro">
+            <h1 className="wg-pricing-title">Start building lasting mastery today.</h1>
+          </section>
 
-          {/* Educator Plan */}
-          <div className={`offer-plan-card ${educatorIsCurrent ? 'premium' : ''}`}>
-            <div className="offer-card-label">For courses & cohorts</div>
-            <div className="offer-card-icon">👥</div>
-            <h3 className="offer-card-title">Educator Premium</h3>
-            <div className="offer-card-price">
-              {planConfig.educator[billing].price}
-              <span className="offer-price-period">
-                /{billing === 'monthly' ? 'mo' : 'yr'}
-              </span>
+          {/* RIGHT COLUMN: Grid & Controls */}
+          <section>
+            
+            <div className="wg-pricing-controls">
+              <div className="wg-toggle-group">
+                <button
+                  type="button"
+                  className={`wg-toggle-btn ${billing === 'monthly' ? 'active' : ''}`}
+                  onClick={() => setBilling('monthly')}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  className={`wg-toggle-btn ${billing === 'annual' ? 'active' : ''}`}
+                  onClick={() => setBilling('annual')}
+                >
+                  Annual <small>(save 20%)</small>
+                </button>
+              </div>
             </div>
-            <ul className="offer-card-features">
-              <li>Premium + higher daily burst</li>
-              <li>Planner for multiple classes</li>
-              <li>Expanded collaboration spaces</li>
-            </ul>
-            {educatorIsCurrent && (
-              <p style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>
-                This is your current subscription.
-              </p>
-            )}
-            <button
-              className="offer-card-btn"
-              onClick={() => handlePlanSelect('educator')}
-              disabled={educatorIsBusy || educatorIsCurrent}
-            >
-              {educatorButtonLabel}
-            </button>
-          </div>
-        </div>
 
-        <div className="offer-footer-note">
-          Exact limits may evolve; we document changes in the Changelog first. No testimonials. No bait-and-switch.
+            <div className="wg-cards-grid">
+              
+              {/* Card 1: STARTER */}
+              <div className="wg-paper-card starter">
+                <div className="wg-card-header">
+                  <h3 className="wg-card-title">Starter</h3>
+                  <div className="wg-card-price">Free</div>
+                </div>
+                <ul className="wg-feature-list">
+                   <li className="wg-feature-item">2 Lifetime Credits</li>
+                   <li className="wg-feature-item">Basic Features Access</li>
+                   <li className="wg-feature-item">Community Access</li>
+                </ul>
+                <button className="wg-card-btn wg-btn-outline" disabled>
+                  Current Tier
+                </button>
+              </div>
+
+              {/* Card 2: SCHOLAR PREMIUM */}
+              <div className={`wg-paper-card scholar`}>
+                <div className="wg-card-badge">Most Popular</div>
+                <div className="wg-card-header">
+                  <h3 className="wg-card-title">Scholar Premium</h3>
+                  <div className="wg-card-price">
+                    {planConfig.scholar[billing].price}
+                    <span className="wg-card-period">/{billing === 'monthly' ? 'mo' : 'yr'}</span>
+                  </div>
+                </div>
+                <ul className="wg-feature-list">
+                  {SCHOLAR_FEATURES.map((item, idx) => (
+                    <li key={idx} className="wg-feature-item">{item}</li>
+                  ))}
+                </ul>
+                <button
+                  className="wg-card-btn wg-btn-primary"
+                  onClick={() => handlePlanSelect('scholar')}
+                  disabled={scholarIsBusy || scholarIsCurrent}
+                >
+                  {scholarIsCurrent ? 'Current Plan' : scholarIsBusy ? 'Processing...' : 'Continue to Checkout'}
+                </button>
+              </div>
+
+              {/* Card 3: EDUCATOR PREMIUM */}
+              <div className="wg-paper-card educator">
+                <div className="wg-card-header">
+                  <h3 className="wg-card-title">Educator Premium</h3>
+                  <div className="wg-card-price">
+                    {planConfig.educator[billing].price}
+                    <span className="wg-card-period">/{billing === 'monthly' ? 'mo' : 'yr'}</span>
+                  </div>
+                </div>
+                <ul className="wg-feature-list">
+                  {EDUCATOR_FEATURES.map((item, idx) => (
+                    <li key={idx} className="wg-feature-item">{item}</li>
+                  ))}
+                </ul>
+                <button
+                  className="wg-card-btn wg-btn-primary"
+                  onClick={() => handlePlanSelect('educator')}
+                  disabled={educatorIsBusy || educatorIsCurrent}
+                >
+                  {educatorIsCurrent ? 'Current Plan' : educatorIsBusy ? 'Processing...' : 'Continue to Checkout'}
+                </button>
+              </div>
+
+            </div>
+            
+          </section>
         </div>
       </div>
     </main>

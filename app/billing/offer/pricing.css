@@ -1,0 +1,341 @@
+
+/**
+ * @file app/(billing)/offer/pricing.css
+ * @description
+ * Styles for the WiseGraph Pricing Page (The Comprehensive Ledger Design).
+ * Updated in Phase 3 to add "breathing spaces" (solid backgrounds) for text readability.
+ */
+
+/* =========================================
+   VARIABLES & TOKENS
+   ========================================= */
+:root {
+  --wg-bg-paper: #FEFDFC;
+  --wg-bg-tan: #F4F1EA;
+  --wg-text-main: #2c3e50;
+  --wg-text-muted: #546b81;
+  --wg-accent-red: #E34432;
+  --wg-accent-taupe: #8C7B6C;
+  --wg-accent-sage: #5D8A66;
+  --wg-accent-sage-dark: #4A6E51;
+  
+  --wg-shadow-paper: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --wg-shadow-lifted: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  --wg-font-serif: 'Crimson Text', serif;
+  --wg-font-sans: 'Inter', sans-serif;
+}
+
+/* =========================================
+   MAIN LAYOUT & BACKGROUND
+   ========================================= */
+.wg-pricing-page {
+  min-height: 100vh;
+  width: 100%;
+  /* Texture Background applies to the whole page */
+  background-color: var(--wg-bg-tan);
+  background-image: url('/textures/texture-academia-wall-paper.jpg'); 
+  background-repeat: repeat;
+  background-size: 400px;
+  font-family: var(--wg-font-sans);
+  color: var(--wg-text-main);
+  padding: 40px 20px 80px;
+}
+
+.wg-pricing-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Desktop Grid Layout */
+.wg-pricing-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr; /* Update - 1: Widened left col for the panel */
+  gap: 60px;
+  align-items: start;
+}
+
+/* =========================================
+   LEFT COLUMN: Narrative Panel
+   ========================================= */
+.wg-pricing-intro {
+  position: sticky;
+  top: 40px;
+  /* Update - 2: Solid background panel for readability */
+  background-color: rgba(254, 253, 252, 0.95); /* Nearly opaque paper color */
+  padding: 40px 32px;
+  border-radius: 16px;
+  box-shadow: var(--wg-shadow-paper);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(4px); /* Subtle blur behind the panel */
+}
+
+.wg-pricing-title {
+  font-family: var(--wg-font-serif);
+  font-size: 3rem; 
+  line-height: 1.1;
+  color: #3d2c29;
+  margin-bottom: 24px;
+}
+
+.wg-pricing-subtitle {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--wg-text-muted);
+  margin-bottom: 0;
+}
+
+/* =========================================
+   TOP USER BAR
+   ========================================= */
+.wg-top-bar-container {
+  display: flex; 
+  justify-content: flex-end; 
+  margin-bottom: 20px;
+}
+
+/* Update - 3: New styles for User Pill */
+.wg-user-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+  color: #555;
+  
+  /* Pill styling to isolate from texture */
+  background-color: rgba(255, 255, 255, 0.95);
+  padding: 10px 24px;
+  border-radius: 99px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+/* =========================================
+   RIGHT COLUMN: Cards & Controls
+   ========================================= */
+.wg-pricing-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 40px;
+}
+
+.wg-toggle-group {
+  background: white;
+  padding: 4px;
+  border-radius: 99px;
+  box-shadow: var(--wg-shadow-paper);
+  display: inline-flex;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.wg-toggle-btn {
+  padding: 8px 20px;
+  border-radius: 99px;
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--wg-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.wg-toggle-btn.active {
+  background-color: var(--wg-text-main);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.wg-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+/* =========================================
+   CARD COMPONENT STYLING
+   ========================================= */
+.wg-paper-card {
+  background: white;
+  border-radius: 12px;
+  padding: 32px 24px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid rgba(0,0,0,0.04);
+  /* Stacked paper shadow effect */
+  box-shadow: 
+    0 1px 1px rgba(0,0,0,0.05), 
+    0 10px 0 -5px #f4f4f4, 
+    0 10px 1px -4px rgba(0,0,0,0.01),
+    0 20px 0 -10px #efefef,
+    0 20px 1px -9px rgba(0,0,0,0.01);
+}
+
+.wg-paper-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--wg-shadow-lifted);
+}
+
+/* Variants */
+.wg-paper-card.starter {
+  /* Update - 4: Increased opacity for readability */
+  background-color: rgba(255, 255, 255, 0.92); 
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03); /* Softer shadow, but distinct */
+}
+
+.wg-paper-card.scholar {
+  border-top: 4px solid var(--wg-accent-red);
+}
+
+.wg-paper-card.educator {
+  border-top: 4px solid var(--wg-accent-sage);
+}
+
+/* Card Content */
+.wg-card-header {
+  margin-bottom: 24px;
+  min-height: 100px;
+}
+
+.wg-card-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--wg-accent-red);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 12px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.wg-card-title {
+  font-family: var(--wg-font-serif);
+  font-size: 1.5rem;
+  color: var(--wg-text-main);
+  margin-bottom: 8px;
+}
+
+.wg-card-price {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--wg-text-main);
+  display: flex;
+  align-items: baseline;
+}
+
+.wg-card-period {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--wg-text-muted);
+  margin-left: 4px;
+}
+
+/* Feature List (High Density) */
+.wg-feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 32px 0;
+  flex-grow: 1;
+}
+
+.wg-feature-item {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 10px;
+  padding-left: 20px;
+  position: relative;
+  line-height: 1.4;
+}
+
+.wg-feature-item::before {
+  content: "•";
+  color: var(--wg-accent-taupe);
+  position: absolute;
+  left: 0;
+  font-weight: bold;
+}
+
+.wg-paper-card.scholar .wg-feature-item::before { color: var(--wg-accent-red); }
+.wg-paper-card.educator .wg-feature-item::before { color: var(--wg-accent-sage); }
+
+/* Buttons */
+.wg-card-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+}
+
+.wg-btn-primary {
+  background-color: var(--wg-accent-sage);
+  color: white;
+}
+.wg-btn-primary:hover:not(:disabled) {
+  background-color: var(--wg-accent-sage-dark);
+}
+.wg-btn-primary:disabled {
+  background-color: #a0bda5;
+  cursor: not-allowed;
+}
+
+.wg-btn-outline {
+  background: transparent;
+  border: 1px solid var(--wg-text-muted);
+  color: var(--wg-text-muted);
+}
+.wg-btn-outline:hover {
+  background: rgba(0,0,0,0.03);
+}
+
+.wg-footer-note {
+  text-align: right;
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 24px;
+  font-style: italic;
+  /* Update - 5: Added background pill for footer note readability if it overlaps texture */
+  background: rgba(255,255,255,0.8);
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  float: right;
+}
+
+/* =========================================
+   RESPONSIVE
+   ========================================= */
+@media (max-width: 960px) {
+  .wg-pricing-layout {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .wg-pricing-intro {
+    position: static;
+    text-align: center;
+    background-color: rgba(254, 253, 252, 0.98); /* Less transparency on mobile */
+  }
+  .wg-cards-grid {
+    grid-template-columns: 1fr;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  .wg-pricing-controls {
+    justify-content: center;
+  }
+  .wg-top-bar-container {
+    justify-content: center;
+  }
+}
