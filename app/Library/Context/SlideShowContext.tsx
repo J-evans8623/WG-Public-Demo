@@ -465,6 +465,7 @@ const gotoPrev = useCallback(() => {                                            
 
             const { request } = sessionLaunchState;
             let generatedSlides: ResourceCard[] = [];
+            let isNotInterleaveSession = true;
 
             if (request.sessionData.type === 'block') {
               // console.log('[SlideShowContext.tsx][6029] › Generating block session with', request.sessionData.targetLessonUnits.length, 'units');
@@ -488,6 +489,7 @@ const gotoPrev = useCallback(() => {                                            
             else {
               // console.log('[SlideShowContext.tsx][6031] › Generating revision session');
               const revision = generateRevision();
+              isNotInterleaveSession = false;
               if (revision) {
                 generatedSlides = [...revision.flashCards, ...revision.quizzes];
                 // console.log('[SlideShowContext.tsx][6032] › Generated', generatedSlides.length, 'revision slides');
@@ -499,8 +501,8 @@ const gotoPrev = useCallback(() => {                                            
             if (generatedSlides.length === 0) {
               throw new Error('No slides generated for session - empty content collection');
             }
-
-            openCustom(generatedSlides, "session" ,true);
+            let key = "session" + request.sessionId
+            openCustom(generatedSlides, key,isNotInterleaveSession);
             // console.log('[SlideShowContext.tsx][6033] › Session launched successfully with', generatedSlides.length, 'slides');
             setSessionLaunchState({ type: 'IDLE' });
             break;

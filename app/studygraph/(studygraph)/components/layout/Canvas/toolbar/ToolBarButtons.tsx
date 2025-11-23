@@ -22,8 +22,6 @@ import {
   Search, 
   Share2, 
   MoreHorizontal, 
-  Undo2, 
-  Redo2, 
   MousePointer, 
   ClipboardList 
 } from 'lucide-react';

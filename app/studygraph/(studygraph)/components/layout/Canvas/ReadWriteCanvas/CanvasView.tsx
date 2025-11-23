@@ -174,18 +174,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
     const assessmentSlides = UnitOrderSlides.filter(card => card.type !== 'note');
     openCustom(assessmentSlides, "review");
   }
-  const handleViewFlashCards = () => {
-    const reviewInfo = getReviewNode();
-    const reviewId = reviewInfo.exist ? reviewInfo.id : null;
-    const mainOrder = preorder.filter(id => id !== reviewId);
-    const nodeOrder = reviewId ? [...mainOrder, reviewId] : mainOrder;
-    const cueSlides: any[] = [];
-    nodeOrder.forEach(id => {
-      const title = getNodeTitle(id) || 'Untitled';
-      selectCueCards(id).forEach(raw => cueSlides.push({ ...raw, conceptNodeTitle: title }));
-    });
-    openCustom(cueSlides);
-  };
+
 
   /* ─────────────────────── Review modal state ──────────────────────────── */
   const [isReviewModalOpen, setReviewModalOpen] = useState(false);

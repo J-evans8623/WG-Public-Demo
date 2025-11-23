@@ -17,7 +17,6 @@
   z-index: 100; /* High z-index to stay above content */
   backdrop-filter: blur(16px);
   background: rgba(254, 253, 252, 0.95); /* Slight transparency for blur effect */
-  border-bottom: 1px solid rgba(0,0,0,0.03); /* Optional: adds subtle separation */
 }
 
 .wg-nav-inner {
@@ -59,6 +58,13 @@
   font-weight: 500;
   opacity: 0.85;
   transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.wg-nav-sep {
+  width: 1px;
+  height: 24px; /* Height of the bar */
+  background-color: #E2E4E7; /* Subtle grey matches existing borders */
+  margin: 0 4px; /* Slight extra breathing room */
 }
 
 .wg-nav-link:hover {

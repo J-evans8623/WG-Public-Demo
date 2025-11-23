@@ -62,7 +62,7 @@ function WelcomeLandingPage(): JSX.Element {
     {
       id: 1,
       eyebrow: 'From messy chapters to clarity',
-      heading: 'Turn any chapter into a clickable concept map',
+      heading: 'Turn any chapter into a clear roadmap',
       body:
         'Upload a PDF chapter and WiseGraph unfolds it into a visual map of bite-size topics. Each node becomes a micro-lesson with notes, flashcards, and quizzes—so you can scan your course at a glance and jump straight into what matters.',
       videoSrc: '/demo/scene1-upload-to-lesson.mp4',
@@ -105,27 +105,6 @@ function WelcomeLandingPage(): JSX.Element {
 
   return (
     <div className="wg-page">
-      {/* Navigation */}
-      <header className="wg-nav">
-        <div className="wg-nav-inner">
-          <div className="wg-nav-left">
-            <a href="/" aria-label="WiseGraph — Home">
-              <BrandIcon/>
-            </a>
-          </div>
-          <nav className="wg-nav-right" aria-label="Primary navigation">
-            <a href="/features" className="wg-nav-link">
-              Features
-            </a>
-            <a href="/pricing" className="wg-nav-link">
-              Pricing
-            </a>
-            <a href="/billing/offer" className="wg-nav-cta">
-              Start Today
-            </a>
-          </nav>
-        </div>
-      </header>
 
       <main className="wg-main">
         {/* Hero Section */}

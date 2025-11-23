@@ -1,0 +1,115 @@
+/* styles/legal-shared.css */
+
+/**
+ * @file styles/legal-shared.css
+ * @description Shared styling module for all legal documentation pages (Terms of Service, Privacy Policy).
+ * This stylesheet extracts design tokens from the core branding (fonts, colors, spacing) found in 
+ * features-page.css to ensure a cohesive look. It establishes a centralized "legal-page" class 
+ * that manages layout, readability width (measure), and typographic hierarchy for long-form text.
+ * * Responsibilities:
+ * 1. Define local CSS variables matching the brand identity.
+ * 2. Set the typographic rhythm for headings, paragraphs, and lists.
+ * 3. Manage the responsive container width to align with the SiteHeader.
+ */
+
+:root {
+  /* Extracted Tokens from features-page.css for consistency */
+  --wg-bg-paper: #FEFDFC;
+  --wg-text-main: #2c3e50;
+  --wg-text-muted: #546b81;
+  --wg-accent-red: #E34432;
+  --wg-accent-taupe: #8C7B6C;
+  --wg-border-frame: #E2E4E7;
+  --wg-container-width: min(94vw, 1000px); /* Slightly narrower than full width for reading comfort */
+}
+
+/* 1. Main Page Wrapper */
+.wg-legal-page {
+  background-color: var(--wg-bg-paper);
+  color: var(--wg-text-main);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  padding-bottom: 120px;
+  min-height: 100vh;
+}
+
+/* 2. Content Container */
+.wg-legal-container {
+  max-width: var(--wg-container-width);
+  margin: 0 auto;
+  padding: 60px 24px;
+}
+
+/* 3. Typography: Header */
+.wg-legal-main-title {
+  font-family: 'Crimson Text', serif;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.2;
+  color: var(--wg-text-main);
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--wg-border-frame);
+  padding-bottom: 24px;
+}
+
+.wg-legal-last-updated {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--wg-text-muted);
+  margin-bottom: 48px;
+  font-style: italic;
+}
+
+/* 4. Typography: Sections */
+.wg-legal-section {
+  margin-bottom: 48px;
+}
+
+.wg-legal-heading {
+  font-family: 'Crimson Text', serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--wg-text-main);
+  margin-bottom: 16px;
+  margin-top: 32px;
+}
+
+.wg-legal-text {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #4a4a4a; /* Slightly softer than pure black for reading */
+  margin-bottom: 16px;
+  max-width: 75ch; /* Optimal line length for readability */
+}
+
+/* 5. Typography: Lists */
+.wg-legal-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 24px 0;
+  padding-left: 8px;
+}
+
+.wg-legal-list li {
+  position: relative;
+  padding-left: 24px;
+  margin-bottom: 12px;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #4a4a4a;
+}
+
+.wg-legal-list li::before {
+  content: "•";
+  color: var(--wg-accent-red);
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* 6. Emphasis & Uppercase (used in disclaimers) */
+.wg-legal-caps {
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}

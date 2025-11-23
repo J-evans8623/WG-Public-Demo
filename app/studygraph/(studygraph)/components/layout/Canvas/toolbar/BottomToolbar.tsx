@@ -37,7 +37,7 @@ import './CanvasToolbar.css';
 import { setGetLayout } from '@/app/Library/Context/LayoutActions';
 import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider'; // update - 1
-import { Maximize2 } from 'lucide-react'; // four-corners style icon  // update - 2
+
 
 export interface BottomToolbarProps {
   activeView: 'conceptMap' | 'pdf';

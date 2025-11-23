@@ -195,14 +195,14 @@ async function idbClearAll(): Promise<void> {
  * =======================================================================================
  */
 
-export type cachetype = "start" | "review" | "session";
+export type cachetype = "start" | "review" | string;
 
 function getIndexType(cachetype:cachetype | undefined): string {
   if (cachetype =="review"){
     return INDEX_KEY_REVIEW
   }
-  else if (cachetype==="session"){
-    return INDEX_KEY_SESSION
+  else if (cachetype?.includes("session")){
+    return cachetype
   }
     return INDEX_KEY_START
 }

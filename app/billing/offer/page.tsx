@@ -1,24 +1,22 @@
+// app/(billing)/offer/page.tsx
+
 /**
  * @file app/(billing)/offer/page.tsx
  * @description
- *   Server component that constructs the plan list using server-only price ID config,
- *   then passes to client shell. Now shows 2 plan types (Scholar/Educator) with toggle
- *   for monthly/annual billing, matching the welcome page design.
- * 
- * @updates
- *   - Reduced to 2 plan tiles with billing toggle (matching welcome page)
- *   - Correct pricing: Scholar ($9.99/$95.99), Educator ($12.99/$124.99)
- *   - All plans redirect to checkout flow
+ * Server component that constructs the plan list using server-only price ID config,
+ * passes it to the client shell, and wraps the view with the SiteFooter.
  */
 
 import React from 'react';
 import OfferPageClient from './OfferPageClient';
+// update - 1: Import SiteFooter
+import SiteFooter from '@/components/SiteFooter';
 import {
   PRICE_SCHOLAR_MONTHLY,
   PRICE_SCHOLAR_ANNUAL,
   PRICE_EDUCATOR_MONTHLY,
   PRICE_EDUCATOR_ANNUAL,
-} from '@/app/src/billing/config'; // SERVER-ONLY import is OK here
+} from '@/app/src/billing/config';
 
 export const metadata = {
   title: 'WiseGraph — Choose your plan',
@@ -54,5 +52,11 @@ export default function OfferPage() {
     },
   };
 
-  return <OfferPageClient planConfig={planConfig} />;
+  return (
+    // update - 2: Wrap in fragment to include Footer
+    <>
+      <OfferPageClient planConfig={planConfig} />
+      <SiteFooter />
+    </>
+  );
 }

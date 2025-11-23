@@ -45,7 +45,7 @@ import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
 // update - 1: Replace split dropdown implementations with the converged, mode-aware menus
 import { UnifiedLessonsDropdown, UnifiedUploadsDropdown } from './DropDownMenu'; // update - 2
 
-import '@/app/studygraph/(studygraph)/components/layout/Canvas/bottomUtilityBar/CanvasHeader.css';
+import '@/app/studygraph/(studygraph)/components/layout/Canvas/header/CanvasHeader.css';
 import { useComments } from '@/app/Library/Context/forum/CommentContext';
 
 export type UnifiedHeaderMode = 'edit' | 'readonly';

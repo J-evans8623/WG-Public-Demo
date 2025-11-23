@@ -22,7 +22,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../pages/api/auth/[...nextauth]";
-import { UserService, UserProfile } from "../services/userService";
+import { UserService} from "../services/userService";
 
 // Step 1: Enhanced session interface with user profile data
 export interface EnhancedSession {

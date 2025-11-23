@@ -68,7 +68,7 @@ import ROcardDisplay from './components/layout/ReadOnly/CardDisplay/VHcardDispla
 import { UserInfoPanel } from '@/app/studygraph/(studygraph)/components/layout/UserInfoPanel';
 import { ChatHistoryProvider, useChatHistory } from '@/app/Library/Context/ChatHistoryContext';
 import { CommentsProvider } from '@/app/Library/Context/forum/CommentContext';
-import { UserDataProvider, useUserData } from '@/app/Library/Context/UserDataContext';
+import { UserDataProvider } from '@/app/Library/Context/UserDataContext';
 import { LessonModuleProvider, useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { AutoSaveManager } from '@/app/studygraph/(studygraph)/services/autosave/AutoSaveManager';
 import { useLessonModuleMapper } from '@/app/studygraph/(studygraph)/components/hooks/useLessonModuleMapper';

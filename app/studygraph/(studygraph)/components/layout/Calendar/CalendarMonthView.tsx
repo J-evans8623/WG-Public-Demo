@@ -42,7 +42,6 @@ import {
   SessionTooltipData,
   StudySession,
 } from '@/app/Library/Definitions/CalendarDefinitions';
-import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import './calendar-theme.css';
  import SessionContextMenuPortal from './SessionContextMenuPortal';
 

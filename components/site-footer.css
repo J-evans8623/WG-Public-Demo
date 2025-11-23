@@ -1,0 +1,173 @@
+
+/**
+ * @file components/site-footer.css
+ * @description Styling for the global site footer.
+ * Implements a responsive grid layout that transitions from a single column 
+ * on mobile to a multi-column layout on desktop.
+ * * Responsibilities:
+ * 1. Define the footer container and background.
+ * 2. Manage the grid layout for the main navigation area.
+ * 3. Style the "Legal Row" at the bottom for compliance links.
+ */
+
+:root {
+  /* Fallbacks for variables if not globally defined in layout */
+  --wg-footer-bg: #FEFDFC;
+  --wg-footer-text: #2c3e50;
+  --wg-footer-muted: #6b7280;
+  --wg-footer-border: #E5E7EB;
+  --wg-container: min(96vw, 1440px);
+  --wg-gutter: clamp(12px, 2vw, 32px);
+}
+
+/* Main Footer Wrapper */
+.wg-footer {
+  background-color: var(--wg-footer-bg);
+  border-top: 1px solid var(--wg-footer-border);
+  padding: 80px 0 40px;
+  font-family: 'Inter', sans-serif;
+  margin-top: auto; /* Pushes footer to bottom if page content is short */
+}
+
+.wg-footer-inner {
+  max-width: var(--wg-container);
+  margin: 0 auto;
+  padding: 0 var(--wg-gutter);
+}
+
+/* =========================================
+   TOP SECTION: Grid Layout
+   ========================================= */
+.wg-footer-top {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr; /* Desktop: Wide brand column + 2 nav columns */
+  gap: 64px;
+  margin-bottom: 80px;
+}
+
+/* Brand Column (Left) */
+.wg-footer-brand-col {
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.wg-footer-logo-link {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: #8B0000; /* Matches brand red */
+  transition: opacity 0.2s;
+}
+
+.wg-footer-logo-link:hover {
+  opacity: 0.8;
+}
+
+.wg-footer-hero-text {
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: var(--wg-footer-text);
+  font-weight: 400;
+}
+
+/* Navigation Columns (Right) */
+.wg-footer-nav-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wg-footer-heading {
+  font-size: 0.95rem;
+  font-weight: 700; /* Matches Todoist bold style */
+  color: var(--wg-footer-text);
+  margin-bottom: 8px;
+}
+
+.wg-footer-link {
+  font-size: 0.95rem;
+  color: var(--wg-footer-text);
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.wg-footer-link:hover {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* =========================================
+   BOTTOM SECTION: Legal Row
+   ========================================= */
+.wg-footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 32px;
+  font-size: 0.85rem;
+  color: var(--wg-footer-muted);
+}
+
+.wg-footer-legal-links {
+  display: flex;
+  gap: 24px;
+}
+
+.wg-legal-link {
+  color: var(--wg-footer-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.wg-legal-link:hover {
+  color: var(--wg-footer-text);
+  text-decoration: underline;
+}
+
+.wg-copyright {
+  text-align: right;
+}
+
+/* =========================================
+   RESPONSIVE MEDIA QUERIES
+   ========================================= */
+@media (max-width: 900px) {
+  .wg-footer-top {
+    grid-template-columns: 1fr 1fr; /* Brand full width, Nav split */
+    gap: 48px;
+  }
+  
+  .wg-footer-brand-col {
+    grid-column: span 2;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .wg-footer {
+    padding: 48px 0 32px;
+  }
+
+  .wg-footer-top {
+    grid-template-columns: 1fr; /* Single column stack */
+    gap: 40px;
+    margin-bottom: 48px;
+  }
+
+  .wg-footer-brand-col {
+    grid-column: span 1;
+  }
+
+  .wg-footer-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+  }
+
+  .wg-footer-legal-links {
+    flex-direction: column;
+    gap: 12px;
+  }
+}

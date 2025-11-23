@@ -22,8 +22,12 @@ const SiteHeader = () => {
           <Link href="/features" className="wg-nav-link">
             Features
           </Link>
-          <Link href="/pricing" className="wg-nav-link">
+          <Link href="billing/offer" className="wg-nav-link">
             Pricing
+          </Link>
+          <div className="wg-nav-sep" aria-hidden="true"></div>
+          <Link href="/signin?returnTo=/studygraph" className='wg-nav-link'>
+          Log in
           </Link>
           <Link href="/billing/offer" className="wg-nav-cta">
             Start Today

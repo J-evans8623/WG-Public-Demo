@@ -54,13 +54,13 @@ export const TUTORIAL_DATA: Record<string, TutorialContent> = {
     steps: [
       {
         stepNumber: 1,
-        title: 'Initiate Generation',
-        description: 'Click the "Generate Lesson" tile on your dashboard to open the AI tool.',
+        title: 'Generating a lesson',
+        description: 'Click the "Generate Lesson" button on your dashboard to open the AI tool.',
         imagePath: '/get-started/generate-lesson-menu-item.png',
       },
       {
         stepNumber: 2,
-        title: 'Select Source Material',
+        title: 'Select Study Material',
         description: 'Choose a file (PDF, DOCX, or PPTX) from your library that you want to create a lesson from',
       },
     ],
@@ -71,13 +71,13 @@ export const TUTORIAL_DATA: Record<string, TutorialContent> = {
     steps: [
       {
         stepNumber: 1,
-        title: 'Open Collaboration',
+        title: 'Inviting peers',
         description: 'Click the share button in the top menu bar.',
         imagePath: '/get-started/share-collab-scene-1.png',
       },
       {
         stepNumber: 2,
-        title: 'Invite Peers',
+        title: 'Access controls',
         description: 'Select the access control level you want for your notebook and then share the given link with your peers',
         imagePath: '/get-started/share-collab-2.png',
       },
@@ -89,14 +89,14 @@ export const TUTORIAL_DATA: Record<string, TutorialContent> = {
     steps: [
       {
         stepNumber: 1,
-        title: 'Access Uploads',
-        description: 'Navigate to the sidebar and click "Upload files" to open the file manager.',
+        title: 'Uploading your study material',
+        description: 'Navigate to the sidebar and click "Upload files" to open the file manager. Supported file types are pdfs, pptx and docx ',
         imagePath: '/get-started/uploads-scene-1.png',
       },
       {
         stepNumber: 2,
         title: 'Select & View',
-        description: 'Once uploaded, click the filename in the navigation panel to open it in the document viewer side-by-side with your notes.',
+        description: 'Once uploaded, click the filename in the navigation panel to open it in the document viewer.',
         imagePath: '/get-started/uploads-scene-2.png',
       },
     ],
