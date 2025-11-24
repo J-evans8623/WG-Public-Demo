@@ -12,6 +12,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import './pricing.css';
 
@@ -37,26 +38,26 @@ type AccountStatusShape = {
 };
 
 const SCHOLAR_FEATURES = [
-  "Unlimited Concept Maps",
-  "Full Study Planner (Multi-notebook)",
-  "AI Tutor & Summary Generator",
-  "Monthly Cap + Free Daily Burst",
-  "Study Groups (Invite Collaborators)",
-  "Advanced Quiz Mode",
-  "Priority Email Support",
-  "Offline Access & Export",
+  "Unlimited AI Lesson Generation",
+  "Visual AI Concept Mapping",
+  "Smart Spaced-Repetition Planner",
+  "On-Demand AI Tutor",
+  "Self-Paced Quiz Generation",
+  "Real-Time Peer Collaboration",
+  "Standard Rate Limits",
 ];
 
-const EDUCATOR_FEATURES = [
-  "Higher Daily AI Burst Limits",
-  "Planner for Multiple Classes",
-  "Expanded Collaboration Spaces",
-  "Class Management Tools",
-  "Student Progress Tracking",
-  "Custom Quiz Creation",
-  "Bulk Student Enrollment",
-  "Dedicated Priority Support",
-  "Early Access to New Features",
+const EDUCATOR_FEATURES =  [
+  "Unlimited AI Lesson Generation",
+  "Visual AI Concept Mapping",
+  "Smart Spaced-Repetition Planner",
+  "On-Demand AI Tutor",
+  "Self-Paced Quiz Generation",
+  "Real-Time Peer Collaboration",
+  "Track student performance on quiz assements with a gradebook",
+  "Assignable Quizzes with Deadlines",
+  "Manage permissions for all uploaded materials.",
+  'Higher rate limits',
 ];
 
 async function startCheckout(priceId: string): Promise<string> {
@@ -250,13 +251,16 @@ export default function OfferPageClient({ planConfig }: Props) {
                   <div className="wg-card-price">Free</div>
                 </div>
                 <ul className="wg-feature-list">
-                   <li className="wg-feature-item">2 Lifetime Credits</li>
+                   <li className="wg-feature-item">2 Lifetime Credits to create your first concept map</li>
                    <li className="wg-feature-item">Basic Features Access</li>
                    <li className="wg-feature-item">Community Access</li>
                 </ul>
-                <button className="wg-card-btn wg-btn-outline" disabled>
-                  Current Tier
-                </button>
+                <Link href="/signin?returnTo=/studygraph" className="wg-card-btn wg-btn-outline">
+                    Try free demo
+                </Link>
+                <span>
+                  Terms and conditions apply.
+                </span>
               </div>
 
               {/* Card 2: SCHOLAR PREMIUM */}

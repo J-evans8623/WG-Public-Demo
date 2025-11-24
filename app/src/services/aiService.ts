@@ -40,6 +40,8 @@ export interface JSONSchemaValidation {
 export interface GenerateOptions {
   stream?: boolean;
   tracker?: UsageTracker;
+  model?:"gpt-5-mini" | "gpt-5-nano",
+  modeleffort?: "low" | "medium",
 }
 
 class AIService {
@@ -90,7 +92,13 @@ class AIService {
     options: GenerateOptions = {}
   ): Promise<any> {
 
-    const modelName = "gpt-5-nano";
+
+
+    const defaultmodel = "gpt-5-mini";
+    const deafult_effort = "low";
+
+    let modelName = options.model? options.model : defaultmodel;
+    let model_r_effort = options.modeleffort? options.modeleffort : deafult_effort;
 
     console.log("[AIService] generateStructuredOutput:", {
       schema: jsonSchema.name,
@@ -104,12 +112,12 @@ class AIService {
 
       // --- Batch Mode ---
       const response = await this.openai.beta.chat.completions.parse({
-        model: "gpt-5-mini",
+        model: modelName,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userInput },
         ],
-        reasoning_effort: "low",
+        reasoning_effort: model_r_effort,
         response_format: { 
           type: "json_schema",
           json_schema: {
@@ -132,7 +140,7 @@ class AIService {
 
       const parsed = response.choices?.[0]?.message?.parsed;
 
-      console.log(`Inspecting response: aiService.ts 7x7x : \n ${JSON.stringify(parsed)}`)
+      //console.log(`Inspecting response: aiService.ts 7x7x : \n ${JSON.stringify(parsed)}`)
       if (!parsed) {
         throw new Error("AIService: no parsed output received");
       }

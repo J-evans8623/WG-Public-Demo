@@ -54,6 +54,7 @@ export async function generateBatchedUnitSyllabus(
   fullText: string,
   topicAmount: string,
   max: number,
+  economyMode:boolean,
   usageTracker?: UsageTracker
 ): Promise<BatchedSyllabus> {
   console.log('[aiTextPreProcessingV32.ts][2003] generateBatchedUnitSyllabus START', { topicAmount, max });
@@ -69,11 +70,13 @@ export async function generateBatchedUnitSyllabus(
   // #7575 syllabus Latency test – track time for the unit-syllabus LLM call
   const syllabusStart = Date.now();
 
+  const selectmodel = economyMode? "gpt-5-nano" : "gpt-5-mini";
+
   const raw: any = await aiService.generateStructuredOutput(
     { name: unitSyllabusArray.name, schema: unitSyllabusArray.schema, strict: unitSyllabusArray.strict },
     fullText,
     prompt,
-    { stream: false, tracker: usageTracker }
+    { stream: false, tracker: usageTracker, model: selectmodel, modeleffort:"low" }
   );
 
   const syllabusElapsedSec = (Date.now() - syllabusStart) / 1000;

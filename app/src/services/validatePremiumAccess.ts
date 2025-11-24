@@ -77,6 +77,7 @@ export interface ValidationResult {
   retryAfter?: number;
   upgradeRequired?: boolean;
   userStatus: ComprehensiveUserStatus;
+  economyMode?: boolean;
 }
 
 // Step 4: Define rate limiting constants for defensive protection
@@ -329,7 +330,7 @@ function validateFreemiumAccess(
  * @param serviceType - Type of service being validated for appropriate limit checking
  * @returns Validation result with rate limit enforcement and retry timing information
  */
-function validatePremiumRateLimits( // update - 1011
+function validatePremiumRateLimits( 
   userStatus: ComprehensiveUserStatus,
   serviceType: ServiceType
 ): ValidationResult {
@@ -352,18 +353,34 @@ function validatePremiumRateLimits( // update - 1011
       tracking
     );
 
+
+    // (3) Check HOURLY Limit (Strict Abuse Prevention)
+    // If hourly is exceeded, we BLOCK regardless of monthly status.
+    if (state.isHourlyExceeded) {
+      console.log('[validatePremiumAccess.ts][1011] Hourly rate limit exceeded (Hard Block)', {
+        hourlyRemaining: state.hourlyRemaining, retryAfterSec: state.retryAfterSec
+      });
+
+      return {
+        allowed: false,
+        errorCode: 'RATE_LIMIT_EXCEEDED',
+        errorMessage: `Hourly rate limit reached. Please try again in ${Math.ceil(state.retryAfterSec / 60)} minutes.`,
+        retryAfter: Math.max(1, state.retryAfterSec),
+        upgradeRequired: false,
+        userStatus, 
+      };
+    }
+
     // (3) If exceeded, use precise retryAfter (caps micro-cache TTL upstream)
-    if (state.isMonthlyExceeded || state.isHourlyExceeded) {
+    if (state.isMonthlyExceeded) {
       const isMonthly = state.isMonthlyExceeded;
       console.log('[validatePremiumAccess.ts][1011] Premium lesson generation rate limit exceeded', {
         hourlyRemaining: state.hourlyRemaining, monthlyRemaining: state.monthlyRemaining, retryAfterSec: state.retryAfterSec
       });
 
       return {
-        allowed: false,
-        errorCode: 'RATE_LIMIT_EXCEEDED',
-        errorMessage: `Rate limit exceeded for lesson generation. ${isMonthly ? 'Monthly' : 'Hourly'} limit reached.`,
-        retryAfter: Math.max(1, state.retryAfterSec),
+        allowed: true,
+        economyMode: true,
         upgradeRequired: false,
         userStatus, // unchanged shape; UI may read remaining fields already present
       };

@@ -3,21 +3,15 @@
 /**
  * @file app/src/services/TextPreprocessing/ParallelProcessSubtree.ts
  * @description
- *   This file implements the core topic-level enrichment utility for a single syllabus
- *   unit. Its primary responsibility is to take one “unit” (represented by a primary
- *   topic and its associated secondary topics), construct unit-scoped syllabus context,
- *   and then fan out multiple LLM calls in parallel—one for the main topic and one for
- *   each supporting topic. Each call uses a dedicated JSON schema “head” tailored to the
- *   topic role: `subtreeMainHeadV1` for the primary topic and `subtreeSupportHeadV1` for
- *   each secondary topic. The utility then merges the responses into a single
- *   `EnrichedPrimary` object that matches the historical subtree output structure
- *   expected by the lesson pipeline and frontend. It supports both Gemini and OpenAI
- *   providers, preserves unit-level quiz semantics (quiz is attached to the primary
- *   topic only), and ensures that every topic shares the same word budget. All topic
- *   calls are executed with `Promise.all` for O(N) time in the number of topics and no
- *   additional concurrency limiting, relying on provider-specific retry logic and the
- *   existing higher-level retry wrapper to tolerate transient failures without dropping
- *   content or changing API contracts.
+ * This file implements the core topic-level enrichment utility for a single syllabus
+ * unit. Its primary responsibility is to take one “unit” (represented by a primary
+ * topic and its associated secondary topics), construct unit-scoped syllabus context,
+ * and then fan out multiple LLM calls in parallel—one for the main topic and one for
+ * each supporting topic. 
+ * * Phase 2 Update: Now supports Granular Context Injection. Instead of receiving a 
+ * pre-joined string, it receives the FullTextArray. It dynamically slices the text
+ * based on the `pageSequence` of the specific topic (Main or Secondary) being processed,
+ * ensuring strict context adherence and reducing token usage.
  */
 
 import UsageTracker from '../../services/UsageTracker';
@@ -33,21 +27,25 @@ import {
   buildSystemPromptForTopic,
   TopicDescriptor
 } from './ParallelSystemPromptForTopic';
+import { sanitizeCitations } from './citationSanitizer'; 
 
 type Provider = 'gemini' | 'openai';
 
 /**
  * Lightweight secondary-node shape matching the structural syllabus output.
+ * update - 1 : Added pageSequence
  */
 interface SecondaryNodeLike {
   title: string;
   Learning_Objectives: string;
   LessonOutline: string;
+  pageSequence: number[]; 
 }
 
 /**
  * Lightweight primary-node shape used by the enrichment layer.
  * This mirrors the structural `PrimaryNode` from LessonModuleServiceV8.
+ * update - 1 : Added pageSequence
  */
 interface PrimaryNodeLike {
   title: string;
@@ -65,14 +63,7 @@ const openaiService = new OpenAIAIService();
 /**
  * callMainHead
  * @description
- *   Executes the main-topic head structured-output call for the specified provider
- *   using the appropriate JSON schema. This function abstracts away whether we are
- *   calling Gemini or OpenAI, ensuring that the rest of the pipeline only deals
- *   with provider-agnostic shapes. It always runs in batch mode (no streaming),
- *   passes through the usage tracker, and relies on provider-level retry logic to
- *   handle transient overloads. The time complexity is O(1) per topic call, since
- *   it performs a single request and a constant amount of processing on the
- *   resulting JSON object, regardless of document size.
+ * Executes the main-topic head structured-output call.
  */
 async function callMainHead(
   provider: Provider,
@@ -85,7 +76,7 @@ async function callMainHead(
       subtreeMainHeadV1OpenAI,
       uploadContents,
       systemPrompt,
-      { stream: false, tracker: usageTracker }
+      { stream: false, tracker: usageTracker , model: "gpt-5-nano", modeleffort:"low"}
     );
   }
 
@@ -101,14 +92,7 @@ async function callMainHead(
 /**
  * callSupportHead
  * @description
- *   Executes a supporting-topic head structured-output call against either Gemini
- *   or OpenAI, using the appropriate support-topic schema. Like `callMainHead`,
- *   this helper hides provider specifics so that topic-level orchestration can
- *   remain provider-agnostic. It always returns a single support-topic result
- *   object conforming to the selected schema. Each invocation is O(1) in time
- *   relative to the number of topics, and when mapped across all secondary topics
- *   in a unit the aggregate cost is O(N), where N is the number of secondary
- *   topics. All calls are suitable for parallel execution with `Promise.all`.
+ * Executes a supporting-topic head structured-output call.
  */
 async function callSupportHead(
   provider: Provider,
@@ -121,7 +105,7 @@ async function callSupportHead(
       subtreeSupportHeadV1OpenAI,
       uploadContents,
       systemPrompt,
-      { stream: false, tracker: usageTracker }
+      { stream: false, tracker: usageTracker , model:"gpt-5-nano", modeleffort:"low"}
     );
   }
 
@@ -137,21 +121,13 @@ async function callSupportHead(
 /**
  * parallelProcessSubtree
  * @description
- *   Orchestrates topic-level enrichment for a single syllabus unit by: (1) building
- *   a unit-scoped syllabus block from the primary and secondary topics, (2)
- *   constructing a main-topic descriptor and one descriptor per secondary topic,
- *   (3) issuing the main-topic head call and all support-topic head calls in
- *   parallel using the selected provider and equal per-topic word budgets, and
- *   (4) merging the responses into a single `EnrichedPrimary` object that matches
- *   the legacy subtree structure. This function enforces unit-local context,
- *   preserves quizzes on the primary topic only, and optionally merges citations
- *   from all heads. Its complexity is O(N) in the number of secondary topics, with
- *   all external latency dominated by the slowest provider call thanks to
- *   `Promise.all` parallelism.
+ * Orchestrates topic-level enrichment. 
+ * update - 2: Now accepts FullTextArray (string[]) instead of pre-joined text.
+ * Logic slices the text array based on pageSequence for Main and Support topics independently.
  */
 export async function parallelProcessSubtree(
   unit: PrimaryNodeLike,
-  lessonSegmentText: string,
+  FullTextArray: string[], // update - 2
   lessonTitle: string,
   wordcount: number,
   provider: Provider,
@@ -169,7 +145,12 @@ export async function parallelProcessSubtree(
   const syllabusBlock = formatSyllabusForPrompt(primaryForPrompt);
 
   // Step 2: Build topic descriptors (one main + N support).
-  const descriptors: TopicDescriptor[] = [];
+  // We attach the pageSequence locally here to use in the loop below
+  interface ExtendedDescriptor extends TopicDescriptor {
+    pageSequence: number[];
+  }
+
+  const descriptors: ExtendedDescriptor[] = [];
 
   // 2.1 Main-topic descriptor.
   descriptors.push({
@@ -177,7 +158,8 @@ export async function parallelProcessSubtree(
     index: 0,
     title: unit.title,
     learningObjectives: unit.Learning_Objectives,
-    lessonOutline: unit.LessonOutline
+    lessonOutline: unit.LessonOutline,
+    pageSequence: unit.pageSequence // update - 3
   });
 
   // 2.2 Support-topic descriptors (preserve original ordering).
@@ -187,20 +169,27 @@ export async function parallelProcessSubtree(
       index: idx,
       title: secondary.title,
       learningObjectives: secondary.Learning_Objectives,
-      lessonOutline: secondary.LessonOutline
+      lessonOutline: secondary.LessonOutline,
+      pageSequence: secondary.pageSequence // update - 3
     });
   });
 
-  // Step 3: Prepare shared upload contents wrapper for the textbook material.
-  const uploadContents =
-    `######## Start of User provided textbook material ######### ` +
-    `${lessonSegmentText}` +
-    ` ############ End of user provided textbook material########`;
+  // Step 3: Define Helper to extract text from page sequence
+  // Logic: 1-based pageSequence -> 0-based array index
+  const extractContext = (pages: number[]) => {
+    return `######## Start of User provided textbook material ######### ` +
+           pages.map(p => FullTextArray[p - 1] || '').join('\n\n') +
+           ` ############ End of user provided textbook material########`;
+  };
 
   // Step 4: Build per-topic system prompts and launch all calls in parallel.
+  // Note: We intentionally slice descriptors to handle Main vs Support separately 
+  // to use the correct 'callHead' function, but we dynamically generate text for each.
+
   const mainDescriptor = descriptors[0];
   const supportDescriptors = descriptors.slice(1);
 
+  // 4.1 Prepare Main Topic Call
   const mainSystemPrompt = buildSystemPromptForTopic(
     lessonTitle,
     syllabusBlock,
@@ -208,13 +197,17 @@ export async function parallelProcessSubtree(
     wordcount
   );
 
+  // update - 3: Generate Main-specific context
+  const mainUploadContents = extractContext(mainDescriptor.pageSequence);
+
   const mainPromise = callMainHead(
     provider,
     mainSystemPrompt,
-    uploadContents,
+    mainUploadContents,
     usageTracker
   );
 
+  // 4.2 Prepare Support Topic Calls
   const supportPromises = supportDescriptors.map((desc) => {
     const supportPrompt = buildSystemPromptForTopic(
       lessonTitle,
@@ -222,7 +215,11 @@ export async function parallelProcessSubtree(
       desc,
       wordcount
     );
-    return callSupportHead(provider, supportPrompt, uploadContents, usageTracker);
+    
+    // update - 3: Generate Support-specific context
+    const supportUploadContents = extractContext(desc.pageSequence);
+
+    return callSupportHead(provider, supportPrompt, supportUploadContents, usageTracker);
   });
 
   // Step 5: Await all topic calls concurrently.
@@ -231,35 +228,63 @@ export async function parallelProcessSubtree(
   const supportResults = allResults.slice(1);
 
   // Step 6: Normalise and merge main-topic output into EnrichedPrimary fields.
-    const mainPrimaryTopic = (mainResult as any).primary_topic;
-  const mainCitations = (mainResult as any).lesson_citation ?? null;
+  const mainPrimaryTopic = (mainResult as any).primary_topic;
+   
+  // Check if it is an array, if so cast it, otherwise null.
+  const mainCitations: Citation[] | null = 
+    Array.isArray((mainResult as any).lesson_citation) 
+      ? (mainResult as any).lesson_citation as Citation[] 
+      : null;
 
+  // Sanitize main topic lecture note
+  if (mainPrimaryTopic?.lesson?.lecture_note) {
+    mainPrimaryTopic.lesson.lecture_note = sanitizeCitations(
+      mainPrimaryTopic.lesson.lecture_note, 
+      mainCitations
+    );
+  }
+
+   //console.log(`After citation sanitizer h8h8 mainprimarytopic lecture note ${JSON.stringify(mainPrimaryTopic.lesson.lecture_note )}`)
+
+  // Sanitize support topic lecture note citations
   const secondary_subtopic = supportResults.map((support) => {
     const supportTopic = (support as any).support_topic;
+    
+    // Extract Support Citations
+    const supportCitationsRaw = (support as any).lesson_citation;
+    const supportCitations: Citation[] | null = 
+      Array.isArray(supportCitationsRaw) ? supportCitationsRaw as Citation[] : null;
+
+    // Sanitize support note using ITS SPECIFIC valid citations
+    const cleanLectureNote = sanitizeCitations(
+      supportTopic.lesson.lecture_note || "", 
+      supportCitations
+    );
+
+    console.log(`After citation sanitizer h8h8 support topic lecture note ${JSON.stringify(cleanLectureNote)}`)
+
     return {
       title: supportTopic.title,
-      lecture_note: supportTopic.lesson.lecture_note,
-      flash_cards: supportTopic.lesson.flash_cards
+      lecture_note: cleanLectureNote,
+      flash_cards: [supportTopic.lesson.flash_cards], // turn to array
+      lesson_citation: supportCitations 
     };
   });
 
-  // Step 7: Citations come from the main-topic head only. Supporting-topic heads
-  // are instructed not to emit citations even though the schema allows them.
-  const combinedCitations: Citation | null =
-    Array.isArray(mainCitations) && mainCitations.length > 0
-      ? (mainCitations[0] as Citation)   // <-- pick first citation
-      : null;
+  // Step 7: Process main topic citations.
+  const combinedCitations: Citation[] | null = mainCitations;
 
-  // Step 8: Construct final EnrichedPrimary object, keeping chronological order
-  //         sourced from the structural pipeline rather than the model.
+  // Step 8: Construct final EnrichedPrimary object.
   const enriched: EnrichedPrimary = {
     ChronologicalOrder: unit.lessonOrder ?? 0,
     title: mainPrimaryTopic.title,
     lesson: mainPrimaryTopic.lesson,
     secondary_subtopic,
     quiz: mainPrimaryTopic.quiz,
-    lesson_citation: combinedCitations    // <-- now matches Citation | null
+    lesson_citation: combinedCitations  
   };
+
+  console.log(`Test-1234 Citation object parallelization method (fixed)\n    ${JSON.stringify(combinedCitations)}`);
 
   return enriched;
 }

@@ -1125,7 +1125,7 @@ export interface EnrichedPrimary {
   lesson: EnrichedLesson;
   secondary_subtopic: EnrichedSecondary[] | null;
   quiz: MatchingQuiz;
-  lesson_citation: Citation | null;
+  lesson_citation: Citation[] | null;
 }
 
 /** Full batch response shape */

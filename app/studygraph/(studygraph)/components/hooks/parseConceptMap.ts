@@ -217,6 +217,15 @@ export async function parseConceptMap(
       const subtopicNodeId = uuidv4();
       console.log(`Processing subtopic: ${subtopic.title}`);
 
+
+      // Prioritize the subtopic's own citations. If missing or empty, fall back to parent's.
+      // This ensures Index 1 in this node resolves to its own list, preventing collisions.
+      const effectiveCitations: Citation[] | undefined = 
+        (subtopic.lesson_citation && subtopic.lesson_citation.length > 0)
+          ? subtopic.lesson_citation
+          : parentCitation;
+
+
       // Create a new node.
       const newNode = {
         id: subtopicNodeId,
@@ -272,7 +281,7 @@ export async function parseConceptMap(
         // Primary subtopic (depth 1) uses the "lesson" object.
         if (subtopic.lesson.lecture_note) {
 
-            let transformedContent = transformPlaceholders(subtopic.lesson.lecture_note, subtopic.lesson_citation);//
+            let transformedContent = transformPlaceholders(subtopic.lesson.lecture_note, effectiveCitations);//
           const content = renderMarkdownWithMath(transformedContent.content);
           console.log(`Subtopic title:  ${subtopic.title}, Before rendering content : ${transformedContent.content}`)
           console.log(`Subtopic title:  ${subtopic.title}, After rendering content : ${content}`)
@@ -289,7 +298,7 @@ export async function parseConceptMap(
         if (subtopic.lesson.flash_cards && Array.isArray(subtopic.lesson.flash_cards)) {
           for (const card of subtopic.lesson.flash_cards) {
             console.log(`pCM-1234: rendering flash_card "${card.term}" for node ${subtopicNodeId}`);
-          let transformedContent = transformPlaceholders(card.definition, subtopic.lesson_citation)
+          let transformedContent = transformPlaceholders(card.definition, effectiveCitations)
           const content = renderMarkdownWithMath(transformedContent.content);
             await dependencies.createResource({
               nodeId: subtopicNodeId,
@@ -323,7 +332,7 @@ export async function parseConceptMap(
       } else if (subtopic.lecture_note) {
         // Secondary subtopic (depth 2) has its properties at the root level.
 
-          let transformedContent = transformPlaceholders(subtopic.lecture_note, parentCitation!)
+          let transformedContent = transformPlaceholders(subtopic.lecture_note, effectiveCitations)
           const content = renderMarkdownWithMath(transformedContent.content);
            console.log(`Subtopic title:  ${subtopic.title}, Before rendering content : ${transformedContent.content}`)
           console.log(`Subtopic title:  ${subtopic.title}, After rendering content : ${content}`)
@@ -339,7 +348,7 @@ export async function parseConceptMap(
         if (subtopic.flash_cards && Array.isArray(subtopic.flash_cards)) {
           for (const card of subtopic.flash_cards) {
 
-          let transformedContent = transformPlaceholders(card.definition, parentCitation!)
+          let transformedContent = transformPlaceholders(card.definition, effectiveCitations)
           const content = renderMarkdownWithMath(transformedContent.content);
             await dependencies.createResource({
               nodeId: subtopicNodeId,
@@ -365,7 +374,7 @@ export async function parseConceptMap(
           subtopic.secondary_subtopic,
           subtopicNodeId,
           depth + 1,
-          subtopic.lesson_citation
+          effectiveCitations
         );
       }
 

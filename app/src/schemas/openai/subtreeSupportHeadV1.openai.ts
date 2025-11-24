@@ -46,27 +46,25 @@ export const subtreeSupportHeadV1OpenAI = {
                   "Detailed lecture note explaining this supporting topic. Must follow the topic’s objectives and outline and respect the max word count."
               },
               flash_cards: {
-                type: "array",
-                description:
-                  "Array of flash cards reinforcing the key ideas and definitions for this supporting topic.",
-                items: {
-                  type: "object",
-                  properties: {
-                    term: {
-                      type: "string",
-                      description:
-                        "Front of the flash card. Use a short, clear term or phrase with no markdown or LaTeX."
-                    },
-                    definition: {
-                      type: "string",
-                      description:
-                        "Back of the flash card. Provide a standalone explanation that covers the concept clearly."
-                    }
-                  },
-                  required: ["term", "definition"],
-                  additionalProperties: false
-                }
-              }
+  type: "object",
+  description:
+    "A single flash card reinforcing the key ideas and definitions for this supporting topic.",
+  properties: {
+    term: {
+      type: "string",
+      description:
+        "Front of the flash card. Use a short, clear term or phrase with no markdown or LaTeX."
+    },
+    definition: {
+      type: "string",
+      description:
+        "Back of the flash card. Provide a standalone explanation that covers the concept clearly."
+    }
+  },
+  required: ["term", "definition"],
+  additionalProperties: false
+}
+
             },
             required: ["lecture_note", "flash_cards"],
             additionalProperties: false

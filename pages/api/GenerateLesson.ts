@@ -32,7 +32,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import multer from 'multer';
 import { extractTextFromFileService } from '@/doc-preprocessing-service/text-extraction-client';
-import { generateLessonFromSegment } from '@/app/src/services/TextPreprocessing/LessonModuleServiceV8';
+import { generateLessonFromSegmentV2 } from '@/app/src/services/TextPreprocessing/LessonModuleServiceV8';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import { FileUploadService, FileUploadRequest } from '@/app/src/services/FileUploadService';
 import { validatePremiumAccess } from '@/app/src/services/validatePremiumAccess';
@@ -179,6 +179,11 @@ export default async function handler(
     // Step 4: Enhanced premium access validation using centralized system
     const validation = await validatePremiumAccess(userEmail, 'lessonGeneration');
     
+
+    //  Extract economyMode from validation result (defaults to false if undefined)
+    const economyMode = validation.economyMode ?? false;
+
+
     if (!validation.allowed) {
       console.log('[GenerateLesson.ts][4006] Lesson generation access denied', {
         email: userEmail,
@@ -339,7 +344,7 @@ export default async function handler(
     // Step 13: Generate lesson modules concurrently (preserved from original)
     console.time('[GenerateLesson.ts][4017] Lesson generation timer');
     const lessonPromises = textSegments.modules.map((segment) =>
-      generateLessonFromSegment(extractedTextArray, segment, documentID, fileId, moduleSize, usage)
+      generateLessonFromSegmentV2(extractedTextArray, segment, documentID, fileId, moduleSize,  economyMode, usage)
     );
     const generatedLessons = await Promise.all(lessonPromises);
     console.timeEnd('[GenerateLesson.ts][4017] Lesson generation timer');

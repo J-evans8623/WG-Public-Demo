@@ -154,12 +154,12 @@ const RATE_LIMITS = {
     dailyUploads: 100,
     lessonGeneration: {
       scholar: {
-        hourlyLimit: 8,
-        monthlyLimit: 100,
+        hourlyLimit: 15,
+        monthlyLimit: 125,
       },
       educator: {
-        hourlyLimit: 15,
-        monthlyLimit: 200,
+        hourlyLimit: 25,
+        monthlyLimit: 150,
       }
     },
     // NEW: Defensive rate limits for secondary services

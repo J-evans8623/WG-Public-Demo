@@ -173,7 +173,11 @@ Give an appropriate "Course Title" that the subject material likely belongs , he
 short, conventional university course names :  Biology, Calculus I, World History, Pscyhology, Sosciology, Economics, Statistics, Business, Religion, Physics, Chemistry, Organic Chemistry, Algebra, Math, Computer Science, engineering and medicine.
 
 
- Indicate the relevant pages that each primary subtopic is based on using the 'relevantPages' property of the schema. For example if a primary subtopic lesson covers pages 1-4 and 8 , the relevant pages [1,2,3,4,8]. TAKE NOTE THAT THE ACTUAL PAGE
+ Indicate the relevant pages that each primary subtopic is based on using the 'relevantPages' property of the schema. For example if a primary subtopic lesson covers pages 1-4 and 8 , the relevant pages [1,2,3,4,8]. If the primary subtopic has nested secondary topic(s), you should also indicate the relevant pages applicable to that specific secondary subtopic, and these page number should be a subset of the relevant pages of the primary subtopic. 
+ For example,  if a primary subtopic lesson covers pages 1-4 and 8 , and its relevant pages are [1,2,3,4,8], then it may have a secondary subtopic whose relevant pages are [1,4,8]. 
+
+
+ TAKE NOTE THAT THE ACTUAL PAGE
  NUMBER will be clearly marked in the uploaded material, here is how the MARKERS look :
 
 [#### START OF PAGE N ####]

@@ -54,6 +54,9 @@ const SiteFooter = () => {
             <Link href="/about" className="wg-footer-link">
               About Us
             </Link>
+            <Link href="/contact" className="wg-footer-link">
+              Contact
+            </Link>
           </nav>
         </div>
 

@@ -63,9 +63,14 @@ export const unitSyllabusArrayOpenAI = {
                   LessonOutline: {
                     type: "string",
                     description: "An outline of the lesson for this secondary subtopic."
-                  }
+                  },
+                  relevantPages: {
+                     type: "array",
+                     description: "Page numbers from the original document that this secondary subtopic covers. The page must be a subset of the parent primary subtopic.",
+                     items: { type: "integer" }
+                }
                 },
-                required: ["Title", "Learning_Objectives", "LessonOutline"],
+                required: ["Title", "Learning_Objectives", "LessonOutline", "relevantPages"],
                 additionalProperties: false
               }
             },

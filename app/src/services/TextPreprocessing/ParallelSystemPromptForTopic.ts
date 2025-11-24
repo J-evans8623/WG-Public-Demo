@@ -34,9 +34,8 @@ export function buildSystemPromptForTopic(
     ? '#### Self Assessment Resource Guidelines (Flash cards and Matching Quiz)'
     : '#### Self Assessment Resource Guidelines (Flash cards)';
 
-  const mainOnlyQuizAndCitationBlock = isMain
-    ? `
-3. ########## Instructions on citation formatting (lecture_note only, PRIMARY TOPIC ONLY) ######
+  const CitationBlock =  `
+3. ########## Instructions on citation formatting (lecture_note only) ######
 
 1. When a major concept or idea is brought up we should insert an inline citation
 to give the learner the source of this information from their uploaded material. Citations should only be added to the lecture_note content, and this should be used conservatively; only cite the major concepts and ideas. Follow these steps to make an inline citation:
@@ -67,19 +66,7 @@ Example of multiple citations:
 ... Emile Durkheim posits that norms serve a purpose of fostering cohesiveness <<4>> <<5>> <<9>> ...
 
 CAVEAT:
-Do not add any JSON object or array inside lecture_note—all citation objects must go into the sibling lesson_citation array.
-
-4. Matching Quiz instructions (PRIMARY TOPIC ONLY)
-
-Create three matching quiz question–answer pairs, using the following guidelines to prepare effective matching questions:
-
-a. Association Clarity: Ensure the relationship between the items in the two columns (e.g., term–definition, cause–effect) is explicit, consistent, and directly tests a specific type of paired knowledge.
-
-b. Column Homogeneity: Maintain consistent content type and format within each column (e.g., all terms on the left, all definitions on the right; all single words or all short phrases).
-
-c. Match Uniqueness: Design the items so each premise (left column item) has only one unambiguous correct match in the response (right column), and vice versa (unless deliberately including unused responses).
-
-d. Clue Minimization: Avoid formatting, wording, or logical inconsistencies that allow matches to be deduced through the process of elimination unrelated to the target knowledge.
+Do not add any JSON object or array inside lecture_note—all citation objects must go into the lesson_citation array. Here is an example how the lesson citation schema would be completed :
 
 Here is an example of an expected output for your response (structure only):
 
@@ -95,6 +82,24 @@ Here is an example of an expected output for your response (structure only):
       "textsource": "Charles Horton Cooley captures the interdependence between individuals and society in his concept of “the looking-glass self”..."
     }
   ],
+
+
+`.trim()
+
+const mainOnlyQuiz = `
+4. Matching Quiz instructions (PRIMARY TOPIC ONLY)
+
+Create three matching quiz question–answer pairs, using the following guidelines to prepare effective matching questions:
+
+a. Association Clarity: Ensure the relationship between the items in the two columns (e.g., term–definition, cause–effect) is explicit, consistent, and directly tests a specific type of paired knowledge.
+
+b. Column Homogeneity: Maintain consistent content type and format within each column (e.g., all terms on the left, all definitions on the right; all single words or all short phrases).
+
+c. Match Uniqueness: Design the items so each premise (left column item) has only one unambiguous correct match in the response (right column), and vice versa (unless deliberately including unused responses).
+
+d. Clue Minimization: Avoid formatting, wording, or logical inconsistencies that allow matches to be deduced through the process of elimination unrelated to the target knowledge.
+
+
   "primary_subtopics": [
     {
       "ChronologicalOrder": 3,
@@ -147,7 +152,7 @@ Here is an example of an expected output for your response (structure only):
     }
   ]
 `.trim()
-    : '';
+    ;
 
   return `
 You are tasked with creating study material for the assigned topic from the given syllabus. The study material will explain a topic to a student encountering this subject for the first time. This syllabus is a part of a larger unit on ${lessonTitle}. Your objective is to use the lesson outline and learning objectives of the assigned topic in the syllabus excerpt to guide the learner towards attaining the learning objectives of that specific topic in the syllabus.
@@ -178,9 +183,8 @@ You will be given a schema and must return a structured output. Here are some no
 Lecture_note : This is the main learning content of the assigned topic. The content here should align with the lesson outline and learning objectives of the respective topic from the syllabus. You must use the lesson outline and learning objectives of the topic to guide the learner towards attaining the learning goals of that topic as specified in the syllabus. The lecture_note is essentially a stand-alone micro-lesson and should be between ${wordcount} and ${wordcount + 50} words.
 
 ${
-  isMain
-    ? 'Lecture_notes should include citations where possible; please strictly adhere to the citation formatting instructions below.'
-    : ''
+ 'Lecture_notes should include citations where possible; please strictly adhere to the given citation formatting instructions.'
+   
 }
 
 flash_cards : These are flash cards. Do not exceed more than four flash cards for this topic; you can make one to four flash cards, and the number of flash cards should be proportional to the length of the lecture_note for this topic. See the self assessment section for more guidelines.
@@ -240,7 +244,9 @@ Writing Tone:
    - Block math: "The energy-mass equivalence is expressed as: \\[E = mc^2\\]"
    - Chemical equation: "The balanced equation is \\[2H_2 + O_2 \\rightarrow 2H_2O\\]"
 
-${mainOnlyQuizAndCitationBlock}
+${CitationBlock} \n
+
+${isMain? mainOnlyQuiz:""} \n
 
 ${selfAssessmentHeading}
 General guidelines for designing self assessment material:

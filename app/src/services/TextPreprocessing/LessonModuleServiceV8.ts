@@ -30,7 +30,7 @@ interface PrimaryNode {
   title: string; // primary subtopic title goes here
   Learning_Objectives:string;
   LessonOutline:string;
-  depth2_subtopics: secondaryNode[]; // secondary topic goes here
+  depth2_subtopics: (secondaryNode & { pageSequence: number[] })[]; // secondary topic goes here
   lessonOrder: Number;
   pageSequence: number[];
 }
@@ -45,6 +45,31 @@ interface BatchedResult {
   nodes: PrimaryNode[];
 }
 
+
+/**
+ * sanitizePageSubset
+ * Ensures that the secondary topic's pages are strictly contained within the primary topic's pages.
+ * @param primaryPages - The verified pages of the parent unit.
+ * @param secondaryPages - The raw pages returned by the LLM for the secondary topic.
+ * @returns An array of integers representing the valid intersection, or the primary set if intersection fails.
+ */
+function sanitizePageSubset(primaryPages: number[], secondaryPages: number[] | undefined): number[] {
+  // Guard clause: If no secondary pages provided or invalid format, fallback to parent context
+  if (!secondaryPages || !Array.isArray(secondaryPages) || secondaryPages.length === 0) {
+    return primaryPages; 
+  }
+
+  // 1. Compute Intersection: Keep only pages that exist in the Primary set
+  const intersection = secondaryPages.filter(p => primaryPages.includes(p));
+
+  // 2. Fallback: If the model hallucinated completely disjoint pages (intersection empty),
+  //    we must default to the primary scope to ensure the subtopic has *some* context.
+  if (intersection.length === 0) {
+    return primaryPages;
+  }
+
+  return intersection;
+}
 
 /* ------------------------------------------------------------------ */
 /* INTERNAL • structural work only (Stages A-C)                       */
@@ -62,6 +87,7 @@ async function structuralPass(
   documentID: string,
   fileId: string,
   pageCount: number,
+  economyMode:boolean,
    usageTracker?: UsageTracker  
 ): Promise<BatchedResult> {
   console.log('[LessonModuleServiceV7.ts][3001] structuralPass START');
@@ -76,7 +102,7 @@ async function structuralPass(
 
   // single Gemini call for syllabus + metadata
   console.log('[LessonModuleServiceV7.ts][3002] Calling generateBatchedUnitSyllabus', { topicAmount, max });
-  const batched = await generateBatchedUnitSyllabus(segmentText.join("\n\n"), topicAmount, pageCount,  usageTracker);
+  const batched = await generateBatchedUnitSyllabus(segmentText.join("\n\n"), topicAmount, pageCount, economyMode,  usageTracker);
   console.log(
     '[LessonModuleServiceV7.ts][3003] Received batched syllabus',
     { title: batched.LessonTitle, count: batched.unit_syllabus.length }
@@ -84,19 +110,30 @@ async function structuralPass(
 
   // map to PrimaryNode[]
   const nodes: PrimaryNode[] = [];
-  for (const ps of batched.unit_syllabus) {
-    console.log('[LessonModuleServiceV7.ts][3005] Mapping node index', { pageSequence: ps.relevantPages });
+for (const ps of batched.unit_syllabus) {
+    const primaryPages = ps.relevantPages || [];
+    console.log('[LessonModuleServiceV7.ts][3005] Mapping node index', { pageSequence: primaryPages });
+
     nodes.push({
       title: ps.Title,
       Learning_Objectives: ps.Learning_Objectives,
       LessonOutline: ps.LessonOutline,
-      depth2_subtopics: ps.SecondarySubtopic.map(s => ({
-        title: s.Title,
-        Learning_Objectives: s.Learning_Objectives,
-        LessonOutline: s.LessonOutline
-      })),
+      depth2_subtopics: ps.SecondarySubtopic.map(s => {
+        // Extract raw pages from the LLM response (casting to any if interface is lagging)
+        const rawSecondaryPages = (s as any).relevantPages;
+        
+        // Apply strict subset validation
+        const sanitizedPages = sanitizePageSubset(primaryPages, rawSecondaryPages);
+
+        return {
+          title: s.Title,
+          Learning_Objectives: s.Learning_Objectives,
+          LessonOutline: s.LessonOutline,
+          pageSequence: sanitizedPages // Assign the corrected page subset
+        };
+      }),
       lessonOrder: ps.ChronologicalOrder,
-      pageSequence: ps.relevantPages
+      pageSequence: primaryPages
     });
   }
 
@@ -126,6 +163,7 @@ export async function generateLessonFromSegment(
   documentID   : string,
   sourceFileId : string,
   pageCount    : number,
+  economyMode:boolean,
   usageTracker?: UsageTracker 
 ): Promise<unknown /* lessonSchema */> {
 
@@ -136,7 +174,7 @@ console.log('[LessonModuleServiceV7.ts][6001] START generateLessonFromSegment', 
 
   /* 2️⃣  Build primary / secondary stubs                       */
   console.time('v4fast-structural');
-  const { metadata, nodes } = await structuralPass(segment, documentID, sourceFileId, pageCount, usageTracker);
+  const { metadata, nodes } = await structuralPass(segment, documentID, sourceFileId, pageCount, economyMode, usageTracker);
 
   // batch enrichment
   console.log('[LessonModuleServiceV7.ts][3006] Calling AIController.generateSubtreeLesson', {
@@ -228,6 +266,132 @@ console.log('[LessonModuleServiceV7.ts][6001] START generateLessonFromSegment', 
       introduction        : metadata.Introduction,  
       primary_subtopics   : enriched,                    
       quiz                : combinedQuiz,
+      CourseTitle: metadata.CourseTitle,
+    }
+  };
+
+  return payload;
+}
+
+
+/**
+ * This version uses parralelization to process the lesson faster and cost effectively
+ * @param FullTextArray 
+ * * @param segment 
+ * @param documentID 
+ * @param sourceFileId 
+ * @param pageCount 
+ * @param usageTracker 
+ * @returns 
+ */
+export async function generateLessonFromSegmentV2(
+  FullTextArray: string[],
+  segment       : string[],
+  documentID    : string,
+  sourceFileId : string,
+  pageCount     : number,
+  economyMode: boolean,
+  usageTracker?: UsageTracker 
+): Promise<unknown /* lessonSchema */> {
+
+console.log('[LessonModuleServiceV7.ts][6001] START generateLessonFromSegment', {
+    segmentLength: segment.length,
+    totalPages: FullTextArray.length
+  });
+
+  /* 2️⃣  Build primary / secondary stubs                        */
+  console.time('v4fast-structural');
+  const { metadata, nodes } = await structuralPass(segment, documentID, sourceFileId, pageCount, economyMode, usageTracker);
+
+  // batch enrichment
+  console.log('[LessonModuleServiceV7.ts][3006] Calling AIController.generateSubtreeLesson', {
+    lessonTitle: metadata.LessonTitle,
+    nodesCount: nodes.length
+  });
+
+
+   // #7575 subtree Latency test – track per-branch timings (one branch per node/unit)
+  const branchTimingsSeconds: number[] = [];
+
+    // 1️⃣ Build per-node enrichment promises
+  const enrichmentPromises = nodes.map((node, idx) => {
+    // update - 1 : Calculate word budget using Primary pages, but pass FullTextArray to controller
+    // We still need 'selectedPages' to calculate the word count budget accurately
+    const selectedPages = node.pageSequence.map(p => FullTextArray[p - 1]);
+    
+    // ⇨ NEW: compute raw words, shrink to 60%, then divide by (# subtopics)
+    const rawWordCount = selectedPages
+      .join(' ')
+      .split(/\s+/)
+      .filter(Boolean)
+      .length;
+    const shrinkFactor = 0.5;
+    const subtopicCount = 1 + node.depth2_subtopics.length;
+    const maxWordsPerSubtopic = Math.floor((rawWordCount * shrinkFactor) / subtopicCount);
+    console.log('[LessonModuleServiceV8.ts][7001] Building LessonSegment for node', {
+      nodeIndex: idx,
+      title: node.title,
+      pages: node.pageSequence,
+      rawWords: rawWordCount,
+        shrinked: rawWordCount * shrinkFactor,
+        subtopicCount,
+        maxWordsPerSubtopic
+    });
+
+    let maxWordCount = Math.max(150, Math.min(maxWordsPerSubtopic, 400));
+
+    // --- timing starts here for this subtree branch ---
+    const start = Date.now();
+
+    // Invoke V4 on this single-node slice
+    // Update - 1: Passing FullTextArray (string[]) instead of pre-joined string
+    return callWithRetry(() =>
+      AIController.generateSubtreeLessonV4([node], metadata.LessonTitle, FullTextArray, maxWordCount, usageTracker)
+    ).then(result => {
+      const elapsedSec = (Date.now() - start) / 1000;
+      branchTimingsSeconds[idx] = elapsedSec;
+
+      // Per-branch latency log
+      console.log(
+        `#7575 subtree Latency test | Subtree branch ${idx + 1} : ${elapsedSec.toFixed(2)} seconds`
+      );
+
+      return result;
+    });
+});
+
+    // 2️⃣ Execute all V4 calls in parallel
+  const results = await Promise.all(enrichmentPromises);
+  console.log('[LessonModuleServiceV8.ts][7002] All generateSubtreeLessonV4 calls completed', {
+    resultsCount: results.length
+  });
+
+  console.timeEnd('v4fast-structural');
+
+
+   const enriched = results.flatMap(res => res.primary_subtopics);
+  console.log('[LessonModuleServiceV8.ts][7003] Flattened enriched subtopics', {
+    enrichedCount: enriched.length
+  });
+
+
+  /* 5️⃣  Collect *every* question into one quiz object          */
+  const questions = enriched.flatMap(
+    n => Array.isArray(n.quiz?.questions) ? n.quiz.questions : []
+  );
+
+  const combinedQuiz = {
+    title     : `${metadata.LessonTitle} Quiz`,
+    questions
+  };
+
+  /* 6️⃣  Re-assemble exactly the lessonSchema the FE expects     */
+  const payload = {
+    main_topic : {
+      title                 : metadata.LessonTitle,
+      introduction          : metadata.Introduction,  
+      primary_subtopics     : enriched,                     
+      quiz                  : combinedQuiz,
       CourseTitle: metadata.CourseTitle,
     }
   };
