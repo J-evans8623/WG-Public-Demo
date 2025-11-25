@@ -27,7 +27,7 @@ import SearchButton from '../../CardDisplay/SearchButton';
 import BackButton from '../../CardDisplay/BackButton';
 import '@/app/workspace/styles/brand/brand-utilities.css';
 import '@/app/workspace/(studygraph)/components/layout/CardDisplay/v2/CardDisplay.css';
-import { useSlideShow } from '@/app/Library/Context/ROSlideShowContext';
+import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 
 
 interface UnifiedHeaderProps {

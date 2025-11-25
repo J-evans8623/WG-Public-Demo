@@ -2,7 +2,7 @@ import React, { useCallback, createContext, useContext, useState, ReactNode, use
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import * as Y from 'yjs';
-import { mapKeys } from 'lodash';
+
 
 export interface SubtreeData {
   minX: number;

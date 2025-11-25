@@ -30,7 +30,7 @@ import '@/app/workspace/(studygraph)/components/layout/CardDisplay/v2/notesTab.c
  * Map Firestore ResourceCard.type to ResourceDisplay "type" prop.
  * Same mapping function as main NotesTab for consistency.
  */
-function mapToDisplayType(r: ResourceCard): 'cuecard' | 'note'| 'quiz' {
+function mapToDisplayType(r: ResourceCard): 'cuecard' | 'note'| 'quiz'| undefined {
   switch (r.type) {
     case 'cueCard':
       return 'cuecard';
@@ -38,6 +38,8 @@ function mapToDisplayType(r: ResourceCard): 'cuecard' | 'note'| 'quiz' {
       return 'note';
     case 'practiceSheet':
       return 'quiz';
+    case 'quizAssessment':
+      return undefined;
   }
 }
 
@@ -172,7 +174,7 @@ const RONotesTab: React.FC<RONotesTabProps> = () => {
                 <ResourceDisplay
                   id={r.id}
                   nodeId={r.nodeId}
-                  type={mapToDisplayType(r)}
+                  type={mapToDisplayType(r)!}
                   ConceptNodeTitle={getNodeTitle(r.nodeId) ?? 'Untitled'}
                   title={r.title}
                   content={getContentString(r)}

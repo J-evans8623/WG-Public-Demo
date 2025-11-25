@@ -48,7 +48,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=1234
-ENV JWT_PUBLIC_PATH=/app/keys/jwt_2025.pub
+ENV JWT_PUBLIC_PATH=./app/src/services/yjs/keys/jwt_2025.pub
 
 # Copy deps
 COPY package*.json ./

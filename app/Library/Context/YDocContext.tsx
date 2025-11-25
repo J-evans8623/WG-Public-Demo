@@ -122,7 +122,7 @@ export interface YDocContextType {
   snapshotYDoc: Y.Doc | null;
   /** Setter to load or unload a snapshot document from version history. */
   setSnapshotYDoc: (doc: Y.Doc | null) => void;
-  /** True if a snapshot is currently active (read-only mode). */
+  /** True if a version history snapshot is currently active (read-only mode). */
   isReadOnly: boolean;
   fileName: string;
   docFileID: string | null;

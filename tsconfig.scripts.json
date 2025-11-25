@@ -3,11 +3,11 @@
     "compilerOptions": {
       "noEmit": false,
       "outDir": "./dist",
-      "module": "commonjs"  // CommonJS is preferred for Node scripts
+      "module": "commonjs",
+      "moduleResolution": "node"  
     },
     "include": [
-      "setSchema.ts",      // Add any other scripts you want to compile, e.g., server.ts
+      "setSchema.ts",
       "server.ts"
     ]
-  }
-  
+}

@@ -1,69 +1,53 @@
 /**
  * @file app/src/billing/config.ts
  * @description
- *   Centralized configuration and environment guards for the Stripe billing subsystem. This module
- *   standardizes access to all Stripe-related environment variables, price identifiers, and URL
- *   construction for return/callback endpoints so that no other part of the application needs to
- *   reach into process.env directly. By funneling every configuration read through this file, we
- *   ensure consistent behavior across environments (local, staging, production), simplify testing,
- *   and reduce the risk of misconfiguration at deploy time. The file also validates that critical
- *   secrets (secret key, webhook secret) are present and throws descriptive errors early to surface
- *   problems immediately, rather than during live payment flows. The exported helpers produce the
- *   correct “success” and “cancel” return URLs and allow the rest of the codebase to remain clean
- *   and vendor-agnostic in terms of configuration access.
+ * Simplified configuration access for Stripe.
  *
- * Responsibilities:
- *   1) Validate required Stripe environment variables with explicit errors.
- *   2) Expose strongly-typed accessors for keys, signing secrets, and price IDs.
- *   3) Construct canonical success/cancel/return URLs from a single APP_BASE_URL.
- *   4) Keep the rest of the billing code free from direct env lookups.
+ * Philosophy: "Permissive Read, Strict Validation".
+ * - Getters return process.env values directly.
+ * - If a value is missing (e.g. during Docker build), it returns an empty string.
+ * - This prevents build crashes.
+ * - Validation is performed by the consumer (Adapter/API) at runtime.
  */
 
-export type BillingInterval = 'monthly' | 'annual';
+import 'server-only';
 
-/** Hard validation so misconfigurations are caught at boot. O(1). */
-function required(name: string): string {
-  const v = process.env[name];
-  if (!v) {
-    throw new Error(`[billing/config] Missing required env var: ${name}`);
-  }
-  return v;
+// 1. Simple accessor. No throwing.
+function env(key: string): string {
+  return process.env[key] || '';
 }
 
-/** Public getters for secrets and IDs (no dynamic work => O(1)). */
-export const STRIPE_SECRET_KEY = required('STRIPE_SECRET_KEY');
-export const STRIPE_PUBLISHABLE_KEY = required('STRIPE_PUBLISHABLE_KEY');
-export const STRIPE_WEBHOOK_SECRET = required('STRIPE_WEBHOOK_SECRET');
+// 2. Export Getters
+export const getStripeSecretKey = () => env('STRIPE_SECRET_KEY');
+export const getStripePublishableKey = () => env('STRIPE_PUBLISHABLE_KEY');
+export const getStripeWebhookSecret = () => env('STRIPE_WEBHOOK_SECRET');
 
-/**
- * These map to the specific Stripe Price IDs you’ve configured for your products.
- * Keep them in env so you can swap test/live easily without code changes.
- */
-export const PRICE_SCHOLAR_MONTHLY = required('PRICE_SCHOLAR_MONTHLY');
-export const PRICE_SCHOLAR_ANNUAL = required('PRICE_SCHOLAR_ANNUAL');
-export const PRICE_EDUCATOR_MONTHLY = required('PRICE_EDUCATOR_MONTHLY');
-export const PRICE_EDUCATOR_ANNUAL = required('PRICE_EDUCATOR_ANNUAL');
+export const getPriceScholarMonthly = () => env('PRICE_SCHOLAR_MONTHLY');
+export const getPriceScholarAnnual = () => env('PRICE_SCHOLAR_ANNUAL');
+export const getPriceEducatorMonthly = () => env('PRICE_EDUCATOR_MONTHLY');
+export const getPriceEducatorAnnual = () => env('PRICE_EDUCATOR_ANNUAL');
 
-/** Base URL the app is served from, e.g., https://wisegraph.app (no trailing slash). */
-export const APP_BASE_URL = required('APP_BASE_URL');
+export const getAppBaseUrl = () => env('APP_BASE_URL');
 
-/** Canonical post-checkout URLs. */
+// 3. URL Helpers
 export function successUrl(): string {
-  return `${APP_BASE_URL}/billing/success`;
+  return `${getAppBaseUrl()}/billing/success`;
 }
 export function cancelUrl(): string {
-  return `${APP_BASE_URL}/billing/canceled`;
+  return `${getAppBaseUrl()}/billing/canceled`;
 }
-
-/** Portal return target. */
 export function portalReturnUrl(): string {
-  return `${APP_BASE_URL}/billing/portal-return`;
+  return `${getAppBaseUrl()}/billing/portal-return`;
 }
 
-/** Lightweight mapping guard to check a priceId is one of our known IDs. O(1). */
-export const KNOWN_PRICE_IDS = new Set<string>([
-  PRICE_SCHOLAR_MONTHLY,
-  PRICE_SCHOLAR_ANNUAL,
-  PRICE_EDUCATOR_MONTHLY,
-  PRICE_EDUCATOR_ANNUAL,
-]);
+/**
+ * Helper to populate the Known Price IDs set dynamically.
+ */
+export function getKnownPriceIds(): Set<string> {
+  return new Set([
+    getPriceScholarMonthly(),
+    getPriceScholarAnnual(),
+    getPriceEducatorMonthly(),
+    getPriceEducatorAnnual(),
+  ].filter(id => id !== '')); // Filter out empty strings from build time
+}

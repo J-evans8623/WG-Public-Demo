@@ -21,8 +21,8 @@ import BaseResourceCard from '../../CardDisplay/v2/BaseResourceCard';
 import CueCard from '../../CardDisplay/Cards/CueCard';
 import NoteCard from '../../CardDisplay/Cards/NoteCard';
 import QuizCard from '../../CardDisplay/Cards/QuizCard';
-import QuizOverlay from '../../../utils/quiz/QuizOverlay';
-import { useSlideShow } from '@/app/Library/Context/ROSlideShowContext';
+import QuizOverlay from '../../Canvas/ReadWriteCanvas/Overlays/QuizOverlay';
+import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import { QuizType, IQuizQuestion, ResourceCard } from '@/app/Library/Definitions/Definitions';
 import '@/app/workspace/(studygraph)/components/layout/CardDisplay/v2/resourceDisplay.css'; // Use same CSS as main ResourceDisplay
@@ -229,6 +229,7 @@ const ROResourceDisplay: React.FC<ROResourceDisplayProps> = ({
               ? (JSON.parse(content).quizContent as IQuizQuestion[])
               : []
           }
+          isAssessment={false}
         />
       )}
     </>

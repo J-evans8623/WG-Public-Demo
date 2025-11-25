@@ -34,6 +34,7 @@ import { useComments } from '@/app/Library/Context/forum/CommentContext';
 import DiscussionFormInput from '../../../forum/DiscussionFormInput';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
 
 import SlideShowEditForm from '../../../CardDisplay/Cards/SlideShowEditForm';
 import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
@@ -58,14 +59,15 @@ const SlideShowOverlay: React.FC = () => {
     gotoPrev,
     open,
   } = useSlideShow();
+  const {isReadOnly} = useYDoc();
 
   
    const {mode, status, editReady} = useAccessEditSnapshot();
   const caps = useMemo(() => {
-    const canEdit = editReady
+    const canEdit = editReady && !isReadOnly
     // We keep Ask enabled in RW and disabled in RO, but only Edit is *hidden* in RO (per requirement)
     return { canEdit, canAsk: canEdit, canDiscuss: true, canBookmark: true };
-  }, [editReady]); // update - 5
+  }, [editReady, isReadOnly]); // update - 5
 
   const [cueFlipped, setCueFlipped] = useState(false);
   const [askOpen, setAskOpen] = useState(false);

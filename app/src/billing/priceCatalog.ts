@@ -17,10 +17,10 @@
  */
 
 import {
-  PRICE_SCHOLAR_MONTHLY,
-  PRICE_SCHOLAR_ANNUAL,
-  PRICE_EDUCATOR_MONTHLY,
-  PRICE_EDUCATOR_ANNUAL,
+  getPriceScholarMonthly,
+  getPriceScholarAnnual,
+  getPriceEducatorMonthly,
+  getPriceEducatorAnnual,
 } from './config';
 
 export type CatalogRole = 'scholar' | 'educator';
@@ -35,10 +35,10 @@ type CatalogEntry = {
 
 /** Step 1 — Construct the immutable mapping table. O(1) lookups. */
 const TABLE: Record<string, CatalogEntry> = {
-  [PRICE_SCHOLAR_MONTHLY]:   { role: 'scholar',  interval: 'month', productTag: 'scholar' },
-  [PRICE_SCHOLAR_ANNUAL]:    { role: 'scholar',  interval: 'year',  productTag: 'scholar' },
-  [PRICE_EDUCATOR_MONTHLY]:  { role: 'educator', interval: 'month', productTag: 'educator' },
-  [PRICE_EDUCATOR_ANNUAL]:   { role: 'educator', interval: 'year',  productTag: 'educator' },
+  [getPriceScholarMonthly()]:   { role: 'scholar',  interval: 'month', productTag: 'scholar' },
+  [getPriceScholarAnnual()]:    { role: 'scholar',  interval: 'year',  productTag: 'scholar' },
+  [getPriceEducatorMonthly()]:  { role: 'educator', interval: 'month', productTag: 'educator' },
+  [getPriceEducatorAnnual()]:   { role: 'educator', interval: 'year',  productTag: 'educator' },
 };
 
 /**

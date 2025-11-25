@@ -24,7 +24,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
-import { KNOWN_PRICE_IDS, successUrl, cancelUrl, portalReturnUrl } from '@/app/src/billing/config';
+import {getKnownPriceIds, successUrl, cancelUrl, portalReturnUrl } from '@/app/src/billing/config';
 import { createCheckoutSession, getOrCreateCustomer } from '@/app/src/billing/stripeAdapter';
 import { UserService } from '@/app/src/services/userService';
 
@@ -55,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // authenticateRequest already responded with 401 if needed.
     return;
   }
-
+  const KNOWN_PRICE_IDS = getKnownPriceIds();
   // Step 3 — Validate input payload.
   const { priceId, idempotencyKey } = (req.body || {}) as Body;
   if (!priceId || !KNOWN_PRICE_IDS.has(priceId)) {

@@ -19,12 +19,17 @@ import { persistLessonContext }            from './persistLessonContext';
 import {
   generateBatchedUnitSyllabus,        
 } from './aiTextPreProcessingV33';
-import {
-  secondaryNode,
-} from './LessonModuleTypes';
 import AIController                       from '../../controllers/aiController';
 import { callWithRetry } from './callWithRetry';
 import UsageTracker from '../../services/UsageTracker'; 
+
+
+interface secondaryNode {
+  title:string
+  LessonOutline: string;
+   Learning_Objectives: string;
+}
+
 
 interface PrimaryNode {
   title: string; // primary subtopic title goes here

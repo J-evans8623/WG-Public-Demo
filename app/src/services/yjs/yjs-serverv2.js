@@ -38,28 +38,15 @@ const HEARTBEAT_KILL_ON_MISS =
   String(process.env.HEARTBEAT_KILL_ON_MISS || 'true').toLowerCase() !== 'false';
 // ────────────────────────────────────────────────────────────────────────────
 // ENHANCED STARTUP LOGGING
-// ────────────────────────────────────────────────────────────────────────────
-console.log('═══════════════════════════════════════════════════════════════');
-console.log('[yjs-server.js][STARTUP] › YJS Server v2 Starting...');
-console.log('[yjs-server.js][STARTUP] › Port:', PORT);
-console.log('[yjs-server.js][STARTUP] › Redis URL:', REDIS_URL || 'NOT SET (single instance mode)');
-console.log('[yjs-server.js][STARTUP] › JWT Public Key Path:', JWT_PUBLIC_PATH);
-console.log('[yjs-server.js][STARTUP] › Current Working Directory:', process.cwd());
-console.log('[yjs-server.js][STARTUP] › Heartbeat interval (ms):', HEARTBEAT_INTERVAL_MS, '[1002]');
-console.log('[yjs-server.js][STARTUP] › Heartbeat kill-on-miss:', HEARTBEAT_KILL_ON_MISS, '[1003]');
-console.log('═══════════════════════════════════════════════════════════════');
 
 // Load public key with detailed error handling
 let publicKey;
 try {
   const keyPath = path.resolve(JWT_PUBLIC_PATH);
-  console.log('[yjs-server.js][JWT] › Attempting to load public key from:', keyPath);
-  console.log('[yjs-server.js][JWT] › Key file exists:', fs.existsSync(keyPath));
-  
+
   if (!fs.existsSync(keyPath)) {
     console.error('[yjs-server.js][JWT] › ❌ PUBLIC KEY FILE NOT FOUND!');
-    console.error('[yjs-server.js][JWT] › Expected at:', keyPath);
-    console.error('[yjs-server.js][JWT] › Available files in directory:');
+
     const dir = path.dirname(keyPath);
     if (fs.existsSync(dir)) {
       fs.readdirSync(dir).forEach(file => {
@@ -72,8 +59,7 @@ try {
   }
   
   publicKey = fs.readFileSync(keyPath, 'utf8');
-  console.log('[yjs-server.js][JWT] › ✅ Public key loaded successfully');
-  console.log('[yjs-server.js][JWT] › Key preview:', publicKey.substring(0, 500) + '...');
+
 } catch (error) {
   console.error('[yjs-server.js][JWT] › ❌ Failed to load public key:', error.message);
   process.exit(1);
@@ -81,7 +67,6 @@ try {
 
 // Initialize metrics
 const blockedUpdateMetrics = initMetrics();
-console.log('[yjs-server.js][METRICS] › ✅ Blocked update metrics initialized');
 
 // ────────────────────────────────────────────────────────────────────────────
 // REDIS SETUP WITH ENHANCED LOGGING
@@ -95,7 +80,7 @@ async function initRedisIfConfigured() {
     return;
   }
   
-  console.log('[yjs-server.js][REDIS] › Connecting to Redis at:', REDIS_URL);
+
   
   try {
     pubClient = createClient({ url: REDIS_URL });
@@ -109,18 +94,18 @@ async function initRedisIfConfigured() {
     
     await pubClient.connect();
     await subClient.connect();
-    console.log('[yjs-server.js][REDIS] › ✅ Redis connection established');
+
 
     // Subscribe to revocation channels
     await subClient.pSubscribe('revoke:user:*', (message, channel) => {
       const [, , docId, uid] = channel.split(':');
-      console.log('[yjs-server.js][REDIS] › 📨 Revoke user received:', { docId, uid, channel });
+
       revokeUserLocal(docId, uid, 'redis-bus');
     });
 
     await subClient.pSubscribe('revoke:all_non_owner:*', (_message, channel) => {
       const [, , docId] = channel.split(':');
-      console.log('[yjs-server.js][REDIS] › 📨 Revoke all non-owner received:', { docId, channel });
+
       revokeAllNonOwnerLocal(docId, 'redis-bus');
     });
     
@@ -551,11 +536,7 @@ wss.on('connection', (ws, req) => {
   // Enhanced JWT verification with better error handling
   let payload = null;
   try {
-    console.log(`[yjs-server.js][WS] › 🔐 ATTEMPT #${attemptId}: Verifying JWT...`);
-    console.log('[yjs-server.js][WS] › 🔐 Token preview:', token.substring(0, 50) + '...');
-    console.log('[yjs-server.js][WS] › 🔐 Public key preview:', publicKey.substring(0, 100));
-    console.log('[yjs-server.js][WS] › 🔐 JWT algorithm check: RS256');
-    console.log('[yjs-server.js][WS] › 🔐 Token length:', token.length);
+
 
 
     // Add this right before your JWT verification in yjs-serverv2.js
@@ -589,11 +570,7 @@ try {
   console.error('[yjs-server.js][WS] › 🔐 Payload decode failed:', payloadError.message);
 }
 
-// 3. Check the public key format
-console.log('[yjs-server.js][WS] › 🔐 Public key info:');
-console.log('[yjs-server.js][WS] › 🔐   Length:', publicKey.length);
-console.log('[yjs-server.js][WS] › 🔐   Starts with:', publicKey.substring(0, 30));
-console.log('[yjs-server.js][WS] › 🔐   Ends with:', publicKey.substring(publicKey.length - 30));
+
 
 // 4. Try verification with detailed error catching
 try {
@@ -659,15 +636,7 @@ try {
     console.log(`[yjs-server.js][WS] › ✅ ATTEMPT #${attemptId}: Document ID verification passed`);
 
   } catch (error) {
-    console.error(`[yjs-server.js][WS] › ❌ ATTEMPT #${attemptId}: JWT verification failed:`, {
-      error: error.message,
-      errorType: error.name,
-      tokenLength: token?.length || 0,
-      tokenPreview: token?.substring(0, 50) || 'none',
-      publicKeyExists: !!publicKey,
-      publicKeyPreview: publicKey ? publicKey.substring(0, 100) : 'none',
-      fullError: error.toString()
-    });
+
     
     // More specific error codes based on JWT error type
     if (error.name === 'JsonWebTokenError') {

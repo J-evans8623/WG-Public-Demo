@@ -2,6 +2,7 @@
 
 import React from 'react';
 import './features-page.css';
+import Image from 'next/image';
 
 // Icons (Inline SVG)
 const Icons = {
@@ -57,11 +58,11 @@ const GettingStartedContent = () => {
           <div className="wg-zigzag-visual">
             <div className="wg-app-frame">
               {/* BACKGROUND: Notebook Stage */}
-              <img src="/textures/notebook-stage.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
+              <Image src="/textures/notebook-stage.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
               {/* DUAL SCREENSHOTS */}
               <div className="wg-screenshots dual">
-                <img src="/get-started/create-notebook.png" className="wg-shot-img" alt="Create notebook modal" />
-                <img src="/get-started/generate-lesson-menu-item.png" className="wg-shot-img" alt="Upload screen" />
+                <Image src="/get-started/create-notebook.png" className="wg-shot-img" alt="Create notebook modal" />
+                <Image src="/get-started/generate-lesson-menu-item.png" className="wg-shot-img" alt="Upload screen" />
               </div>
             </div>
           </div>
@@ -91,10 +92,10 @@ const GettingStartedContent = () => {
           <div className="wg-zigzag-visual">
             <div className="wg-app-frame"> 
               {/* BACKGROUND: Blue Node Texture */}
-              <img src="/textures/blue-node-texture.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
+              <Image src="/textures/blue-node-texture.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
               {/* SINGLE SCREENSHOT */}
               <div className="wg-screenshots single">
-                <img src="/get-started/hero-shot-2.png" className="wg-shot-img" alt="Concept map view" />
+                <Image src="/get-started/hero-shot-2.png" className="wg-shot-img" alt="Concept map view" />
               </div>
             </div>
           </div>
@@ -115,10 +116,10 @@ const GettingStartedContent = () => {
           <div className="wg-zigzag-visual">
             <div className="wg-app-frame">
               {/* BACKGROUND: Notebook Stage (Reused) */}
-              <img src="/textures/notebook-stage.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
+              <Image src="/textures/notebook-stage.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
               {/* SINGLE SCREENSHOT */}
               <div className="wg-screenshots single">
-                <img src="/get-started/add-more-lessons-to-notebook.png" className="wg-shot-img" alt="Add lesson interface" />
+                <Image src="/get-started/add-more-lessons-to-notebook.png" className="wg-shot-img" alt="Add lesson interface" />
               </div>
             </div>
           </div>
@@ -147,11 +148,11 @@ const GettingStartedContent = () => {
           <div className="wg-zigzag-visual">
             <div className="wg-app-frame">
               {/* BACKGROUND: Social Texture */} 
-              <img src="/textures/social-texture.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
+              <Image src="/textures/social-texture.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
               {/* DUAL SCREENSHOTS */}
               <div className="wg-screenshots dual">
-                <img src="/get-started/node-context-menu.png" className="wg-shot-img" alt="Editor tools" />
-                <img src="/get-started/editor-screen-shot.png" className="wg-shot-img" alt="Collaboration panel" />
+                <Image src="/get-started/node-context-menu.png" className="wg-shot-img" alt="Editor tools" />
+                <Image src="/get-started/editor-screen-shot.png" className="wg-shot-img" alt="Collaboration panel" />
               </div>
             </div>
           </div>
@@ -179,10 +180,10 @@ const GettingStartedContent = () => {
           <div className="wg-zigzag-visual">
             <div className="wg-app-frame">
               {/* BACKGROUND: Schedule Texture */}
-              <img src="/textures/schedule-texture-2.png" className="wg-frame-bg" alt="" aria-hidden="true" />
+              <Image src="/textures/schedule-texture-2.png" className="wg-frame-bg" alt="" aria-hidden="true" />
               {/* DUAL SCREENSHOTS */}
               <div className="wg-screenshots single">
-                <img src="/get-started/calendar-planner-scene-2.png" className="wg-shot-img" alt="Daily agenda view" />
+                <Image src="/get-started/calendar-planner-scene-2.png" className="wg-shot-img" alt="Daily agenda view" />
               </div>
             </div>
           </div>
@@ -206,10 +207,10 @@ const GettingStartedContent = () => {
            <div className="wg-zigzag-visual">
              <div className="wg-app-frame">
                {/* BACKGROUND: Memory Texture */}  
-               <img src="/textures/memory-retention.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
+               <Image src="/textures/memory-retention.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
                {/* SINGLE SCREENSHOT */}
                <div className="wg-screenshots single">
-                 <img src="/get-started/book-mark.png" className="wg-shot-img" alt="Bookmarks list" />
+                 <Image src="/get-started/book-mark.png" className="wg-shot-img" alt="Bookmarks list" />
                </div>
              </div>
            </div>
@@ -233,11 +234,11 @@ const GettingStartedContent = () => {
            <div className="wg-zigzag-visual">
              <div className="wg-app-frame">
                {/* BACKGROUND: Blue Node Texture (Reused for AI context) */}
-               <img src="/textures/blue-node-texture.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
+               <Image src="/textures/blue-node-texture.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
                {/* DUAL SCREENSHOTS */}
                <div className="wg-screenshots dual">  
-                 <img src="/get-started/explore-topic-ai-tool.png" className="wg-shot-img" alt="AI Tutor chat" />
-                 <img src="/get-started/ai-tool-ask-ai-feature.png" className="wg-shot-img" alt="Explore topic result" />
+                 <Image src="/get-started/explore-topic-ai-tool.png" className="wg-shot-img" alt="AI Tutor chat" />
+                 <Image src="/get-started/ai-tool-ask-ai-feature.png" className="wg-shot-img" alt="Explore topic result" />
                </div>
              </div>
            </div>
@@ -264,10 +265,10 @@ const GettingStartedContent = () => {
            <div className="wg-zigzag-visual">
              <div className="wg-app-frame">
                {/* BACKGROUND: Memory Texture (Ideal for quizzes) */}
-               <img src="/textures/memory-retention.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
+               <Image src="/textures/memory-retention.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
                {/* SINGLE SCREENSHOT */}
                <div className="wg-screenshots single">
-                 <img src="/get-started/generate-quiz-tool.png" className="wg-shot-img" alt="Quiz generation screen" />
+                 <Image src="/get-started/generate-quiz-tool.png" className="wg-shot-img" alt="Quiz generation screen" />
                </div>
              </div>
            </div>
@@ -303,10 +304,10 @@ const GettingStartedContent = () => {
             <div className="wg-zigzag-visual">
                <div className="wg-app-frame">
                  {/* BACKGROUND: Notebook Stage (Reused for classroom context) */}
-                 <img src="/textures/notebook-stage.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
+                 <Image src="/textures/notebook-stage.jpg" className="wg-frame-bg" alt="" aria-hidden="true" />
                  {/* DUAL SCREENSHOTS */}
                  <div className="wg-screenshots single">
-                   <img src="/get-started/assigned-quiz-educator.png" className="wg-shot-img" alt="Gradebook view" />
+                   <Image src="/get-started/assigned-quiz-educator.png" className="wg-shot-img" alt="Gradebook view" />
                  </div>
                </div>
             </div>

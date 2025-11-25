@@ -12,10 +12,10 @@ import OfferPageClient from './OfferPageClient';
 // update - 1: Import SiteFooter
 import SiteFooter from '@/components/SiteFooter';
 import {
-  PRICE_SCHOLAR_MONTHLY,
-  PRICE_SCHOLAR_ANNUAL,
-  PRICE_EDUCATOR_MONTHLY,
-  PRICE_EDUCATOR_ANNUAL,
+  getPriceScholarMonthly,
+  getPriceScholarAnnual,
+  getPriceEducatorMonthly,
+  getPriceEducatorAnnual,
 } from '@/app/src/billing/config';
 
 export const metadata = {
@@ -33,21 +33,21 @@ export default function OfferPage() {
     scholar: {
       monthly: {
         price: '$9.99',
-        priceId: PRICE_SCHOLAR_MONTHLY,
+        priceId: getPriceScholarMonthly(),
       },
       annual: {
         price: '$95.99',
-        priceId: PRICE_SCHOLAR_ANNUAL,
+        priceId: getPriceScholarAnnual(),
       },
     },
     educator: {
       monthly: {
         price: '$12.99',
-        priceId: PRICE_EDUCATOR_MONTHLY,
+        priceId: getPriceEducatorMonthly(),
       },
       annual: {
         price: '$124.99',
-        priceId: PRICE_EDUCATOR_ANNUAL,
+        priceId: getPriceEducatorAnnual(),
       },
     },
   };

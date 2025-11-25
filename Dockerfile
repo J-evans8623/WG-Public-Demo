@@ -38,6 +38,9 @@ ENV NEXT_TELEMETRY_DISABLED 1
 # This reads next.config.mjs and creates .next/standalone
 RUN npm run build
 
+# Build the schema scripts (creates /app/dist/setSchema.js)
+RUN npm run build:scripts
+
 # 4. Runner Stage (Production)
 #    This is the final, small image that actually runs on the VPS.
 FROM base AS runner
@@ -71,5 +74,8 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-# Start the server
-CMD ["node", "server.js"]
+# We copy the 'dist' folder (where setSchema.js lives) from the builder stage first
+COPY --from=builder /app/dist ./dist
+
+# Then we run the schema check, THEN start the server
+CMD ["sh", "-c", "node dist/setSchema.js && node server.js"]

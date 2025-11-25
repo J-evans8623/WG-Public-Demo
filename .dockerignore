@@ -50,6 +50,4 @@ components.json
 
 # 8. Scripts & Tests
 test.ts
-setSchema.ts
-tsconfig.scripts.json
 root.txt

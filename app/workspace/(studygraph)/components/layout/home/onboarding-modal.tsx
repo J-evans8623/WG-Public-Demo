@@ -19,7 +19,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import './onboarding-modal.css';
-
+import Image from 'next/image';
 /**
  * @interface TutorialStep
  * @description Defines the structure of a single step in the onboarding process.
@@ -186,11 +186,12 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
               {/* Step Image: Render only if path is provided */}
               {step.imagePath && (
                 <div className="onboarding-step-image-wrapper">
-                  <img 
-                    src={step.imagePath} 
-                    alt={`Step ${step.stepNumber}: ${step.title}`}
-                    className="onboarding-step-image"
-                  />
+                  <Image 
+                   src={step.imagePath} 
+                   alt={`Step ${step.stepNumber}: ${step.title}`}
+                   className="onboarding-step-image"
+                  priority={step.stepNumber === 1} // Optional: Load the first image immediately for speed
+                />
                 </div>
               )}
             </div>

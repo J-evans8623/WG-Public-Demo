@@ -92,7 +92,7 @@ export async function takeMapSnapshot(
   const putRes = await fetch(guard.uploadUrl, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/octet-stream' },
-    body: update
+    body: update as unknown as BodyInit
   });
 
   if (!putRes.ok) {

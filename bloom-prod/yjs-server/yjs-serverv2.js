@@ -18,9 +18,9 @@ const url = require('url');
 // ────────────────────────────────────────────────────────────────────────────
 // ENV
 // ────────────────────────────────────────────────────────────────────────────
-const PORT = parseInt(process.env.PORT || '1234', 10);
-const REDIS_URL = process.env.REDIS_URL || '';
-const JWT_PUBLIC_PATH = process.env.JWT_PUBLIC_PATH || './keys/jwt_public.pem';
+const PORT = parseInt(process.env.PORT, 10);
+const REDIS_URL = process.env.REDIS_URL;
+const JWT_PUBLIC_PATH = process.env.JWT_PUBLIC_PATH  // || './keys/jwt_public.pem';
 const REVOKE_API_KEY = process.env.REVOKE_API_KEY || '';
 
 
@@ -32,7 +32,7 @@ const REVOKE_API_KEY = process.env.REVOKE_API_KEY || '';
 // HEARTBEAT_KILL_ON_MISS: terminate if no pong since last tick (default true)
 const HEARTBEAT_INTERVAL_MS = Math.max(
   5000,
-  parseInt(process.env.HEARTBEAT_INTERVAL_MS || '30000', 10)
+  parseInt(process.env.HEARTBEAT_INTERVAL_MS , 10) //'30000'
 );
 const HEARTBEAT_KILL_ON_MISS =
   String(process.env.HEARTBEAT_KILL_ON_MISS || 'true').toLowerCase() !== 'false';
@@ -486,7 +486,7 @@ wss.on('connection', (ws, req) => {
   // FIXED: Parse URL to extract docId and token from the complete URL
   let docId, token;
   try {
-    const urlParts = new URL(req.url || '/', 'http://localhost');
+    const urlParts = new URL(req.url)   //'/', 'http://localhost');
     
     // Handle both formats:
     // 1. /docId?token=jwt (new format from fixed client)

@@ -32,9 +32,10 @@ function splitTextIntoChunks(text: string, chunkSize: number = 3000, overlap: nu
 
 const defaultProvider: EmbeddingProvider = { generate: generateEmbedding };
 
+const hst = process.env.WEAVIATE_HOST || ""
 const weaviateClient = weaviate.client({
   scheme: 'http',
-  host: 'localhost:8080'
+  host: hst,
 });
 
 async function persistTextChunks(

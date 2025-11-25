@@ -25,7 +25,7 @@
  */
 
 import React, { useState } from 'react';
-import QuizOverlay from './ROquizOverlay';
+import QuizOverlay from '../../Canvas/ReadWriteCanvas/Overlays/QuizOverlay';
 import { IQuizQuestion, QuizType } from '@/app/Library/Definitions/Definitions';
 import { shuffleAndLimit } from '../../CardDisplay/Cards/quizUtils';
 
@@ -125,6 +125,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ title, content, hideHeader = false,
         quizType={quizType}
         title={title}
         quizData={selectedQuestions}
+        isAssessment={false}
       />
     </>
   );

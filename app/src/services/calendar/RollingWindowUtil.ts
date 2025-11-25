@@ -17,10 +17,14 @@
 import {
   CalendarMonth,
   DailyStudyPlan,
-  ScheduleConfig,
   NotebookMeta,
   StudySession,
 } from '@/app/Library/Definitions/CalendarDefinitions';
+import type { ScheduleConfig, DayOfWeek } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/Configuration.ts';
+
+
+const DAY_LOOKUP: DayOfWeek[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 
 /**
  * @function computeAnchorDate
@@ -32,9 +36,8 @@ export function computeAnchorDate(params: { now: Date; config: ScheduleConfig })
   // 1) Normalize to local start-of-day
   const sod = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const today = sod(params.now);
-  const cfgStart = sod(params.config.startDate);
   // 2) Anchor = max(today, config.startDate)
-  return today.getTime() > cfgStart.getTime() ? today : cfgStart;
+  return today 
 }
 
 /**
@@ -77,11 +80,16 @@ export function buildForwardWindow(params: {
   const month = start.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // 2) Iterate to end-of-month and filter by weekday policy
+// 2) Iterate to end-of-month and filter by weekday policy
   const out: Date[] = [];
   for (let day = start.getDate(); day <= daysInMonth; day++) {
     const d = new Date(year, month, day);
-    if (params.config.daysPerWeek.includes(d.getDay())) {
+    
+    // FIX 2: Convert the number (0-6) to the specific string literal using the lookup
+    const dayToken = DAY_LOOKUP[d.getDay()];
+
+    // FIX 3: Use 'DayAvailability' (from your Interface) instead of 'daysPerWeek'
+    if (params.config.DayAvailability.includes(dayToken)) {
       out.push(d);
     }
   }
@@ -182,7 +190,7 @@ export function mergeAppendOnly(params: {
               notebookName: s.notebookMeta.fileName,
               sessionCount: 0,
               totalUnits: 0,
-              color: s.notebookMeta.color || '#6B7280',
+              colorCode: s.notebookMeta.colorCode || '#6B7280',
             };
           }
           existing.subjectSummary[id].sessionCount += 1;
@@ -225,7 +233,7 @@ function summarizeSubjects(sessions: StudySession[]): DailyStudyPlan['subjectSum
         notebookName: s.notebookMeta.fileName,
         sessionCount: 0,
         totalUnits: 0,
-        color: s.notebookMeta.color || '#6B7280',
+        colorCode: s.notebookMeta.colorCode || '#6B7280',
       };
     }
     summary[id].sessionCount += 1;

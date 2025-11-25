@@ -13,7 +13,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './welcomepage.css';
 import './scroll-sections.css';
-import BrandIcon from '@/public/brand/brand-wordmark-1.svg';
+import Image from 'next/image';
 
 type SceneConfig = {
   id: number;
@@ -134,7 +134,7 @@ function WelcomeLandingPage(): JSX.Element {
             <div className="wg-hero-visual" aria-hidden="true">
               <div className="wg-hero-monitor">
                 <div className="wg-hero-monitor-inner">
-                  <img
+                  <Image
                     src="/brand/hero-shot-highest-res.png"
                     alt=""
                     className="wg-hero-monitor-img"
@@ -153,7 +153,7 @@ function WelcomeLandingPage(): JSX.Element {
               {scenes.map((scene, idx) => (
                 <div
                   key={scene.id}
-                  ref={(el) => (scenesRef.current[idx] = el)}
+                  ref={(el) => { scenesRef.current[idx] = el; }}
                   className="wg-scene-text-block"
                   data-scene={scene.id}
                   style={
@@ -168,7 +168,7 @@ function WelcomeLandingPage(): JSX.Element {
 
                   {/* Scene 3: show static illustration under the copy */}
                   {scene.id === 3 && (
-                    <img
+                    <Image
                       src="/scene-3/scene3.png"
                       alt="Illustration comparing cramming with spaced repetition over several days."
                       className="wg-scene-illustration"

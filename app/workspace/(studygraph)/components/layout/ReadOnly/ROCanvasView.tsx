@@ -29,7 +29,7 @@ import ROCardDisplay from '@/app/workspace/(studygraph)/components/layout/ReadOn
 
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
-import { useSlideShow } from '@/app/Library/Context/ROSlideShowContext';
+import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import { usePreorderTraversal } from '@/app/workspace/(studygraph)/components/hooks/usePreorderTraversal';
 
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
