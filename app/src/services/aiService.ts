@@ -129,7 +129,7 @@ class AIService {
       });
 
       const usageMeta = (response as any).usage;
-      console.log(`Openai model usage summary tak67 \n :${JSON.stringify(usageMeta)}`);
+      //console.log(`Openai model usage summary tak67 \n :${JSON.stringify(usageMeta)}`);
       if (options.tracker) {
         try {
           options.tracker.addCallUsageOpenAIForModel(modelName, usageMeta);

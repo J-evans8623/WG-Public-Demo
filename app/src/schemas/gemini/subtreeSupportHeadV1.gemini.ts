@@ -46,27 +46,24 @@ export const subtreeSupportHeadV1Gemini = {
                   "Detailed lecture note for the supporting topic. Must follow the unit syllabus for this secondary topic and respect the max word count."
               },
               flash_cards: {
-                type: "array",
-                description:
-                  "Flash cards targeting the most important definitions, processes, or relationships described in this supporting topic.",
-                items: {
-                  type: "object",
-                  properties: {
-                    term: {
-                      type: "string",
-                      description:
-                        "Front of the flash card. Keep this concise and avoid markdown or LaTeX formatting."
-                    },
-                    definition: {
-                      type: "string",
-                      description:
-                        "Back of the flash card. Provide a clear explanation or definition that stands alone without extra context."
-                    }
-                  },
-                  required: ["term", "definition"],
-                  additionalProperties: false
-                }
-              }
+  type: "object",
+  description:
+    "A single flash card reinforcing the key ideas and definitions for this supporting topic.",
+  properties: {
+    term: {
+      type: "string",
+      description:
+        "Front of the flash card. Use a short, clear term or phrase with no markdown or LaTeX."
+    },
+    definition: {
+      type: "string",
+      description:
+        "Back of the flash card. Provide a standalone explanation that covers the concept clearly."
+    }
+  },
+  required: ["term", "definition"],
+  additionalProperties: false
+}
             },
             required: ["lecture_note", "flash_cards"],
             additionalProperties: false

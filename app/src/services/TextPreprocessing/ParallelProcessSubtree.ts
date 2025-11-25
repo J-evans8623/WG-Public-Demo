@@ -21,15 +21,14 @@ import { subtreeMainHeadV1Gemini } from '../../schemas/gemini/subtreeMainHeadV1.
 import { subtreeSupportHeadV1Gemini } from '../../schemas/gemini/subtreeSupportHeadV1.gemini';
 import { subtreeMainHeadV1OpenAI } from '../../schemas/openai/subtreeMainHeadV1.openai';
 import { subtreeSupportHeadV1OpenAI } from '../../schemas/openai/subtreeSupportHeadV1.openai';
-import GeminiAIService from '../aiServiceV2';
-import OpenAIAIService from '../aiService';
+import UnifiedAIService from '../UnifiedAIService';
 import {
   buildSystemPromptForTopic,
   TopicDescriptor
 } from './ParallelSystemPromptForTopic';
 import { sanitizeCitations } from './citationSanitizer'; 
 
-type Provider = 'gemini' | 'openai';
+
 
 /**
  * Lightweight secondary-node shape matching the structural syllabus output.
@@ -57,64 +56,63 @@ interface PrimaryNodeLike {
 }
 
 // Step 1: Initialise provider-specific AI service singletons for reuse.
-const geminiService = new GeminiAIService();
-const openaiService = new OpenAIAIService();
+const unifiedService = new UnifiedAIService();
 
 /**
  * callMainHead
  * @description
- * Executes the main-topic head structured-output call.
+ * Executes the main-topic head structured-output call using UnifiedAIService.
+ * It passes a DualSchema containing both OpenAI and Gemini schemas.
  */
 async function callMainHead(
-  provider: Provider,
   systemPrompt: string,
   uploadContents: string,
   usageTracker?: UsageTracker
-): Promise<any> {
-  if (provider === 'openai') {
-    return openaiService.generateStructuredOutput(
-      subtreeMainHeadV1OpenAI,
-      uploadContents,
-      systemPrompt,
-      { stream: false, tracker: usageTracker , model: "gpt-5-nano", modeleffort:"low"}
-    );
-  }
-
-  // Default to Gemini.
-  return geminiService.generateStructuredOutput(
-    subtreeMainHeadV1Gemini,
+): Promise<any> { // update - 3
+  
+  // update - 3: Construct DualSchema and delegate to Unified Service
+  return unifiedService.generateStructuredOutput(
+    { 
+      openai: subtreeMainHeadV1OpenAI, 
+      gemini: subtreeMainHeadV1Gemini 
+    },
     uploadContents,
     systemPrompt,
-    { stream: false, tracker: usageTracker }
+    { 
+      stream: false, 
+      tracker: usageTracker, 
+      model: "gpt-5-nano", 
+      modeleffort: "low"
+    }
   );
 }
 
 /**
  * callSupportHead
  * @description
- * Executes a supporting-topic head structured-output call.
+ * Executes a supporting-topic head structured-output call using UnifiedAIService.
+ * It passes a DualSchema containing both OpenAI and Gemini schemas.
  */
 async function callSupportHead(
-  provider: Provider,
   systemPrompt: string,
   uploadContents: string,
   usageTracker?: UsageTracker
-): Promise<any> {
-  if (provider === 'openai') {
-    return openaiService.generateStructuredOutput(
-      subtreeSupportHeadV1OpenAI,
-      uploadContents,
-      systemPrompt,
-      { stream: false, tracker: usageTracker , model:"gpt-5-nano", modeleffort:"low"}
-    );
-  }
+): Promise<any> { // update - 4
 
-  // Default to Gemini.
-  return geminiService.generateStructuredOutput(
-    subtreeSupportHeadV1Gemini,
+  // update - 4: Construct DualSchema and delegate to Unified Service
+  return unifiedService.generateStructuredOutput(
+    { 
+      openai: subtreeSupportHeadV1OpenAI, 
+      gemini: subtreeSupportHeadV1Gemini 
+    },
     uploadContents,
     systemPrompt,
-    { stream: false, tracker: usageTracker }
+    { 
+      stream: false, 
+      tracker: usageTracker, 
+      model: "gpt-5-nano", 
+      modeleffort: "low"
+    }
   );
 }
 
@@ -130,7 +128,6 @@ export async function parallelProcessSubtree(
   FullTextArray: string[], // update - 2
   lessonTitle: string,
   wordcount: number,
-  provider: Provider,
   usageTracker?: UsageTracker
 ): Promise<EnrichedPrimary> {
   // Step 1: Build unit-level syllabus context from the primary node and its secondaries.
@@ -201,7 +198,6 @@ export async function parallelProcessSubtree(
   const mainUploadContents = extractContext(mainDescriptor.pageSequence);
 
   const mainPromise = callMainHead(
-    provider,
     mainSystemPrompt,
     mainUploadContents,
     usageTracker
@@ -219,7 +215,7 @@ export async function parallelProcessSubtree(
     // update - 3: Generate Support-specific context
     const supportUploadContents = extractContext(desc.pageSequence);
 
-    return callSupportHead(provider, supportPrompt, supportUploadContents, usageTracker);
+    return callSupportHead(supportPrompt, supportUploadContents, usageTracker);
   });
 
   // Step 5: Await all topic calls concurrently.

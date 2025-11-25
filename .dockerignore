@@ -1,0 +1,55 @@
+# -----------------------------------------------------------------------------
+# GLOBAL IGNORE LIST
+#
+# This stops Docker from copying massive local dependencies
+# -----------------------------------------------------------------------------
+
+# 1. Node Dependencies (The big one - 700MB+)
+**/node_modules
+node_modules
+
+# 2. Build Artifacts
+.next
+build
+dist
+out
+pycache
+*.pyc
+
+# 3. Version Control
+.git
+.gitignore
+.github
+
+# 4. Local Environment & Keys (Security)
+.env
+.env.local
+.env.development
+.env.test
+*.pem
+*.key
+
+# 5. Editor Config
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# 6. Docker System
+docker-compose.yml
+Dockerfile
+README.md
+bloom-prod
+
+# 7. Firebase & Dev Tools (Not needed for Next.js runtime)
+.firebaserc
+firebase.json
+components.json
+.eslintignore
+.eslintrc.json
+
+# 8. Scripts & Tests
+test.ts
+setSchema.ts
+tsconfig.scripts.json
+root.txt

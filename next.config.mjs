@@ -9,6 +9,8 @@
  */
 
 const nextConfig = {
+  // --- CRITICAL FOR DOCKER ---
+  output: 'standalone',
   // Configure remote image hosts for Next.js <Image /> (Google avatars)  // update - 1
   images: {                                                               // update - 2
     remotePatterns: [                                                     // update - 3

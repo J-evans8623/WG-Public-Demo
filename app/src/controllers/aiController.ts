@@ -22,10 +22,10 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import AIService from "../services/aiService";
+import UnifiedAIService from "../services/UnifiedAIService";
 import { predefinedPrompts,  getQuizSystemPrompt, buildSubtreePromptV22 } from "../config/predefined-prompts";
-import { subtreeSchemaV3OpenAI as subtreeSchemaV3 } from '../schemas/openai/subtreeSchemaV3.openai';
-//import { subtreeSchemaV3 } from '../schemas/gemini/subtreeschemaV3.gemini';
+import { subtreeSchemaV3OpenAI } from '../schemas/openai/subtreeSchemaV3.openai';
+import {subtreeSchemaV3 as subtreeSchemaV3Gemini } from '../schemas/gemini/subtreeschemaV3.gemini';
 import {topicSchema,  EnrichedPrimary} from "../schemas/lessonSchema";
 import { MatchingQuizSchema, MultipleChoiceSchema, FillInBlankSchema, TrueFalseSchema } from "../schemas/quizSchema";
 import { getTextContext } from '@/app/src/services/TextPreprocessing/QuestionContextService';
@@ -36,14 +36,14 @@ import { parallelProcessSubtree } from '../services/TextPreprocessing/ParallelPr
 
 
 class AIController {
-  private static aiService: AIService | null = null;
+  private static aiService: UnifiedAIService | null = null;
 
   // Returns a singleton AIService instance.
-  private static getAIService(): AIService {
+  private static getAIService(): UnifiedAIService {
     if (!this.aiService) {
       console.log('[AIController] Initializing AI Service');
      // const openaiClient = OpenAIClient.getClient();
-      this.aiService = new AIService();
+      this.aiService = new UnifiedAIService();
     }
     return this.aiService;
   }
@@ -106,9 +106,10 @@ class AIController {
       const systemPrompt = predefinedPrompts['QApipeline'];
       const aiService = AIController.getAIService();
       const structuredResponse = await aiService.generateStructuredOutput(
-        QAschema,
+        { openai: QAschema, gemini: QAschema } as any,
         finalPrompt,
-        systemPrompt
+        systemPrompt,
+        { model: "gpt-5-mini" }
       );
       
       console.log('[aiController.ts][5011] Question processing completed successfully');
@@ -175,10 +176,12 @@ class AIController {
       // Step 15: Generate AI response for topic exploration
       const systemPrompt = predefinedPrompts['ExploreTopic'];
       const aiService = AIController.getAIService();
+
       const structuredResponse = await aiService.generateStructuredOutput(
-        topicSchema,
+        { openai: topicSchema, gemini: topicSchema } as any,
         finalPrompt,
-        systemPrompt
+        systemPrompt,
+        { model: "gpt-5-mini" ,  modeleffort:"low" }
       );
       
       console.log('[aiController.ts][5018] Topic generation completed successfully');
@@ -249,7 +252,7 @@ public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): P
 
     // Step 5 — Prompts & input (ALWAYS from exportData)
     const systemPrompt = getQuizSystemPrompt(firstType, qty);
-    const userInput = `Context:\n${exportData}`; // update - 4
+    const userInput = `Context:\n${exportData}`; 
 
     const schemaForCall = {
       name: chosenSchema.name,
@@ -266,10 +269,14 @@ public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): P
 
     // Step 6 — Structured output
     const aiService = AIController.getAIService();
+
+
+    // update - 5: Pass DualSchemaValidation
     const structuredResponse = await aiService.generateStructuredOutput(
-      schemaForCall,
+      { openai: schemaForCall, gemini: schemaForCall } as any,
       userInput,
-      systemPrompt
+      systemPrompt,
+      { model: "gpt-5-mini", modeleffort:"low" }
     );
 
     console.log('[aiController.ts][5315] Quiz generation complete');
@@ -335,11 +342,15 @@ public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): P
 
 
     // Perform the structured call
+    // update - 6: Pass DualSchemaValidation using specific Gemini schema
     const response = (await aiService.generateStructuredOutput(
-      { name: subtreeSchemaV3.name, schema: subtreeSchemaV3.schema, strict: subtreeSchemaV3.strict },
+      { 
+        openai: { name: subtreeSchemaV3OpenAI.name, schema: subtreeSchemaV3OpenAI.schema, strict: subtreeSchemaV3OpenAI.strict },
+        gemini: { name: subtreeSchemaV3Gemini.name, schema: subtreeSchemaV3Gemini.schema, strict: subtreeSchemaV3Gemini.strict }
+      },
       uploadContents,
       systemPrompt,
-      { stream: false, tracker: usageTracker }  
+      { stream: false, tracker: usageTracker, model: "gpt-5-nano" }  
     ) ) as any;
 
     const {
@@ -366,7 +377,7 @@ public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): P
 
 
 /**
-   * generateSubtreeLessonV4  
+   * generateSubtreeLessonV4  (authooratative lesson generator)
    *
    * @description
    * Generates detailed lesson content for a single syllabus unit by delegating to
@@ -398,9 +409,6 @@ public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): P
 
     const unit = roots[0]; 
 
-    // Step 2: Select provider from configuration (default to Gemini). 
-    const providerEnv = process.env.LESSON_ENRICH_PROVIDER?.toLowerCase(); 
-    const provider = providerEnv === 'openai' ? 'openai' : 'gemini'; 
 
     // Step 3: Delegate to the core parallel subtree processor. 
     // update - 2 : Passing FullTextArray string array
@@ -409,7 +417,6 @@ public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): P
       FullTextArray, 
       mainTopic, 
       wordcount, 
-      provider, 
       usageTracker 
     ); 
 
