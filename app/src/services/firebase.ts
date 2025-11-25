@@ -388,7 +388,7 @@ export async function removeEditor(
 
   // Force active sessions to re-bootstrap (downgrade or full revoke)
   try {
-    await publishRevokeUser(docId, email);
+    await publishRevokeUser(docId, email); // this bullshit doesn't work sorry ...
   } catch (e) {
     console.warn('firebase.ts › publishRevokeUser failed (non-fatal)', e);
   }
