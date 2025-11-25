@@ -26,7 +26,7 @@ const SiteHeader = () => {
             Pricing
           </Link>
           <div className="wg-nav-sep" aria-hidden="true"></div>
-          <Link href="/signin?returnTo=/studygraph" className='wg-nav-link'>
+          <Link href="/signin?returnTo=/workspace" className='wg-nav-link'>
           Log in
           </Link>
           <Link href="/billing/offer" className="wg-nav-cta">

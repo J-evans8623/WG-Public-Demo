@@ -35,14 +35,14 @@ import React, {
   useEffect,
 } from 'react';
 import type { ResourceCard } from '@/app/Library/Definitions/Definitions';
-import { useOrderedResources } from '@/app/studygraph/(studygraph)/components/hooks/useOrderedResources';
-import SlideShowOverlay from '@/app/studygraph/(studygraph)/components/layout/Canvas/ReadWriteCanvas/Overlays/SlideShowOverlay';
+import { useOrderedResources } from '@/app/workspace/(studygraph)/components/hooks/useOrderedResources';
+import SlideShowOverlay from '@/app/workspace/(studygraph)/components/layout/Canvas/ReadWriteCanvas/Overlays/SlideShowOverlay';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { StudySession } from '@/app/Library/Definitions/CalendarDefinitions';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
-import { useBlockStudySession } from '@/app/studygraph/(studygraph)/components/hooks/calendar/useBlockStudySession';
-import { getLastViewedSlide, setLastViewedSlide, cachetype } from '@/app/studygraph/(studygraph)/services/localCacheStore';
+import { useBlockStudySession } from '@/app/workspace/(studygraph)/components/hooks/calendar/useBlockStudySession';
+import { getLastViewedSlide, setLastViewedSlide, cachetype } from '@/app/workspace/(studygraph)/services/localCacheStore';
 
 
 interface SlideShowContextValue {

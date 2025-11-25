@@ -20,7 +20,7 @@ import * as Y from 'yjs';
 import { ConceptNode, SystemActionType, LOCAL_ORIGIN  } from '@/app/Library/Definitions/Definitions';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
-import { record } from '@/app/studygraph/(studygraph)/components/utils/deltaEngine';
+import { record } from '@/app/workspace/(studygraph)/components/utils/deltaEngine';
 import { Delta } from '@/app/Library/Definitions/deltaTypes';
 
 

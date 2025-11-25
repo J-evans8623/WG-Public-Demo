@@ -13,7 +13,7 @@
 
 import admin from 'firebase-admin';
 import { firestore } from '@/app/src/services/firebase'; // reuse initialized singleton
-import type { StudyPlanOutput, StudyPlanState } from '@/app/studygraph/(studygraph)/components/layout/Calendar/study-planner';
+import type { StudyPlanOutput, StudyPlanState } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner';
 import type { NotebookMeta, StudySession } from '@/app/Library/Definitions/CalendarDefinitions';
 
 // ---------- Internal wire types (Firestore-safe) ----------

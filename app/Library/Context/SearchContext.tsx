@@ -1,7 +1,7 @@
-// src/app/studygraph/(studygraph)/components/context/SearchContext.tsx
+// src/app/workspace/(studygraph)/components/context/SearchContext.tsx
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { useSearchResults } from '@/app/studygraph/(studygraph)/components/hooks/useSearchResults';
+import { useSearchResults } from '@/app/workspace/(studygraph)/components/hooks/useSearchResults';
 import { ResourceCard } from '@/app/Library/Definitions/Definitions';
 
 interface SearchContextType {

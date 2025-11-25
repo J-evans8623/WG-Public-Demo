@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import Providers from "./AuthProvider"; 
 import '@/app/globals.css';
-import '@/app/studygraph/(studygraph)/components/layout/CardDisplay/Cards/slideshow.css'
+import '@/app/workspace/(studygraph)/components/layout/CardDisplay/Cards/slideshow.css'
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);

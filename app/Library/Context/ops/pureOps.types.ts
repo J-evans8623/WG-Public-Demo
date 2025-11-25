@@ -19,7 +19,7 @@ import type * as Y from 'yjs';
 //
 // If your project exposes these from different modules, update the paths below.
 // These are type-only imports, so they will not introduce runtime cycles.
-import type { AccessEnvelope } from '@/app/studygraph/(studygraph)/types/access';
+import type { AccessEnvelope } from '@/app/workspace/(studygraph)/types/access';
 
 
 type Visibility = "private" | "public";

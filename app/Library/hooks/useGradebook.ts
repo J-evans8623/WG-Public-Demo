@@ -34,7 +34,7 @@ import type { // update - 2
   AssignmentHeader,
   GradebookCell,
   GradebookQueryRes,
-} from '@/app/studygraph/(studygraph)/services/gradebook/gradebookClient';
+} from '@/app/workspace/(studygraph)/services/gradebook/gradebookClient';
 
 /* =================================================================================================
  * Types

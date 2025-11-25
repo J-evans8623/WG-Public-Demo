@@ -33,7 +33,7 @@ import React, {
 } from 'react';
 import * as Y from 'yjs';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
-import { useCollaborationManager } from '@/app/studygraph/(studygraph)/services/collab/useCollaborationManager';
+import { useCollaborationManager } from '@/app/workspace/(studygraph)/services/collab/useCollaborationManager';
 
 /** 1) Public status exposed by CollabContext (view-agnostic). */
 export type CollabFSMStatus = 'Idle' | 'Connecting' | 'Connected' | 'Disconnecting';

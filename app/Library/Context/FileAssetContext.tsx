@@ -37,7 +37,7 @@ import { useYDoc } from './YDocContext';
 import { useAccountStatus } from '@/app/src/context/ApiContext';
 import { TextFileMessage } from '../Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
-import { useGlobalModal } from '@/app/studygraph/(studygraph)/components/modals/GlobalModalProvider';
+import { useGlobalModal } from '@/app/workspace/(studygraph)/components/modals/GlobalModalProvider';
 import { supersedingCall } from '@/app/src/net/SupersedingCaller';
 
 function buildUploadKey(docId: string | undefined | null) {

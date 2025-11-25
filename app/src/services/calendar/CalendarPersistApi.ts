@@ -7,7 +7,7 @@
  *     • clear(): DELETE
  */
 
-import type { StudyPlanOutput } from '@/app/studygraph/(studygraph)/components/layout/Calendar/study-planner/models/StudyPlanOutput.ts';
+import type { StudyPlanOutput } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/StudyPlanOutput.ts';
 import { supersedingCall } from '@/app/src/net/SupersedingCaller';
 
 export type PersistLoadResult = {

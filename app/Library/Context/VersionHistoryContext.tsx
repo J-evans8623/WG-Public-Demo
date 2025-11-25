@@ -40,9 +40,9 @@ import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import type { ConceptNode, ResourceCard } from '@/app/Library/Definitions/Definitions';
-import { compositeLayout } from '@/app/studygraph/(studygraph)/components/hooks/layoutUtils';
+import { compositeLayout } from '@/app/workspace/(studygraph)/components/hooks/layoutUtils';
 import { useSubTreeContext }  from '@/app/Library/Context/SubTreeProvider';
-import { getMapTitle } from '@/app/studygraph/(studygraph)/components/versionHistory/versionHistory';
+import { getMapTitle } from '@/app/workspace/(studygraph)/components/versionHistory/versionHistory';
 
 
 export interface SnapshotMeta {

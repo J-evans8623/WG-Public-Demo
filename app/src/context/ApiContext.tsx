@@ -35,9 +35,9 @@ import { apiService, ApiErrorEvent, ApiResponse, ApiRequestConfig } from '../ser
 import { UserFileMetadata, UserFilesResponse } from '@/app/src/types/fileTypes';
 import { insertDedupSorted, updateByIdSorted,
   removeById,
-  resolveBucket, } from '@/app/studygraph/(studygraph)/components/utils/fileListOps';
-import { getFileListCache, setFileListCache, clearFileListCache } from '@/app/studygraph/(studygraph)/services/fileListCache';
-import { gradebookClient, AssignMetaPatchReq, AssignMetaPatchRes, AssignMetaUpsertReq, AssignMetaUpsertRes, GradebookQueryRes, AttemptStartReq, AttemptStartRes, AttemptSubmitReq, AttemptSubmitRes } from '@/app/studygraph/(studygraph)/services/gradebook/gradebookClient';
+  resolveBucket, } from '@/app/workspace/(studygraph)/components/utils/fileListOps';
+import { getFileListCache, setFileListCache, clearFileListCache } from '@/app/workspace/(studygraph)/services/fileListCache';
+import { gradebookClient, AssignMetaPatchReq, AssignMetaPatchRes, AssignMetaUpsertReq, AssignMetaUpsertRes, GradebookQueryRes, AttemptStartReq, AttemptStartRes, AttemptSubmitReq, AttemptSubmitRes } from '@/app/workspace/(studygraph)/services/gradebook/gradebookClient';
 import { supersedingCall } from '../net/SupersedingCaller';
 import type {
   BillingSnapshot,                    

@@ -21,9 +21,9 @@ import React, {
 import * as Y from 'yjs';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
-import { record } from '@/app/studygraph/(studygraph)/components/utils/deltaEngine';
+import { record } from '@/app/workspace/(studygraph)/components/utils/deltaEngine';
 import { Delta } from '@/app/Library/Definitions/deltaTypes';
-import { useUndoRedo } from '@/app/studygraph/(studygraph)/components/Context/UndoRedoContext';
+import { useUndoRedo } from '@/app/workspace/(studygraph)/components/Context/UndoRedoContext';
 import {
   ResourceCard,
   PracticeSheetResource,

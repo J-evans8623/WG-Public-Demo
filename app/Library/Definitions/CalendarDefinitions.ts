@@ -10,7 +10,7 @@
  *   study planning with enhanced session grouping capabilities for better daily study organization.
  */
 
-import type { ScheduleConfig, DayOfWeek } from '@/app/studygraph/(studygraph)/components/layout/Calendar/study-planner/models/Configuration.ts';
+import type { ScheduleConfig, DayOfWeek } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/Configuration.ts';
 
 /**
  * Atomic lesson unit representing a single primary subtopic from a concept map.

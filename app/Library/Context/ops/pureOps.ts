@@ -18,12 +18,12 @@ import * as Y from 'yjs';
 import { v4 as uuidv4 } from 'uuid';
 
 // Helpers already present in the app; paths mirror your current project layout.
-import { getDownloadUrl, initialUpload } from '@/app/studygraph/(studygraph)/components/utils/storageUrls';
-import { saveDocBytes } from '@/app/studygraph/(studygraph)/services/localCacheStore';
+import { getDownloadUrl, initialUpload } from '@/app/workspace/(studygraph)/components/utils/storageUrls';
+import { saveDocBytes } from '@/app/workspace/(studygraph)/services/localCacheStore';
 import { getRandomColor } from '../../utils/colorSet';
 import type { Visibility } from '../../Definitions/Definitions';
 // Shared types imported from original sources (type-only to avoid runtime cycles).
-import type { AccessEnvelope } from '@/app/studygraph/(studygraph)/types/access';
+import type { AccessEnvelope } from '@/app/workspace/(studygraph)/types/access';
 import type { ChatMessage } from '../ChatHistoryContext';
 export { opCreateLocal, opBootstrapNewDoc } from './pureOps.createFast';
 

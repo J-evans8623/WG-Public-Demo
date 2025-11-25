@@ -34,7 +34,7 @@
  */
 
 import { apiService, ApiErrorEvent, ApiErrorType, ApiServiceType } from './ApiService';
-import { ModalType } from '@/app/studygraph/(studygraph)/components/modals/AppModals';
+import { ModalType } from '@/app/workspace/(studygraph)/components/modals/AppModals';
 
 // Step 1: Define modal priority levels for conflict resolution
 export enum ModalPriority {

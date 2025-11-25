@@ -10,10 +10,10 @@
 
 import * as Y from 'yjs';
 import { v4 as uuidv4 } from 'uuid';
-import { initialUpload } from '@/app/studygraph/(studygraph)/components/utils/storageUrls';
-import { saveDocBytes } from '@/app/studygraph/(studygraph)/services/localCacheStore';
+import { initialUpload } from '@/app/workspace/(studygraph)/components/utils/storageUrls';
+import { saveDocBytes } from '@/app/workspace/(studygraph)/services/localCacheStore';
 import { getRandomColor } from '../../utils/colorSet';
-import type { AccessEnvelope } from '@/app/studygraph/(studygraph)/types/access';
+import type { AccessEnvelope } from '@/app/workspace/(studygraph)/types/access';
 
 /**
  * update - 1

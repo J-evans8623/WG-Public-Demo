@@ -27,7 +27,7 @@ import { useYDoc } from './YDocContext';
 import * as Y from 'yjs';
 import { v4 as uuidv4 } from 'uuid';
 import { ConceptNode, LOCAL_ORIGIN } from '@/app/Library/Definitions/Definitions';
-import { useDeepMapMirror } from '@/app/studygraph/(studygraph)/components/utils/useDeepMapMirror';
+import { useDeepMapMirror } from '@/app/workspace/(studygraph)/components/utils/useDeepMapMirror';
 
 export interface ConceptMap {
   id: string;

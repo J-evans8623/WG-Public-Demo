@@ -23,11 +23,11 @@ import type {
   PickerFileMeta,
   NotebookVersionState,
 } from '@/app/Library/Definitions/CalendarDefinitions';
-import type { DayOfWeek, ScheduleConfig } from '@/app/studygraph/(studygraph)/components/layout/Calendar/study-planner/models/Configuration.ts';
+import type { DayOfWeek, ScheduleConfig } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/Configuration.ts';
 import { NotebooksApi } from '@/app/src/services/calendar/NotebooksApi';
 import { CalendarPersistApi } from '@/app/src/services/calendar/CalendarPersistApi';
-import { StudyPlanService } from '@/app/studygraph/(studygraph)/components/layout/Calendar/study-planner';
-import type { StudyPlanOutput} from '@/app/studygraph/(studygraph)/components/layout/Calendar/study-planner/models/StudyPlanOutput.ts'
+import { StudyPlanService } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner';
+import type { StudyPlanOutput} from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/StudyPlanOutput.ts'
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useFileList } from '@/app/src/context/ApiContext'; 
 

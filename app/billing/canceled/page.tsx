@@ -51,7 +51,7 @@ export default function CanceledPage() {
         </a>
 
         <a
-          href="/studygraph"
+          href="/workspace"
           style={{
             textAlign: "center",
             padding: "10px 14px",

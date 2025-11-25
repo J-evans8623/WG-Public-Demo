@@ -14,7 +14,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 
 function getSafeReturnTo(candidate: string | null | undefined): string {
-  const FALLBACK = "/studygraph";
+  const FALLBACK = "/workspace";
   if (!candidate) return FALLBACK;
   try {
     const origin = typeof window !== "undefined" ? window.location.origin : undefined;

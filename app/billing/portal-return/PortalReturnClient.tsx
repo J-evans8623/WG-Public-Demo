@@ -96,7 +96,7 @@ export default function PortalReturnClient() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <a
-              href="/studygraph"
+              href="/workspace"
               style={{
                 textAlign: 'center',
                 padding: '10px 14px',

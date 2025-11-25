@@ -8,7 +8,7 @@
  *****************************************************************************************/
 
 import React, { createContext, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Role,   AccessEnvelope } from   '@/app/studygraph/(studygraph)/types/access';
+import { Role,   AccessEnvelope } from   '@/app/workspace/(studygraph)/types/access';
 import type { UserFileMetadata } from '@/app/src/types/fileTypes';
 import {  useFileList} from '@/app/src/context/ApiContext';
 type AccessRecord = {

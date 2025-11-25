@@ -255,7 +255,7 @@ export default function OfferPageClient({ planConfig }: Props) {
                    <li className="wg-feature-item">Basic Features Access</li>
                    <li className="wg-feature-item">Community Access</li>
                 </ul>
-                <Link href="/signin?returnTo=/studygraph" className="wg-card-btn wg-btn-outline">
+                <Link href="/signin?returnTo=/workspace" className="wg-card-btn wg-btn-outline">
                     Try free demo
                 </Link>
                 <span>

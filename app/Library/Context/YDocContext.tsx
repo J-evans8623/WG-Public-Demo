@@ -45,12 +45,12 @@ import * as Y from 'yjs';
 import { toast } from 'react-toastify';
 import { ConceptNode, LOCAL_ORIGIN } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
-import { getUploadUrl, getDownloadUrl, initialUpload } from '@/app/studygraph/(studygraph)/components/utils/storageUrls';
-import { takeMapSnapshot as _takeMapSnapshot } from '@/app/studygraph/(studygraph)/components/versionHistory/versionHistory';
+import { getUploadUrl, getDownloadUrl, initialUpload } from '@/app/workspace/(studygraph)/components/utils/storageUrls';
+import { takeMapSnapshot as _takeMapSnapshot } from '@/app/workspace/(studygraph)/components/versionHistory/versionHistory';
 import { useAccessLayer } from '@/app/Library/Context/AccessLayerContext';
 import { createLessonUnitsMeta } from '../utils/calendar/lessoUnitExtractor';
 import { getRandomColor } from '../utils/colorSet';
-import { saveDocBytes, loadDocBytes } from '@/app/studygraph/(studygraph)/services/localCacheStore'; // keep existing saver
+import { saveDocBytes, loadDocBytes } from '@/app/workspace/(studygraph)/services/localCacheStore'; // keep existing saver
 import { useApiContext } from '@/app/src/context/ApiContext';
 
 // Pure ops: perform I/O + computation only; driver commits outputs.

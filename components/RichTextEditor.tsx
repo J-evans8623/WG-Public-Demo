@@ -27,7 +27,7 @@ import 'katex/dist/katex.min.css'; // KaTeX styles
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { MathExtension } from '@/app/studygraph/(studygraph)/Library/tiptap/MathExtension';
+import { MathExtension } from '@/app/workspace/(studygraph)/Library/tiptap/MathExtension';
 import { Citation } from './CitationExtension'; 
 import { ImageExtension } from './ImageExtension';
 

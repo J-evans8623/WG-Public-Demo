@@ -89,7 +89,7 @@ export default async function handler(
     // Step 5: Generate direct document URL
     const baseUrl = process.env.FRONTEND_BASE_URL || 
                    `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
-    const documentUrl = `${baseUrl}/studygraph?doc=${encodeURIComponent(docId)}`;
+    const documentUrl = `${baseUrl}/workspace?doc=${encodeURIComponent(docId)}`;
     
     console.log('flyer-api.ts 6007 › Generated document URL for QR code', { documentUrl });
 

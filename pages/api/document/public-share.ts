@@ -141,7 +141,7 @@ export default async function handler(
     // Step 7: Generate document URL
     const baseUrl = process.env.FRONTEND_BASE_URL || 
                    `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
-    const documentUrl = `${baseUrl}/studygraph?doc=${encodeURIComponent(docId)}`;
+    const documentUrl = `${baseUrl}/workspace?doc=${encodeURIComponent(docId)}`;
     
     console.log('public-share.ts 3013 › Generated document URL', { documentUrl });
 

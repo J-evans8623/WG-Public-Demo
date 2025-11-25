@@ -1,0 +1,38 @@
+/* src/app/workspace/(studygraph)/components/layout/scrollbar.css */
+
+/*
+  .notes-tab-body
+    - Always hide scrollbar by default.
+    - On hover when NOT hovered over a card (no .card-hover), show a thin track.
+*/
+
+/* Hide scrollbar in Firefox */
+.notes-tab-body {
+  scrollbar-width: none;
+}
+
+/* Hide scrollbar in WebKit */
+.notes-tab-body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Show scrollbar on hover only when NOT hovering a card */
+.notes-tab-body:not(.card-hover):hover {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+}
+
+.notes-tab-body:not(.card-hover):hover::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.notes-tab-body:not(.card-hover):hover::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.notes-tab-body:not(.card-hover):hover::-webkit-scrollbar-track {
+  background: transparent;
+}

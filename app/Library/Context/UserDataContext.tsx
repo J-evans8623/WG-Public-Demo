@@ -34,10 +34,10 @@ import type {
 import {
   buildFlashCardDeck,
   buildQuizQueues,
-} from '@/app/studygraph/(studygraph)/components/utils/interleaveReview';
+} from '@/app/workspace/(studygraph)/components/utils/interleaveReview';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useSession } from 'next-auth/react';
-import { useResourceScanner } from '@/app/studygraph/(studygraph)/components/hooks/resourceScanner';
+import { useResourceScanner } from '@/app/workspace/(studygraph)/components/hooks/resourceScanner';
 import { CueCardResource, PracticeSheetResource } from '../Definitions/Definitions';
 import { useResourceContext } from './ResourceContext';
 import type { ResourceCard } from '@/app/Library/Definitions/Definitions';
