@@ -42,7 +42,6 @@ import { useResourceContext } from '@/app/Library/Context/ResourceContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
-import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import '@/app/workspace/(studygraph)/components/layout/Canvas/CanvasView.css';
 import { useLessonUnitOrder } from '../../../hooks/useLessonUnitOrder';
 import ForumModal from '../../forum/ForumModal';
@@ -93,7 +92,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
   const { colorTheme } = useColorThemeContext();
   const { getVisibility } = useYDoc();
   const isPrivate = getVisibility() === 'private';
-  const { openHistory } = useVersionHistory();
+
   const { openForum, closeForum, isForumOpen, activeConcept } = useComments();
 
   /* ────────────────────────── Lesson title state ─────────────────────────── */
@@ -248,7 +247,6 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
         onStartReview={openReviewModal}
         onBookmark={openBookmarksGuarded}                                    
         onShare={() => setShareOpen(true)}
-        onVersionHistory={openHistory}
         onOpenCalendar={() => {
           console.log('[CanvasView.tsx][3040] › Opening calendar modal');
           setCalendarModalOpen(true);

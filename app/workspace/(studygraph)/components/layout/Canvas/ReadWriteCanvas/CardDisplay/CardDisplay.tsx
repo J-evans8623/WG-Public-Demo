@@ -81,6 +81,7 @@ const CardDisplay: React.FC<CardDisplayProps> = ({ mode, setMode, askHandler }) 
   // 4) Ask/Search/Quiz toggles that can affect visible tab
   const { isAskOpen, isExploreOpen, isQuizOpen } = useSelectionAttachment();
   const { selectedResultIds } = useSearchContext();
+  const prevSelectedIds = useRef(selectedResultIds);
 
   useEffect(() => {
     if (isAskOpen) setMode('chat');
@@ -88,7 +89,12 @@ const CardDisplay: React.FC<CardDisplayProps> = ({ mode, setMode, askHandler }) 
   }, [isAskOpen, isExploreOpen, isQuizOpen, setMode]);
 
   useEffect(() => {
-    if (selectedResultIds.length > 0) setMode('note');
+    if (selectedResultIds !== prevSelectedIds.current) {
+      prevSelectedIds.current = selectedResultIds;
+      if (selectedResultIds.length > 0) {
+        setMode('note');
+      }
+    }
   }, [selectedResultIds, setMode]);
 
 

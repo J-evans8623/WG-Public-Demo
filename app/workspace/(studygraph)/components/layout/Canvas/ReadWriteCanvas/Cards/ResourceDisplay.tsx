@@ -37,7 +37,6 @@ import { QuizType, IQuizQuestion, ResourceCard } from '@/app/Library/Definitions
 import type { ResourceFormInput } from '../../../CardDisplay/types/resourceForm';
 import '@/app/workspace/(studygraph)/components/layout/CardDisplay/v2/resourceDisplay.css';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
-import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext'; /* update - 3: version history hook for Restore */
 import type { ResourceType } from '@/app/workspace/(studygraph)/components/layout/CardDisplay/v2/AddResourceDropdown.tsx';
 /* ------------------------------------------------------------------------------------------------
  * Types
@@ -164,8 +163,6 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   const nodeArray = Array.from(nodes.values());
   const { getFocusNode } = useNodeSelection();
   const { activeConceptMapId } = useLessonModule();
-
-  const { isHistoryOpen, restoreResource } = useVersionHistory(); /* update - 15 */
 
   const [quizOverlayOpen, setQuizOverlayOpen] = useState(false);
   const [isTopicDropdownOpen, setIsTopicDropdownOpen] = useState(false);
@@ -540,36 +537,6 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
                     resourceType={type}
                   />
                 )}
-
-                {/* update - 27: Version History Restore appears only when editingEnabled && isHistoryOpen */}
-                {editingEnabled && isHistoryOpen && (
-                  <button
-                    className="slide-action-btn"
-                    title="Restore resource"
-                    onClick={() => {
-                      const payload = makeRestoreCard({
-                        id,
-                        nodeId,
-                        type,
-                        title,
-                        content,
-                      });
-                      console.log('[ResourceDisplay.tsx][9007] Restore clicked', {
-                        id,
-                        payloadSummary: {
-                          id: payload.id,
-                          nodeId: payload.nodeId,
-                          type: payload.type,
-                          title: payload.title,
-                        },
-                      });
-                      restoreResource(payload);
-                    }}
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </button>
-                )}
-
                 <button
                   onClick={() => {
                     console.log('[ResourceDisplay.tsx][9008] Fullscreen clicked', {

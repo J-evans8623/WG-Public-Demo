@@ -23,7 +23,6 @@ import NoteCard from '../../CardDisplay/Cards/NoteCard';
 import QuizCard from '../../CardDisplay/Cards/QuizCard';
 import QuizOverlay from '../../Canvas/ReadWriteCanvas/Overlays/QuizOverlay';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
-import { useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
 import { QuizType, IQuizQuestion, ResourceCard } from '@/app/Library/Definitions/Definitions';
 import '@/app/workspace/(studygraph)/components/layout/CardDisplay/v2/resourceDisplay.css'; // Use same CSS as main ResourceDisplay
 
@@ -70,7 +69,6 @@ const ROResourceDisplay: React.FC<ROResourceDisplayProps> = ({
   /* 1) CONTEXT + LOCAL UI STATE (same as main ResourceDisplay)                   */
   /* ──────────────────────────────────────────────────────────────────────────── */
   const { open } = useSlideShow();
-  const { isHistoryOpen, restoreResource } = useVersionHistory();
   const [quizOverlayOpen, setQuizOverlayOpen] = useState(false);
   const [cueFlipped, setCueFlipped] = useState(false);
 
@@ -158,21 +156,7 @@ const ROResourceDisplay: React.FC<ROResourceDisplayProps> = ({
         {/* Header: Same structure as main but with read-only actions */}
         <div className="preview-slide-header">
           <div className="preview-slide-title">{title}</div>
-          <div className="preview-slide-actions">
-            {/* Restore button for version history context */}
-            {isHistoryOpen && (
-              <button
-                className="slide-action-btn"
-                title="Restore resource"
-                onClick={() => {
-                  console.log('[ROResourceDisplay.tsx][8001] Restore button clicked:', id);
-                  restoreResource(makeRestoreCard());
-                }}
-              >
-                <RotateCcw className="h-4 w-4" />
-              </button>
-            )}
-            
+          <div className="preview-slide-actions">            
             {/* Fullscreen action (read-only safe) */}
             <button
               onClick={() => {

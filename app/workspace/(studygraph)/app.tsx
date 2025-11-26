@@ -57,14 +57,12 @@ import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext';
 
 import { FileAssetProvider } from '@/app/Library/Context/FileAssetContext';
 import { SelectionAttachmentProvider } from '@/app/Library/Context/SelectionAttachmentContext';
-import { VersionHistoryProvider, useVersionHistory } from '@/app/Library/Context/VersionHistoryContext';
-import VersionHistoryPanel from './components/versionHistory/ui/VersionHistoryPanel';
+
+
 import SelectionAttachmentHandler from './components/layout/Canvas/SelectionAttachmentHandler';
 import HomeScreen from './components/layout/home/HomescreenV3';
 import NavigationPanel from './NavigationPanel';
 import { CanvasView } from '@/app/workspace/(studygraph)/components/layout/Canvas/ReadWriteCanvas/CanvasView';
-import VHcanvasView from './components/layout/ReadOnly/map/VHcanvasView';
-import ROcardDisplay from './components/layout/ReadOnly/CardDisplay/VHcardDisplay';
 import { UserInfoPanel } from '@/app/workspace/(studygraph)/components/layout/UserInfoPanel';
 import { ChatHistoryProvider, useChatHistory } from '@/app/Library/Context/ChatHistoryContext';
 import { CommentsProvider } from '@/app/Library/Context/forum/CommentContext';
@@ -110,7 +108,6 @@ const AppLayoutContent: React.FC = () => {
 
   // View state
   const [currentView, setCurrentView] = useState<'home' | 'map' | 'user'>('home');
-  const { isHistoryOpen } = useVersionHistory();
 
   // update - 4: read only from YDocContextv2
   const {
@@ -325,7 +322,7 @@ const AppLayoutContent: React.FC = () => {
     const base = { position: 'fixed' as const, top: '1rem', zIndex: 50 };
     if (currentView === 'home' || currentView === 'user') return { ...base, left: '1rem' };
     if (currentView === 'map') {
-      return { ...base, left: isHistoryOpen ? '320px' : '1rem' };
+      return { ...base, left: '1rem' };
     }
     return { ...base, left: '1rem' };
   };
@@ -362,29 +359,13 @@ const AppLayoutContent: React.FC = () => {
         </div>
       )}
 
-      {currentView === 'map' && (
-        <div className="flex-1 flex">
-          {isHistoryOpen && <VersionHistoryPanel />}
-
-          {isHistoryOpen ? (
-            <>
-              <div className="canvas-panels flex-1">
-                <VHcanvasView />
-                <div className="resource-cell">
-                  <ROcardDisplay />
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* update - 11: simplified loading gate — no legacy readiness/DAM checks */}
-              { (
+      {currentView === 'map' && 
+      (
+        <div className="flex-1 flex">            
                 <CanvasView autosaveStatus={saveStatus} handleFileSelect={handleFileSelect} />
-              )}
-            </>
-          )}
-        </div>
-      )}
+        </div> 
+      ) 
+    }
 
       {currentView === 'user' && (
         <div className="flex-1">
@@ -433,7 +414,7 @@ export const AppLayout: React.FC = () => {
                                       <LayoutProvider>
                                         <ColorThemeProvider>
                                           <SubTreeProvider>
-                                            <VersionHistoryProvider>
+                                       
                                               <SelectionAttachmentProvider>
                                                 <ChatHistoryProvider>
                                                   <SearchProvider>
@@ -446,7 +427,7 @@ export const AppLayout: React.FC = () => {
                                                   </SearchProvider>
                                                 </ChatHistoryProvider>
                                               </SelectionAttachmentProvider>
-                                            </VersionHistoryProvider>
+                                        
                                           </SubTreeProvider>
                                         </ColorThemeProvider>
                                       </LayoutProvider>

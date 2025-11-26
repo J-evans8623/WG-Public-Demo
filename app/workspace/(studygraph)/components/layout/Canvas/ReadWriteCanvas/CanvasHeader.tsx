@@ -66,7 +66,6 @@ export interface CanvasHeaderProps {
   onStartReview: () => void;
   onBookmark: () => void;
   onShare: () => void;
-  onVersionHistory: () => void;
   onOpenCalendar?: () => void;
 }
 
@@ -88,7 +87,6 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   onStartReview,
   onBookmark,
   onShare,
-  onVersionHistory,
   onOpenCalendar,
 }) => {
   /* ──────────────────────────────────────────────────────────────────────
@@ -302,18 +300,6 @@ const discussAriaLabel = React.useMemo(() => {
           aria-label="Share"
         >
           <Share2 size={16} />
-        </button>
-
-        <button
-          onClick={() => {
-            console.log('[CanvasHeader.tsx][7115] Version History clicked');
-            onVersionHistory();
-          }}
-          className="btn btn--icon btn--border"
-          title="History"
-          aria-label="History"
-        >
-          <History size={16} />
         </button>
 
         <button
