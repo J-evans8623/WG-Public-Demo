@@ -1,44 +1,20 @@
-// bloom-maps\app\src\services\redisCache\redis.ts
-/***************************************************************************************************
- * @file bloom-maps\app\src\services\redisCache\redis.ts
- * @description
- *   Centralized, production-ready Redis client factory used by all cache and rate-gate utilities.
- *   This module enforces a single shared connection per process (including dev hot-reload), hides
- *   environment-specific connection details (Docker, local Redis, or Google Cloud Memorystore),
- *   and applies safe timeouts/retry strategies to survive transient network hiccups. It supports:
- *     1) REDIS_URL (preferred, e.g., redis://:pass@host:6379 or rediss://host:port for TLS),
- *     2) host/port/password-based configuration via REDIS_HOST, REDIS_PORT, REDIS_PASSWORD,
- *     3) optional TLS via REDIS_TLS=true,
- *     4) low-noise but purposeful logging for connect/error/ready/close lifecycle events.
- *
- *   By forcing every module to import the client from this file, we make the cache/rate gate layer
- *   entirely swappable: pointing to Memorystore in production becomes a pure environment change,
- *   with zero call-site edits. All commands are O(1) over key size; networking dominates latency.
- *   This module contains no application policy; it is only a connectivity and lifecycle boundary.
- *
- * Responsibilities:
- *   - Build and expose a singleton Redis client for the whole process.
- *   - Normalize environment configuration across local/dev/prod targets.
- *   - Provide minimal lifecycle logs and a fast health check utility.
- *   - Fail-open helpers (where applicable) are implemented in callers.
- ***************************************************************************************************/
+// bloom-maps/app/src/services/redisCache/redis.ts
+import Redis, { RedisOptions } from 'ioredis';
 
-import Redis, { RedisOptions } from 'ioredis'; // update - 1
+// -----------------------------------------------------------------------------
+// GLOBAL SINGLETON PATTERN
+// This prevents Next.js from creating multiple connections during
+// hot-reloading or serverless function warm-ups.
+// -----------------------------------------------------------------------------
+const globalForRedis = global as unknown as { bloomRedis: Redis };
 
-let _client: Redis | null = null;
-
-/**
- * getRedis
- * @description
- *   Returns a singleton ioredis client. Reuses an existing connection if present to keep resource
- *   usage low and avoid exhausting connection limits during local hot-reloads. Connection details
- *   are derived from environment variables for maximum portability. Time complexity per call is
- *   O(1); the only cost is a pointer check when already initialized. Network I/O dominates cost.
- */
 export function getRedis(): Redis {
-  if (_client) return _client;
+  // 1. Check Global Scope first
+  if (globalForRedis.bloomRedis) {
+    return globalForRedis.bloomRedis;
+  }
 
-  // [3101] Build connection options from env with safe defaults
+  // 2. Safe Configuration Extraction (Prevents NaN)
   const {
     REDIS_URL,
     REDIS_HOST = '127.0.0.1',
@@ -46,76 +22,98 @@ export function getRedis(): Redis {
     REDIS_PASSWORD,
     REDIS_TLS,
     REDIS_CONNECT_TIMEOUT_MS,
-    REDIS_COMMAND_TIMEOUT_MS ,
-    REDIS_MAX_RETRY_MS ,
+    REDIS_COMMAND_TIMEOUT_MS,
   } = process.env;
 
-  const connectTimeout = Number(REDIS_CONNECT_TIMEOUT_MS);
-  const commandTimeout = Number(REDIS_COMMAND_TIMEOUT_MS);
-  const maxRetryTime = Number(REDIS_MAX_RETRY_MS);
+  // Use explicit fallbacks so we never pass NaN
+  const connectTimeout = REDIS_CONNECT_TIMEOUT_MS ? Number(REDIS_CONNECT_TIMEOUT_MS) : 10000; // 10s
+  const commandTimeout = REDIS_COMMAND_TIMEOUT_MS ? Number(REDIS_COMMAND_TIMEOUT_MS) : 5000; // 5s
 
-  const opts: RedisOptions = REDIS_URL // update - 2
-    ? {
-        lazyConnect: false,
-        enableReadyCheck: true,
-        connectTimeout,
-        commandTimeout,
-        family: 4,
-        maxRetriesPerRequest: null, // allow retry strategy to govern
-        retryStrategy: (times: number): number | null => { // update - 3
-          const delay = Math.min(times * 200, 2000);
-          const elapsed = times * delay;
-          if (elapsed > maxRetryTime) return null; // stop retrying
-          return delay;
-        },
-        tls: REDIS_URL.startsWith('rediss://') ? {} : undefined,
-      }
-    : {
-        host: REDIS_HOST,
-        port: Number(REDIS_PORT),
-        password: REDIS_PASSWORD || undefined,
-        lazyConnect: false,
-        enableReadyCheck: true,
-        connectTimeout,
-        commandTimeout,
-        maxRetriesPerRequest: null,
-        retryStrategy: (times: number): number | null => { // update - 4
-          const delay = Math.min(times * 200, 2000);
-          const elapsed = times * delay;
-          if (elapsed > maxRetryTime) return null;
-          return delay;
-        },
-        tls: REDIS_TLS === 'true' ? {} : undefined,
-      };
+  // 3. Define Options
+  const commonOpts: RedisOptions = {
+    // FORCE IPv4: This matches your docker-compose fix and ensures
+    // the internal client options are aligned.
+    family: 4,
+    
+    lazyConnect: false,
+    enableReadyCheck: true,
+    connectTimeout,
+    commandTimeout,
+    
+    // CRITICAL: Keep commands in memory if Redis is briefly down (e.g. BGSAVE)
+    // failing immediately causes the "Command Timed Out" errors you saw.
+    enableOfflineQueue: true, 
+    
+    // CRITICAL: Retry Strategy
+    // We NEVER return null (which kills the client). We just back off.
+    maxRetriesPerRequest: null, // Let retryStrategy handle it
+    retryStrategy: (times: number) => {
+      // Exponential backoff: 50, 100, 200... capped at 3 seconds
+      // We keep retrying forever because a server needs its DB.
+      const delay = Math.min(times * 50, 3000);
+      return delay;
+    },
+  };
 
-  _client = REDIS_URL ? new Redis(REDIS_URL, opts) : new Redis(opts);
+  let client: Redis;
 
-  // [3102] Lifecycle logs (low-noise)
-  _client.on('connect', () => console.log('src\\services\\redisCache\\redis.ts [3102] connect'));
-  _client.on('ready',   () => console.log('src\\services\\redisCache\\redis.ts [3103] ready'));
-  _client.on('close',   () => console.log('src\\services\\redisCache\\redis.ts [3104] close'));
-  _client.on('reconnecting', (delayMs: number) => console.log('src\\services\\redisCache\\redis.ts [3105] reconnecting', delayMs)); // update - 5
-  _client.on('error',   (err) => console.warn('src\\services\\redisCache\\redis.ts [3106] error', err?.message));
+  if (REDIS_URL) {
+    // Note: Since you added ?family=4 to your connection string in Docker,
+    // that will take precedence, but we merge options just in case.
+    const isTls = REDIS_URL.startsWith('rediss://');
+    client = new Redis(REDIS_URL, {
+      ...commonOpts,
+      tls: isTls ? {} : undefined,
+    });
+  } else {
+    client = new Redis({
+      ...commonOpts,
+      host: REDIS_HOST,
+      port: Number(REDIS_PORT),
+      password: REDIS_PASSWORD || undefined,
+      tls: REDIS_TLS === 'true' ? {} : undefined,
+    });
+  }
 
-  return _client;
+  // 4. Lifecycle Logs
+  client.on('connect', () => console.log('✅ [Redis] Connection initializing...'));
+  client.on('ready',   () => console.log('🚀 [Redis] Client Ready (IPv4)'));
+  client.on('close',   () => console.warn('⚠️ [Redis] Connection Closed'));
+  client.on('reconnecting', (t:any) => console.log(`🔄 [Redis] Reconnecting in ${t}ms...`));
+  
+  // Handling the "error" event is mandatory to prevent node process exit
+  client.on('error', (err) => {
+    // Suppress the "ECONNREFUSED" spam logs slightly, but log critical failures
+    console.error('❌ [Redis] Error:', err.message);
+  });
+
+  // 5. Save to Global
+  if (process.env.NODE_ENV !== 'production') {
+     globalForRedis.bloomRedis = client;
+  } else {
+     // In production, we also want to cache it, but usually the process 
+     // management is more stable. We assign it here too to be safe 
+     // against multiple imports.
+     globalForRedis.bloomRedis = client;
+  }
+
+  return client;
 }
 
 /**
- * pingRedis
- * @description
- *   Lightweight health check to verify the connection is alive. Useful in boot diagnostics and
- *   readiness probes. Time complexity is O(1). If Redis is unavailable, the caller can choose to
- *   fail-open at higher layers (e.g., skip cache, proceed with Firestore).
+ * Health Check
  */
 export async function pingRedis(): Promise<boolean> {
   try {
     const client = getRedis();
-    const res = await client.ping();
-    const ok = res?.toUpperCase() === 'PONG';
-    console.log('src\\services\\redisCache\\redis.ts [3107] ping', { ok });
-    return ok;
+    // Use a short timeout for the ping specifically so we don't hang health checks
+    const res = await Promise.race([
+      client.ping(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Ping timeout')), 1000))
+    ]);
+    return (res as string) === 'PONG';
   } catch (e) {
-    console.warn('src\\services\\redisCache\\redis.ts [3108] ping failed', e);
+    console.warn('⚠️ [Redis] Ping Failed:', e);
     return false;
   }
 }
