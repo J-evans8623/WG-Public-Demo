@@ -121,9 +121,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     console.log('pages/api/collab/startv1.ts [6013] › Loading private key for JWT signing', { keyPath });
     const privateKey = fs.readFileSync(keyPath, 'utf8');
-    const privateKeyPreview = privateKey.substring(0, 100);
-    console.log('pages/api/collab/startv1.ts [6014] › Private key loaded successfully', { preview: privateKeyPreview });
-
     // Step 10: Generate JWT token with role claims for Yjs server
     const expiresIn = 15 * 60; // 15 minutes in seconds
     const roles = [yjsRole]; // Array format for Yjs server compatibility
