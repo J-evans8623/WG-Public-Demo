@@ -46,7 +46,7 @@ import { toast } from 'react-toastify';
 import { ConceptNode, LOCAL_ORIGIN } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 import { getUploadUrl, getDownloadUrl, initialUpload } from '@/app/workspace/(studygraph)/components/utils/storageUrls';
-import { takeMapSnapshot as _takeMapSnapshot } from '@/app/workspace/(studygraph)/components/versionHistory/versionHistory';
+//import { takeMapSnapshot as _takeMapSnapshot } from '@/app/workspace/(studygraph)/components/versionHistory/versionHistory';
 import { useAccessLayer } from '@/app/Library/Context/AccessLayerContext';
 import { createLessonUnitsMeta } from '../utils/calendar/lessoUnitExtractor';
 import { getRandomColor } from '../utils/colorSet';
@@ -151,7 +151,7 @@ export interface YDocContextType {
   loadFromFirebase: (fileStorageId: string) => Promise<void>;
   getVisibility: () => 'private' | 'public';
   updateVisibility: (v: 'private' | 'public') => void;
-  takeMapSnapshot: (mapId: string) => Promise<string>;
+  //takeMapSnapshot: (mapId: string) => Promise<string>;
   getPersistableBytes: () => Promise<Uint8Array> | Uint8Array;
   isSnapshotActive: () => boolean;
   incrementVersion: () => void;
@@ -1084,7 +1084,7 @@ const loadData = useCallback(async (
    * takeMapSnapshotCallback
    *
    * Front-end wrapper around the versionHistory service. Logs entry and exit for observability.
-   */
+   
   const takeMapSnapshotCallback = useCallback(
     async (mapId: string): Promise<string> => {
       if (!docFileID) {
@@ -1092,12 +1092,13 @@ const loadData = useCallback(async (
         throw new Error('Cannot snapshot: missing docFileID');
       }
       // console.log('YDocContextv2.tsx 6007 › Initiating takeMapSnapshot for', mapId);
-      const snapshotId = await _takeMapSnapshot(ydoc, docFileID, mapId);
+      //const snapshotId = await _takeMapSnapshot(ydoc, docFileID, mapId);
       // console.log('YDocContextv2.tsx 6007 › takeMapSnapshot completed snapshotId=', snapshotId);
       return snapshotId;
     },
     [ydoc, docFileID]
   );
+  */
 
   /**
    * @function getPersistableBytes
@@ -1444,7 +1445,7 @@ case 'BOOTSTRAP_NEW': {
     loadFromFirebase,
     getVisibility,
     updateVisibility,
-    takeMapSnapshot: takeMapSnapshotCallback,
+    //takeMapSnapshot: takeMapSnapshotCallback,
     getPersistableBytes,
     isSnapshotActive,
     incrementVersion,
@@ -1462,7 +1463,7 @@ case 'BOOTSTRAP_NEW': {
     saveReady,
     triggerViewSwitch,
     setTriggerViewSwitch
-  }), [ydoc, snapshotYDoc, isReadOnly, fileName, docFileID, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, loadData, persistDoc, getLessonModuleJSON, getFileName, saveToFirebase, loadFromFirebase, getVisibility, updateVisibility, takeMapSnapshotCallback, getPersistableBytes, isSnapshotActive, incrementVersion, version, addChatReadyListener, removeChatReadyListener, createDocReq, selectDoc, bootPhase, renderReady, saveReady, triggerViewSwitch]);
+  }), [ydoc, snapshotYDoc, isReadOnly, fileName, docFileID, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, loadData, persistDoc, getLessonModuleJSON, getFileName, saveToFirebase, loadFromFirebase, getVisibility, updateVisibility, getPersistableBytes, isSnapshotActive, incrementVersion, version, addChatReadyListener, removeChatReadyListener, createDocReq, selectDoc, bootPhase, renderReady, saveReady, triggerViewSwitch]);
 
   return (
     <YDocContext.Provider value={value}>

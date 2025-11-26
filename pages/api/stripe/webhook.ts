@@ -75,6 +75,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           break;
         }
 
+
+        if (subId) {
+            const snap = await retrieveSubscription(subId);
+            
+            // Define Price IDs for both tiers from Environment
+            const educatorPrices = [
+                process.env.PRICE_EDUCATOR_MONTHLY, 
+                process.env.PRICE_EDUCATOR_ANNUAL
+            ].filter(Boolean);
+
+            const scholarPrices = [
+                process.env.PRICE_SCHOLAR_MONTHLY, 
+                process.env.PRICE_SCHOLAR_ANNUAL
+            ].filter(Boolean);
+
+            if (snap.priceId) 
+            {
+            // Strict Enforcement Logic
+            if (educatorPrices.includes(snap.priceId)) {
+                console.log(`[webhook] Enforcing user ${email} to 'educator' based on priceId ${snap.priceId}`);
+                await UserService.updateAccountType(email, 'educator');
+            } else if (scholarPrices.includes(snap.priceId)) {
+                console.log(`[webhook] Enforcing user ${email} to 'scholar' based on priceId ${snap.priceId}`);
+                await UserService.updateAccountType(email, 'scholar');
+            }
+        }
+      }
+
         // Normalize: mark user premium and persist subscriptionId.
         await UserService.updateSubscriptionTier(email, 'premium', subId);
 

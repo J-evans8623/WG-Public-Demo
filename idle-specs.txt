@@ -1,0 +1,67 @@
+﻿===== Docker Compose Stack Specs =====
+Generated: 2025-11-26 09:12:08Z
+
+Total containers in stack : 6
+Combined CPU usage (now)  : 1.48 %
+Combined RAM usage (now)  : 186.48 MiB
+Combined RAM limits       : 34.13 GiB
+Total image size (unique) : 0 B
+
+----- Per-container details -----
+
+Container: bloom_doc_processor
+  Image      : bloom-map-doc-processor
+  CPU %      : 0.18%
+  MemUsage   : 63.16MiB / 5.688GiB
+  Net I/O    : 1.56kB / 0B
+  Block I/O  : 59.7MB / 0B
+  PIDs       : 1
+
+Container: bloom_gotenberg
+  Image      : gotenberg/gotenberg:7
+  CPU %      : 0.03%
+  MemUsage   : 5.488MiB / 5.688GiB
+  Net I/O    : 1.56kB / 0B
+  Block I/O  : 16.9MB / 0B
+  PIDs       : 12
+
+Container: bloom_nextjs
+  Image      : bloom-map-nextjs-app
+  CPU %      : 0.00%
+  MemUsage   : 24MiB / 5.688GiB
+  Net I/O    : 4.76kB / 1.14kB
+  Block I/O  : 3.45MB / 0B
+  PIDs       : 11
+  Volume binds:
+    - C:\Users\jneva\wisegraph\Bloom-map\keys:/app/keys:rw
+
+Container: bloom_redis
+  Image      : redis:7-alpine
+  CPU %      : 0.45%
+  MemUsage   : 4.652MiB / 5.688GiB
+  Net I/O    : 17kB / 15.1kB
+  Block I/O  : 11.2MB / 0B
+  PIDs       : 6
+
+Container: bloom_weaviate
+  Image      : semitechnologies/weaviate:1.25.5
+  CPU %      : 0.82%
+  MemUsage   : 40.5MiB / 5.688GiB
+  Net I/O    : 9.6kB / 6.75kB
+  Block I/O  : 43.8MB / 4.1kB
+  PIDs       : 11
+
+Container: bloom_yjs_server
+  Image      : bloom-map-yjs-server
+  CPU %      : 0.00%
+  MemUsage   : 48.68MiB / 5.688GiB
+  Net I/O    : 16.5kB / 15.5kB
+  Block I/O  : 35.8MB / 0B
+  PIDs       : 11
+  Volume binds:
+    - C:\Users\jneva\wisegraph\Bloom-map\keys:/app/keys:rw
+
+----- Data volumes (named) -----
+  - bloom-map_redis_data
+  - bloom-map_weaviate_data
+  - yjs_redis-data

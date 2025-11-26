@@ -237,7 +237,7 @@ export default function OfferPageClient({ planConfig }: Props) {
                   className={`wg-toggle-btn ${billing === 'annual' ? 'active' : ''}`}
                   onClick={() => setBilling('annual')}
                 >
-                  Annual <small>(save 20%)</small>
+                  Annual <small>(save 25%)</small>
                 </button>
               </div>
             </div>

@@ -116,7 +116,6 @@ const AppLayoutContent: React.FC = () => {
     requestCreateDocument, // intent
     requestSelectDocument, // intent
     saveToFirebase,
-    takeMapSnapshot,
     getVisibility,
     bootPhase,
     renderReady,
@@ -263,7 +262,7 @@ const AppLayoutContent: React.FC = () => {
         setSaveStatus('saved');
 
         try {
-          await takeMapSnapshot(activeConceptMapId);
+          //await takeMapSnapshot(activeConceptMapId);
           console.log('app.tsx 6007 › snapshot created', { activeConceptMapId });
         } catch (e) {
           console.warn('app.tsx 6008 › snapshot skipped', e);
@@ -300,7 +299,6 @@ const AppLayoutContent: React.FC = () => {
     messages,
     resetDirty,
     saveToFirebase,
-    takeMapSnapshot,
     activeConceptMapId,
   ]); // update - 10
 

@@ -60,6 +60,7 @@ export function getRedis(): Redis {
         enableReadyCheck: true,
         connectTimeout,
         commandTimeout,
+        family: 4,
         maxRetriesPerRequest: null, // allow retry strategy to govern
         retryStrategy: (times: number): number | null => { // update - 3
           const delay = Math.min(times * 200, 2000);
