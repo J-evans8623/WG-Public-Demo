@@ -171,7 +171,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
   const handleReviewUnit = () => {
     // Show cue cards and quizzes only
     const assessmentSlides = UnitOrderSlides.filter(card => card.type !== 'note');
-    openCustom(assessmentSlides, "review");
+    openCustom(assessmentSlides, "review", true);
   }
 
 

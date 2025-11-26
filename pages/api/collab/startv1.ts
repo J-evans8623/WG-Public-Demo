@@ -27,7 +27,7 @@ import fs from 'fs';
 import path from 'path';
 import jwt from 'jsonwebtoken';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
-import { resolveRole,  } from '@/app/src/services/firebase';
+import { resolveRole } from '@/app/src/services/firebase';
 import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
 /**

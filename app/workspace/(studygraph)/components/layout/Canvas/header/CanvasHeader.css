@@ -205,7 +205,6 @@
 
 /* Calendar button focus state for accessibility */
 .btn--icon.btn--border:focus {
-  outline: 2px solid var(--focus-ring, #3b82f6);
   outline-offset: 2px;
 }
 

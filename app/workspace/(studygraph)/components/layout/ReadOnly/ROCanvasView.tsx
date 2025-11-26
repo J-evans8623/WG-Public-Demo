@@ -180,7 +180,6 @@ const ROCanvasView: React.FC = () => {
         onStartReview={handleStartReview}
         onBookmark={handleBookmark}
         onShare={handleShare}
-        onVersionHistory={handleHistory}
         onOpenCalendar={handleOpenCalendar}
       />
 

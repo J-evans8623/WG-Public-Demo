@@ -66,6 +66,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 # CSS, Images, and JS chunks generated during build.
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Copy the keys folder from the project root to the container root
+COPY --chown=nextjs:nodejs keys ./keys
+
 # Set permissions
 USER nextjs
 

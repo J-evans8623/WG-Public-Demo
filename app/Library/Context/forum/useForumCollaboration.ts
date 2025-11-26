@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Y from 'yjs';
 
-const WS_BASE = process.env.NEXT_PUBLIC_YJS_ENDPOINT;
+const WS_BASE = process.env.NEXT_PUBLIC_YJS_ENDPOINT || 'ws://localhost:1234' ;
 
 export type ForumConnectionPhase = 'Idle' | 'Connecting' | 'Connected' | 'Error';
 
