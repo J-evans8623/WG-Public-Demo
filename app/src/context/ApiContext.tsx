@@ -45,9 +45,6 @@ import type {
 } from '@/app/src/billing/types';
 import { deriveSubscriptionUiSnapshot } from '@/app/src/billing/types'; 
 
-type AccessMode = 'edit' | 'readonly'; 
-type AccessStatus = 'PENDING' | 'READY';
-
 
 /**
  * Narrow context carrying `{mode,status,docId}` for consumers that need the snapshot object.
@@ -299,14 +296,18 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
     setError(null);
     
     try {
-      const response = await fetch('/api/account/status', {
+      const endpoint = `/api/account/status?_t=${Date.now()}`;
+      
+      const response = await fetch(endpoint, {
         method: 'GET',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate', // HTTP 1.1
+          'Pragma': 'no-cache', // HTTP 1.0
+          'Expires': '0' // Proxies
         },
       });
-
       if (!response.ok) {
         console.warn('[ApiContext.tsx][1002] Account status fetch failed:', response.status);
         throw new Error(`Account status fetch failed: ${response.statusText}`);
@@ -1013,39 +1014,23 @@ const refreshFileList = async (): Promise<void> => {
 
 
 
-    // Step 9: Auto-fetch account status on mount
-useEffect(() => {
-  if (status === 'loading') return; // wait until session resolves
+// Step 9: Auto-fetch account status on mount
+  useEffect(() => {
+    if (status === 'loading') return; // wait until session resolves
+    
     if (status !== 'authenticated' || !normalizedEmail) {
       console.error('[ApiContext.tsx][7020] ApiProvider mounted without authenticated session');
       setIsAccountLoading(false);
       return;
     }
     
-  const ac = new AbortController();
-  setIsAccountLoading(true);
+    // REFACTOR: Call the function defined above instead of duplicating fetch logic.
+    // This ensures the cache-busting headers we added above are actually used on mount.
+    fetchAccountStatus().catch(err => {
+       console.error('[ApiContext.tsx] Initial fetch failed', err);
+    });
 
-  (async () => {
-    try {
-      const res = await fetch('/api/account/status', {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        signal: ac.signal,
-      });
-      if (!res.ok) throw new Error(res.statusText);
-      const data:AccountStatus = await res.json();
-      setAccountStatus(data); // safe: only runs if not aborted
-    } catch (e) {
-      if ((e as any)?.name === 'AbortError') return; // expected on cleanup/supersede
-      // apply fallback / log real error here
-    } finally {
-      setIsAccountLoading(false);
-    }
-  })();
-
-  return () => ac.abort(); // cancels on unmount or effect re-run
-}, [normalizedEmail, status]); // deps as needed
+  }, [normalizedEmail, status, fetchAccountStatus]);
 
 
 
