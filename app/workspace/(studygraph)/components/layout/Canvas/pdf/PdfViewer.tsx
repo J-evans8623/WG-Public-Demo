@@ -82,8 +82,8 @@ type PageSlot = {
 };
 
 /** (new update - 7-page window) Window bounds around the current page. */
-const WINDOW_BACK = 3;
-const WINDOW_FORWARD = 3;
+const WINDOW_BACK = 6;
+const WINDOW_FORWARD = 6;
 
 const PdfViewer = forwardRef<PdfViewerRefType, PdfViewerProps>(
   ({ fileUrl, scale = 1.0, onPageChange }, ref) => {

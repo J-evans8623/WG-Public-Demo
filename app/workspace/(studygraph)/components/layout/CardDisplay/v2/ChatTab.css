@@ -100,7 +100,7 @@
 
 /* Send button style */
 .send-btn {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background:  #667eea;
   color: white;
   border: none;
   padding: 12px 16px;
@@ -147,4 +147,22 @@
   line-height: 1;
   cursor: pointer;
   color: #6b7280;                  /* text-gray-500 */
+}
+
+
+
+.chat-loading-breathe {
+  font-size: 14px;
+  color: #667eea;
+  font-weight: 500;
+  animation: breathe 2s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { 
+    opacity: 0.4; 
+  }
+  50% { 
+    opacity: 1; 
+  }
 }

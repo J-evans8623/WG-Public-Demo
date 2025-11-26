@@ -46,6 +46,8 @@ interface ChatHistoryContextValue {
   chatDirty: boolean;
   /** Reset dirty flag after a successful save */
   resetDirty: () => void;
+  isLoading: boolean;
+  setIsLoading: (loading: boolean) => void;
 }
 
 const ChatHistoryContext = createContext<ChatHistoryContextValue | undefined>(undefined);
@@ -62,6 +64,7 @@ export const ChatHistoryProvider: React.FC<{ children: ReactNode }> = ({ childre
     },
   ]);
   const [chatDirty, setChatDirty] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // ---- YDoc wiring (Phase 2): subscribe to CHAT_READY ----
   const { docFileID, addChatReadyListener, removeChatReadyListener } = useYDoc(); // update - 24
@@ -170,7 +173,8 @@ export const ChatHistoryProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   return (
     <ChatHistoryContext.Provider
-      value={{ messages, addMessage, setMessages, clearMessages, chatDirty, resetDirty }}
+      value={{ messages, addMessage, setMessages, clearMessages, chatDirty, resetDirty ,   isLoading,
+      setIsLoading }}
     >
       {children}
     </ChatHistoryContext.Provider>

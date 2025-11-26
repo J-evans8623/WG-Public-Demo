@@ -26,7 +26,7 @@ const ChatTab: React.FC = () => {
   // 2) Context hooks
   const { attachedText, isAskOpen, clearAttachment } = useSelectionAttachment();
   const { docFileID, saveToFirebase } = useYDoc();
-  const { messages, addMessage, chatDirty, resetDirty } = useChatHistory();
+  const { messages, addMessage, chatDirty, resetDirty,  isLoading, setIsLoading  } = useChatHistory();
 
   // 3) Capture a new attachment (text selection bubble)
   useEffect(() => {
@@ -66,9 +66,10 @@ const ChatTab: React.FC = () => {
       textSelection: pendingAttachment ?? '',
       docFileID: docFileID || '',
       addMessage,
+      setIsLoading,
     });
     // Persistence is handled in the effect below.
-  }, [input, pendingAttachment, docFileID, addMessage]);
+  }, [input, pendingAttachment, docFileID, addMessage, setIsLoading]);
 
   // 6) Persist chat whenever it becomes dirty
   useEffect(() => {
@@ -89,7 +90,7 @@ const ChatTab: React.FC = () => {
     <div className="chat-panel">
       {/* Chat history (scrollable) */}
       <div className="chat-content">
-        <AskTab.UI messages={messages} />
+        <AskTab.UI messages={messages} isLoading={isLoading}/>
       </div>
 
       {/* Input + optional attachment */}
@@ -120,8 +121,9 @@ const ChatTab: React.FC = () => {
               }
             }}
             rows={1}
+            disabled={isLoading}
           />
-          <button className="send-btn" onClick={handleSubmit}>
+          <button className="send-btn" onClick={handleSubmit}  disabled={isLoading || !input.trim()}>
             Ask
           </button>
         </div>

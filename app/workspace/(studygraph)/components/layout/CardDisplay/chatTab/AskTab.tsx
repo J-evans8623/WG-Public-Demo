@@ -37,6 +37,7 @@ const mdParser = new markdownIt();
  */
 export interface AskTabUIProps {
   messages: ChatMessage[];
+   isLoading: boolean;
 }
 
 /**
@@ -48,7 +49,7 @@ export interface AskTabUIProps {
  * @param messages Array of chat messages to render in the interface
  * @returns Enhanced chat UI component with consistent message rendering
  */
-export const AskTabUI: React.FC<AskTabUIProps> = ({ messages }) => (
+export const AskTabUI: React.FC<AskTabUIProps> = ({ messages,  isLoading }) => (
   <>
     {messages.map(msg => {
       // 1) PDF attachment bubble
@@ -90,6 +91,16 @@ export const AskTabUI: React.FC<AskTabUIProps> = ({ messages }) => (
         </div>
       );
     })}
+    {/* NEW: Loading indicator with breathing animation */}
+    {isLoading && (
+      <div className="select-text">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 w-full shadow-sm">
+          <div className="chat-loading-breathe">
+            Thinking...
+          </div>
+        </div>
+      </div>
+    )}
   </>
 );
 
@@ -103,6 +114,7 @@ export interface AskSubmitParams {
   docFileID: string;
   /** Callback injected from ChatTab */
   addMessage: (msg: ChatMessage) => void;
+  setIsLoading: (loading: boolean) => void; 
 }
 
 /**
@@ -125,6 +137,7 @@ export async function handleAskSubmit({
   textSelection,
   docFileID,
   addMessage,
+  setIsLoading,
 }: AskSubmitParams) {
   const question = input.trim();
   if (!question) return;
@@ -149,9 +162,11 @@ export async function handleAskSubmit({
   }
 
   try {
+    // loading animation 
+    setIsLoading(true);
     // Step 3: Call enhanced API service instead of legacy askQuestionAPI
     const response = await apiService.askAssistant(question, textSelection, docFileID);
-
+    setIsLoading(false);
     // Step 4: Process successful response
     if (response.success && response.data) {
       const raw = response.data.question_response ?? 'No response received.';
@@ -178,6 +193,7 @@ export async function handleAskSubmit({
       });
     }
   } catch (err) {
+    setIsLoading(false);
     // Step 8: Catch-all error handling for unexpected failures
     console.error('[AskTab.tsx][4022] Unexpected error in chat question submission:', err);
     addMessage({
