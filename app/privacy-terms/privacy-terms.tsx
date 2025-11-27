@@ -60,7 +60,11 @@ Crucially, Wisegraph does not use personally identifiable student data or user-g
           <h2 className="wg-legal-heading">4. Data Sharing and Third Parties</h2>
           <p className="wg-legal-text">
             We do not sell your personal information. However, we may disclose your information to trusted third-party vendors and service providers who assist us in operating our Service, such as hosting providers, payment processors, and AI technology providers. These third parties are authorized to use your personal information only as necessary to provide these services to us. We may also disclose your information if required by law, such as to comply with a subpoena or similar legal process, or to protect the rights and safety of Wisegraph and its users.
-</p>
+            <br /><br />
+            <strong>Payment Processing:</strong> {`We use Stripe, Inc. ("Stripe") to process payments. When you subscribe to our Service, 
+            payment card information is transmitted directly to Stripe via an encrypted connection.` } 
+            <strong>Wisegraph does not collect, store, or have access to your full credit card number, expiration date, or CVC code.</strong> 
+            This information is processed and stored securely by Stripe in accordance with their Privacy Policy and PCI-DSS compliance standards.</p>
         </section>
 
         {/* Section 5 */}

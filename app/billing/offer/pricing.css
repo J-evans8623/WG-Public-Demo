@@ -314,6 +314,65 @@
   float: right;
 }
 
+
+
+  /* =========================================
+   (New Update) PRICE ANCHORING LAYOUT
+   ========================================= */
+
+/* 1. Define the specific vibrant blue for the active price */
+:root {
+  --wg-price-active-blue: #2C3E50; 
+}
+
+/* 2. Container for the whole price block (Price Row + Annual Subtext) */
+.wg-price-container {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
+/* 3. The Row holding the Old Price and New Price side-by-side */
+.wg-price-group {
+  display: flex;
+  align-items: baseline;
+  gap: 6px; /* Space between the crossed-out price and the new price */
+}
+
+/* 4. The Anchor: The Old Price (Crossed out) */
+.wg-price-anchor {
+  font-size: 0.9rem;
+  color: var(--wg-text-main);
+  opacity: 0.6; /* Faded/Inactive look */
+  text-decoration: line-through;
+  font-weight: 500;
+}
+
+/* 5. The Hero: The New Discounted Price */
+.wg-price-hero {
+  font-size: 36px; /* Largest element to draw the eye */
+  font-weight: 700;
+  color: var(--wg-price-active-blue); /* Vibrant Blue */
+  line-height: 1;
+}
+
+/* 6. The Currency/Frequency (USD /mo) */
+.wg-price-period {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--wg-text-main);
+  margin-left: 2px;
+}
+
+/* 7. The Context Row: The Annual Total shown in parentheses */
+.wg-price-subtext {
+  display: block;
+  font-size: 14px;
+  color: #546b81; /* Muted Grey/Blue */
+  margin-top: 4px;
+  font-family: var(--wg-font-sans);
+}
+
 /* =========================================
    RESPONSIVE
    ========================================= */
@@ -338,4 +397,8 @@
   .wg-top-bar-container {
     justify-content: center;
   }
+
+
+
+
 }

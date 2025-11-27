@@ -136,8 +136,14 @@ function WelcomeLandingPage(): JSX.Element {
                 <div className="wg-hero-monitor-inner">
                   <Image
                     src="/brand/hero-shot-highest-res.png"
-                    alt=""
+                    width={1920} 
+                    height={1080}
+                    alt="Dashboard preview"
                     className="wg-hero-monitor-img"
+                    style={{
+                    width: '100%',
+                    height: 'auto',
+                  }}
                   />
                 </div>
               </div>
@@ -170,6 +176,8 @@ function WelcomeLandingPage(): JSX.Element {
                   {scene.id === 3 && (
                     <Image
                       src="/scene-3/scene3.png"
+                      width={1920} 
+                      height={1080}
                       alt="Illustration comparing cramming with spaced repetition over several days."
                       className="wg-scene-illustration"
                     />

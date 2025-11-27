@@ -1,13 +1,11 @@
 // app/(billing)/offer/OfferPageClient.tsx
-
 /**
  * @file app/(billing)/offer/OfferPageClient.tsx
  * @description
  * Client component for the WiseGraph Pricing Page.
- * Implements the "Comprehensive Ledger" design with an asymmetric layout and dense feature lists.
- * Updated Phase 3: Applied "User Pill" and structural classes for better readability against texture.
+ * Updated Phase 5: Refined Visual Hierarchy & Fixed Spacing.
+ * Updated Phase 6: Set Payments & Demo to "Coming Soon" for Stripe Verification.
  */
-
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
@@ -89,7 +87,6 @@ async function startCheckout(priceId: string): Promise<string> {
   if (!data?.url) {
     throw new Error('Checkout URL missing in server response.');
   }
-
   return data.url;
 }
 
@@ -110,7 +107,6 @@ export default function OfferPageClient({ planConfig }: Props) {
   useEffect(() => {
     if (status === 'loading') return;
     const isInvalidSession = status === 'unauthenticated' || (status === 'authenticated' && !session?.user?.email);
-
     if (isInvalidSession && !redirectInitiated.current) {
       redirectInitiated.current = true;
       const returnTo = encodeURIComponent('/billing/offer');
@@ -121,6 +117,7 @@ export default function OfferPageClient({ planConfig }: Props) {
   useEffect(() => {
     if (status !== 'authenticated') return;
     let cancelled = false;
+
     const loadStatus = async () => {
       try {
         const res = await fetch('/api/account/status', {
@@ -137,6 +134,7 @@ export default function OfferPageClient({ planConfig }: Props) {
         console.warn('[OfferPageClient] Failed to load account status:', err);
       }
     };
+
     loadStatus();
     return () => { cancelled = true; };
   }, [status]);
@@ -193,7 +191,6 @@ export default function OfferPageClient({ planConfig }: Props) {
     <main className="wg-pricing-page">
       <div className="wg-pricing-container">
         
-        {/* update - 1: Applied .wg-user-pill for readability against texture */}
         <div className="wg-top-bar-container">
           <div className="wg-user-pill">
             <span>Signed in as <strong>{session.user.email}</strong></span>
@@ -214,13 +211,10 @@ export default function OfferPageClient({ planConfig }: Props) {
 
         <div className="wg-pricing-layout">
           
-          {/* LEFT COLUMN: Narrative Panel */}
-          {/* update - 2: Class applies the new solid panel styling */}
           <section className="wg-pricing-intro">
             <h1 className="wg-pricing-title">Start building lasting mastery today.</h1>
           </section>
 
-          {/* RIGHT COLUMN: Grid & Controls */}
           <section>
             
             <div className="wg-pricing-controls">
@@ -251,13 +245,30 @@ export default function OfferPageClient({ planConfig }: Props) {
                   <div className="wg-card-price">Free</div>
                 </div>
                 <ul className="wg-feature-list">
-                   <li className="wg-feature-item">2 Lifetime Credits to create your first concept map</li>
+                   <li className="wg-feature-item">Two free Credits to create your first concept map</li>
                    <li className="wg-feature-item">Basic Features Access</li>
                    <li className="wg-feature-item">Community Access</li>
                 </ul>
-                <Link href="/signin?returnTo=/workspace" className="wg-card-btn wg-btn-outline">
+
+                {/* ====================================================
+                  STRIPE VERIFICATION MODE: "Coming Soon"
+                  To re-enable:
+                  1. Remove the "TEMPORARY" button below.
+                  2. Uncomment the "ORIGINAL" Link component.
+                  ====================================================
+                */}
+                
+                {/* --- ORIGINAL: ACTIVE DEMO LINK (Uncomment to Restore) --- */}
+                {/* <Link href="/signin?returnTo=/workspace" className="wg-card-btn wg-btn-outline">
                     Try free demo
-                </Link>
+                </Link> 
+                */}
+
+                {/* --- TEMPORARY: DISABLED/COMING SOON --- */}
+                <button className="wg-card-btn wg-btn-outline" disabled={true} style={{ opacity: 0.6, cursor: 'not-allowed' }}>
+                   Coming Soon
+                </button>
+
                 <span>
                   Terms and conditions apply.
                 </span>
@@ -268,46 +279,110 @@ export default function OfferPageClient({ planConfig }: Props) {
                 <div className="wg-card-badge">Most Popular</div>
                 <div className="wg-card-header">
                   <h3 className="wg-card-title">Scholar Premium</h3>
-                  <div className="wg-card-price">
-                    {planConfig.scholar[billing].price}
-                    <span className="wg-card-period">/{billing === 'monthly' ? 'mo' : 'yr'}</span>
+                  
+                  <div className="wg-price-container">
+                    {billing === 'annual' ? (
+                      <>
+                        <div className="wg-price-group">
+                          <span className="wg-price-anchor">$9.99</span>
+                          <span className="wg-price-hero">$7.50</span>
+                          <span className="wg-price-period">USD/mo</span>
+                        </div>
+                        <span className="wg-price-subtext">($89.99 USD/yr)</span>
+                      </>
+                    ) : (
+                      <div className="wg-price-group">
+                        <span className="wg-price-hero" style={{color: 'var(--wg-text-main)'}}>$9.99</span>
+                        <span className="wg-price-period">USD/mo</span>
+                      </div>
+                    )}
                   </div>
+
                 </div>
                 <ul className="wg-feature-list">
                   {SCHOLAR_FEATURES.map((item, idx) => (
                     <li key={idx} className="wg-feature-item">{item}</li>
                   ))}
                 </ul>
-                <button
+
+                {/* ====================================================
+                  STRIPE VERIFICATION MODE: "Coming Soon"
+                  To re-enable payments:
+                  1. Remove the "TEMPORARY: COMING SOON" block.
+                  2. Uncomment the "ORIGINAL: ACTIVE PAYMENT" block.
+                  ====================================================
+                */}
+
+                {/* --- ORIGINAL: ACTIVE PAYMENT (Uncomment to Restore) --- */}
+                {/* <button
                   className="wg-card-btn wg-btn-primary"
                   onClick={() => handlePlanSelect('scholar')}
                   disabled={scholarIsBusy || scholarIsCurrent}
                 >
                   {scholarIsCurrent ? 'Current Plan' : scholarIsBusy ? 'Processing...' : 'Continue to Checkout'}
                 </button>
+                */}
+
+                {/* --- TEMPORARY: COMING SOON --- */}
+                <button className="wg-card-btn wg-btn-primary" disabled={true}>
+                  Coming Soon
+                </button>
+
               </div>
 
               {/* Card 3: EDUCATOR PREMIUM */}
               <div className="wg-paper-card educator">
                 <div className="wg-card-header">
                   <h3 className="wg-card-title">Educator Premium</h3>
-                  <div className="wg-card-price">
-                    {planConfig.educator[billing].price}
-                    <span className="wg-card-period">/{billing === 'monthly' ? 'mo' : 'yr'}</span>
+                  
+                  <div className="wg-price-container">
+                    {billing === 'annual' ? (
+                      <>
+                         <div className="wg-price-group">
+                          <span className="wg-price-anchor">$12.99</span>
+                          <span className="wg-price-hero">$9.58</span>
+                          <span className="wg-price-period">USD/mo</span>
+                        </div>
+                        <span className="wg-price-subtext">($114.99 USD/yr)</span>
+                      </>
+                    ) : (
+                      <div className="wg-price-group">
+                        <span className="wg-price-hero" style={{color: 'var(--wg-text-main)'}}>$12.99</span>
+                        <span className="wg-price-period">USD/mo</span>
+                      </div>
+                    )}
                   </div>
+
                 </div>
                 <ul className="wg-feature-list">
                   {EDUCATOR_FEATURES.map((item, idx) => (
                     <li key={idx} className="wg-feature-item">{item}</li>
                   ))}
                 </ul>
-                <button
+
+                {/* ====================================================
+                  STRIPE VERIFICATION MODE: "Coming Soon"
+                  To re-enable payments:
+                  1. Remove the "TEMPORARY: COMING SOON" block.
+                  2. Uncomment the "ORIGINAL: ACTIVE PAYMENT" block.
+                  ====================================================
+                */}
+
+                {/* --- ORIGINAL: ACTIVE PAYMENT (Uncomment to Restore) --- */}
+                {/* <button
                   className="wg-card-btn wg-btn-primary"
                   onClick={() => handlePlanSelect('educator')}
                   disabled={educatorIsBusy || educatorIsCurrent}
                 >
                   {educatorIsCurrent ? 'Current Plan' : educatorIsBusy ? 'Processing...' : 'Continue to Checkout'}
                 </button>
+                */}
+
+                {/* --- TEMPORARY: COMING SOON --- */}
+                <button className="wg-card-btn wg-btn-primary" disabled={true}>
+                  Coming Soon
+                </button>
+
               </div>
 
             </div>
