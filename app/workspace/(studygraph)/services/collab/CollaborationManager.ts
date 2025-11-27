@@ -405,7 +405,7 @@ private async connectWithToken(docId: string, ydoc: Y.Doc, jwt: string): Promise
   // Basic JWT sanity check
   if (jwt.split('.').length !== 3) throw new Error('Invalid JWT');
 
-  const rawEndpoint = process.env.NEXT_PUBLIC_YJS_ENDPOINT || 'ws://localhost:1234';
+  const rawEndpoint = process.env.NEXT_PUBLIC_YJS_ENDPOINT || 'wss://wisegraph.app';
   const endpoint = rawEndpoint.replace(/\/+$/, ''); // strip trailing slash
 
   // ✅ No custom WebSocket. Use y-websocket’s URL builder & params.
