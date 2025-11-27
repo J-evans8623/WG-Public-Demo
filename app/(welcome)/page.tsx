@@ -18,7 +18,7 @@ import SoftwareSchema from '@/components/seo/SoftwareSchema';
 export const metadata: Metadata = {
   title: 'WiseGraph — Unlock Your True Learning Potential',
   description:
-    'Turn messy notes into active knowledge. WiseGraph uses AI to generate summaries, quizzes, and flashcards from your files, then schedules them into 30-minute session.',
+    'Turn messy notes into active knowledge. WiseGraph uses AI to generate summaries, quizzes, and flashcards from your files, then schedules them into 30-minute sessions.',
 };
 
 /**

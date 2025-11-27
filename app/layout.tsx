@@ -1,7 +1,6 @@
 // /app/layout.tsx
 import React from 'react';
 import { Metadata } from 'next';
-import Head from 'next/head';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import Providers from "./AuthProvider"; 
@@ -73,12 +72,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const session = await getServerSession(authOptions);
   return (
     <html lang="en">
-      <Head>
+      <head>
         <link
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf_viewer.min.css"
         />
-      </Head>
+      </head>
       <body className="h-screen w-screen overflow-x-hidden bg-[#FFFBEF]">
        <Providers session={session}>{children}</Providers>
       </body>
