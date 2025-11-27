@@ -18,6 +18,15 @@ import { portalReturnUrl } from '@/app/src/billing/config';
 import { UserService } from '@/app/src/services/userService';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  
+  // Stop execution immediately if payments are disabled in env.
+  // This prevents crashes if keys are invalid and blocks direct API attacks.
+  if (process.env.PAYMENTS_ENABLED !== 'true') {
+    return res.status(503).json({ 
+      error: 'Payments are currently disabled for system verification.' 
+    });
+  }
+  
   // Step 1 — Method guard.
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');

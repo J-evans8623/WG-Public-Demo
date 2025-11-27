@@ -28,6 +28,10 @@ export const metadata = {
  * Provides plan configuration with server-side price IDs to client component
  */
 export default function OfferPage() {
+
+  // Determine if payments are enabled based on environment variable.
+  // Defaults to false if undefined for safety during rollout.
+  const paymentsEnabled = process.env.PAYMENTS_ENABLED === 'true';
   // Plan configuration with actual price IDs from server config
   const planConfig = {
     scholar: {
@@ -55,7 +59,7 @@ export default function OfferPage() {
   return (
     // update - 2: Wrap in fragment to include Footer
     <>
-      <OfferPageClient planConfig={planConfig} />
+      <OfferPageClient planConfig={planConfig} paymentsEnabled={paymentsEnabled}/>
       <SiteFooter />
     </>
   );

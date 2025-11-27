@@ -4,13 +4,13 @@
  * @description
  * Client component for the WiseGraph Pricing Page.
  * Updated Phase 5: Refined Visual Hierarchy & Fixed Spacing.
- * Updated Phase 6: Set Payments & Demo to "Coming Soon" for Stripe Verification.
+ * * (new update - dynamic UI toggle): Accepts 'paymentsEnabled' prop to conditionally
+ * render active checkout buttons vs "Coming Soon" without code changes.
  */
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import './pricing.css';
 
@@ -27,6 +27,7 @@ type PlanConfig = {
 
 interface Props {
   planConfig: PlanConfig;
+  paymentsEnabled: boolean; // (new update - dynamic UI toggle)
 }
 
 type AccountStatusShape = {
@@ -65,6 +66,11 @@ async function startCheckout(priceId: string): Promise<string> {
     body: JSON.stringify({ priceId }),
   });
 
+  if (res.status === 503) {
+    // (new update - handle 503 from kill switch)
+    throw new Error('Payments are temporarily disabled for system verification.');
+  }
+
   if (res.status === 401) {
     window.location.href = '/signin?returnTo=/billing/offer';
     throw new Error('Authentication required.');
@@ -90,7 +96,7 @@ async function startCheckout(priceId: string): Promise<string> {
   return data.url;
 }
 
-export default function OfferPageClient({ planConfig }: Props) {
+export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) {
   const router = useRouter();
   const { data: session, status } = useSession();
   const redirectInitiated = useRef(false);
@@ -250,24 +256,19 @@ export default function OfferPageClient({ planConfig }: Props) {
                    <li className="wg-feature-item">Community Access</li>
                 </ul>
 
-                {/* ====================================================
-                  STRIPE VERIFICATION MODE: "Coming Soon"
-                  To re-enable:
-                  1. Remove the "TEMPORARY" button below.
-                  2. Uncomment the "ORIGINAL" Link component.
-                  ====================================================
-                */}
-                
-                {/* --- ORIGINAL: ACTIVE DEMO LINK (Uncomment to Restore) --- */}
-                {/* <Link href="/signin?returnTo=/workspace" className="wg-card-btn wg-btn-outline">
-                    Try free demo
-                </Link> 
-                */}
-
-                {/* --- TEMPORARY: DISABLED/COMING SOON --- */}
-                <button className="wg-card-btn wg-btn-outline" disabled={true} style={{ opacity: 0.6, cursor: 'not-allowed' }}>
-                   Coming Soon
-                </button>
+                {/* (new update - dynamic UI toggle) 
+                    Swaps between disabled 'Coming Soon' and active checkout based on prop */}
+                {paymentsEnabled ? (
+                  /* ORIGINAL ACTIVE DEMO LINK RESTORED */
+                  /* Note: If you want a real demo link, put Link here. For now using placeholder button style */
+                  <button className="wg-card-btn wg-btn-outline" disabled={true} style={{ opacity: 0.6 }}>
+                    Free Tier Active
+                  </button>
+                ) : (
+                  <button className="wg-card-btn wg-btn-outline" disabled={true} style={{ opacity: 0.6, cursor: 'not-allowed' }}>
+                     Coming Soon
+                  </button>
+                )}
 
                 <span>
                   Terms and conditions apply.
@@ -305,28 +306,20 @@ export default function OfferPageClient({ planConfig }: Props) {
                   ))}
                 </ul>
 
-                {/* ====================================================
-                  STRIPE VERIFICATION MODE: "Coming Soon"
-                  To re-enable payments:
-                  1. Remove the "TEMPORARY: COMING SOON" block.
-                  2. Uncomment the "ORIGINAL: ACTIVE PAYMENT" block.
-                  ====================================================
-                */}
-
-                {/* --- ORIGINAL: ACTIVE PAYMENT (Uncomment to Restore) --- */}
-                {/* <button
-                  className="wg-card-btn wg-btn-primary"
-                  onClick={() => handlePlanSelect('scholar')}
-                  disabled={scholarIsBusy || scholarIsCurrent}
-                >
-                  {scholarIsCurrent ? 'Current Plan' : scholarIsBusy ? 'Processing...' : 'Continue to Checkout'}
-                </button>
-                */}
-
-                {/* --- TEMPORARY: COMING SOON --- */}
-                <button className="wg-card-btn wg-btn-primary" disabled={true}>
-                  Coming Soon
-                </button>
+                {/* (new update - dynamic UI toggle) */}
+                {paymentsEnabled ? (
+                  <button
+                    className="wg-card-btn wg-btn-primary"
+                    onClick={() => handlePlanSelect('scholar')}
+                    disabled={scholarIsBusy || scholarIsCurrent}
+                  >
+                    {scholarIsCurrent ? 'Current Plan' : scholarIsBusy ? 'Processing...' : 'Continue to Checkout'}
+                  </button>
+                ) : (
+                  <button className="wg-card-btn wg-btn-primary" disabled={true}>
+                    Coming Soon
+                  </button>
+                )}
 
               </div>
 
@@ -338,7 +331,7 @@ export default function OfferPageClient({ planConfig }: Props) {
                   <div className="wg-price-container">
                     {billing === 'annual' ? (
                       <>
-                         <div className="wg-price-group">
+                          <div className="wg-price-group">
                           <span className="wg-price-anchor">$12.99</span>
                           <span className="wg-price-hero">$9.58</span>
                           <span className="wg-price-period">USD/mo</span>
@@ -360,28 +353,20 @@ export default function OfferPageClient({ planConfig }: Props) {
                   ))}
                 </ul>
 
-                {/* ====================================================
-                  STRIPE VERIFICATION MODE: "Coming Soon"
-                  To re-enable payments:
-                  1. Remove the "TEMPORARY: COMING SOON" block.
-                  2. Uncomment the "ORIGINAL: ACTIVE PAYMENT" block.
-                  ====================================================
-                */}
-
-                {/* --- ORIGINAL: ACTIVE PAYMENT (Uncomment to Restore) --- */}
-                {/* <button
-                  className="wg-card-btn wg-btn-primary"
-                  onClick={() => handlePlanSelect('educator')}
-                  disabled={educatorIsBusy || educatorIsCurrent}
-                >
-                  {educatorIsCurrent ? 'Current Plan' : educatorIsBusy ? 'Processing...' : 'Continue to Checkout'}
-                </button>
-                */}
-
-                {/* --- TEMPORARY: COMING SOON --- */}
-                <button className="wg-card-btn wg-btn-primary" disabled={true}>
-                  Coming Soon
-                </button>
+                {/* (new update - dynamic UI toggle) */}
+                {paymentsEnabled ? (
+                  <button
+                    className="wg-card-btn wg-btn-primary"
+                    onClick={() => handlePlanSelect('educator')}
+                    disabled={educatorIsBusy || educatorIsCurrent}
+                  >
+                    {educatorIsCurrent ? 'Current Plan' : educatorIsBusy ? 'Processing...' : 'Continue to Checkout'}
+                  </button>
+                ) : (
+                  <button className="wg-card-btn wg-btn-primary" disabled={true}>
+                    Coming Soon
+                  </button>
+                )}
 
               </div>
 

@@ -44,6 +44,16 @@ type Body = { priceId?: string; idempotencyKey?: string };
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Step 1 — Method guard.
+
+  // Stop execution immediately if payments are disabled in env.
+  // This prevents crashes if keys are invalid and blocks direct API attacks.
+  if (process.env.PAYMENTS_ENABLED !== 'true') {
+    return res.status(503).json({ 
+      error: 'Payments are currently disabled for system verification.' 
+    });
+  }
+
+  
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
