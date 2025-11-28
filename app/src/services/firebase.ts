@@ -21,15 +21,12 @@
 import admin from 'firebase-admin';
 import { publishRevokeAllNonOwner, publishRevokeUser } from '../utils/revocationBus';
 import { UserFileMetadata } from '../types/fileTypes';
-
+import * as fs from 'fs';
 import {readAclSnapshot as cacheReadAclSnapshot,   
   readRole as cacheReadRole,               
   bumpAclVersion } from './redisCache/aclCache';
 
 
-if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-  throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
-}
 
 if (!process.env.FIREBASE_DATABASE_URL) {
   throw new Error('FIREBASE_DATABASE_URL environment variable is not set.');
@@ -39,12 +36,27 @@ if (!process.env.FIREBASE_STORAGE_BUCKET) {
   throw new Error('FIREBASE_STORAGE_BUCKET environment variable is not set.');
 }
 
+// 2. Validate Service Account Path (Strict Mode)
+// We no longer accept the raw JSON string to avoid env var length limits in deployment.
+if (!process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
+  throw new Error('FIREBASE_SERVICE_ACCOUNT_PATH environment variable is not set. Service account must be mounted as a file.');
+}
+
 // Parse the FIREBASE_SERVICE_ACCOUNT JSON string
 let serviceAccount: admin.ServiceAccount;
 try {
-  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
-} catch (error) {
-  throw new Error('FIREBASE_SERVICE_ACCOUNT is not a valid JSON string.');
+  const keyPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+  
+  if (!fs.existsSync(keyPath)) {
+    throw new Error(`Service account file not found at path: ${keyPath}`);
+  }
+
+  const rawKey = fs.readFileSync(keyPath, 'utf8');
+  serviceAccount = JSON.parse(rawKey);
+  
+} catch (error: any) {
+  console.error('Failed to load Firebase Service Account from file:', error);
+  throw new Error(`Firebase credential error: ${error.message}`);
 }
 
 // Initialize Firebase Admin SDK
