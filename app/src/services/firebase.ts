@@ -42,20 +42,35 @@ if (!process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
   throw new Error('FIREBASE_SERVICE_ACCOUNT_PATH environment variable is not set. Service account must be mounted as a file.');
 }
 
+const isBuildPhase = process.env.npm_lifecycle_event === 'build';
+
 // Parse the FIREBASE_SERVICE_ACCOUNT JSON string
 let serviceAccount: admin.ServiceAccount;
 try {
   const keyPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
   
-  if (!fs.existsSync(keyPath)) {
+  if (fs.existsSync(keyPath)) {
+    // RUNTIME: Volume is mounted, file exists. Load real credentials.
+    const rawKey = fs.readFileSync(keyPath, 'utf8');
+    serviceAccount = JSON.parse(rawKey);
+    console.log('[firebase.ts] Loaded service account from file');
+  } 
+  else if (isBuildPhase) {
+    // BUILD TIME: Volume is NOT mounted yet. Use Mock to prevent crash.
+    console.warn('[firebase.ts] Build phase detected & key file missing. Using MOCK credentials.');
+    serviceAccount = {
+      projectId: 'mock-build-project',
+      clientEmail: 'build@mock.local',
+      privateKey: '-----BEGIN PRIVATE KEY-----\n***REMOVED***\n-----END PRIVATE KEY-----\n',
+    };
+  }
+  else {
+    // RUNTIME ERROR: Not building, and file is missing. Crash hard.
     throw new Error(`Service account file not found at path: ${keyPath}`);
   }
-
-  const rawKey = fs.readFileSync(keyPath, 'utf8');
-  serviceAccount = JSON.parse(rawKey);
   
 } catch (error: any) {
-  console.error('Failed to load Firebase Service Account from file:', error);
+  console.error('Failed to load Firebase Service Account:', error);
   throw new Error(`Firebase credential error: ${error.message}`);
 }
 
