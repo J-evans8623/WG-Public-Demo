@@ -58,13 +58,13 @@ const GettingStartedContent = () => {
           <div className="wg-zigzag-visual">
             <div className="wg-app-frame">
               {/* BACKGROUND: Notebook Stage */}
-              <Image src="/textures/notebook-stage.jpg" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }} />
+              <Image src="/textures/notebook-stage.jpg" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%' }} />
 
              
               {/* DUAL SCREENSHOTS */}
               <div className="wg-screenshots dual">
-                <Image src="/get-started/create-notebook.png" className="wg-shot-img" alt="Create notebook modal"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }}/>
-                <Image src="/get-started/generate-lesson-menu-item.png" className="wg-shot-img" alt="Upload screen"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }} />
+                <Image src="/get-started/create-notebook.png" className="wg-shot-img" alt="Create notebook modal"  width={1920} height={1080} style={{ width: '100%' }}/>
+                <Image src="/get-started/generate-lesson-menu-item.png" className="wg-shot-img" alt="Upload screen"  width={1920} height={1080} style={{ width: '100%' }} />
               </div>
             </div>
           </div>
@@ -94,10 +94,10 @@ const GettingStartedContent = () => {
           <div className="wg-zigzag-visual">
             <div className="wg-app-frame"> 
               {/* BACKGROUND: Blue Node Texture */}
-              <Image src="/textures/blue-node-texture.jpg" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }} />
+              <Image src="/textures/blue-node-texture.jpg" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%' }} />
               {/* SINGLE SCREENSHOT */}
               <div className="wg-screenshots single">
-                <Image src="/get-started/hero-shot-2.png" className="wg-shot-img" alt="Concept map view"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }}/>
+                <Image src="/get-started/hero-shot-2.png" className="wg-shot-img" alt="Concept map view"  width={1920} height={1080} style={{ width: '100%' }}/>
               </div>
             </div>
           </div>
@@ -118,10 +118,10 @@ const GettingStartedContent = () => {
           <div className="wg-zigzag-visual">
             <div className="wg-app-frame">
               {/* BACKGROUND: Notebook Stage (Reused) */}
-              <Image src="/textures/notebook-stage.jpg" className="wg-frame-bg" alt="" aria-hidden="true"   width={1920} height={1080} style={{ width: '100%', height: 'auto', }}/>
+              <Image src="/textures/notebook-stage.jpg" className="wg-frame-bg" alt="" aria-hidden="true"   width={1920} height={1080} style={{ width: '100%' }}/>
               {/* SINGLE SCREENSHOT */}
               <div className="wg-screenshots single">
-                <Image src="/get-started/add-more-lessons-to-notebook.png" className="wg-shot-img" alt="Add lesson interface"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }} />
+                <Image src="/get-started/add-more-lessons-to-notebook.png" className="wg-shot-img" alt="Add lesson interface"  width={1920} height={1080} style={{ width: '100%' }} />
               </div>
             </div>
           </div>
@@ -150,11 +150,11 @@ const GettingStartedContent = () => {
           <div className="wg-zigzag-visual">
             <div className="wg-app-frame">
               {/* BACKGROUND: Social Texture */} 
-              <Image src="/textures/social-texture.jpg" className="wg-frame-bg" alt="" aria-hidden="true"   width={1920} height={1080} style={{ width: '100%', height: 'auto', }}/>
+              <Image src="/textures/social-texture.jpg" className="wg-frame-bg" alt="" aria-hidden="true"   width={1920} height={1080} style={{ width: '100%' }}/>
               {/* DUAL SCREENSHOTS */}
               <div className="wg-screenshots dual">
-                <Image src="/get-started/node-context-menu.png" className="wg-shot-img" alt="Editor tools"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }} />
-                <Image src="/get-started/editor-screen-shot.png" className="wg-shot-img" alt="Collaboration panel"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }}/>
+                <Image src="/get-started/node-context-menu.png" className="wg-shot-img" alt="Editor tools"  width={1920} height={1080} style={{ width: '100%' }} />
+                <Image src="/get-started/editor-screen-shot.png" className="wg-shot-img" alt="Collaboration panel"  width={1920} height={1080} style={{ width: '100%' }}/>
               </div>
             </div>
           </div>
@@ -182,10 +182,10 @@ const GettingStartedContent = () => {
           <div className="wg-zigzag-visual">
             <div className="wg-app-frame">
               {/* BACKGROUND: Schedule Texture */}
-              <Image src="/textures/schedule-texture-2.png" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }}/>
+              <Image src="/textures/schedule-texture-2.png" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%' }}/>
               {/* DUAL SCREENSHOTS */}
               <div className="wg-screenshots single">
-                <Image src="/get-started/calendar-planner-scene-2.png" className="wg-shot-img" alt="Daily agenda view"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }} />
+                <Image src="/get-started/calendar-planner-scene-2.png" className="wg-shot-img" alt="Daily agenda view"  width={1920} height={1080} style={{ width: '100%' }} />
               </div>
             </div>
           </div>
@@ -209,10 +209,10 @@ const GettingStartedContent = () => {
            <div className="wg-zigzag-visual">
              <div className="wg-app-frame">
                {/* BACKGROUND: Memory Texture */}  
-               <Image src="/textures/memory-retention.jpg" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }} />
+               <Image src="/textures/memory-retention.jpg" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%' }} />
                {/* SINGLE SCREENSHOT */}
                <div className="wg-screenshots single">
-                 <Image src="/get-started/book-mark.png" className="wg-shot-img" alt="Bookmarks list"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }}/>
+                 <Image src="/get-started/book-mark.png" className="wg-shot-img" alt="Bookmarks list"  width={1920} height={1080} style={{ width: '100%' }}/>
                </div>
              </div>
            </div>
@@ -236,11 +236,11 @@ const GettingStartedContent = () => {
            <div className="wg-zigzag-visual">
              <div className="wg-app-frame">
                {/* BACKGROUND: Blue Node Texture (Reused for AI context) */}
-               <Image src="/textures/blue-node-texture.jpg" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }} />
+               <Image src="/textures/blue-node-texture.jpg" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%' }} />
                {/* DUAL SCREENSHOTS */}
                <div className="wg-screenshots dual">  
-                 <Image src="/get-started/explore-topic-ai-tool.png" className="wg-shot-img" alt="AI Tutor chat"   width={1920} height={1080} style={{ width: '100%', height: 'auto', }}/>
-                 <Image src="/get-started/ai-tool-ask-ai-feature.png" className="wg-shot-img" alt="Explore topic result"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }} />
+                 <Image src="/get-started/explore-topic-ai-tool.png" className="wg-shot-img" alt="AI Tutor chat"   width={1920} height={1080} style={{ width: '100%' }}/>
+                 <Image src="/get-started/ai-tool-ask-ai-feature.png" className="wg-shot-img" alt="Explore topic result"  width={1920} height={1080} style={{ width: '100%' }} />
                </div>
              </div>
            </div>
@@ -267,10 +267,10 @@ const GettingStartedContent = () => {
            <div className="wg-zigzag-visual">
              <div className="wg-app-frame">
                {/* BACKGROUND: Memory Texture (Ideal for quizzes) */}
-               <Image src="/textures/memory-retention.jpg" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }} />
+               <Image src="/textures/memory-retention.jpg" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%' }} />
                {/* SINGLE SCREENSHOT */}
                <div className="wg-screenshots single">
-                 <Image src="/get-started/generate-quiz-tool.png" className="wg-shot-img" alt="Quiz generation screen"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }} />
+                 <Image src="/get-started/generate-quiz-tool.png" className="wg-shot-img" alt="Quiz generation screen"  width={1920} height={1080} style={{ width: '100%' }} />
                </div>
              </div>
            </div>
@@ -306,10 +306,10 @@ const GettingStartedContent = () => {
             <div className="wg-zigzag-visual">
                <div className="wg-app-frame">
                  {/* BACKGROUND: Notebook Stage (Reused for classroom context) */}
-                 <Image src="/textures/notebook-stage.jpg" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }}/>
+                 <Image src="/textures/notebook-stage.jpg" className="wg-frame-bg" alt="" aria-hidden="true"  width={1920} height={1080} style={{ width: '100%' }}/>
                  {/* DUAL SCREENSHOTS */}
                  <div className="wg-screenshots single">
-                   <Image src="/get-started/assigned-quiz-educator.png" className="wg-shot-img" alt="Gradebook view"  width={1920} height={1080} style={{ width: '100%', height: 'auto', }} />
+                   <Image src="/get-started/assigned-quiz-educator.png" className="wg-shot-img" alt="Gradebook view"  width={1920} height={1080} style={{ width: '100%' }} />
                  </div>
                </div>
             </div>
