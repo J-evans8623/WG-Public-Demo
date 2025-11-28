@@ -51,3 +51,6 @@ components.json
 # 8. Scripts & Tests
 test.ts
 root.txt
+
+#dev scripts
+/scripts/dev

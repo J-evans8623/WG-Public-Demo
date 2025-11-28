@@ -6,9 +6,7 @@
 FROM node:18-alpine AS base
 
 # 2. Dependencies Stage
-#    We install dependencies separately so Docker can cache them.
 FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
@@ -19,7 +17,6 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 # 3. Builder Stage
-#    This stage copies your source code and builds the app.
 FROM base AS builder
 WORKDIR /app
 
@@ -27,22 +24,54 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 
 # COPY SOURCE CODE
-# This copies 'pages', 'components', 'lib', 'public', etc.
-# It respects .dockerignore, so it skips local garbage.
 COPY . .
 
-# Disable telemetry during build
+# Disable telemetry
 ENV NEXT_TELEMETRY_DISABLED 1
 
+# --- [CRITICAL UPDATE] ---
+# Accept Build Arguments passed by Coolify
+# These are required for 'npm run build' to bake public vars into the JS bundles.
+
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
+ARG NEXT_PUBLIC_API_SERVER_URL
+ARG NEXT_PUBLIC_YJS_ENDPOINT
+ARG NEXT_PUBLIC_WEBSOCKET_ORIGIN
+ARG NEXT_PUBLIC_WEBSOCKET_URL
+ARG NEXT_PUBLIC_FIREBASE_API_KEY
+ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID
+ARG NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+ARG NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_YJS_WS_URL
+
+# Map ARGs to ENVs so Next.js build process can see them
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
+ENV NEXT_PUBLIC_API_SERVER_URL=$NEXT_PUBLIC_API_SERVER_URL
+ENV NEXT_PUBLIC_YJS_ENDPOINT=$NEXT_PUBLIC_YJS_ENDPOINT
+ENV NEXT_PUBLIC_WEBSOCKET_ORIGIN=$NEXT_PUBLIC_WEBSOCKET_ORIGIN
+ENV NEXT_PUBLIC_WEBSOCKET_URL=$NEXT_PUBLIC_WEBSOCKET_URL
+ENV NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY
+ENV NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID
+ENV NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=$NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+ENV NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_YJS_WS_URL=$NEXT_PUBLIC_YJS_WS_URL
+
+# Also inject the Mock Trigger for Firebase (so it doesn't crash on missing file)
+# We don't need the file path here, just the knowledge that it's a build.
+# (npm_lifecycle_event=build is automatic, but we can set a flag just in case)
+ENV IS_DOCKER_BUILD=true
+
 # BUILD THE APPLICATION
-# This reads next.config.mjs and creates .next/standalone
 RUN npm run build
 
-# Build the schema scripts (creates /app/dist/setSchema.js)
+# Build the schema scripts
 RUN npm run build:scripts
 
 # 4. Runner Stage (Production)
-#    This is the final, small image that actually runs on the VPS.
 FROM base AS runner
 WORKDIR /app
 
@@ -52,33 +81,26 @@ ENV NEXT_TELEMETRY_DISABLED 1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# --- CRITICAL ASSET COPYING ---
-
-# 1. Copy the 'public' folder. 
-# Next.js doesn't bundle this, so we copy it manually.
+# Copy public folder
 COPY --from=builder /app/public ./public
 
-# 2. Copy the 'standalone' build.
-# This contains the minimal necessary server code + node_modules.
+# Copy standalone build
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 
-# 3. Copy the 'static' assets.
-# CSS, Images, and JS chunks generated during build.
+# Copy static assets
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy the keys folder from the project root to the container root
-COPY --chown=nextjs:nodejs keys ./keys
+# Copy keys folder (Note: Volume mount will override this empty dir at runtime)
+# We create it here to ensure permissions are correct if the volume fails
+RUN mkdir -p ./keys && chown nextjs:nodejs ./keys
 
 # Set permissions
 USER nextjs
 
-# Expose the port
 EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-# We copy the 'dist' folder (where setSchema.js lives) from the builder stage first
 COPY --from=builder /app/dist ./dist
 
-# Then we run the schema check, THEN start the server
 CMD ["sh", "-c", "node dist/setSchema.js && node server.js"]
