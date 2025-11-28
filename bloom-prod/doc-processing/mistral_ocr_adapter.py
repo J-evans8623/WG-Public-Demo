@@ -1,3 +1,5 @@
+# bloom-prod/doc-processing/mistral_ocr_adapter.py
+
 """
 ====================================================================================================
 File: mistral_ocr_adapter.py
@@ -10,15 +12,17 @@ Responsibility & Purpose:
     1) Reads configuration from environment variables (endpoint, api key, model name).
     2) Base64-encodes the original PDF into a `data:application/pdf;base64,<...>` URL, as required
        by the service.
-    3) Issues a POST request to the Azure AI Foundry OCR endpoint with an instruction that
-       requests **page-wise** output delimited by the caller’s explicit page markers
-       (`[#### START/END OF PAGE i ####]`). This “doc-as-prompt” approach ensures we can reconstruct
-       the page array deterministically even if the provider returns a flat markdown string.
+    3) Issues a POST request to the Azure AI Foundry OCR endpoint.  
     4) Parses the response robustly, first attempting a structured pages array if present, then
        falling back to splitting on our explicit markers. If neither is available, it returns a
        single element (full text) to avoid data loss while still surfacing a deterministic result.
     5) Raises precise exceptions on configuration errors, HTTP failures, or malformed outputs.
        No document content is logged or persisted; only metadata is logged at INFO/ERROR.
+    
+    [Update - 1]
+    Added transient error resilience. The adapter now wraps the API call in a retry loop (max 4 attempts)
+    to gracefully handle HTTP 500 server errors or network timeouts, preventing immediate failure
+    during temporary upstream instability.
 
     Time Complexity:
         O(N) in the size of the provider response payload. All transformations are linear in the
@@ -38,6 +42,7 @@ import re
 import base64
 import json
 import logging
+import time
 from typing import List, Optional, Tuple
 
 import requests
@@ -54,6 +59,8 @@ if not logger.handlers:
 # Constants
 # ----------------------------
 _DEFAULT_MODEL = "mistral-ocr-2503-ncsel"
+_MAX_RETRIES = 4
+_RETRY_DELAY_SECONDS = 2
 
 # Regex prepared once (used if we must split flat text by markers)
 # Matches:
@@ -127,6 +134,10 @@ def mistral_ocr_read_pdf(
              exact START/END marker templates.
           4) Parses the response, attempting (a) structured pages first, and (b) splitting a flat
              text by markers second. If both fail, returns the raw text as a single element.
+        
+        [Update - 1]
+        Now implements a retry mechanism for 5xx errors. If the server is busy or fails transiently,
+        it will retry up to 4 times before raising a "Server is busy" exception.
 
         The caller supplies marker templates so they remain single-sourced in one place and the
         adapter doesn’t drift from the microservice contract.
@@ -136,7 +147,7 @@ def mistral_ocr_read_pdf(
 
     Raises:
         RuntimeError with an actionable message if configuration is missing, the HTTP response is
-        non-200, or the payload cannot be parsed into page-wise text.
+        non-200 (after retries), or the payload cannot be parsed into page-wise text.
     """
     # [Step 1] Resolve configuration
     endpoint = _get_env("AZURE_MISTRAL_ENDPOINT", required=True)
@@ -145,7 +156,6 @@ def mistral_ocr_read_pdf(
 
     # [Step 2] Build request payload with data URL
     data_url = _to_data_url_pdf(pdf_bytes)
-
 
     payload = {
         "model": model,
@@ -162,13 +172,56 @@ def mistral_ocr_read_pdf(
         "Authorization": f"Bearer {api_key}",
     }
 
-    # [Step 3] POST the OCR request
-    try:
-        resp = requests.post(endpoint, headers=headers, json=payload)
-    except requests.RequestException as e:
-        raise RuntimeError(f"OCR_NETWORK_ERROR: {e}") from e
+    # [Step 3] POST the OCR request (With Retry Logic)
+    resp = None
+    last_exception = None
+
+    for attempt in range(1, _MAX_RETRIES + 1):
+        try:
+            # Increased timeout slightly to accommodate full document processing
+            resp = requests.post(endpoint, headers=headers, json=payload, timeout=60)
+            
+            # Check for success
+            if resp.status_code == 200:
+                break
+            
+            # Check for transient server errors (500-599)
+            if 500 <= resp.status_code < 600:
+                logger.warning(
+                    f"OCR Attempt {attempt}/{_MAX_RETRIES} failed with status {resp.status_code}. "
+                    f"Retrying in {_RETRY_DELAY_SECONDS}s..."
+                )
+                if attempt < _MAX_RETRIES:
+                    time.sleep(_RETRY_DELAY_SECONDS)
+                    continue
+                # If we are here, we exhausted retries on a 5xx error
+            else:
+                # 4xx or other errors are likely permanent client errors, fail immediately
+                break
+
+        except requests.RequestException as e:
+            logger.warning(
+                f"OCR Attempt {attempt}/{_MAX_RETRIES} encountered network error: {e}. "
+                f"Retrying in {_RETRY_DELAY_SECONDS}s..."
+            )
+            last_exception = e
+            if attempt < _MAX_RETRIES:
+                time.sleep(_RETRY_DELAY_SECONDS)
+                continue
+
+    # [Step 3.1] Validate final state after loop
+    if resp is None:
+        # Request never completed (all network exceptions)
+        logger.error(f"OCR failed after {_MAX_RETRIES} attempts. Last error: {last_exception}")
+        raise RuntimeError("Server is busy at the moment please try again later")
 
     if resp.status_code // 100 != 2:
+        # If it's a 5xx error that persisted past retries
+        if 500 <= resp.status_code < 600:
+            logger.error(f"OCR Server Error persists: {resp.status_code} - {resp.text[:200]}")
+            raise RuntimeError("Server is busy at the moment please try again later")
+        
+        # Standard error reporting for 4xx or other codes
         snippet = resp.text[:500] if resp.text else ""
         raise RuntimeError(f"OCR_FAILED: status={resp.status_code}, body={snippet}")
 
