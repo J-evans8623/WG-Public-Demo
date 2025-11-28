@@ -53,7 +53,7 @@ if not logger.handlers:
 # ----------------------------
 # Constants
 # ----------------------------
-_DEFAULT_MODEL = "mistral-ocr-latest"
+_DEFAULT_MODEL = "mistral-ocr-2503-ncsel"
 
 # Regex prepared once (used if we must split flat text by markers)
 # Matches:
@@ -141,7 +141,7 @@ def mistral_ocr_read_pdf(
     # [Step 1] Resolve configuration
     endpoint = _get_env("AZURE_MISTRAL_ENDPOINT", required=True)
     api_key = _get_env("AZURE_MISTRAL_API_KEY", required=True)
-    model = _get_env("AZURE_MISTRAL_MODEL", required=False, default=_DEFAULT_MODEL)
+    model = _get_env("AZURE_MISTRAL_MODEL", required=True, default=_DEFAULT_MODEL)
 
     # [Step 2] Build request payload with data URL
     data_url = _to_data_url_pdf(pdf_bytes)
