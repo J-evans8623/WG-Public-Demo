@@ -1,9 +1,16 @@
 /**
  * @file app\(marketing)\welcome1\scroll-sections.css
  * @description
- *   Sticky “scrollytelling” section for the WiseGraph marketing page.
+ *   Sticky "scrollytelling" section for the WiseGraph marketing page.
  *   Handles the Todoist-style layout where the right-hand visual stays
- *   pinned while the left-hand text scenes scroll past.
+ *   pinned while the left-hand text scenes scroll past on desktop viewports.
+ *   On mobile devices (≤960px), this file implements a stacked layout where
+ *   each scene's video appears inline directly beneath its corresponding text
+ *   block, ensuring visual parity across all device sizes. The implementation
+ *   uses a duplication strategy: desktop renders a single sticky video column
+ *   that updates based on scroll position, while mobile renders individual
+ *   video instances within each scene using CSS visibility toggles for optimal
+ *   performance and maintainability.
  */
 
 /* Scroll section wrapper */
@@ -26,7 +33,7 @@
   flex-direction: column;
 }
 
-/* Each text scene behaves like a “page” in the scroll */
+/* Each text scene behaves like a "page" in the scroll */
 .wg-scene-text-block {
   min-height: 100vh;
   display: flex;
@@ -95,7 +102,7 @@
   width: 100%;
   height: 100%;
   display: block;
-  /* show entire frame (no cropping); you’ll get subtle bars if needed */
+  /* show entire frame (no cropping); you'll get subtle bars if needed */
   object-fit: contain;
 }
 
@@ -133,20 +140,48 @@
   width: 100%;
 }
 
-/* Responsive behaviour – stack on mobile, no sticky panel */
+/* update - 1: Mobile-specific inline video stage (hidden on desktop) */
+.wg-scene-inline-stage {
+  display: none; /* Hidden by default on desktop to preserve sticky behavior */
+}
+
+/* Responsive behaviour – stack on mobile, show inline videos */
 @media (max-width: 960px) {
+  /* update - 2: Change scroll container from grid to block layout for simpler stacking */
   .wg-scroll-container {
-    grid-template-columns: 1fr;
-    gap: 40px;
+    display: block; /* Switch from grid to block for natural document flow */
   }
 
+  /* update - 3: Hide the desktop sticky column on mobile devices */
   .wg-sticky-column {
-    display: none; /* mobile uses simple stacked scenes */
+    display: none; /* Mobile uses inline videos instead of sticky panel */
+  }
+
+  /* update - 4: Show inline video stages on mobile beneath each text block */
+  .wg-scene-inline-stage {
+    display: block; /* Make inline videos visible on mobile */
+    margin-top: 24px; /* Add spacing between text and video */
+  }
+
+  /* update - 5: Reset sticky stage positioning for inline mobile context */
+  .wg-scene-inline-stage .wg-sticky-stage {
+    position: static; /* Remove sticky behavior for inline videos */
+    top: auto;
+    height: auto; /* Allow natural sizing based on content */
+    min-height: 300px; /* Ensure videos have reasonable minimum height */
+    max-width: 100%; /* Allow full width utilization on mobile */
+    margin: 0; /* Reset desktop margin-left: auto */
   }
 
   .wg-scene-text-block {
     min-height: auto;
     padding: 40px 0;
+  }
+
+  /* update - 6: Optimize video shell aspect ratio for mobile viewing */
+  .wg-scene-video-shell {
+    max-width: 100%; /* Remove 720px constraint on mobile */
+    aspect-ratio: 16/9; /* Switch from 1:1 to widescreen for better mobile UX */
   }
 }
 

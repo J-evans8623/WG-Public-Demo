@@ -9,7 +9,7 @@
 
 import type { Metadata } from 'next';
 import React from 'react';
-import WelcomeLandingPage from './WelcomeLandingPage';
+import WelcomeLandingPage from '@/app/(welcome)/WelcomeLandingPage';
 // update - 1: Import the global footer component
 import SiteFooter from '@/components/SiteFooter';
 import SiteHeader from '@/components/SiteHeader';

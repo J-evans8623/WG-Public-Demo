@@ -1,13 +1,21 @@
-// WelcomeLandingPage.tsx
-
 'use client';
 
 /**
  * @file app\(marketing)\welcome1\WelcomeLandingPage.tsx
  * @description
- *   WiseGraph marketing welcome page with sticky scroll "scenes".
- *   Hero + Todoist-style scroll section (text scenes left, sticky stage
- *   right) + final CTA.
+ *   WiseGraph marketing welcome page with sticky scroll "scenes" that adapts
+ *   seamlessly between desktop and mobile viewports. On desktop (>960px), this
+ *   component implements a Todoist-style scrollytelling pattern where text scenes
+ *   scroll in the left column while a single sticky video stage remains pinned on
+ *   the right, updating based on scroll position via IntersectionObserver. On mobile
+ *   devices (≤960px), the component renders each scene's video inline directly beneath
+ *   its corresponding text block, ensuring users see all demonstration videos regardless
+ *   of screen size. The implementation uses a duplication strategy where videos are
+ *   rendered twice (once in the sticky column for desktop, once inline per scene for
+ *   mobile) with CSS controlling visibility at each breakpoint. This approach maintains
+ *   a single source of truth for scene configuration data while providing optimal user
+ *   experiences across all device categories. The component also includes hero section,
+ *   final CTA section, and integrates with Next.js Image optimization for performance.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -30,6 +38,11 @@ function WelcomeLandingPage(): JSX.Element {
   const scenesRef = useRef<(HTMLDivElement | null)[]>([]);
   const stickyRef = useRef<HTMLDivElement | null>(null);
 
+  /**
+   * Step 1: Set up IntersectionObserver to track which scene is currently visible
+   * in the viewport and update the sticky stage accordingly on desktop.
+   * This effect runs once on mount and cleans up observers on unmount.
+   */
   useEffect(() => {
     const observers = scenesRef.current.map((sceneEl, index) => {
       if (!sceneEl) return null;
@@ -57,7 +70,11 @@ function WelcomeLandingPage(): JSX.Element {
     };
   }, []);
 
-  // Scene data configuration
+  /**
+   * Step 2: Define scene configuration data as a strongly-typed array.
+   * Each scene contains text content, video source, background styling,
+   * and theme color used for visual consistency across the page.
+   */
   const scenes: SceneConfig[] = [
     {
       id: 1,
@@ -101,6 +118,10 @@ function WelcomeLandingPage(): JSX.Element {
     },
   ];
 
+  /**
+   * Step 3: Get the currently active scene configuration based on scroll position.
+   * This is used to update the desktop sticky video stage.
+   */
   const currentScene = scenes[activeScene - 1];
 
   return (
@@ -151,42 +172,73 @@ function WelcomeLandingPage(): JSX.Element {
           </div>
         </section>
 
-        {/* SCROLL SECTION - Todoist-style sticky pattern */}
+        {/* update - 1: SCROLL SECTION - Restructured for mobile video visibility */}
         <div className="wg-scroll-section">
           <div className="wg-scroll-container">
-            {/* Left: Scrolling text scenes */}
+            {/* update - 2: Left column now contains both text AND inline mobile videos */}
             <div className="wg-scenes-column">
               {scenes.map((scene, idx) => (
-                <div
-                  key={scene.id}
-                  ref={(el) => { scenesRef.current[idx] = el; }}
-                  className="wg-scene-text-block"
-                  data-scene={scene.id}
-                  style={
-                    {
-                      '--scene-theme-color': scene.themeColor,
-                    } as React.CSSProperties
-                  }
-                >
-                  <p className="wg-section-eyebrow">{scene.eyebrow}</p>
-                  <h2 className="wg-section-heading">{scene.heading}</h2>
-                  <p className="wg-section-body">{scene.body}</p>
+                <React.Fragment key={scene.id}>
+                  {/* update - 3: Text block with scene content (unchanged from original) */}
+                  <div
+                    ref={(el) => { scenesRef.current[idx] = el; }}
+                    className="wg-scene-text-block"
+                    data-scene={scene.id}
+                    style={
+                      {
+                        '--scene-theme-color': scene.themeColor,
+                      } as React.CSSProperties
+                    }
+                  >
+                    <p className="wg-section-eyebrow">{scene.eyebrow}</p>
+                    <h2 className="wg-section-heading">{scene.heading}</h2>
+                    <p className="wg-section-body">{scene.body}</p>
 
-                  {/* Scene 3: show static illustration under the copy */}
-                  {scene.id === 3 && (
-                    <Image
-                      src="/scene-3/scene3.png"
-                      width={1920} 
-                      height={1080}
-                      alt="Illustration comparing cramming with spaced repetition over several days."
-                      className="wg-scene-illustration"
-                    />
-                  )}
-                </div>
+                    {/* Scene 3: show static illustration under the copy */}
+                    {scene.id === 3 && (
+                      <Image
+                        src="/scene-3/scene3.png"
+                        width={1920} 
+                        height={1080}
+                        alt="Illustration comparing cramming with spaced repetition over several days."
+                        className="wg-scene-illustration"
+                      />
+                    )}
+                  </div>
+
+                  {/* update - 4: NEW - Inline video stage for mobile devices (hidden on desktop via CSS) */}
+                  <div className="wg-scene-inline-stage">
+                    <div
+                      className="wg-sticky-stage"
+                      style={{ backgroundImage: scene.stageBg }}
+                    >
+                      <div className="wg-stage-content">
+                        {scene.videoSrc ? (
+                          <div className="wg-scene-video-shell">
+                            <video
+                              className="wg-scene-video"
+                              src={scene.videoSrc}
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                            />
+                          </div>
+                        ) : (
+                          <div className="wg-demo-placeholder">
+                            <span className="wg-demo-label">
+                              Scene {scene.id} Visual
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </React.Fragment>
               ))}
             </div>
 
-            {/* Right: Sticky stage */}
+            {/* update - 5: Desktop sticky column (hidden on mobile via CSS) */}
             <div className="wg-sticky-column">
               <div
                 ref={stickyRef}
