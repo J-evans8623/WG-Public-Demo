@@ -306,22 +306,15 @@
 .nav-panel__list {
   max-height: 200px;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(212, 196, 176, 0.3) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .nav-panel__list::-webkit-scrollbar {
-  width: 4px;
+  display: none;
 }
 
-.nav-panel__list::-webkit-scrollbar-track {
-  background: transparent;
-}
 
-.nav-panel__list::-webkit-scrollbar-thumb {
-  background: rgba(212, 196, 176, 0.3);
-  border-radius: 2px;
-}
 
 .nav-panel__list-item {
   display: flex;

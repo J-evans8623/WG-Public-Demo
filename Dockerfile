@@ -103,4 +103,10 @@ ENV HOSTNAME "0.0.0.0"
 
 COPY --from=builder /app/dist ./dist
 
+# This instruction is now baked into the image. Coolify will read this metadata
+# and automatically configure the health check logic without external config.
+# We use 'node -e' to run a fetch command, removing the need for wget/curl.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then((r) => {if(!r.ok) throw new Error();}).catch(() => process.exit(1));"
+  
 CMD ["sh", "-c", "node dist/setSchema.js && node server.js"]
