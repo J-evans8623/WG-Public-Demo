@@ -14,6 +14,7 @@ import NotebookSelector from './NotebookSelector';
 import CalendarMonthView from './CalendarMonthView';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import './calendar-theme.css';
+import { ALL_DAYS } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/Configuration';
 
 interface CalendarModalProps {
   isOpen: boolean;
@@ -290,7 +291,7 @@ const handleUpdateSchedule = async () => {
                   Select the days of the week you’re available to study. We’ll use today as your start date.
                 </p>
                 <div className="grid grid-cols-7 gap-1">
-                  {allDays.map((day) => {
+                  {ALL_DAYS.map((day) => {
                     const isSelected = scheduleConfig.DayAvailability?.includes(day as any);
                     return (
                       <button

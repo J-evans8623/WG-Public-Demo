@@ -18,6 +18,9 @@
 /** Canonical day-of-week tokens used by the scheduler. */
 export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
+
+
+export const ALL_DAYS: DayOfWeek[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 /**
  * Minimal schedule configuration required by the service.
  * Additional fields (like time windows) can be safely added in future phases.
@@ -29,6 +32,13 @@ export interface ScheduleConfig {
    */
   DayAvailability: DayOfWeek[];
 }
+
+/** * Default configuration ensuring the planner starts with a full week enabled.
+ * Use this constant to initialize your CalendarContext state.
+ */
+export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
+  DayAvailability: ALL_DAYS,
+};
 
 /** Re-export for convenience from the models barrel. */
 export type { ScheduleConfig as DefaultScheduleConfig };

@@ -23,7 +23,7 @@ import type {
   PickerFileMeta,
   NotebookVersionState,
 } from '@/app/Library/Definitions/CalendarDefinitions';
-import type { DayOfWeek, ScheduleConfig } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/Configuration.ts';
+import { type DayOfWeek, type ScheduleConfig, ALL_DAYS} from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/Configuration';
 import { NotebooksApi } from '@/app/src/services/calendar/NotebooksApi';
 import { CalendarPersistApi } from '@/app/src/services/calendar/CalendarPersistApi';
 import { StudyPlanService } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner';
@@ -130,7 +130,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // Local-only config (not persisted)
  const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>({
-    DayAvailability: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+    DayAvailability: ALL_DAYS,
   });
 
   const [planStartDate, setPlanStartDate] = useState<Date>(new Date());
