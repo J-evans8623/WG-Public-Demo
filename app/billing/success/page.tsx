@@ -50,10 +50,6 @@ export default function SuccessPage() {
             <Icons.ArrowRight />
           </a>
 
-          <span className="sp-footer-note">
-            A receipt has been sent to your email.
-          </span>
-
         </div>
       </div>
     </main>
