@@ -360,13 +360,13 @@
 .wg-btn-primary {
   background-color: #E34432; 
   color: #ffffff;
-  box-shadow: 0 8px 24px rgba(52, 111, 55, 0.3);
+  box-shadow: 0 4px 12px rgba(227, 68, 50, 0.25);
 }
 
 .wg-btn-primary:hover {
   background-color: #CF3520;
-  box-shadow: 0 10px 32px rgba(52, 111, 55, 0.36);
   transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(227, 68, 50, 0.25);
 }
 
 .wg-btn-secondary {

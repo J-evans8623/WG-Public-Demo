@@ -43,6 +43,10 @@ import type { BillingSnapshot } from '@/app/src/billing/types';
 export type AccountType = 'scholar' | 'educator';
 export type SubscriptionTier = 'freemium' | 'premium';
 
+// Add this near line ~110
+const DEFAULT_DEMO_CREDITS = parseInt(process.env.DEMO_CREDITS || '1', 10);
+
+
 export interface UserProfile {
   userId: string;
   email: string;
@@ -80,7 +84,7 @@ export interface UserUsage {
   
   // Demo credits tracking (LIFETIME ONLY - NO REFRESH) - Freemium only
   demoCredits: {
-    total: 2;
+    total: number;
     remaining: number;
     used: number;
     lastUsedAt?: admin.firestore.Timestamp;
@@ -232,8 +236,8 @@ export class UserService {
     const userUsage: UserUsage = {
       userId,
       demoCredits: {
-        total: 2,
-        remaining: 2,
+        total: DEFAULT_DEMO_CREDITS,
+        remaining: DEFAULT_DEMO_CREDITS,
         used: 0,
       },
       rateLimits: {
@@ -716,7 +720,7 @@ static async getUserUsage(email: string): Promise<UserUsage> { // update - 9
           console.log('[userService.ts][2010] Migrating usage to secondary-services support', { email: normalizedEmail });
           const migrated: UserUsage = {
             userId: normalizedEmail,
-            demoCredits: usage.demoCredits || { total: 2, remaining: 2, used: 0 },
+            demoCredits: usage.demoCredits || { total: DEFAULT_DEMO_CREDITS, remaining: DEFAULT_DEMO_CREDITS, used: 0 },
             rateLimits: {
               ...usage.rateLimits,
               secondaryServices: {

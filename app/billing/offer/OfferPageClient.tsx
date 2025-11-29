@@ -13,6 +13,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import './pricing.css';
+import Link from 'next/link';
 
 type PlanConfig = {
   scholar: {
@@ -251,7 +252,7 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
                   <div className="wg-card-price">Free</div>
                 </div>
                 <ul className="wg-feature-list">
-                   <li className="wg-feature-item">Two free Credits to create your first concept map</li>
+                   <li className="wg-feature-item">One free credit to create your first concept map</li>
                    <li className="wg-feature-item">Basic Features Access</li>
                    <li className="wg-feature-item">Community Access</li>
                 </ul>
@@ -261,9 +262,9 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
                 {paymentsEnabled ? (
                   /* ORIGINAL ACTIVE DEMO LINK RESTORED */
                   /* Note: If you want a real demo link, put Link here. For now using placeholder button style */
-                  <button className="wg-card-btn wg-btn-outline" disabled={true} style={{ opacity: 0.6 }}>
+                  <Link className="wg-card-btn wg-btn-outline" href="/signin?returnTo=/workspace" style={{ opacity: 0.6 }}>
                     Free Tier Active
-                  </button>
+                  </Link>
                 ) : (
                   <button className="wg-card-btn wg-btn-outline" disabled={true} style={{ opacity: 0.6, cursor: 'not-allowed' }}>
                      Coming Soon
