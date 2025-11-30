@@ -3,6 +3,7 @@ import React from 'react';
 import { Metadata } from 'next';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
+import { GoogleAnalytics } from '@next/third-parties/google'
 import Providers from "./AuthProvider"; 
 import '@/app/globals.css';
 import '@/app/workspace/(studygraph)/components/layout/CardDisplay/Cards/slideshow.css'
@@ -81,6 +82,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="h-screen w-screen overflow-x-hidden bg-[#FFFBEF]">
        <Providers session={session}>{children}</Providers>
       </body>
+      <GoogleAnalytics gaId="G-MGQK0F3H8D" />
     </html>
   );
 }
