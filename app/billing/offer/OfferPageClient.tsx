@@ -262,8 +262,8 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
                 {paymentsEnabled ? (
                   /* ORIGINAL ACTIVE DEMO LINK RESTORED */
                   /* Note: If you want a real demo link, put Link here. For now using placeholder button style */
-                  <Link className="wg-card-btn wg-btn-outline" href="/signin?returnTo=/workspace" style={{ opacity: 0.6 }}>
-                    Free Tier Active
+                  <Link className="wg-card-btn wg-btn-primary" href="/workspace" >
+                    Try a free demo
                   </Link>
                 ) : (
                   <button className="wg-card-btn wg-btn-outline" disabled={true} style={{ opacity: 0.6, cursor: 'not-allowed' }}>
