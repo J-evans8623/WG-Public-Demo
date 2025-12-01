@@ -55,13 +55,13 @@ export const TUTORIAL_DATA: Record<string, TutorialContent> = {
       {
         stepNumber: 1,
         title: 'Generating a lesson',
-        description: 'Click the "Generate Lesson" button on your dashboard to open the AI tool.',
+        description: 'First open up an existing notebook, or click "New Notebook", to visit your workspace. Here you can click the "Generate Lesson" button on your dashboard to open up the AI lesson generator.',
         imagePath: '/get-started/generate-lesson-menu-item.png',
       },
       {
         stepNumber: 2,
         title: 'Select Study Material',
-        description: 'Choose a file (PDF, DOCX, or PPTX) from your library that you want to create a lesson from',
+        description: 'Choose a file (PDF, DOCX, or PPTX) from your library that you want to create a lesson from. The file can not be more than 100 pages at a time. Once you have selected your file, click "Generate lesson". A new lesson will be added to your notebook.',
       },
     ],
   },
@@ -72,7 +72,7 @@ export const TUTORIAL_DATA: Record<string, TutorialContent> = {
       {
         stepNumber: 1,
         title: 'Inviting peers',
-        description: 'Click the share button in the top menu bar.',
+        description: 'Click the share button in the top menu bar of your workspace.',
         imagePath: '/get-started/share-collab-scene-1.png',
       },
       {
@@ -191,6 +191,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
                    alt={`Step ${step.stepNumber}: ${step.title}`}
                    className="onboarding-step-image"
                   priority={step.stepNumber === 1} // Optional: Load the first image immediately for speed
+                  width={1920} height={1080} style={{ width: '100%' }}
                 />
                 </div>
               )}
