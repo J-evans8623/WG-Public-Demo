@@ -395,7 +395,6 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
   const createSessionLauncher = useCallback((sessionId: string): PickerFileMeta | null => {
     if (!studyPlan) return null;
     const s = studyPlan.sessions.find(x => x.id === sessionId);
-    console.log(JSON.stringify(s));
     if (!s) return null;
     return {
       docId: s.notebookMeta.fileId,

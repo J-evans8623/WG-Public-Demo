@@ -55,3 +55,11 @@ next-env.d.ts
 ./big-output.txt
 *.pdf
 "__pycache__/"
+
+
+
+#local value 
+app\firebase-service-account.json
+app/firebase-service-account.json
+# ignore any file by this name
+**/firebase-service-account.json 

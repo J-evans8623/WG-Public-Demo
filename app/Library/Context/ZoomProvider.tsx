@@ -84,7 +84,7 @@ export const ZoomProvider = ({ children }: { children: ReactNode }) => {
    */
   const setInitialFitZoom = useCallback((z: number) => { // update - 5
     initialFitZoomRef.current = z;
-    console.log('[ZoomProvider.tsx][6101] setInitialFitZoom recorded', { z });
+    // console.log('[ZoomProvider.tsx][6101] setInitialFitZoom recorded', { z });
   }, []);
 
   /**
@@ -108,7 +108,7 @@ export const ZoomProvider = ({ children }: { children: ReactNode }) => {
    */
   const registerMapCenterHandler = useCallback((fn: (opts?: RecenterOpts) => void) => { // update - 7
     mapCenterHandlerRef.current = fn;
-    console.log('[ZoomProvider.tsx][6102] registerMapCenterHandler installed');
+    // console.log('[ZoomProvider.tsx][6102] registerMapCenterHandler installed');
   }, []);
 
   /**
@@ -119,7 +119,7 @@ export const ZoomProvider = ({ children }: { children: ReactNode }) => {
    */
   const unregisterMapCenterHandler = useCallback(() => { // update - 8
     mapCenterHandlerRef.current = null;
-    console.log('[ZoomProvider.tsx][6103] unregisterMapCenterHandler cleared');
+    // console.log('[ZoomProvider.tsx][6103] unregisterMapCenterHandler cleared');
   }, []);
 
   /**
@@ -132,10 +132,10 @@ export const ZoomProvider = ({ children }: { children: ReactNode }) => {
    */
   const requestMapRecenter = useCallback((opts?: RecenterOpts) => { // update - 9
     if (mapCenterHandlerRef.current) {
-      console.log('[ZoomProvider.tsx][6104] requestMapRecenter invoked', { opts: opts ?? null });
+      // console.log('[ZoomProvider.tsx][6104] requestMapRecenter invoked', { opts: opts ?? null });
       mapCenterHandlerRef.current(opts);
     } else {
-      console.log('[ZoomProvider.tsx][6105] requestMapRecenter ignored — no handler registered');
+      // console.log('[ZoomProvider.tsx][6105] requestMapRecenter ignored — no handler registered');
     }
   }, []);
 

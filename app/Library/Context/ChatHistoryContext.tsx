@@ -90,7 +90,7 @@ export const ChatHistoryProvider: React.FC<{ children: ReactNode }> = ({ childre
 
     setRawMessages(nextMessages);
     setChatDirty(false);
-    console.log('ChatHistoryContext.tsx 4311 › Installed messages from payload', { count: nextMessages.length }); // update - 28
+    // console.log('ChatHistoryContext.tsx 4311 › Installed messages from payload', { count: nextMessages.length }); // update - 28
   }, []); // update - 29
 
   /**
@@ -102,19 +102,19 @@ export const ChatHistoryProvider: React.FC<{ children: ReactNode }> = ({ childre
    * This function performs O(N) work where N is the number of messages installed.
    */ // update - 30
   const handleChatReadyEvent = useCallback((payload: ChatReadyPayload) => {
-    console.log('ChatHistoryContext.tsx 4301 › CHAT_READY received', { incomingDoc: payload.docId, currentDoc: docFileID, count: payload.messages?.length ?? 0, fresh: payload.fresh }); // update - 31
+    // console.log('ChatHistoryContext.tsx 4301 › CHAT_READY received', { incomingDoc: payload.docId, currentDoc: docFileID, count: payload.messages?.length ?? 0, fresh: payload.fresh }); // update - 31
 
     // Step 0: If docFileID is not yet known, buffer and return. // update - 32
     if (!docFileID) {
       pendingInitRef.current = payload;
-      console.log('ChatHistoryContext.tsx 4312 › Buffered CHAT_READY (docFileID not yet available)'); // update - 33
+      // console.log('ChatHistoryContext.tsx 4312 › Buffered CHAT_READY (docFileID not yet available)'); // update - 33
       return;
     }
 
     // Step 1: Ignore or buffer events for other docs; apply later if this doc becomes current. // update - 34
     if (payload.docId !== docFileID) {
       pendingInitRef.current = payload;
-      console.log('ChatHistoryContext.tsx 4313 › Buffered CHAT_READY (mismatched doc). Will re-check on doc switch.'); // update - 35
+      // console.log('ChatHistoryContext.tsx 4313 › Buffered CHAT_READY (mismatched doc). Will re-check on doc switch.'); // update - 35
       return;
     }
 
@@ -127,7 +127,7 @@ export const ChatHistoryProvider: React.FC<{ children: ReactNode }> = ({ childre
     if (!docFileID || !pendingInitRef.current) return;
     if (pendingInitRef.current.docId !== docFileID) return;
 
-    console.log('ChatHistoryContext.tsx 4314 › Applying buffered CHAT_READY after docFileID became available', { docFileID }); // update - 40
+    // console.log('ChatHistoryContext.tsx 4314 › Applying buffered CHAT_READY after docFileID became available', { docFileID }); // update - 40
     installMessagesFromPayload(pendingInitRef.current);
     pendingInitRef.current = null;
   }, [docFileID, installMessagesFromPayload]); // update - 41
@@ -136,12 +136,12 @@ export const ChatHistoryProvider: React.FC<{ children: ReactNode }> = ({ childre
   useEffect(() => {
     // Step 1: Register
     addChatReadyListener(handleChatReadyEvent);
-    console.log('ChatHistoryContext.tsx 4304 › Registered CHAT_READY listener'); // update - 42
+    // console.log('ChatHistoryContext.tsx 4304 › Registered CHAT_READY listener'); // update - 42
 
     // Step 2: Cleanup
     return () => {
       removeChatReadyListener(handleChatReadyEvent);
-      console.log('ChatHistoryContext.tsx 4305 › Unregistered CHAT_READY listener'); // update - 43
+      // console.log('ChatHistoryContext.tsx 4305 › Unregistered CHAT_READY listener'); // update - 43
     };
   }, [addChatReadyListener, removeChatReadyListener, handleChatReadyEvent]); // update - 44
 

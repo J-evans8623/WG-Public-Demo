@@ -26,7 +26,7 @@ export const LessonDataProvider: React.FC<{ children: ReactNode }> = ({ children
   const [lessonModuleList, setLessonModuleList] = useState<Map<string, LessonModulePayload>>(new Map());
 
   const addLessonModule = useCallback((fileId: string, payload: LessonModulePayload) => {
-    console.log('[LessonDataContext] addLessonModule', fileId, payload);
+    // console.log('[LessonDataContext] addLessonModule', fileId, payload);
     setLessonModuleList(prev => {
       const m = new Map(prev);
       m.set(fileId, payload);
@@ -35,7 +35,7 @@ export const LessonDataProvider: React.FC<{ children: ReactNode }> = ({ children
   }, []);
 
   const clearLessonModuleList = useCallback(() => {
-    console.log('[LessonDataContext] clearLessonModuleList');
+    // console.log('[LessonDataContext] clearLessonModuleList');
     setLessonModuleList(new Map());
   }, []);
 

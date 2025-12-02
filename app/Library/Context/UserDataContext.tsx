@@ -163,9 +163,9 @@ const SaveUserData = useCallback(
    *   Console logs at key checkpoints expose flow and missing lookups for debugging.
    */
   const generateInterleavedRevision = useCallback((): RevisionCards | null => {
-    console.log('[UserDataContext.tsx][2001] › generateRevision invoked');
+    // console.log('[UserDataContext.tsx][2001] › generateRevision invoked');
     if (!userRevisionData) {
-      console.log('[UserDataContext.tsx][2002] › No userData; returning null');
+      // console.log('[UserDataContext.tsx][2002] › No userData; returning null');
       return null;
     }   
 
@@ -245,11 +245,7 @@ const SaveUserData = useCallback(
       });
     });
 
-    console.log(
-      '[UserDataContext.tsx][2005] › generateRevision assembled',
-      flashCards.length, 'flashCards and',
-      quizzes.length, 'quizzes'
-    );
+
     return { flashCards, quizzes };
   }, [userRevisionData, getAllFlashCards, getAllQuizzes, getGlobalResourceCard]);
 
@@ -271,7 +267,7 @@ const LoadUserData = useCallback(
   async (docId: string): Promise<RevisionMetaData | null> => {
     if (!userId || !docId) return null;
 
-    console.log('[UserDataContext] (update-301) GET-or-CREATE for doc:', docId);
+    // console.log('[UserDataContext] (update-301) GET-or-CREATE for doc:', docId);
     setCurrentDocId(null);
     setuserRevisionData(null);
     setLoading(true);
@@ -294,7 +290,7 @@ const LoadUserData = useCallback(
       // (4) set state & return
       setuserRevisionData(data);
       setCurrentDocId(docId);
-      console.log('[UserDataContext] (update-301) Loaded', { docId });
+      // console.log('[UserDataContext] (update-301) Loaded', { docId });
       return data;
     } finally {
       setLoading(false);
@@ -413,12 +409,12 @@ const recordQuizSession = useCallback(() => {
    *   and triggering a save. Prevents duplicates by resourceId.
    */
   const addBookmark = useCallback((b: Bookmark) => {
-    console.log('[UserDataContext.tsx][9007] › addBookmark called', b);
+    // console.log('[UserDataContext.tsx][9007] › addBookmark called', b);
     setuserRevisionData(prev => {
       if (!prev || prev.bookmarks.some(x => x.resourceId === b.resourceId)) return prev;
       const next = { ...prev, bookmarks: [...prev.bookmarks, b] };
       setupdatedRivisionCard(true);
-      console.log('[UserDataContext.tsx][9008] › Bookmark added, total now', next.bookmarks.length);
+      // console.log('[UserDataContext.tsx][9008] › Bookmark added, total now', next.bookmarks.length);
       return next;
     });
   }, [setuserRevisionData, setupdatedRivisionCard]);
@@ -429,13 +425,13 @@ const recordQuizSession = useCallback(() => {
    *   Removes any existing Bookmark by resourceId, updating state and triggering a save.
    */
   const removeBookmark = useCallback((resourceId: string) => {
-    console.log('[UserDataContext.tsx][9009] › removeBookmark called', resourceId);
+    // console.log('[UserDataContext.tsx][9009] › removeBookmark called', resourceId);
     setuserRevisionData(prev => {
       if (!prev) return prev;
       const nextList = prev.bookmarks.filter(x => x.resourceId !== resourceId);
       const next = { ...prev, bookmarks: nextList };
       setupdatedRivisionCard(true);
-      console.log('[UserDataContext.tsx][9010] › Bookmark removed, total now', next.bookmarks.length);
+      // console.log('[UserDataContext.tsx][9010] › Bookmark removed, total now', next.bookmarks.length);
       return next;
     });
   }, [setuserRevisionData, setupdatedRivisionCard]);
@@ -446,7 +442,7 @@ const recordQuizSession = useCallback(() => {
    *   Toggles the presence of a Bookmark: removes it if present, adds it otherwise.
    */
   const toggleBookmark = useCallback((b: Bookmark) => {
-    console.log('[UserDataContext.tsx][9011] › toggleBookmark called', b.resourceId);
+    // console.log('[UserDataContext.tsx][9011] › toggleBookmark called', b.resourceId);
     if (userRevisionData?.bookmarks.some(x => x.resourceId === b.resourceId)) {
       removeBookmark(b.resourceId);
     } else {
@@ -461,7 +457,7 @@ const recordQuizSession = useCallback(() => {
    */
   const isBookmarked = useCallback((resourceId: string): boolean => {
     const result = userRevisionData?.bookmarks.some(x => x.resourceId === resourceId) ?? false;
-    console.log('[UserDataContext.tsx][9012] › isBookmarked(', resourceId, ') →', result);
+    // console.log('[UserDataContext.tsx][9012] › isBookmarked(', resourceId, ') →', result);
     return result;
   }, [userRevisionData]);
 
@@ -535,13 +531,13 @@ const clearSeenForDeleted = useCallback((postId: string) => {
    *   into SlideShowContext.openCustom.
    */
   const getBookmarkSlidesForLesson = useCallback((lessonId: string): ResourceCard[] => {
-    console.log('[UserDataContext.tsx][9020] › getBookmarkSlidesForLesson called with', lessonId);
+    // console.log('[UserDataContext.tsx][9020] › getBookmarkSlidesForLesson called with', lessonId);
     if (!userRevisionData) return [];
     const slides = userRevisionData.bookmarks
       .filter(b => b.mapId === lessonId)
       .map(b => getGlobalResourceCard(b.mapId, b.nodeId, b.resourceId))
       .filter((c): c is ResourceCard => Boolean(c));
-    console.log('[UserDataContext.tsx][9021] › returning slides count', slides.length);
+    // console.log('[UserDataContext.tsx][9021] › returning slides count', slides.length);
     return slides;
   }, [userRevisionData, getGlobalResourceCard]);
 
@@ -592,7 +588,7 @@ useEffect(() => {
   LoadUserData(docFileID)                           // Step 2
     .then(() => {
       lastLoadedDocRef.current = docFileID;         // Step 3
-      console.log('[UserDataContext] (update-403) auto-loaded userdata', { docId: docFileID });
+      // console.log('[UserDataContext] (update-403) auto-loaded userdata', { docId: docFileID });
     })
     .catch((e) => {
       console.warn('[UserDataContext] (update-403) auto-load failed (non-fatal)', e);

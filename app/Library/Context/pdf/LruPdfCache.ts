@@ -40,7 +40,7 @@ export class LruPdfCache {
     // Guard only against nonsensical values (<=0).
     this.capacity = Math.max(1, capacity); // update - 1
     this.store = new Map();
-    console.log(`[LruPdfCache] Initialized with capacity: ${this.capacity}`);
+    // console.log(`[LruPdfCache] Initialized with capacity: ${this.capacity}`);
   }
 
   /**
@@ -52,14 +52,14 @@ export class LruPdfCache {
   get(url: string): PDFDocumentProxy | undefined {
     const entry = this.store.get(url);
     if (!entry) {
-      console.log(`[LruPdfCache] Cache miss: ${url}`);
+      // console.log(`[LruPdfCache] Cache miss: ${url}`);
       return undefined;
     }
     // Move entry to most-recent
     this.store.delete(url);
     entry.lastAccessed = Date.now();
     this.store.set(url, entry);
-    console.log(`[LruPdfCache] Cache hit: ${url}`);
+    // console.log(`[LruPdfCache] Cache hit: ${url}`);
     return entry.pdf;
   }
 
@@ -70,10 +70,10 @@ export class LruPdfCache {
    *   Destruction is serialized via a queue to prevent worker accumulation on rapid switches.
    */
   set(url: string, pdf: PDFDocumentProxy, loadingTask: PDFDocumentLoadingTask): void {
-    console.log(`[LruPdfCache] Setting: ${url} (current size: ${this.store.size}/${this.capacity})`);
+    // console.log(`[LruPdfCache] Setting: ${url} (current size: ${this.store.size}/${this.capacity})`);
     const existing = this.store.get(url);
     if (existing) {
-      console.log(`[LruPdfCache] Replacing existing entry: ${url}`);
+      // console.log(`[LruPdfCache] Replacing existing entry: ${url}`);
       this.queueDestroy(existing, url);
       this.store.delete(url);
     }
@@ -89,10 +89,10 @@ export class LruPdfCache {
   delete(url: string): boolean {
     const entry = this.store.get(url);
     if (!entry) {
-      console.log(`[LruPdfCache] Delete called but entry not found: ${url}`);
+      // console.log(`[LruPdfCache] Delete called but entry not found: ${url}`);
       return false;
     }
-    console.log(`[LruPdfCache] Deleting: ${url}`);
+    // console.log(`[LruPdfCache] Deleting: ${url}`);
     this.queueDestroy(entry, url);
     return this.store.delete(url);
   }
@@ -103,14 +103,14 @@ export class LruPdfCache {
    *   Destroy and remove all entries. Waits for queued destructions before clearing the store.
    */
   async clear(): Promise<void> {
-    console.log(`[LruPdfCache] Clearing all entries (${this.store.size} total)`);
+    // console.log(`[LruPdfCache] Clearing all entries (${this.store.size} total)`);
     const entries = Array.from(this.store.entries());
     for (const [url, entry] of entries) {
       this.queueDestroy(entry, url);
     }
     await this.destroyQueue;
     this.store.clear();
-    console.log('[LruPdfCache] Clear complete');
+    // console.log('[LruPdfCache] Clear complete');
   }
 
   /** size — current number of resident entries (O(1)). */
@@ -135,7 +135,7 @@ export class LruPdfCache {
       if (!oldestKey) break;
       const oldest = this.store.get(oldestKey);
       if (oldest) {
-        console.log(`[LruPdfCache] Evicting LRU entry: ${oldestKey}`);
+        // console.log(`[LruPdfCache] Evicting LRU entry: ${oldestKey}`);
         this.queueDestroy(oldest, oldestKey);
       }
       this.store.delete(oldestKey);
@@ -153,17 +153,17 @@ export class LruPdfCache {
 
   /** Await loadingTask.destroy() then pdf.destroy(), with a brief interstitial delay. */
   private async destroyEntry(entry: LruPdfEntry, url: string): Promise<void> {
-    console.log(`[LruPdfCache] Destroying entry: ${url}`);
+    // console.log(`[LruPdfCache] Destroying entry: ${url}`);
     try {
       await entry.loadingTask.destroy();
-      console.log(`[LruPdfCache] ✅ LoadingTask destroyed: ${url}`);
+      // console.log(`[LruPdfCache] ✅ LoadingTask destroyed: ${url}`);
     } catch (err) {
       console.warn(`[LruPdfCache] ⚠️ Error destroying LoadingTask for ${url}:`, err);
     }
     await new Promise(r => setTimeout(r, 50));
     try {
       await entry.pdf.destroy();
-      console.log(`[LruPdfCache] ✅ PDF document destroyed: ${url}`);
+      // console.log(`[LruPdfCache] ✅ PDF document destroyed: ${url}`);
     } catch (err) {
       console.warn(`[LruPdfCache] ⚠️ Error destroying PDF for ${url}:`, err);
     }

@@ -252,7 +252,7 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
                   <div className="wg-card-price">Free</div>
                 </div>
                 <ul className="wg-feature-list">
-                   <li className="wg-feature-item">One free credit to create your first concept map</li>
+                   <li className="wg-feature-item">One free credit to create your first Lesson</li>
                    <li className="wg-feature-item">Basic Features Access</li>
                    <li className="wg-feature-item">Community Access</li>
                 </ul>

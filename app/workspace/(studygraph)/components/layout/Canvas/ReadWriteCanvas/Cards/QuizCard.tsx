@@ -118,28 +118,28 @@ const QuizCard: React.FC<QuizCardProps> = ({
       </div>
 
       {/* Unified Quiz Overlay */}
-      <QuizOverlay
-        isOpen={isQuizOpen}
-        onClose={() => {
-          console.log('[QuizCard.tsx][1003] quiz overlay closed');
-          setIsQuizOpen(false);
-        }}
-        quizType={quizType as any}
-        title={title}
-        quizData={
-          // The unified overlay accepts a simplified item model but our question type is compatible
-          // because we normalize to label strings for choices. Keep passthrough for now.
-          selectedQuestions as any
-        }
-        isAssessment={false}
-      />
+      {isQuizOpen && (
+        <QuizOverlay
+          isOpen={isQuizOpen}
+          onClose={() => {
+            console.log('[QuizCard.tsx][1003] quiz overlay closed');
+            setIsQuizOpen(false);
+          }}
+          quizType={quizType as any}
+          title={title}
+          quizData={
+            selectedQuestions as any
+          }
+          isAssessment={false}
+        />
+      )}
 
       <style jsx>{`
         /* Base container styles for responsive behavior */
         .quiz-card-container {
           width: 100%;
           height: 100%;
-          background: white;
+          background: none;
           border-radius: 12px;
           overflow: hidden;
           display: flex;
@@ -165,7 +165,7 @@ const QuizCard: React.FC<QuizCardProps> = ({
 
         /* Info section with responsive styling */
         .quiz-info-section {
-          background-color: #f9fafb;
+          background-color: none;
           border-radius: 8px;
           padding: 1.5rem;
           margin-bottom: 2rem;
@@ -188,7 +188,7 @@ const QuizCard: React.FC<QuizCardProps> = ({
 
         /* Responsive button styling */
         .quiz-start-button {
-          background: linear-gradient(to right, #059669, #047857);
+          background: linear-gradient(135deg, #5B8C5A 0%, #4a7349 100%);
           color: white;
           padding: 0.875rem 2rem;
           border-radius: 8px;
@@ -203,7 +203,7 @@ const QuizCard: React.FC<QuizCardProps> = ({
         }
 
         .quiz-start-button:hover {
-          background: linear-gradient(to right, #047857, #065f46);
+          background: linear-gradient(135deg, #6b9c6a 0%, #5a8359 100%);
           box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
           transform: translateY(-1px);
         }

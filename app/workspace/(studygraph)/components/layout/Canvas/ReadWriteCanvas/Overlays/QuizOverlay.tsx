@@ -417,8 +417,19 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
         Number(attemptsRemaining || 0)
       )} attempts remaining. Submit and exit now?`
     : 'You have unanswered questions. Submit and exit now?';
+  
 
+  if (isOpen && portalRoot) {
+    const isActuallyInDom = document.body.contains(portalRoot);
+    console.log('[DEBUG PROOF] QuizOverlay attempting to render.');
+    console.log('[DEBUG PROOF] Portal Root ID:', portalRoot.id);
+    console.log('[DEBUG PROOF] Is Portal Root attached to Body?', isActuallyInDom);
 
+    if (!isActuallyInDom) {
+        console.error('[PROOF CONFIRMED] BUG DETECTED: The portalRoot exists in React state, but has been removed from the DOM by a previous instance.');
+    }
+}
+     
   return ReactDOM.createPortal(
     <>
       <div

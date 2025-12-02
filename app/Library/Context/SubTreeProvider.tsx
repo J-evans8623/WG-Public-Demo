@@ -96,7 +96,7 @@ export const SubTreeProvider = ({ children }: { children: ReactNode }) => {
     const updateListener = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
       // Filter out system-origin updates
       if (transaction.origin?.type === 'system' && ['initialize', 'reset'].includes((transaction.origin as any).action)) {
-        console.log('[SubTreeProvider] Ignoring system initialization update:', transaction.origin);
+        // console.log('[SubTreeProvider] Ignoring system initialization update:', transaction.origin);
         return;
       }
       const updatedSubtrees = new Map<string, SubtreeData>();

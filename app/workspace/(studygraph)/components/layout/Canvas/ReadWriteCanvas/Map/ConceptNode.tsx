@@ -38,7 +38,7 @@ import React, {
 import { ConceptNode as NodeType } from '@/app/Library/Definitions/Definitions';
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import { useColorThemeContext } from '@/app/Library/Context/ColorThemeProvider';
-import { Plus, Trash2, Pencil, GitBranch, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Pencil, GitBranch, Sparkles, Play } from 'lucide-react';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { v4 as uuidv4 } from 'uuid';
 import { useLayoutContext } from '@/app/Library/Context/LayoutProvider';
@@ -107,6 +107,8 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   const nodeRef = React.useRef<HTMLDivElement>(null);
   const { createNoteDraft, createCueCardDraft } = useResourceQuickActions();
 
+  const [isHoveringButton, setIsHoveringButton] = useState(false);
+
   /**
    * @function handleSelect
    * @description
@@ -119,8 +121,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
     (e: React.MouseEvent) => {
       e.stopPropagation();
       const isMulti = multiSelectEnabled || e.ctrlKey || e.metaKey;
-      const openSlide = e.altKey;
-
+      
       // 2) Merge completion (only if editing is allowed)          // update - 3
       if (mergeSource !== null && mergeSource !== node.id) {
         if (!canEdit) {
@@ -137,10 +138,9 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
       // 3) Selections are always allowed                          // update - 4
       if (isMulti) {
         multiSelect(node.id, true);
-        if (openSlide) open(node.id, true);
-      } else {
+  
+      } else { 
         singleSelect(node.id);
-        if (openSlide) open(node.id, true);
       }
     },
     [
@@ -152,11 +152,22 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
       layoutDispatch,
       setStatusMessage,
       multiSelect,
-      open,
       singleSelect,
-      canEdit, // update - 3
+      canEdit, 
     ]
   );
+
+  /**
+   * @function handleLaunchSlideshow
+   * @description
+   * Triggered by the Floating Play Badge on the caret node.
+   * Stops propagation to ensure we don't accidentally toggle selection state.
+   */
+  const handleLaunchSlideshow = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('[Canvas/ConceptNode.tsx] Floating play button clicked', { id: node.id });
+    open(node.id, true);
+  }, [node.id, open]);
 
   /**
    * @function handleTitleDoubleClick
@@ -441,7 +452,8 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
             isSelected(node.id) || node.id === targetNodeId || mergeSource === node.id
               ? undefined
               : `3px solid ${OUTLINE_COLOR}`,
-          backgroundColor: nodeColor, // update - 14
+          backgroundColor: nodeColor, 
+          overflow:'visible'
         }}
         role="button"
         tabIndex={0}
@@ -467,8 +479,44 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
           </svg>
         )}
 
+        {isCaretNode && (
+          <button
+            onClick={handleLaunchSlideshow}
+            className="absolute -top-4 -right-4 w-9 h-9 rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 z-20"
+            style={{
+              backgroundColor: '#FFFFFF', 
+              border: '1px solid #D4C4B0',
+              color: '#8B7355',
+              // Apply the pulse animation defined in style jsx above
+              animation: isHoveringButton ? 'none' : 'pulse 2s ease-in-out infinite'
+            }}
+            onMouseEnter={(e) => {
+              e.stopPropagation();
+              setIsHoveringButton(true);
+              setShowTooltip(false);
+              e.currentTarget.style.backgroundColor = '#FAF8F5';
+              e.currentTarget.style.borderColor = '#8B7355';
+            }}
+            onMouseLeave={(e) => {
+              setIsHoveringButton(false);
+              e.currentTarget.style.backgroundColor = '#FFFFFF';
+              e.currentTarget.style.borderColor = '#D4C4B0';
+
+              // If we move from the button back into the node card, restore the tooltip.
+              // We check if the new target is inside our nodeRef.
+              if (nodeRef.current && e.relatedTarget instanceof Node && nodeRef.current.contains(e.relatedTarget)) {
+                  handleMouseEnter();
+              }
+            }}
+            title="Start Slideshow"
+            aria-label="Start Slideshow"
+          >
+             <Play className="w-4 h-4 fill-current" />
+          </button>
+        )}
+
         <div className="flex-1 flex items-center justify-center p-4">
-          {isEditing && canEdit ? (  // update - 15
+          {isEditing && canEdit ? (  
             <input
               type="text"
               value={localTitle}
@@ -631,9 +679,9 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
             className="fixed bg-gray-800 text-white px-3 py-2 rounded-md text-sm shadow-lg z-50 pointer-events-none line-clamp"
             style={{
               left: `${tooltipPosition.x}px`,
-              top: `${tooltipPosition.y}px`,
+              top: `${tooltipPosition.y -5 }px`,
               transform: 'translateX(-50%)',
-              maxWidth: '900px',
+              maxWidth: '400px',
               maxHeight: '75px',
               lineHeight: '1.4'
             }}
@@ -643,7 +691,6 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
             </div>
             <div className="text-xs text-gray-300">
               <div>click to preview</div>
-              <div>alt + click to view slide</div>
             </div>
           </div>,
           document.body

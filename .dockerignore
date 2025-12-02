@@ -54,3 +54,9 @@ root.txt
 
 #dev scripts
 /scripts/dev
+
+
+#local value 
+app\firebase-service-account.json
+app/firebase-service-account.json
+**/firebase-service-account.json

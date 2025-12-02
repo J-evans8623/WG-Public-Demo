@@ -195,7 +195,7 @@ const addPost = useCallback(
     }
     ydoc.transact(() => {
       postsRoot.set(newPost.id, newPost)
-      console.log(`CommentsContext › addPost ${newPost.id}`)
+      // console.log(`CommentsContext › addPost ${newPost.id}`)
     }, LOCAL_ORIGIN)
   },
   [ydoc, postsRoot, authorUID]
@@ -223,7 +223,7 @@ const addComment = useCallback(
     }
     ydoc.transact(() => {
       postsRoot.set(postId, updated)
-      console.log(`CommentsContext › addComment ${newComment.id}`)
+      // console.log(`CommentsContext › addComment ${newComment.id}`)
     }, LOCAL_ORIGIN)
   },
   [ydoc, postsRoot, authorUID]
@@ -240,7 +240,7 @@ const deletePost = useCallback(
       if (!postsRoot.has(postId)) return;
       ydoc.transact(() => postsRoot.delete(postId), LOCAL_ORIGIN);
       clearSeenForDeleted(postId); // update - 4
-      console.log(`CommentsContext › deletePost ${postId}`);
+      // console.log(`CommentsContext › deletePost ${postId}`);
     },
     [ydoc, postsRoot, clearSeenForDeleted]
   );
@@ -347,7 +347,7 @@ const getCommentCount = useCallback(
   const closeForum = useCallback(() => {
     setForumOpen(false);
     setActiveConcept(null);
-    console.log(`CommentsContext › closeForum`);
+    // console.log(`CommentsContext › closeForum`);
   }, []);
 
 

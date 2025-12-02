@@ -32,14 +32,14 @@ export interface ActionFooterProps {  // update - 18
 }
 
 /**
- * @function ActionFooter  // update - 25
- * @description  // update - 26
- * Render the bottom control bar for the read/write CardDisplay. The UI is strictly keyed off the current     // update - 27
- * editing state: when `editing` is false (read mode), show the AddResourceDropdown (Ask AI + Add Card menu);  // update - 28
- * when `editing` is true (edit mode), replace the left cluster with right-aligned Save/Cancel controls and    // update - 29
- * hide Ask/Add to prevent conflicting actions during edits. Save honors `isSaveDisabled` so external form     // update - 30
- * validity can be enforced. Logs are purposefully placed to indicate render state, resource selection, and    // update - 31
- * save/cancel intent. All event handlers are O(1) and keep DOM/class hooks unchanged to protect CSS parity.   // update - 32
+ * @function ActionFooter 
+ * @description  
+ * Render the bottom control bar for the read/write CardDisplay. The UI is strictly keyed off the current    
+ * editing state: when `editing` is false (read mode), show the AddResourceDropdown (Ask AI + Add Card menu);  
+ * when `editing` is true (edit mode), replace the left cluster with right-aligned Save/Cancel controls and    
+ * hide Ask/Add to prevent conflicting actions during edits. Save honors `isSaveDisabled` so external form    
+ * validity can be enforced. Logs are purposefully placed to indicate render state, resource selection, and    
+ * save/cancel intent. All event handlers are O(1) and keep DOM/class hooks unchanged to protect CSS parity.   
  */
 const ActionFooter: React.FC<ActionFooterProps> = ({  // update - 33
   editing,  // update - 34

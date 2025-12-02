@@ -123,7 +123,7 @@ function _getOrInit(docId: string): GradebookCache {
       version: 0,
     };
     _store.set(docId, s);
-    console.log('useGradebook.ts [9301] › cache init', { docId }); // update - 3
+    // console.log('useGradebook.ts [9301] › cache init', { docId }); // update - 3
   }
   return s;
 }
@@ -148,7 +148,7 @@ function _subscribe(docId: string, cb: () => void): () => void {
   return () => {
     set.delete(cb);
     if (set.size === 0) _subs.delete(docId);
-    console.log('useGradebook.ts [9303] › unsubscribe', { docId, count: set.size }); // update - 6
+    // console.log('useGradebook.ts [9303] › unsubscribe', { docId, count: set.size }); // update - 6
   };
 }
 
@@ -206,11 +206,7 @@ function mergeServerSnapshot(docId: string, snap: GradebookQueryRes): void { // 
     s.lastUpdated = new Date().toISOString();
   });
 
-  console.log('useGradebook.ts [9304] › merged server snapshot', { // update - 8
-    docId,
-    students: snap.students?.length ?? 0,
-    assignments: snap.assignments?.length ?? 0,
-  });
+
 }
 
 /* =================================================================================================
@@ -243,7 +239,7 @@ export function useGradebook(docId: string): UseGradebookResult {
   const refresh = useCallback(async () => { // update - 13
     if (!docId) return;
     if (_inFlight.has(docId)) {
-      console.log('useGradebook.ts [9306] › refresh skipped; in flight', { docId }); // update - 14
+      // console.log('useGradebook.ts [9306] › refresh skipped; in flight', { docId }); // update - 14
       return;
     }
     _inFlight.add(docId);
@@ -251,16 +247,12 @@ export function useGradebook(docId: string): UseGradebookResult {
       s.status = 'updating';
       s.error = null;
     });
-    console.log('useGradebook.ts [9307] › refresh begin', { docId }); // update - 15
+    // console.log('useGradebook.ts [9307] › refresh begin', { docId }); // update - 15
 
     try {
       const res = await getGradebook(docId);
       mergeServerSnapshot(docId, res);
-      console.log('useGradebook.ts [9308] › refresh ok', { // update - 16
-        docId,
-        students: res.students.length,
-        assignments: res.assignments.length,
-      });
+
     } catch (err: any) {
       _patch(docId, (s) => {
         s.status = 'error';
@@ -287,12 +279,7 @@ export function useGradebook(docId: string): UseGradebookResult {
         s.lastUpdated = ts;
       });
 
-      console.log('useGradebook.ts [9309] › optimistic cell write', { // update - 19
-        docId,
-        email: nEmail,
-        assignmentId,
-        scorePct,
-      });
+
     },
     [docId]
   );
@@ -321,10 +308,7 @@ export function useGradebook(docId: string): UseGradebookResult {
           s.assignments = [...s.assignments, header];
         }
       });
-      console.log('useGradebook.ts [9310] › header upsert', { // update - 21
-        docId,
-        assignmentId: header.assignmentId,
-      });
+
     },
     [docId]
   );

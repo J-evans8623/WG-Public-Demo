@@ -155,7 +155,7 @@ export const LessonModuleProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setLessonModuleState({ title, conceptMaps });
     // [LessonModuleContext.tsx][6101]
     // eslint-disable-next-line no-console
-    console.log('[LessonModuleContext.tsx][6101] readFromYDoc snapshot', { count: conceptMaps.length });
+    // console.log('[LessonModuleContext.tsx][6101] readFromYDoc snapshot', { count: conceptMaps.length });
   }, [lessonModuleYMap]);
 
   // [update - 5] Adopt the NodesProvider-style init and subscription via reusable helper.
@@ -367,12 +367,12 @@ const setDefaultMap = useCallback(() => {
   const maps = conceptMapsYArray ? conceptMapsYArray.toArray() : [];
   const ids = maps.map((m: ConceptMap) => m.id);
   
-  console.log('[LessonModule] setDefaultMap – maps from Y.Doc →', ids);
+  // console.log('[LessonModule] setDefaultMap – maps from Y.Doc →', ids);
   if (ids.length > 0) {
-    console.log('[LessonModule] setDefaultMap – activating →', ids[0]);
+    // console.log('[LessonModule] setDefaultMap – activating →', ids[0]);
     setActiveConceptMapId(ids[0]);
   } else {
-    console.log('[LessonModule] setDefaultMap – no maps found in Y.Doc');
+    // console.log('[LessonModule] setDefaultMap – no maps found in Y.Doc');
   }
 }, [lessonModuleYMap]);
 

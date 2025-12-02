@@ -387,7 +387,7 @@ const createNewNode = useCallback(
  */
 const restoreNode = useCallback(
   (node: ConceptNode, parentId: string): void => {
-    console.log('NodesProvider.tsx 8001 › restoreNode start', node.id, 'parent:', parentId);
+    // console.log('NodesProvider.tsx 8001 › restoreNode start', node.id, 'parent:', parentId);
 
     // 1) Resolve parent and compute depth
     const parent = yNodesMap.get(parentId);
@@ -408,12 +408,12 @@ const restoreNode = useCallback(
       () => {
         const liveMap = ydoc.getMap<ConceptNode>(`nodes:${activeConceptMapId}`);
         liveMap.set(restored.id, restored);
-        console.log('NodesProvider.tsx 8002 › node set in map', restored.id);
+        // console.log('NodesProvider.tsx 8002 › node set in map', restored.id);
 
         if (parent) {
           const updatedChildren = [...(parent.childrenNodeIds || []), restored.id];
           yNodesMap.set(parentId, { ...parent, childrenNodeIds: updatedChildren });
-          console.log('NodesProvider.tsx 8002 › parent updated', parentId, 'children:', updatedChildren);
+          // console.log('NodesProvider.tsx 8002 › parent updated', parentId, 'children:', updatedChildren);
         }
 
         if (isPrimary) {
@@ -424,7 +424,7 @@ const restoreNode = useCallback(
     );
 
     // 5) Log completion
-    console.log('NodesProvider.tsx 8003 › restoreNode complete', restored.id);
+    // console.log('NodesProvider.tsx 8003 › restoreNode complete', restored.id);
   },
   [yNodesMap, ydoc, incrementVersion, activeConceptMapId, getRootNode]
 );
@@ -518,7 +518,7 @@ const restoreNode = useCallback(
               ...parent,
               childrenNodeIds: parent.childrenNodeIds!.filter((c) => c !== nodeId),
             })
-            console.log(` takku data after delete ${JSON.stringify(yNodesMap)}`);
+            // console.log(` takku data after delete ${JSON.stringify(yNodesMap)}`);
           },
           () => {
             yNodesMap.set(nodeId, node);

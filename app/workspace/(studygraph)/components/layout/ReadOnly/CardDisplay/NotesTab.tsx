@@ -69,17 +69,17 @@ const RONotesTab: React.FC<RONotesTabProps> = () => {
   const [isHoveringCard, setIsHoveringCard] = useState(false);
   const tabRef = useRef<HTMLDivElement>(null);
 
-  console.log('[RONotesTab.tsx][7001] Rendering read-only NotesTab with resource count:', ordered.length);
+ 
 
   // 4) Mouse event handlers (same logic as main NotesTab)
   const handleTabMouseEnter = () => {
     setIsHoveringTab(true);
-    console.log('[RONotesTab.tsx][7002] Tab hover state: entering (read-only)');
+
   };
 
   const handleTabMouseLeave = () => {
     setIsHoveringTab(false);
-    console.log('[RONotesTab.tsx][7003] Tab hover state: leaving (read-only)');
+
   };
 
   const handleCardMouseEnter = () => {
@@ -101,14 +101,14 @@ const RONotesTab: React.FC<RONotesTabProps> = () => {
   useEffect(() => {
     const node = tabRef.current;
     if (!node) {
-      console.log('[RONotesTab.tsx][7004] Tab ref not available for event listeners');
+ 
       return;
     }
 
     node.addEventListener('mouseenter', handleTabMouseEnter);
     node.addEventListener('mouseleave', handleTabMouseLeave);
 
-    console.log('[RONotesTab.tsx][7005] Mouse event listeners attached to read-only tab container');
+
 
     return () => {
       node.removeEventListener('mouseenter', handleTabMouseEnter);
@@ -118,27 +118,27 @@ const RONotesTab: React.FC<RONotesTabProps> = () => {
 
   // 7) Read-only handlers (no-ops with logging for debugging)
   const handleEditResourceReadOnly = (id: string) => {
-    console.log('[RONotesTab.tsx][7006] Edit resource requested (read-only: no-op) ID:', id);
+
     // No-op in read-only mode
   };
 
   const handleDeleteResourceReadOnly = (nodeId: string, resourceId: string) => {
-    console.log('[RONotesTab.tsx][7007] Delete resource requested (read-only: no-op) NodeID:', nodeId, 'ResourceID:', resourceId);
+
     // No-op in read-only mode
   };
 
   const handleDismissResourceReadOnly = (nodeId: string, resourceId: string) => {
-    console.log('[RONotesTab.tsx][7008] Dismiss resource requested (read-only: no-op) NodeID:', nodeId, 'ResourceID:', resourceId);
+
     // No-op in read-only mode
   };
 
   const handleAskAIReadOnly = () => {
-    console.log('[RONotesTab.tsx][7009] Ask AI requested (read-only: no-op)');
+
     // No-op in read-only mode
   };
 
   const handleImageCaptionReadOnly = () => {
-    console.log('[RONotesTab.tsx][7010] Image caption requested (read-only: no-op)');
+
     // No-op in read-only mode
   };
 
@@ -162,7 +162,7 @@ const RONotesTab: React.FC<RONotesTabProps> = () => {
       <div className="notes-content-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {ordered.length > 0 ? (
           ordered.map((r) => {
-            console.log('[RONotesTab.tsx][7011] Rendering read-only resource card:', r.id, 'Type:', r.type);
+
             
             return (
               <div

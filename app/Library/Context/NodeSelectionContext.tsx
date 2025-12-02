@@ -177,20 +177,20 @@ const multiSelect = (nodeId: string, isMulti: boolean = false) => { // update - 
 
   // --- Merge Functions (with logging) ---
   const initiateMerge = (nodeId: string) => {
-    console.log("Invoking initiateMerge issue12: nodeId =", nodeId);
+    // console.log("Invoking initiateMerge issue12: nodeId =", nodeId);
     setMergeSource(nodeId);
     setSelectedIDs([nodeId]);
-    console.log("Leaving initiateMerge issue12: mergeSource set to", nodeId, "selectedIDs =", [nodeId]);
+    // console.log("Leaving initiateMerge issue12: mergeSource set to", nodeId, "selectedIDs =", [nodeId]);
   };
 
   const completeMerge = (targetNodeId: string, transfer: (sourceId: string, targetId: string) => void) => {
-    console.log("Invoking completeMerge issue12: mergeSource =", mergeSource, "targetNodeId =", targetNodeId);
+    // console.log("Invoking completeMerge issue12: mergeSource =", mergeSource, "targetNodeId =", targetNodeId);
     if (mergeSource && mergeSource !== targetNodeId) {
       transfer(mergeSource, targetNodeId);
       setMergeSource(null);
       setSelectedIDs([]);
     }
-    console.log("Leaving completeMerge issue12: mergeSource =", mergeSource, "selectedIDs cleared");
+    // console.log("Leaving completeMerge issue12: mergeSource =", mergeSource, "selectedIDs cleared");
   };
 
   // New method to toggle multi-select mode.

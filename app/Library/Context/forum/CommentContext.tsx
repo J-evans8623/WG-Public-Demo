@@ -161,10 +161,10 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
     load();
     const onUpdate = (_: Y.YEvent<any>[]) => load();
     postsRoot.observeDeep(onUpdate);
-    console.log('CommentsContext.tsx [7707] › posts observer attached');
+    // console.log('CommentsContext.tsx [7707] › posts observer attached');
     return () => {
       postsRoot.unobserveDeep(onUpdate);
-      console.log('CommentsContext.tsx [7708] › posts observer detached');
+      // console.log('CommentsContext.tsx [7708] › posts observer detached');
     };
   }, [postsRoot]);
 
@@ -191,19 +191,19 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
       // skip interval saves when not dirty, with explicit log
       if (reason === 'interval' && !dirtySinceRef.current) {
-        console.log('CommentsContext.tsx [7715] › save:skip interval (clean)', { docId });
+        // console.log('CommentsContext.tsx [7715] › save:skip interval (clean)', { docId });
         return;
       }
 
       // skip unload save when clean (optional optimization)
       if (reason === 'unload' && !dirtySinceRef.current) {
-        console.log('CommentsContext.tsx [7716] › save:skip unload (clean)', { docId });
+        // console.log('CommentsContext.tsx [7716] › save:skip unload (clean)', { docId });
         return;
       }
 
       try {
         setForumStatus((s) => ({ ...s, isSaving: true }));
-        console.log('CommentsContext.tsx [7704] › save:start', { docId, reason, dirtySince: dirtySinceRef.current });
+        // console.log('CommentsContext.tsx [7704] › save:start', { docId, reason, dirtySince: dirtySinceRef.current });
 
         const bytes = Y.encodeStateAsUpdateV2(y);
 
@@ -230,7 +230,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
         const resp = await supersedingCall(key, { reason }, makeRequest); // update - 21
         if (!resp) {
-          console.log('CommentsContext.tsx [7718] › save deferred by Retry-After (scheduled)', { docId, reason }); // update - 21
+          // console.log('CommentsContext.tsx [7718] › save deferred by Retry-After (scheduled)', { docId, reason }); // update - 21
           setForumStatus((s) => ({ ...s, isSaving: false }));
           return;
         }
@@ -242,7 +242,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
         setForumStatus((s) => ({ ...s, isSaving: false, lastError: null, lastSavedAt: Date.now() }));
         dirtySinceRef.current = null;
-        console.log('CommentsContext.tsx [7705] › save:ok', { bytes: bytes.byteLength, reason });
+        // console.log('CommentsContext.tsx [7705] › save:ok', { bytes: bytes.byteLength, reason });
       } catch (err: any) {
         setForumStatus((s) => ({ ...s, isSaving: false, lastError: err?.message ?? 'save error' }));
         console.error('CommentsContext.tsx [7791] › save:error', { error: err?.message, reason });
@@ -262,7 +262,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
     if (periodicRef.current) clearInterval(periodicRef.current);
     saveTimerRef.current = null;
     periodicRef.current = null;
-    console.log('CommentsContext.tsx [7712] › autosave stopped');
+    // console.log('CommentsContext.tsx [7712] › autosave stopped');
   }, []);
 
   /**
@@ -286,7 +286,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       setPosts(new Map());
       currentDocIdRef.current = null;
       dirtySinceRef.current = null;
-      // console.log('CommentsContext.tsx [7794] › shutdown:ok');
+      // // console.log('CommentsContext.tsx [7794] › shutdown:ok');
     } catch (e: any) {
       console.warn('CommentsContext.tsx [7796] › shutdown:warn', { error: e?.message });
     }
@@ -325,10 +325,10 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       }
     };
     forumDoc.on('update', onUpdate);
-    console.log('CommentsContext.tsx [7709] › forumDoc update observer attached');
+    // console.log('CommentsContext.tsx [7709] › forumDoc update observer attached');
     return () => {
       forumDoc.off('update', onUpdate);
-      console.log('CommentsContext.tsx [7710] › forumDoc update observer detached');
+      // console.log('CommentsContext.tsx [7710] › forumDoc update observer detached');
     };
   }, [forumDoc, _scheduleDebouncedSave]);
 
@@ -342,11 +342,11 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
     if (periodicRef.current) clearInterval(periodicRef.current);
     periodicRef.current = setInterval(() => {
       if (!dirtySinceRef.current) {
-        console.log('CommentsContext.tsx [7714] › periodic check: clean, skipping');
+        // console.log('CommentsContext.tsx [7714] › periodic check: clean, skipping');
       }
       void _saveForumToStorage('interval');
     }, 60000);
-    console.log('CommentsContext.tsx [7711] › periodic autosave started');
+    // console.log('CommentsContext.tsx [7711] › periodic autosave started');
   }, [_saveForumToStorage]);
 
   /**
@@ -358,7 +358,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const _loadForumFromStorage = useCallback(async (docId: string): Promise<Y.Doc> => {
     const next = new Y.Doc();
     try {
-      console.log('CommentsContext.tsx [7701] › load:start', { docId });
+      // console.log('CommentsContext.tsx [7701] › load:start', { docId });
 
       // update - 21: wrap /api/forum/load
       const key = `forum:load:${docId}`;
@@ -376,16 +376,16 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
           if (!fileRes.ok) return fileRes;
           const buf = new Uint8Array(await fileRes.arrayBuffer());
           Y.applyUpdateV2(next, buf);
-          console.log('CommentsContext.tsx [7702] › load:applied', { bytes: buf.byteLength });
+          // console.log('CommentsContext.tsx [7702] › load:applied', { bytes: buf.byteLength });
         } else {
-          console.log('CommentsContext.tsx [7703] › load:empty', { docId });
+          // console.log('CommentsContext.tsx [7703] › load:empty', { docId });
         }
         return new Response(null, { status: 200 });
       };
 
       const resp = await supersedingCall(key, {}, makeRequest); // update - 21
       if (!resp) {
-        console.log('CommentsContext.tsx [7717] › load deferred by Retry-After (scheduled)', { docId }); // update - 21
+        // console.log('CommentsContext.tsx [7717] › load deferred by Retry-After (scheduled)', { docId }); // update - 21
         return next;
       }
 
@@ -439,7 +439,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // No-op if already initialized for this doc
     if (currentDocIdRef.current === docId && forumDoc) {
-      // console.log('CommentsContext.tsx [7713] › init:no-op (same docId)');
+      // // console.log('CommentsContext.tsx [7713] › init:no-op (same docId)');
       return;
     }
 
@@ -469,7 +469,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
       // Start realtime connection (socket-only) through stable ref
       await connectRef.current(docId, next);
-      // console.log('CommentsContext.tsx [7711] › connect:requested', { docId });
+      // // console.log('CommentsContext.tsx [7711] › connect:requested', { docId });
     } catch (e: any) {
       console.error('CommentsContext.tsx [7793] › init:error', { docId, error: e?.message });
       setForumStatus((s) => ({ ...s, lastError: e?.message ?? 'init error' }));
@@ -523,7 +523,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       };
       forumDoc.transact(() => {
         postsRoot.set(id, newPost);
-        console.log('CommentsContext.tsx [7723] › addPost', { id, resourceId });
+        // console.log('CommentsContext.tsx [7723] › addPost', { id, resourceId });
       }, LOCAL_ORIGIN);
     },
     [forumDoc, postsRoot, authorUID],
@@ -543,7 +543,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       const updated: Post = { ...post, replies: [...(post.replies ?? []), newComment] };
       forumDoc.transact(() => {
         postsRoot.set(postId, updated);
-        console.log('CommentsContext.tsx [7724] › addComment', { postId, commentId: newComment.id });
+        // console.log('CommentsContext.tsx [7724] › addComment', { postId, commentId: newComment.id });
       }, LOCAL_ORIGIN);
     },
     [forumDoc, postsRoot, authorUID],
@@ -555,7 +555,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       if (!postsRoot.has(postId)) return;
       forumDoc.transact(() => {
         postsRoot.delete(postId);
-        console.log('CommentsContext.tsx [7725] › deletePost', { postId });
+        // console.log('CommentsContext.tsx [7725] › deletePost', { postId });
       }, LOCAL_ORIGIN);
       clearSeenForDeleted(postId);
     },
@@ -603,7 +603,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const closeForum = useCallback(() => {
     setForumOpen(false);
     setActiveConcept(null);
-    console.log('CommentsContext.tsx [7726] › closeForum');
+    // console.log('CommentsContext.tsx [7726] › closeForum');
   }, []);
 
   // ───────────────────────────────────────────────────────────────────────────────

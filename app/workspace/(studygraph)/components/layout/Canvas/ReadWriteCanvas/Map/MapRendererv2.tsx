@@ -35,11 +35,6 @@ import { drawHVStyleLines } from '@/app/Library/utils/drawHVStyleLines';
 import ConceptNode from './ConceptNode';
 import Subtree from '../../Subtree';
 import '@/app/workspace/(studygraph)/components/layout/hiddenScrollbar.css';
-
-// update - 7: Removed DAM/edit-readiness telemetry imports to keep renderer pure and reduce subscriptions.
-// (Deleted imports: useAccessSnapshot, useEditReady)
-
-// update - 2: Background component that lives inside content layer and can be cached efficiently.
 import GridBackground from './GridBackground';
 
 const MIN_ZOOM = 0.5;
@@ -267,6 +262,32 @@ const MapRenderer: React.FC = () => {
     }
     return origin;
   }, [bedHeightPx, zoomLevel]);
+
+
+
+  // ... existing hooks
+
+  // FIX: Block keyboard scrolling (Arrow Keys) on the map container
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // List of keys to block from scrolling
+      const scrollKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+      
+      if (scrollKeys.includes(e.key)) {
+        e.preventDefault();
+      }
+    };
+
+    // Add listener to the scrollable container
+    container.addEventListener('keydown', handleKeyDown);
+    
+    // Cleanup
+    return () => container.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
 
   return (
     <div

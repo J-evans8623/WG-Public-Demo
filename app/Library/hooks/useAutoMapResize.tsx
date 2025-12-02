@@ -31,7 +31,7 @@ export function useAutoMapResize(mapRef: React.RefObject<HTMLDivElement>) {
     if (mapRef.current) {
       mapRef.current.style.width = `${defaultMapWidth}px`;
       mapRef.current.style.height = `${defaultMapHeight}px`;
-      console.log(`${defaultMapWidth} by ${defaultMapHeight}`);
+      // console.log(`${defaultMapWidth} by ${defaultMapHeight}`);
     }
     layoutDispatch(toggleResetMapSize());
   }, [defaultMapWidth, defaultMapHeight, mapRef, layoutDispatch]);

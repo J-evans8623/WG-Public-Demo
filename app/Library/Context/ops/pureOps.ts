@@ -139,7 +139,7 @@ export async function opLoadAuth(params: OpLoadAuthParams): Promise<OpLoadAuthOu
   // (1)
   const { downloadUrl: docUrl, storageGeneration, versionNumber, access } = await getDownloadUrl(docId, 'doc');
   // telemetry (internal only)
-  console.log('[pureOps] opLoadAuth: resolved doc URL', { docId, storageGeneration, versionNumber });
+  // console.log('[pureOps] opLoadAuth: resolved doc URL', { docId, storageGeneration, versionNumber });
 
   // (2)
   const docResp = await fetch(docUrl);
@@ -254,7 +254,7 @@ export async function opCreate(_: OpCreateParams): Promise<OpCreateOutput> {
   const colorCode = getRandomColor();
 
   const { doc, chat, access: uploadAccess } = await initialUpload(newDocId);
-  console.log('[pureOps.ts][5203] opCreate › initialUpload', { newDocId, fileSize });
+  // console.log('[pureOps.ts][5203] opCreate › initialUpload', { newDocId, fileSize });
 
   const putDoc = await fetch(doc.uploadUrl, {
     method: 'PUT',

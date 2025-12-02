@@ -266,7 +266,7 @@ const addResourcev1 = useCallback(
           updatedAt,
         } as QuizAssessmentResource;
 
-        console.log('ResourceContext.tsx[2101] › add quizAssessment assignmentId=', id, 'mapId=', usedMapId);
+        // console.log('ResourceContext.tsx[2101] › add quizAssessment assignmentId=', id, 'mapId=', usedMapId);
       }
 
       const effectiveNodeId = (card as ResourceCard).nodeId;
@@ -321,12 +321,7 @@ const addResourcev1 = useCallback(
 // ResourceContext.tsx
 const restoreResource = useCallback(
   (card: ResourceCard): void => {
-    console.log(
-      'ResourceContext.tsx 8101 › restoreResource start',
-      card.id,
-      'node:',
-      card.nodeId
-    );
+
     // Always write into the *live* Y.Doc map:
     const liveMap = ydoc.getMap<Y.Map<ResourceCard>>(mapKey);
     const yMapForNode = liveMap.get(card.nodeId) ?? new Y.Map<ResourceCard>();
@@ -335,24 +330,15 @@ const restoreResource = useCallback(
       () => {
         if (!liveMap.has(card.nodeId)) {
           liveMap.set(card.nodeId, yMapForNode);
-          console.log(
-            'ResourceContext.tsx 8102 › created inner map for node',
-            card.nodeId
-          );
+
         }
         yMapForNode.set(card.id, card);
-        console.log(
-          'ResourceContext.tsx 8102 › card set in Y.Doc (no React‐state mutation)',
-          card.id
-        );
+
       },
       { type: 'system', action: 'restoreResource' }
     );
 
-    console.log(
-      'ResourceContext.tsx 8103 › restoreResource complete',
-      card.id
-    );
+
   },
   [ydoc, mapKey]
 );
@@ -576,12 +562,7 @@ const selectResourcesFn = useCallback(
       const filtered = arr.filter(
         (r) => r.type !== 'quizAssessment'
       );
-      console.log(
-        'ResourceContext.tsx[3601] › selectResources filtered count=',
-        filtered.length,
-        'original=',
-        arr.length
-      );
+
 
       // Only order the standard card types that appear in this view.
       const order: Record<'note' | 'cueCard' | 'practiceSheet', number> = {
@@ -651,7 +632,7 @@ const selectResourcesFn = useCallback(
     const list = (resources.get(GLOBAL_ASSESSMENTS_NODE_ID) || []).filter(
       (r): r is QuizAssessmentResource => r.type === 'quizAssessment'
     );
-    console.log('ResourceContext.tsx[3301] › selectQuizAssessments count=', list.length);
+    // console.log('ResourceContext.tsx[3301] › selectQuizAssessments count=', list.length);
     return list;
   }, [resources]);
 
@@ -667,10 +648,10 @@ const selectResourcesFn = useCallback(
       const m = mapId || activeConceptMapId;
       const card = globalResourceCardLookup(ydoc, m, GLOBAL_ASSESSMENTS_NODE_ID, assignmentId);
       if (card && card.type === 'quizAssessment') {
-        console.log('ResourceContext.tsx[3401] › getQuizAssessmentById hit', assignmentId);
+        // console.log('ResourceContext.tsx[3401] › getQuizAssessmentById hit', assignmentId);
         return card as QuizAssessmentResource;
       }
-      console.log('ResourceContext.tsx[3402] › getQuizAssessmentById miss', assignmentId);
+      // console.log('ResourceContext.tsx[3402] › getQuizAssessmentById miss', assignmentId);
       return undefined;
     },
     [activeConceptMapId, ydoc]
@@ -718,22 +699,14 @@ const selectResourcesFn = useCallback(
       nodeId: string,
       resourceId: string
     ): ResourceCard | undefined => {
-      console.log(
-        '[ResourceContext.tsx][2001] › getGlobalResourceCard called with',
-        mapId,
-        nodeId,
-        resourceId
-      );
+
       const card = globalResourceCardLookup(
         activeDoc,
         mapId,
         nodeId,
         resourceId
       );
-      console.log(
-        '[ResourceContext.tsx][2002] › getGlobalResourceCard result',
-        card ? card.id : 'undefined'
-      );
+
       return card;
     },
     [activeDoc]
@@ -784,7 +757,7 @@ const selectResourcesFn = useCallback(
       updatedAt: new Date().toISOString(),
     };
 
-    console.log('ResourceContext.tsx[9201] › createQuizAssignmentCard start', { assignmentId: id, mapId: usedMapId });
+    // console.log('ResourceContext.tsx[9201] › createQuizAssignmentCard start', { assignmentId: id, mapId: usedMapId });
 
     const delta: Delta = { type: 'RESOURCE_ADD', nodeId: GLOBAL_ASSESSMENTS_NODE_ID, card };
     ydoc.transact(() => {
@@ -820,7 +793,7 @@ const selectResourcesFn = useCallback(
       );
     }, LOCAL_ORIGIN);
 
-    console.log('ResourceContext.tsx[9202] › createQuizAssignmentCard ok', { assignmentId: id });
+    // console.log('ResourceContext.tsx[9202] › createQuizAssignmentCard ok', { assignmentId: id });
     return card;
   }, [ydoc, activeConceptMapId, isReadOnly]);
 
