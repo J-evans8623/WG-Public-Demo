@@ -71,59 +71,6 @@ const NotebookSelector: React.FC<NotebookSelectorProps> = ({
   return (
     <div className="calendar-container space-y-4">
       
-      {/* Step 5: Enhanced Selection Summary */}
-      {selectedNotebooks.length > 0 && (
-        <div className="actions-card" style={{ background: '#F8FBF8', borderColor: '#5B8C5A' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <Check size={16} style={{ color: '#5B8C5A' }} />
-            <p style={{ color: '#2C3E50', fontSize: '14px', fontWeight: '500' }}>
-              {selectedNotebooks.length} notebook{selectedNotebooks.length !== 1 ? 's' : ''} selected for calendar planning
-            </p>
-          </div>
-
-          {/* Step 6: Selected notebook indicators */}
-          <div className="flex flex-wrap gap-2 mt-2">
-            {selectedNotebooks.slice(0, 5).map(notebookId => {
-              const notebook = notebooks.find(n => n.fileId === notebookId);
-              if (!notebook) return null;
-              
-              return (
-                <div key={notebookId} className="flex items-center gap-2 px-2 py-1" 
-                      style={{ 
-                        background: 'white', 
-                        border: '1px solid #D0D0D0', 
-                        borderRadius: '6px',
-                        fontSize: '12px'
-                      }}>
-                  <div 
-                    className="w-3 h-3 rounded-full"
-                    style={{ 
-                      backgroundColor: getNotebookColor(notebook),
-                      border: '1px solid #D0D0D0'
-                    }}
-                  />
-                  <span style={{ color: '#2C3E50' }} className="truncate max-w-24">
-                    {notebook.fileName}
-                  </span>
-                </div>
-              );
-            })}
-            {selectedNotebooks.length > 5 && (
-              <div className="px-2 py-1" 
-                    style={{ 
-                      background: '#FAFAFA', 
-                      border: '1px solid #D0D0D0', 
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      color: '#6C757D'
-                    }}>
-                +{selectedNotebooks.length - 5} more
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Step 4: Enhanced Search and Actions Header */}
       <div className="files-header-top" style={{ marginBottom: '16px' }}>
         <div className="files-search">
