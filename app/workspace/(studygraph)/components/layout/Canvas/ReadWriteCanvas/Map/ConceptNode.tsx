@@ -679,7 +679,7 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
             className="fixed bg-gray-800 text-white px-3 py-2 rounded-md text-sm shadow-lg z-50 pointer-events-none line-clamp"
             style={{
               left: `${tooltipPosition.x}px`,
-              top: `${tooltipPosition.y -5 }px`,
+              top: `${tooltipPosition.y }px`,
               transform: 'translateX(-50%)',
               maxWidth: '400px',
               maxHeight: '75px',
