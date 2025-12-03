@@ -79,7 +79,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf_viewer.min.css"
         />
       </head>
-      <body className="h-screen w-screen overflow-x-hidden bg-[#FFFBEF]">
+      <body className="h-screen w-screen overflow-x-hidden">
        <Providers session={session}>{children}</Providers>
       </body>
       <GoogleAnalytics gaId="G-MGQK0F3H8D" />

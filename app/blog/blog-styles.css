@@ -1,0 +1,260 @@
+/**
+ * @file blog-styles.css
+ * @description Production styling for WiseGraph Blog
+ */
+
+:root {
+  --wg-bg-paper: #FEFDFC;
+  --wg-bg-tan: #FEFDFC;
+  --wg-text-main: #2c3e50;
+  --wg-text-muted: #546b81;
+  --wg-accent-red: #E34432;
+  --wg-accent-taupe: #8C7B6C;
+  --wg-border-frame: #E2E4E7;
+  --wg-font-serif: 'Crimson Text', serif;
+  --wg-font-sans: 'Inter', sans-serif;
+}
+
+body {
+  background-color: var(--wg-bg-paper);
+  color: var(--wg-text-main);
+  min-height: 100vh;
+}
+
+/* CONTAINER */
+.blog-container {
+  max-width: 800px; /* 800px is the gold standard for readability */
+  margin: 0 auto;
+  padding: 0 24px 120px;
+  width: 100%;
+}
+
+/* HEADER */
+.blog-header {
+  text-align: center;
+  margin: 80px auto 60px;
+  max-width: 700px;
+}
+
+.blog-header h1 {
+  font-family: var(--wg-font-serif);
+  font-size: clamp(2.5rem, 5vw, 4rem); /* Bigger, responsive title */
+  color: var(--wg-text-main);
+  line-height: 1.1;
+  margin-bottom: 24px;
+}
+
+/* TYPOGRAPHY (The missing piece) */
+.prose {
+  font-family: var(--wg-font-serif);
+  font-size: 1.25rem; /* 20px base size for comfortable reading */
+  line-height: 1.8;
+  color: #334155; /* Softer black */
+}
+
+/* Add spacing between elements */
+.prose > * + * {
+  margin-top: 1.5em;
+}
+
+/* Headings inside the article */
+.prose h2 {
+  font-family: var(--wg-font-sans); /* Contrast font for subheads */
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--wg-text-main);
+  margin-top: 2.5em;
+  margin-bottom: 0.8em;
+  letter-spacing: -0.02em;
+}
+
+.prose h3 {
+  font-family: var(--wg-font-sans);
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-top: 2em;
+  margin-bottom: 0.6em;
+}
+
+/* Lists */
+.prose ul, .prose ol {
+  padding-left: 1.5em;
+  margin-bottom: 1.5em;
+}
+
+.prose li {
+  margin-bottom: 0.5em;
+  padding-left: 0.5em;
+}
+
+.prose li::marker {
+  color: var(--wg-accent-red); /* Brand color bullets */
+  font-weight: bold;
+}
+
+/* Blockquotes */
+.prose blockquote {
+  border-left: 4px solid var(--wg-accent-red);
+  padding-left: 1.5em;
+  font-style: italic;
+  color: var(--wg-text-muted);
+  background: var(--wg-bg-tan);
+  padding: 1.5em;
+  border-radius: 0 8px 8px 0;
+  margin: 2em 0;
+}
+
+/* Strong / Bold */
+.prose strong {
+  font-weight: 700;
+  color: var(--wg-text-main);
+}
+
+/* Links */
+.prose a {
+  color: var(--wg-accent-red);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+.prose a:hover {
+  color: #c0392b;
+}
+
+/* --- REUSE PREVIOUS FILTER/CARD STYLES BELOW THIS LINE --- */
+/* (Copy the .blog-filters and .blog-card styles from the previous file here) */
+
+/* =========================================
+   FILTER BAR (Categories)
+   ========================================= */
+.blog-filters {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 60px;
+  flex-wrap: wrap;
+}
+
+.blog-filter-btn {
+  background: white;
+  border: 1px solid var(--wg-border-frame);
+  padding: 8px 20px;
+  border-radius: 99px;
+  font-family: var(--wg-font-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--wg-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.blog-filter-btn:hover {
+  border-color: var(--wg-accent-taupe);
+  color: var(--wg-text-main);
+}
+
+.blog-filter-btn.active {
+  background: var(--wg-text-main);
+  color: white;
+  border-color: var(--wg-text-main);
+}
+
+/* =========================================
+   EDITORIAL ARTICLE CARD (The List Item)
+   ========================================= */
+.blog-card {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 40px;
+  padding: 40px 0;
+  border-bottom: 1px solid var(--wg-border-frame);
+  text-decoration: none; /* Remove underline from anchor */
+  color: inherit;
+  transition: transform 0.2s ease;
+}
+
+.blog-card:hover {
+  transform: translateX(8px);
+}
+
+/* Thumbnail Area */
+.blog-card-thumb {
+  height: 180px;
+  background: var(--wg-bg-tan);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  color: var(--wg-accent-taupe);
+  overflow: hidden;
+}
+
+/* Content Area */
+.blog-card-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.blog-card-title {
+  font-family: var(--wg-font-serif);
+  font-size: 1.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--wg-text-main);
+  margin-bottom: 12px;
+  transition: color 0.2s ease;
+}
+
+.blog-card:hover .blog-card-title {
+  color: var(--wg-accent-red);
+}
+
+.blog-card-excerpt {
+  font-family: var(--wg-font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--wg-text-muted);
+}
+
+/* Meta Data (Date, Category) */
+.blog-meta {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  align-items: center;
+  font-family: var(--wg-font-sans);
+}
+
+.blog-meta-tag {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--wg-accent-red);
+}
+
+.blog-meta-date {
+  font-size: 0.85rem;
+  color: var(--wg-accent-taupe);
+}
+
+/* =========================================
+   RESPONSIVE
+   ========================================= */
+@media (max-width: 768px) {
+  .blog-card {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .blog-card-thumb {
+    width: 100%;
+    height: 200px;
+  }
+
+  .blog-card-title {
+    font-size: 1.5rem;
+  }
+}

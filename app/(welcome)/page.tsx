@@ -1,33 +1,30 @@
 // app/(marketing)/welcome/page.tsx
 
-/**
- * @file app/(marketing)/welcome/page.tsx
- * @description Next.js route entry for the WiseGraph marketing welcome page.
- * Delegates rendering to the client-side <WelcomeLandingPage /> shell
- * and now includes the global SiteFooter.
- */
-
 import type { Metadata } from 'next';
 import React from 'react';
 import WelcomeLandingPage from '@/app/(welcome)/WelcomeLandingPage';
-// update - 1: Import the global footer component
 import SiteFooter from '@/components/SiteFooter';
 import SiteHeader from '@/components/SiteHeader';
 import SoftwareSchema from '@/components/seo/SoftwareSchema';
 
 export const metadata: Metadata = {
-  title: 'WiseGraph — Unlock Your True Learning Potential',
+  // Keep keywords, but no "Free" promise here
+  title: 'WiseGraph | Spaced Repetition App & AI Study Planner',
+  
   description:
-    'Turn messy notes into active knowledge. WiseGraph uses AI to generate summaries, quizzes, and flashcards from your files, then schedules them into 30-minute sessions.',
+    'Stop cramming and start remembering. WiseGraph is an AI study planner that turns your notes into active recall quizzes and schedules them perfectly to prevent burnout.',
+    
+  // SOCIAL SHARING (Discord/TikTok/Slack)
+  openGraph: {
+    title: 'WiseGraph | Stop Cramming, Start Remembering',
+    // UPDATE: Changed "The free AI tool" to "Try the AI tool"
+    description: 'Try the AI tool that plans your studying so you don\'t burn out.',
+    images: ['/brand/hero-shot-highest-res.png'],
+  },
 };
 
-/**
- * Default export for /welcome.
- * Renders the Landing Page client shell followed by the SiteFooter.
- */
 export default function Page(): JSX.Element {
   return (
-    // update - 2: Wrap in fragment to render Footer below the landing content
     <>
       <SoftwareSchema />
       <SiteHeader />
