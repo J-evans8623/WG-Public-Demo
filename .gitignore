@@ -63,3 +63,6 @@ app\firebase-service-account.json
 app/firebase-service-account.json
 # ignore any file by this name
 **/firebase-service-account.json 
+
+
+**/mockLessonData.ts

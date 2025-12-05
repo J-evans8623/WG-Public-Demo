@@ -40,7 +40,7 @@ import { UserService } from '@/app/src/services/userService';
 import { v4 as uuidv4 } from 'uuid';
 import pdfParse from 'pdf-parse';
 import UsageTracker from '@/app/src/services/UsageTracker';
-
+import { MOCK_LESSON_DATA } from '@/app/src/data/mockLessonData';
 /**
  * NextApiRequestWithFile
  * Extends NextApiRequest to include a file property (added by Multer).
@@ -166,6 +166,45 @@ export default async function handler(
       res.setHeader('Allow', ['POST']);
       return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
+
+
+    if (process.env.NODE_ENV === 'development') {
+        console.log('[GenerateLesson.ts] 🛠️ DEVELOPMENT MODE DETECTED: Returning comprehensive static test data.');
+        
+        // Simulating a brief delay for realistic UI loading states
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        // Construct a full mock response object matching the production schema
+        const mockResponse = {
+            id: `dev-upload-${uuidv4()}`,
+            url: 'http://localhost:3000/assets/mocks/foundations_of_memory.pdf',
+            type: 'application/pdf',
+            title: 'Foundations of Human Memory.pdf',
+            size: 2450000, // ~2.45 MB
+            visibility: 'private',
+            owner: 'dev-admin@example.com',
+            uploadedAt: new Date().toISOString(),
+            metadata: {
+                pageCount: 28,
+                extractionMethod: 'mock-dev',
+                originalName: 'Foundations of Human Memory.pdf'
+            },
+            lessonModules: MOCK_LESSON_DATA, // Imported from external file
+            usageInfo: {
+                accountType: 'scholar',
+                subscriptionTier: 'premium',
+                rateLimitInfo: {
+                    hourlyRemaining: 14, // Simulating 1 used
+                    monthlyRemaining: 199, // Simulating 1 used
+                    hourlyLimit: 15,
+                    monthlyLimit: 200,
+                }
+            }
+        };
+
+        return res.status(200).json(mockResponse);
+    }
+    // --- DEVELOPMENT MODE BYPASS END ---
 
     // Step 3: Authenticate and get enhanced session with user profile
     const sessionData = await authenticateRequest(req, res);

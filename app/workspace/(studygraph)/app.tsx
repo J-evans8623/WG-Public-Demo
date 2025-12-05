@@ -393,11 +393,12 @@ export const AppLayout: React.FC = () => {
   return (
     <GoogleOAuthProvider clientId={clientId}>
       <ApiProvider>
-        <GlobalModalProvider>
+        
           <AccessLayerProvider>
             <YDocProvider>
               <CollabProvider>
               <CalendarProvider>
+                <GlobalModalProvider>
                 <ViewSwitchProvider>
                   <LessonModuleProvider>
                     <FileAssetProvider>
@@ -440,11 +441,11 @@ export const AppLayout: React.FC = () => {
                     </FileAssetProvider>
                   </LessonModuleProvider>
                 </ViewSwitchProvider>
+                </GlobalModalProvider>
               </CalendarProvider>
               </CollabProvider>
             </YDocProvider>
           </AccessLayerProvider>
-        </GlobalModalProvider>
       </ApiProvider>
     </GoogleOAuthProvider>
   );

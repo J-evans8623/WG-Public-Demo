@@ -36,15 +36,19 @@ export function opCreateLocal(): {
   visibility: 'private';
   version: number;
 } {
+
   // (1)
   const ydoc = new Y.Doc();
   const meta = ydoc.getMap<any>('metadata');
 
   // (2)
   const docId = uuidv4();
+    console.log(`Debug: 3245 Inconsistent Ids: Inital doc id when created ${docId}`)
   const fileName = 'Untitled Document';
   const visibility: 'private' = 'private';
   const version = 1;
+
+
 
   ydoc.transact(() => {
     meta.clear();
@@ -122,6 +126,7 @@ export async function opBootstrapNewDoc(args: {
   chatFresh: boolean;
   fileStoragePath: string;
   chatPath: string;
+  colorCode: string;
 }> {
   // (1)
   const { doc: docTicket, chat: chatTicket, access: uploadAccess } = await initialUpload(args.docId);
@@ -191,5 +196,6 @@ export async function opBootstrapNewDoc(args: {
     chatFresh: true,
     fileStoragePath: docTicket.fileStoragePath,
     chatPath: chatTicket.fileStoragePath,
+    colorCode
   };
 }

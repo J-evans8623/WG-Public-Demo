@@ -60,3 +60,6 @@ root.txt
 app\firebase-service-account.json
 app/firebase-service-account.json
 **/firebase-service-account.json
+
+
+**/mockLessonData.ts

@@ -11,7 +11,7 @@ import { X, Calendar, BookOpen, AlertCircle, RefreshCw } from 'lucide-react';
 import { useCalendar } from '@/app/Library/Context/CalendarContextv2';
 import { PickerFileMeta, StudySession } from '@/app/Library/Definitions/CalendarDefinitions';
 import NotebookSelector from './NotebookSelector';
-import CalendarMonthView from './CalendarMonthView';
+import CalendarMonthView from './draft/CalendarMonthView';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import './calendar-theme.css';
 import { ALL_DAYS } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/Configuration';
@@ -61,7 +61,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
    * @behavior
    *   - When `isOpen` becomes true, if `currentMonth?.dailyPlans?.length > 0`, set tab to 'calendar'.
    *   - Otherwise stay on 'select'.
-   *   // update - 1
+   *   
    */
   useEffect(() => {
     if (!isOpen) return;
@@ -128,6 +128,7 @@ const handleUpdateSchedule = async () => {
   // Step 1: Delegate to context API which handles fetching metas + merging
   // Step 2: Keep UX (spinners/disabled) controlled by isLoading from context
   await updateStudyPlan();
+  setActiveTab('calendar');
 };
 
   /**
@@ -175,6 +176,10 @@ const handleUpdateSchedule = async () => {
   // Version notices
   const hasVersionMismatch = notebookVersions && Array.from(notebookVersions.values()).some(v => v.needsUpdate);
   const extensionInProgressState = isLoading || extensionInProgress;
+
+  // Logic to determine if we are generating fresh or updating
+  // If we have a currentMonth (implying a plan exists), we are in "Update" mode even on the select tab.
+  const hasExistingPlan = !!currentMonth;
 
   // Helpers for DayAvailability UI
   const allDays: Array<'Sun' | 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat'> = [
@@ -340,14 +345,25 @@ const handleUpdateSchedule = async () => {
 
           {/* Actions */}
           <div className="flex gap-3 ml-auto">
-            {activeTab === 'select' && (
-              <button
-                onClick={handleGenerateSchedule}
-                disabled={selectedNotebooks.length === 0 || extensionInProgressState}
-                className="calendar-btn calendar-btn-primary"
-              >
-                {extensionInProgressState ? 'Updating..' : 'Generate Schedule'}
-              </button>
+{activeTab === 'select' && (
+              /* update - 4: Dynamic button text and action based on plan existence */
+              hasExistingPlan ? (
+                <button
+                  onClick={handleUpdateSchedule}
+                  disabled={selectedNotebooks.length === 0 || extensionInProgressState}
+                  className="calendar-btn calendar-btn-secondary"
+                >
+                  {extensionInProgressState ? 'Updating...' : 'Update Schedule'}
+                </button>
+              ) : (
+                <button
+                  onClick={handleGenerateSchedule}
+                  disabled={selectedNotebooks.length === 0 || extensionInProgressState}
+                  className="calendar-btn calendar-btn-primary"
+                >
+                  {extensionInProgressState ? 'Creating...' : 'Generate Schedule'}
+                </button>
+              )
             )}
 
             {activeTab === 'calendar' && (

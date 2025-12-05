@@ -34,6 +34,7 @@ import { useGlobalModal } from '@/app/workspace/(studygraph)/components/modals/G
 import { useAccountStatus } from '@/app/src/context/ApiContext';
 import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
 import './NavigationPanel.css';
+import { useCalendar } from '@/app/Library/Context/CalendarContextv2';
 
 /** Top-level view types */
 type TopLevelView = 'home' | 'map' | 'user';
@@ -100,7 +101,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lesson: any } | null>(null);
-
+  const { isNotebookTracked, queueNotebookIntegration } = useCalendar();
   // ---------------------------
   // [4] Notify parent on expand
   // ---------------------------
@@ -288,7 +289,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
    * comprehensive logging and error handling for production reliability.
    */
   const handleGenerateLessonSuccess = useCallback(
-    (responseData: any) => {
+   async (responseData: any, addToPlan?: boolean) => {
       // console.log('[NavigationPanel.tsx][7012] generate success', responseData);
       try {
         const generated: TextFileMessage = {
@@ -306,11 +307,20 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
         if (responseData.id && responseData.lessonModules) {
           addLessonModule(responseData.id, { lessonModules: responseData.lessonModules });
         }
+
+        // 2. Handle Calendar Integration (New Sequence)
+        if (addToPlan) {
+            console.log(`Debug: 3245 Inconsistent Ids: doc id when read in navigation panel ${docFileID}`)
+                          // We can show a toast or global loader here if needed, or just let it happen
+             // integrateNotebook manages its own loading/error state in CalendarContext
+             queueNotebookIntegration(docFileID!);
+        }
+
       } catch (e) {
         console.error('[NavigationPanel.tsx][7013] generate payload error', e);
       }
     },
-    [accountStatus?.accountType, addGeneratedLessonFile, addLessonModule]
+    [accountStatus?.accountType, addGeneratedLessonFile, addLessonModule, docFileID, queueNotebookIntegration]
   );
 
     /**
@@ -327,8 +337,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     showModal('lessonGeneration', {
       docFileId: docFileID,
       onSuccess: handleGenerateLessonSuccess,
+      checkTrackedStatus: isNotebookTracked,
+      onQueueIntegration: queueNotebookIntegration,
     });
-  }, [canEdit, showModal, docFileID, handleGenerateLessonSuccess]);
+  }, [canEdit, showModal, docFileID, handleGenerateLessonSuccess, isNotebookTracked, queueNotebookIntegration]);
 
   // ------------------------------------------------------------------------------------
   // Render

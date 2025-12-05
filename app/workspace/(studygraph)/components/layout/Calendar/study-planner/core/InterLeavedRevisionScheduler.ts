@@ -173,7 +173,7 @@ function createInterleavedSession(
     sessionConfig: { unitCount: 0 },
     metadata: {
       // SessionAggregator will enrich when chunk context is present; for interleaved we set minimally
-      sessionTitle: `${notebook.fileName} — Interleaved Revision`,
+      sessionTitle: `${notebook.fileName} `,
       estimatedDuration: 20,
       topicTitles: [],
     },

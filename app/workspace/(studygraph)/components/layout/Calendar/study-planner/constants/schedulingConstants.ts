@@ -18,7 +18,7 @@
 export const DEFAULT_CHUNK_SIZE = 3;
 
 /** Max notebooks per learning set; enforced by distributor and used by schedulers. */
-export const MAX_NOTEBOOKS_PER_LEARNING_SET = 3;
+export const NOTEBOOK_SPLIT_THRESHOLD = 3;
 
 /** Interleaved quota multiplier: total sessions required = lessons * multiplier. */
 export const INTERLEAVED_REVISION_MULTIPLIER = 3;

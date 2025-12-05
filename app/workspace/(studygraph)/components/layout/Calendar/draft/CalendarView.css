@@ -1,0 +1,235 @@
+/* CalendarView.css */
+
+/* ===========================
+   Calendar Container
+   =========================== */
+.calendar-month-view {
+  background: #ffffff;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+/* ===========================
+   Labels Row
+   =========================== */
+.calendar-labels-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.calendar-day-label {
+  padding: 12px 4px;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+}
+
+/* ===========================
+   Grid Layout
+   =========================== */
+.calendar-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: #f3f4f6; 
+  border: 1px solid #e5e7eb;
+  
+  /* CRITICAL: This allows the rows to grow automatically based on content */
+  grid-auto-rows: minmax(110px, auto); 
+  align-items: stretch;
+}
+
+/* ===========================
+   Day Cells
+   =========================== */
+.calendar-day-cell {
+  background: #ffffff;
+  padding: 6px 6px 30px 6px; 
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%; 
+  transition: box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.calendar-day-cell:hover {
+  background: #f9fafb; 
+}
+
+/* EXPANDED STATE FIX */
+.calendar-day-cell.expanded {
+  background: #ffffff;
+  z-index: 10;
+  box-shadow: inset 0 0 0 2px #3b82f6;
+  
+  /* Remove fixed heights so it pushes the grid row open */
+  height: auto;
+  min-height: 100%; 
+}
+
+.calendar-day-cell.current-day {
+  background: #eff6ff;
+}
+
+.calendar-day-cell.other-month {
+  background: #fafafa;
+  opacity: 0.6;
+}
+
+/* ===========================
+   Day Number
+   =========================== */
+.calendar-day-number {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6b7280;
+  line-height: 1;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.calendar-day-cell.current-day .calendar-day-number {
+  color: #3b82f6;
+  font-weight: 700;
+}
+
+/* ===========================
+   Session Container
+   =========================== */
+.calendar-session-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 20px;
+  flex: 1;
+  /* Default state: hide overflow if it gets too big before clicking expand */
+  overflow: hidden; 
+}
+
+/* CRITICAL FIX FOR EXPANSION: 
+   When expanded, we REMOVE max-height and REMOVE scrollbars.
+   This forces the div to get taller, which forces the cell to get taller,
+   which forces the Grid Row to get taller.
+*/
+.calendar-day-cell.expanded .calendar-session-container {
+  flex: none;
+  height: auto;
+  max-height: none; /* No cap */
+  overflow: visible; /* No scrollbar */
+}
+
+/* ===========================
+   Session Chips
+   =========================== */
+.calendar-session-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: white;
+  cursor: pointer;
+  width: 100%;
+  min-height: 24px;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease;
+}
+
+.calendar-session-label:hover {
+  opacity: 0.9;
+}
+
+.calendar-session-completed {
+  opacity: 0.5;
+  text-decoration: line-through;
+  filter: grayscale(100%);
+}
+
+.calendar-session-icon {
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.calendar-session-subject {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  flex: 1;
+}
+
+/* ===========================
+   Expand Button
+   =========================== */
+.calendar-expand-btn {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #6b7280;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 20;
+}
+
+.calendar-expand-btn:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+  border-color: #d1d5db;
+}
+
+/* Loaders & Utils */
+.calendar-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.calendar-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: #374151;
+  background: transparent;
+  transition: background 0.15s;
+  border: none;
+  cursor: pointer;
+}
+.calendar-btn-icon:hover { background: #f3f4f6; }
+
+@media (max-width: 640px) {
+  .calendar-day-cell { min-height: 80px; padding: 2px 2px 24px 2px; }
+  .calendar-day-number { font-size: 0.75rem; top: 4px; left: 4px; }
+}

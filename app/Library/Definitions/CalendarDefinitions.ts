@@ -205,7 +205,9 @@ export interface CalendarContextType {
   //getTodaysPlan: () => DailyStudyPlan | null;
   notebookVersions: Map<string, NotebookVersionState>
   updateStudyPlan: () => Promise<void>;
-
+  isNotebookTracked: (notebookId: string) => boolean;
+  integrateNotebook: (notebookId: string) => Promise<void>;
+ queueNotebookIntegration: (notebookId: string) => void;
 }
 
 // Add the PickerFileMeta type from AppLayout
@@ -256,7 +258,6 @@ export interface CalendarDayProps {
   isCurrentDay: boolean;
   isCurrentMonth: boolean;
   onSessionClick: (session: StudySession) => void;
-  onDayClick: (date: Date) => void;
 }
 
 /**

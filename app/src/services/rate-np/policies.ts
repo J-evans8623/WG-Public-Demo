@@ -60,7 +60,7 @@ export const NP_POLICIES: Readonly<Record<string, RatePolicy>> = Object.freeze({
   'np:documentSave':            { scope: 'np:documentSave',            identity: 'user', windows: NP_WINDOWS_WRITTERS_XL },
     'np:documentSaveMeta':            { scope: 'np:documentSaveMeta',            identity: 'user', windows: NP_WINDOWS_WRITTERS_XL },
   'np:documentLoad':            { scope: 'np:documentLoad',            identity: 'user', windows: NP_WINDOWS_WRITTERS_XL },
-  'np:calendarPersist':         { scope: 'np:calendarPersist',         identity: 'user', windows: NP_WINDOWS },
+  'np:calendarPersist':         { scope: 'np:calendarPersist',         identity: 'user', windows: NP_WINDOWS_WRITTERS_XL },
   'np:calendarNotebookDetails': { scope: 'np:calendarNotebookDetails', identity: 'user', windows: NP_WINDOWS },
   'np:listFiles':               {scope:'nplistFiles', identity:'user', windows:NP_WINDOWS_WRITTERS},
   'np:vhList':                  { scope: 'np:vhList',                  identity: 'user', windows: NP_WINDOWS },

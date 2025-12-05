@@ -46,7 +46,7 @@ const DefaultEmptyResourceCard: React.FC = () => {
             padding: '2rem',
           }}
         >
-          Select a concept node and click “Add card” to get started.
+          Select a concept node and click “Add card” to get started. Or upload your notes and generate a lesson
         </div>
       </div>
 

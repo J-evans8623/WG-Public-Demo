@@ -27,6 +27,7 @@ import { useGlobalModal } from '@/app/workspace/(studygraph)/components/modals/G
 import { useAccountStatus } from '@/app/src/context/ApiContext';
 import type { TextFileMessage } from '@/app/Library/Definitions/Definitions';
 import './DropdownComponents.css'
+import { useCalendar } from '@/app/Library/Context/CalendarContextv2';
 type Mode = 'edit' | 'readonly';
 
 /* -------------------------------------------------------------------------------------------------
@@ -81,6 +82,7 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { isNotebookTracked, queueNotebookIntegration} = useCalendar();
   useClickOutside(ref, () => setOpen(false));
 
   const {
@@ -97,6 +99,7 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
   const { showModal } = useGlobalModal();
   const { docFileID } = useYDoc();
    const { accountStatus, } = useAccountStatus();
+   
 
   const lessons = getLessonModule().conceptMaps || [];
 
@@ -162,23 +165,30 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
 
 
 const handleGenerate = useCallback(() => {
-  if (mode !== 'edit') return;
-  setOpen(false);
-  showModal('lessonGeneration', {
-    docFileId: docFileID,
-    onSuccess: (resp: any) => {
-      try {
-        // Single source of truth: persist file + modules
-        handleGenerateLessonSuccess(resp);
+    if (mode !== 'edit') return;
+    setOpen(false);
+    showModal('lessonGeneration', {
+      docFileId: docFileID,
+      // update - 6: Updated success handler signature
+      onSuccess: async (resp: any, addToPlan?: boolean) => {
+        try {
+          // 1. Existing side effects
+          handleGenerateLessonSuccess(resp); // Assuming this helper is available/imported or duplicated logic
+          onLessonGenerated?.(resp);
 
-        // Preserve external hook
-        onLessonGenerated?.(resp);
-      } catch (e) {
-        console.error('[UnifiedDropDownMenus.tsx][7106] generate-lesson onSuccess error', e);
-      }
-    },
-  });
-}, [mode, showModal, docFileID, handleGenerateLessonSuccess, onLessonGenerated]);
+          // 2. Calendar Integration
+          if (addToPlan) {
+             console.log('[UnifiedDropDownMenus.tsx][7120] Triggering calendar integration');
+             queueNotebookIntegration(docFileID!); // Use docFileID or resp.id
+          }
+        } catch (e) {
+          console.error('[UnifiedDropDownMenus.tsx][7106] generate-lesson onSuccess error', e);
+        }
+      },
+      checkTrackedStatus: isNotebookTracked,
+      onQueueIntegration: queueNotebookIntegration,
+    });
+  }, [mode, showModal, docFileID, isNotebookTracked, queueNotebookIntegration, handleGenerateLessonSuccess, onLessonGenerated]);
 
 
 

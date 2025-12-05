@@ -18,6 +18,11 @@ export const metadata: Metadata = {
     template: '%s | WiseGraph - AI Study Planner & Concept Map',
     default: 'WiseGraph - Unlock Your True Learning Potential',
   },
+  icons: {
+    icon: '/icon.png', // The path to your image
+    shortcut: '/icon.png',
+    apple: '/icon.png', // Optional, but good for iOS devices
+  },
   description: ' WiseGraph turns your notes into clear concept maps packed with 5-minute micro-lessons, and generates AI quizzes so you never have to cram again.',
   applicationName: 'WiseGraph',
   keywords: [

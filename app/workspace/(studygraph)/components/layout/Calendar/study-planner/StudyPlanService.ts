@@ -32,6 +32,7 @@ import {
 } from './core/InterLeavedRevisionScheduler';
 import { aggregateSessions } from './core/SessionAggregator';
 import { mergeStudyPlans } from './mergeStudyPlan';
+import { reconfigureStateForUpdate } from './ScheduleReconfigurator'
 
 // Utilities & validators
 import { validateNotebooks, validateScheduleConfig, validateStartDate } from './utils/validators';
@@ -116,10 +117,62 @@ export class StudyPlanService {
       // 1) Validate
       validateNotebooks(updatedNotebooks);
 
-      // 2) Compute tail from existing state
-      const tail = this.orchestrator.extendPlan(existing.state, updatedNotebooks);
+      let stateToExtend = existing.state;
+      let baseSessions = existing.sessions;
 
+      // 2) Detect Structure Change (New Notebooks)
+      // Check if any incoming notebook ID is missing from the existing progress map.
+      const hasStructureChange = updatedNotebooks.some(
+        (nb) => !existing.state.notebookProgress.has(nb.fileId)
+      );
+
+      // update - 3
+      if (hasStructureChange) {
+        // Anchor Date: Use current date (midnight) to start the new schedule immediately.
+        const anchorDate = new Date();
+        anchorDate.setHours(0, 0, 0, 0);
+
+        // A) Reconfigure State: Rebalance sets and clear future maps in state.
+        stateToExtend = reconfigureStateForUpdate(existing.state, updatedNotebooks, anchorDate);
+
+        // B) Truncate Base Sessions: Remove future sessions from the existing plan list
+        // so mergeStudyPlans doesn't re-add the old future sessions we want to replace.
+        // We keep sessions strictly before the anchor date.
+        const anchorTime = anchorDate.getTime();
+        baseSessions = existing.sessions.filter((s) => s.date.getTime() < anchorTime);
+
+      }
+
+
+      // --- DEBUG LOG START ---
+    const newBookIds = updatedNotebooks.map(n => n.fileId);
+    
+    // Check the "Existing" state (The Bug Source)
+    const existsInOldState = existing.state.notebookProgress.has(newBookIds[newBookIds.length - 1]);
+    
+    // Check the "Reconfigured" state (The Fix)
+    const existsInNewState = stateToExtend.notebookProgress.has(newBookIds[newBookIds.length - 1]);
+
+    console.warn(`[DEBUG PROOF] New Notebook ID: ${newBookIds[newBookIds.length - 1]}`);
+    console.warn(`[DEBUG PROOF] Present in 'existing.state'? ${existsInOldState}`); // Will be FALSE
+    console.warn(`[DEBUG PROOF] Present in 'stateToExtend'? ${existsInNewState}`); // Will be TRUE
+    console.warn(`[DEBUG PROOF] Passing to orchestrator: ${existsInNewState ? 'stateToExtend (CORRECT)' : 'existing.state (WRONG)'}`);
+    // --- DEBUG LOG END ---
+
+
+      // 2) Compute tail from existing state
+      const tail = this.orchestrator.extendPlan(stateToExtend, updatedNotebooks);
+
+      const sanitizedExisting: StudyPlanOutput = {
+        ...existing,
+        sessions: baseSessions, // Use the filtered list defined at step 2B
+        // The state and metadata can remain as-is because mergeStudyPlans 
+        // largely ignores existing.state in favor of tail.state
+      };
+
+      
       // 3) Merge
+
       const merged = mergeStudyPlans(existing, tail);
 
       // 4) Log

@@ -52,7 +52,7 @@ import { createLessonUnitsMeta } from '../utils/calendar/lessoUnitExtractor';
 import { getRandomColor } from '../utils/colorSet';
 import { saveDocBytes, loadDocBytes } from '@/app/workspace/(studygraph)/services/localCacheStore'; // keep existing saver
 import { useApiContext } from '@/app/src/context/ApiContext';
-
+import type { UserFileMetadata } from '@/app/src/types/fileTypes';
 // Pure ops: perform I/O + computation only; driver commits outputs.
 import { opHydrateFromBytes, opLoadAuth, opCreateLocal, opBootstrapNewDoc } from './ops/pureOps';
 import { supersedingCall } from '@/app/src/net/SupersedingCaller';
@@ -191,7 +191,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   // Initialize state for Y.Doc, snapshot, and supporting services.
   const [ydoc, setYDoc] = useState<Y.Doc>(() => new Y.Doc());
   const [snapshotYDoc, setSnapshotYDoc] = useState<Y.Doc | null>(null);
-  const { addFileMeta, updateFileMeta, refreshList } = useApiContext();
+  const { addFileMeta, updateFileMeta, refreshList, userEmail } = useApiContext();
 
   /** Flag to indicate read-only mode. */
   const isReadOnly = snapshotYDoc !== null;
@@ -851,7 +851,7 @@ const loadData = useCallback(async (
   const saveToFirebase = useCallback(
     async (chatData?: ChatMessage[]): Promise<SaveOpResult> => {                // update - 117
       if (!docFileID) throw new Error('No docFileID');
-
+        console.log(`Debug: 3245 Inconsistent Ids: doc id when saving ${docFileID}`)
       // 1) Robust current version read for payload; NO state mutation here.
       const currentVersion = readVersionFromMetadata(ydoc);                      // update - 117
       setVersion(currentVersion);
@@ -861,9 +861,7 @@ const loadData = useCallback(async (
       try {
         assertDocIdentityOrThrow(docFileID);
         lessonUnitsMeta = createLessonUnitsMeta(ydoc);
-         /** // console.log('YDocContextv2.tsx 9801 › lessonUnitsMeta prepared', {
-          units: lessonUnitsMeta?.totalUnits ?? 0,
-        }); **/
+
       } catch (err) {
         console.warn('YDocContextv2.tsx 9802 › lessonUnitsMeta generation failed (non-fatal)', err);
       }
@@ -965,6 +963,18 @@ const loadData = useCallback(async (
       });
 
       const resp = await supersedingCall(key, savePayload, makeRequest);
+
+      if (lessonUnitsMeta) {
+        console.log('YDocContextv2.tsx [9805] › Write-Through Cache: Updating lessonUnitsMeta locally');
+        updateFileMeta(docFileID, {
+            fileName,
+            lessonUnitsMeta: lessonUnitsMeta,
+            fileSize,
+            version: currentVersion,
+            updatedAt: new Date().toISOString()
+        });
+      }
+      
       if (!resp) {
       // We’re inside a Retry-After window; a single timer is scheduled. Return a safe, optimistic result.
                                                                        // update - 118
@@ -1007,7 +1017,7 @@ const loadData = useCallback(async (
 
       return result;
     },
-    [assertDocIdentityOrThrow, docFileID, fileName, readPersistFromDoc, ydoc]   // update - 117
+    [assertDocIdentityOrThrow, docFileID, fileName, readPersistFromDoc, updateFileMeta, ydoc]   // update - 117
   );
 
   /**
@@ -1292,6 +1302,37 @@ case 'BOOTSTRAP_NEW': {
     const boot = await opBootstrapNewDoc({ docId: handoff.docId, bytes: handoff.bytes });
     if (isStale()) return;
 
+    // ---------------------------------------------------------------
+              // [FIX] CRITICAL: Seed Local Cache Immediately
+              // This ensures that subsequent updateFileMeta calls (e.g. from 
+              // saveToFirebase during lesson generation) find a valid target
+              // in the ApiContext list, resolving the "Ghost File" race condition.
+              // ---------------------------------------------------------------
+              const newFileMeta: UserFileMetadata = {
+                fileId: handoff.docId,
+                fileName: 'Untitled Document', // Standard default for new docs
+                fileStoragePath: boot.fileStoragePath,
+                version: 1,
+                colorCode: boot.colorCode,
+                fileSize: handoff.bytes.byteLength,
+                timestamp: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                contentType: 'application/octet-stream',
+                ownerId: userEmail,
+                editors: [userEmail],
+                sharedWith: [],
+                publicEdit: false,
+                publicView: false,
+                role: 'Owner',
+                lessonUnitsMeta: undefined // Correctly starts empty
+              };
+
+              addFileMeta(newFileMeta);
+              console.log('[YDocContext] Bootstrapped & cached new file:', handoff.docId);
+              
+              // Trigger eventual consistency with backend
+              void refreshList();
+
     // (2) Reconcile identifiers, access, chat
     commitPersistIds(boot.identifiers, 'bootstrap');
     access.applySignal(boot.accessEnvelope);
@@ -1414,7 +1455,7 @@ case 'BOOTSTRAP_NEW': {
       aborted = true;
       ac.abort();
     };
-  }, [machine, docFileID, access,  teardownPreviousDoc, ydoc, loadData, commitHydratedDoc, commitPersistIds, emitChatReady]);
+  }, [machine, docFileID, access,addFileMeta, userEmail, refreshList, teardownPreviousDoc, ydoc, loadData, commitHydratedDoc, commitPersistIds, emitChatReady]);
 
   //--------------------------------- END STATE MACHINE --------------------------------
 

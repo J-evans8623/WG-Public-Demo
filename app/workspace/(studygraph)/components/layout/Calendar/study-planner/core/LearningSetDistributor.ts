@@ -1,34 +1,32 @@
+// src/services/study-planner/core/LearningSetDistributor.ts
 /**
  * @file LearningSetDistributor.ts
  * @description
  * [Responsibility & Scope]
  * This module implements the notebook→learning set assignment step for the Study Planner
  * Service. Its single responsibility is to partition an arbitrary list of NotebookMeta
- * records into a minimal number of evenly balanced learning sets while observing the hard
- * constraint that a learning set can track a maximum of three notebooks. The distributor
- * preserves input order to keep user expectations stable (first notebooks specified are
- * assigned first), computes balanced bucket sizes to avoid skew (e.g., 4 notebooks → [2,2],
- * not [3,1]), and generates deterministic learning set identifiers (LS-A, LS-B, …) and
- * display names. The returned LearningSet objects are intentionally lightweight; their
- * scheduledDayPattern is left empty for the scheduler to populate in a later phase. All
- * operations are O(N) where N is the number of notebooks, and the function is pure aside
- * from concise logging at critical checkpoints to aid observability in production.
+ * records into a minimal number of evenly balanced learning sets. 
+ * Update Phase 1: It now observes a "Max 2 Sets" strategy. If the notebook count exceeds
+ * the NOTEBOOK_SPLIT_THRESHOLD, it splits them evenly into exactly two sets (A and B). 
+ * Otherwise, it maintains a single set. The distributor preserves input order to keep 
+ * user expectations stable (first notebooks specified are assigned first), computes balanced 
+ * bucket sizes to avoid skew, and generates deterministic learning set identifiers.
+ * All operations are O(N) where N is the number of notebooks.
  */
 
 import type { NotebookMeta } from '@/app/Library/Definitions/CalendarDefinitions';
 import type { LearningSet } from '../models/LearningSet';
-import { MAX_NOTEBOOKS_PER_LEARNING_SET, ID_PREFIX } from '../constants/schedulingConstants';
+import { NOTEBOOK_SPLIT_THRESHOLD, ID_PREFIX } from '../constants/schedulingConstants'; // update - 1
 
 /**
  * @function distribute
  * @description
- * Evenly partitions notebooks into learning sets, respecting the maximum capacity per set
- * and preserving input order. The algorithm computes the minimum number of sets required,
- * derives balanced bucket sizes using division with remainder, and slices the input array
- * into contiguous groups that match those sizes. Each group is wrapped in a LearningSet
- * object with a stable identifier and friendly name. The function is deterministic and
- * side-effect free, making it safe for repeated calls during orchestration or testing.
- * Throws a descriptive error when invoked with an empty array to fail fast.
+ * Evenly partitions notebooks into learning sets based on the flexible "Max 2 Sets" strategy.
+ * If the total number of notebooks exceeds NOTEBOOK_SPLIT_THRESHOLD, the function creates 
+ * exactly two learning sets and distributes the notebooks evenly between them (e.g., 5 items -> [3, 2]).
+ * If the total is within the threshold, a single learning set is returned. This ensures a 
+ * consistent alternating daily rhythm (A/B) regardless of high volume.
+ * The function is deterministic and side-effect free.
  */
 export function distribute(notebooks: NotebookMeta[]): LearningSet[] {
   const loc = 'core/LearningSetDistributor.ts#5512';
@@ -39,17 +37,22 @@ export function distribute(notebooks: NotebookMeta[]): LearningSet[] {
     throw new Error('LearningSetDistributor.distribute requires a non-empty notebooks array.');
   }
 
-  // Step 1) Compute the minimum number of sets required.
-  const setCount = Math.max(1, Math.ceil(notebooks.length / MAX_NOTEBOOKS_PER_LEARNING_SET));
+  // Step 1: Determine the number of sets (capped at 2).
+  // update - 2
+  const total = notebooks.length;
+  const numSets = total > NOTEBOOK_SPLIT_THRESHOLD ? 2 : 1;
 
-  // Step 2) Derive balanced sizes, e.g., N=5, K=2 -> [3,2]; N=7, K=3 -> [3,2,2].
-  const base = Math.floor(notebooks.length / setCount);
-  const remainder = notebooks.length % setCount;
+  // Step 2: Derive balanced sizes using division with remainder.
+  // Example: 5 notebooks, 2 sets. Base = 2, Remainder = 1.
+  // Sizes = [2+1, 2] = [3, 2].
+  // update - 3
+  const base = Math.floor(total / numSets);
+  const remainder = total % numSets;
 
-  // Step 3) Build sizes array where the first `remainder` buckets receive +1.
-  const sizes: number[] = new Array(setCount).fill(base).map((v, i) => (i < remainder ? v + 1 : v));
+  // Step 3: Build sizes array where the first `remainder` buckets receive +1.
+  const sizes: number[] = new Array(numSets).fill(base).map((v, i) => (i < remainder ? v + 1 : v));
 
-  // Step 4) Partition while preserving input order (O(N)).
+  // Step 4: Partition while preserving input order (O(N)).
   const out: LearningSet[] = [];
   let cursor = 0;
 
@@ -69,9 +72,5 @@ export function distribute(notebooks: NotebookMeta[]): LearningSet[] {
     });
   }
 
-  // eslint-disable-next-line no-console
-  console.log(
-    `[${loc}] distribute -> PASS sets=${out.length} sizes=[${sizes.join(',')}] totalNotebooks=${notebooks.length}`
-  );
   return out;
 }

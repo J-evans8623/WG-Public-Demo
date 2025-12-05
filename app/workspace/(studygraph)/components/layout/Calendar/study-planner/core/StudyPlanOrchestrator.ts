@@ -368,39 +368,48 @@ export class StudyPlanOrchestrator {
 /**
    * @function extendPlan
    * @description
-   * Duplicate-safe, notebook-aware extension.  // update - 003
-   * Steps (≥30 words):
-   * 1) Parse updated notebooks and rebuild lessons map.
-   * 2) Reuse learning sets + progress from existing state, compute a fresh schedule pattern from **today**.
-   * 3) Reconcile progress with any new lessons.
-   * 4) For each notebook that still has pending learning, compute a **per-notebook anchor date**:
-   *    the next date (≥ today) where its learning set is active and no prior block exists.
-   * 5) Iterate each day; on days that match one or more anchors, pass a **synthetic, filtered
-   *    learning set** to the learning scheduler. This guarantees at most one block per notebook per day.
-   * 6) Run revision mirroring, detection, and interleaved logic unchanged. Aggregate and return tail.
+   * Duplicate-safe, notebook-aware extension that now uses a **dynamic per-day pending
+   * filter** to avoid starvation.  (new update - dynamic daily anchors)
+   *
+   * Steps:
+   * 1) Parse updated notebooks and rebuild the lessons map.
+   * 2) Reuse learning sets + progress from existing state; compute a fresh schedule
+   *    pattern from **today’s local midnight**.
+   * 3) Reconcile progress with any new lessons and adjust interleaved quotas/dates.
+   * 4) For each available day, if a learning set is active, dynamically select only
+   *    those notebooks in that set that still have pending learning and build a
+   *    synthetic learning set with that subset.
+   * 5) Schedule at most one block per notebook per day via the synthetic set, then
+   *    run revision mirroring, completion detection, and interleaved scheduling.
+   * 6) Merge new sessions into the existing archive and return a tail-only output
+   *    whose state can be merged by the service-level `mergeStudyPlans`.
    */
   public extendPlan(
     existing: StudyPlanState,
     updatedNotebooks: NotebookMeta[]
   ): StudyPlanOutput {
-    const loc = 'core/StudyPlanOrchestrator.ts#6202'; // unique 4-digit code line tag
+    const loc = 'core/StudyPlanOrchestrator.ts#6202';
 
-    // Rebuild lessons map from updated notebooks
+    // 1) Rebuild lessons map from updated notebooks.
     const lessonsByNotebook: Map<string, Lesson[]> = new Map();
     for (const nb of updatedNotebooks) {
       const lessons = this.lessonFns.parseLessons(nb);
       lessonsByNotebook.set(nb.fileId, lessons);
     }
 
-    // Reuse plan state
+    // 2) Reuse plan state.
     const { learningSets, notebookProgress: progressMap, sessionsByDate } = existing;
     const config = existing.config;
 
-    // Anchor window starts today (≥ today).  // update - 004
+    // 3) Anchor extension window at today's local midnight.
     const startDate = todayMidnightLocal();
 
-    // Build forward schedule window and pattern
-    const totalDays = this.calculateTotalDays(updatedNotebooks, learningSets, lessonsByNotebook);
+    // 4) Build forward schedule window and pattern.
+    const totalDays = this.calculateTotalDays(
+      updatedNotebooks,
+      learningSets,
+      lessonsByNotebook
+    );
     const schedulePattern = this.learningSetFns.buildSchedulePattern(
       startDate,
       learningSets,
@@ -408,53 +417,13 @@ export class StudyPlanOrchestrator {
       totalDays
     );
 
-    // Reconcile progress with new lessons (and adjust interleaved program as needed)
-    this.reconcileProgressWithLessons(progressMap, lessonsByNotebook, schedulePattern); // update - 005
+    // 5) Reconcile progress with new lessons (and adjust interleaved program as needed).
+    this.reconcileProgressWithLessons(progressMap, lessonsByNotebook, schedulePattern);
 
-    // ---- Notebook-level anchor computation (pure, deterministic) ----  // update - 006
-    // 1) Map notebookId -> learningSetId for quick joins
-    const setByNotebook = new Map<string, LearningSet>();
-    for (const ls of learningSets) {
-      for (const nb of ls.notebooks) setByNotebook.set(nb.fileId, ls);
-    }
-
-    // 2) Identify notebooks with pending learning and compute anchor dates
-    type AnchorRec = { notebookId: string; anchor: Date | null; set: LearningSet };
-    const anchors: AnchorRec[] = [];
-    for (const [nbId, nbProg] of progressMap.entries()) {
-      if (!hasPendingLearning(nbProg)) continue;
-      const set = setByNotebook.get(nbId);
-      if (!set) continue;
-
-      const anchor = findNextEligibleLearningSetDay(
-        nbId,
-        nbProg.learningSetId,
-        startDate,
-        totalDays,
-        schedulePattern,
-        sessionsByDate,
-        config
-      );
-      anchors.push({ notebookId: nbId, anchor, set });
-    }
-
-    // 3) Invert anchors: dateKey -> list of notebookIds
-    const byDate = new Map<string, { set: LearningSet; notebookIds: string[] }>();
-    for (const a of anchors) {
-      if (!a.anchor) continue;
-      const key = formatDateKey(a.anchor);
-      const existingEntry = byDate.get(key);
-      if (existingEntry) {
-        // All anchors for a date share the same active learning set (by schedulePattern).
-        existingEntry.notebookIds.push(a.notebookId);
-      } else {
-        byDate.set(key, { set: a.set, notebookIds: [a.notebookId] });
-      }
-    }
-
-    // ---- Day loop with synthetic learning-set injection ----  // update - 007
+    // 6) Day loop with **dynamic per-day pending filter**.
+    //    (new update - dynamic daily anchors)
     const outSessions: StudySession[] = [];
-    const mergedSessionsByDate = new Map<string, StudySession[]>(existing.sessionsByDate);
+    const mergedSessionsByDate = new Map<string, StudySession[]>(sessionsByDate);
     let prevDaySessions: StudySession[] = [];
     let prevActiveSet: LearningSet | undefined;
 
@@ -465,24 +434,54 @@ export class StudyPlanOrchestrator {
       const key = formatDateKey(currentDate);
       const scheduledSet = schedulePattern.get(key) || undefined;
 
-      // If today has anchored notebooks, build a synthetic set containing only them.
+      // 6a) Compute which notebooks in the scheduled set still have pending learning.
       let blockLearning: StudySession[] = [];
-      const dateAnchors = byDate.get(key);
-      if (scheduledSet && dateAnchors && dateAnchors.notebookIds.length > 0) {
-        const synthetic = makeSyntheticSetForNotebooks(scheduledSet, dateAnchors.notebookIds);
-        blockLearning = this.blockFns.scheduleBlockLearning(
-          currentDate,
-          synthetic,
-          progressMap,
-          lessonsByNotebook
-        );
-        // eslint-disable-next-line no-console
-        console.log(
-          `[${loc}] synthetic learn date=${key} nbCount=${dateAnchors.notebookIds.length} (6203)`
-        );
+      let effectiveAnchorNotebookIds: string[] = [];
+
+      if (scheduledSet) {
+        const pendingIds = scheduledSet.notebooks
+          .filter((nb) => hasPendingLearning(progressMap.get(nb.fileId)))
+          .map((nb) => nb.fileId);
+
+        if (pendingIds.length > 0) {
+          const synthetic = makeSyntheticSetForNotebooks(scheduledSet, pendingIds);
+          blockLearning = this.blockFns.scheduleBlockLearning(
+            currentDate,
+            synthetic,
+            progressMap,
+            lessonsByNotebook
+          );
+          effectiveAnchorNotebookIds = pendingIds;
+
+          // eslint-disable-next-line no-console
+          console.log(
+            `[${loc}] synthetic learn date=${key} nbCount=${pendingIds.length} (6203)`
+          );
+        }
       }
 
-      // Mirror yesterday’s learning into block revisions (unchanged)
+      // 6b) DEBUG guard: spot days where a learning set is active but no blocks are created
+      //     even though notebooks are still pending. This should now indicate a *real*
+      //     scheduling anomaly rather than the former anchor starvation.
+      if (scheduledSet) {
+        const pendingInSet = scheduledSet.notebooks.filter((nb) =>
+          hasPendingLearning(progressMap.get(nb.fileId))
+        );
+        const hasAnchorToday = effectiveAnchorNotebookIds.length > 0;
+        const createdBlocksCount = blockLearning.length;
+
+        if (pendingInSet.length > 0 && createdBlocksCount === 0) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[${loc}] WARN-SPARSE date=${key} set=${scheduledSet.id}` +
+              ` pendingNotebooks=${pendingInSet.length}` +
+              ` hasAnchorToday=${hasAnchorToday}` +
+              ` (pending notebooks but no new blocks scheduled) [6205]`
+          );
+        }
+      }
+
+      // 6c) Mirror yesterday’s learning into block revisions (unchanged).
       const blockRevision = this.blockFns.scheduleBlockRevision(
         currentDate,
         prevDaySessions,
@@ -491,7 +490,7 @@ export class StudyPlanOrchestrator {
         prevActiveSet
       );
 
-      // Detect completions and schedule interleaved (unchanged)
+      // 6d) Detect completions and schedule interleaved (unchanged).
       const completed = this.completionFns.detectCompletions(progressMap, currentDate);
       const interleaved = this.completionFns.scheduleInterleavedRevisions(
         completed,
@@ -501,7 +500,7 @@ export class StudyPlanOrchestrator {
         lessonsByNotebook
       );
 
-      // Aggregate and merge into archive
+      // 6e) Aggregate and merge into archive.
       const daySessions = this.aggregationFns.aggregateSessions(
         currentDate,
         blockLearning,
@@ -519,11 +518,7 @@ export class StudyPlanOrchestrator {
       prevActiveSet = scheduledSet;
     }
 
-    const planMetadata = this.buildPlanMetadata(
-      outSessions,
-      startDate,
-      learningSets.length
-    );
+    const planMetadata = this.buildPlanMetadata(outSessions, startDate, learningSets.length);
 
     const newState: StudyPlanState = {
       learningSets,

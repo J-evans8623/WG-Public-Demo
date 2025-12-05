@@ -39,8 +39,36 @@ export function mergeStudyPlans(existing: StudyPlanOutput, tail: StudyPlanOutput
   // Step 1
   const existingIds = new Set(existing.sessions.map(s => s.id));
 
+  // Step 1.5 (THE FIX): Create a Set of "Semantic Signatures" from the existing plan.
+  // Signature = YYYY-MM-DD + NotebookFileId + SessionType
+  // This prevents adding a session if the slot
+  //  is already occupied by a previous version.
+  const existingSignatures = new Set<string>();
+
+
+  // Helper to generate signature
+  const getSig = (s: StudySession) => {
+    // Robust date formatting to YYYY-MM-DD
+    const dateStr = s.date.toISOString().split('T')[0];
+    return `${dateStr}|${s.notebookMeta.fileId}|${s.type}`;
+  };
+
+  existing.sessions.forEach(s => existingSignatures.add(getSig(s)));
+
   // Step 2
-  const appended = tail.sessions.filter(s => !existingIds.has(s.id));
+  // Step 2: Filter Tail
+  const appended = tail.sessions.filter(s => {
+    // 1. Drop if ID matches (standard dedupe)
+    if (existingIds.has(s.id)) return false;
+
+    // 2. Drop if Semantic Signature matches (The Bug Fix)
+    // If we already have a session of this type for this notebook on this day,
+    // we assume the existing one is the source of truth and discard the duplicate tail.
+    if (existingSignatures.has(getSig(s))) return false;
+
+    return true;
+  });
+
   const mergedSessions: StudySession[] = [...existing.sessions, ...appended].sort(sortCanonical);
 
   // Step 3

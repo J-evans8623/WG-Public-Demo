@@ -22,6 +22,7 @@ import type {
   StudySession,
   PickerFileMeta,
   NotebookVersionState,
+  NotebookMeta,
 } from '@/app/Library/Definitions/CalendarDefinitions';
 import { type DayOfWeek, type ScheduleConfig, ALL_DAYS} from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/Configuration';
 import { NotebooksApi } from '@/app/src/services/calendar/NotebooksApi';
@@ -29,7 +30,8 @@ import { CalendarPersistApi } from '@/app/src/services/calendar/CalendarPersistA
 import { StudyPlanService } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner';
 import type { StudyPlanOutput} from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/StudyPlanOutput.ts'
 import { useYDoc } from '@/app/Library/Context/YDocContext';
-import { useFileList } from '@/app/src/context/ApiContext'; 
+import { useFileList, useApiContext  } from '@/app/src/context/ApiContext'; 
+
 
 const Ctx = createContext<CalendarContextType | undefined>(undefined);
 
@@ -123,6 +125,9 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [saveNeeded, setSaveNeeded] =useState(false);
+  const { userEmail } = useApiContext();
+
+  const [pendingIntegrations, setPendingIntegrations] = useState<Set<string>>(new Set());
 
   // Version tracking (unchanged conceptually)
   const [notebookVersions, setNotebookVersions] = useState<Map<string, NotebookVersionState>>(new Map());
@@ -496,6 +501,161 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
   }, [studyPlan, selectedNotebooks, notebooksApi, service, persistApi, completedSessions]); // update - 6
 
 
+  // update - 10: New automation helpers
+  /**
+   * @function isNotebookTracked
+   * @description Checks if a specific notebook ID is part of the active schedule.
+   */
+  const isNotebookTracked = useCallback((notebookId: string): boolean => {
+    if (!studyPlan) return false;
+    return studyPlan.state.notebookProgress.has(notebookId);
+  }, [studyPlan]);
+
+  /**
+   * @function queueNotebookIntegration
+   * @description
+   * Registers a user's intent to add a notebook to the plan. This does NOT trigger
+   * an immediate update. Instead, it adds the ID to a watchlist. The useEffect below
+   * monitors the data cache and executes the update only when the data arrives.
+   */
+  const queueNotebookIntegration = useCallback((notebookId: string) => {
+    console.log(`[CalendarContext] Queueing integration for ${notebookId}`);
+    setPendingIntegrations(prev => new Set(prev).add(notebookId));
+    setIsLoading(true); // Show loading immediately to indicate "work in progress"
+  }, []);
+
+/**
+   * @function integrateNotebook
+   * @description
+   * Atomically adds a notebook to the selection and triggers an update.
+   * UPDATE: Combines Cache-First optimization with a Polling Safety Net.
+   * It attempts to fetch using the cache first. If the specific target notebook
+   * comes back with 0 units (stale/empty), it enters a retry loop to wait for
+   * the data to propagate.
+   */
+  const integrateNotebook = useCallback(async (notebookId: string) => {
+    // 1. Optimistically update local selection state
+    setSelectedNotebooks(prev => {
+      if (prev.includes(notebookId)) return prev;
+      return [...prev, notebookId];
+    });
+
+    const targetIds = Array.from(new Set([...selectedNotebooks, notebookId]));
+
+    setIsLoading(true); setError(null);
+    try {
+      let metas: NotebookMeta[] = [];
+      const maxRetries = 5;
+      let attempt = 0;
+
+      // Retry loop: Ensure we get valid data for the *new* notebook
+      while (attempt < maxRetries) {
+        // 2. Fetch details (Cache-First via userEmail)
+        metas = await notebooksApi.details(targetIds, userEmail); 
+
+        // 3. Validation: Check if the target notebook has units
+        const targetMeta = metas.find(m => m.fileId === notebookId);
+        const hasUnits = targetMeta && targetMeta.lessonUnits && targetMeta.lessonUnits.length > 0;
+
+        if (hasUnits) {
+           console.log(`[CalendarContext] Successfully retrieved content for ${notebookId} on attempt ${attempt + 1}`);
+           break;
+        }
+
+        console.warn(`[CalendarContext] Lesson units empty for ${notebookId}. Waiting for cache/backend... (${attempt + 1}/${maxRetries})`);
+        await new Promise(r => setTimeout(r, 1000)); // Wait 1s
+        attempt++;
+      }
+
+      // If retries fail, we likely throw, but let's do a final check to be safe or proceed best-effort
+      const finalCheck = metas.find(m => m.fileId === notebookId);
+      if (!finalCheck || !finalCheck.lessonUnits || finalCheck.lessonUnits.length === 0) {
+         // Choosing to throw here because the scheduling algo WILL fail or produce 0 sessions otherwise
+         throw new Error(`Timed out waiting for lesson content for notebook ${notebookId}. Please try updating the schedule manually in a few moments.`);
+      }
+
+      // 4. If no plan exists, create one; otherwise extend.
+      let merged: StudyPlanOutput;
+      if (!studyPlan) {
+        const config = { DayAvailability: ALL_DAYS };
+        const startDate = new Date();
+        merged = service.generateStudyPlan(metas, config, startDate);
+      } else {
+         merged = service.extendStudyPlan(studyPlan, metas);
+      }
+
+      // 5. Commit
+      setStudyPlan(merged);
+      await persistApi.store({
+        studyPlan: merged,
+        selectedNotebooks: targetIds,
+        completedSessions,
+      });
+
+      // 6. Update versions
+      setNotebookVersions(prev => {
+        const m = new Map(prev);
+        metas.forEach(nb => {
+          m.set(nb.fileId, {
+            notebookId: nb.fileId,
+            trackedVersion: nb.version ?? 'unknown',
+            currentVersion: nb.version ?? 'unknown',
+            needsUpdate: false,
+            lastChecked: new Date(),
+          });
+        });
+        return m;
+      });
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to integrate notebook');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [studyPlan, selectedNotebooks, notebooksApi, service, persistApi, completedSessions, userEmail]); 
+
+
+  /**
+   * @effect Reactive Integration
+   * @description
+   * Watches `availableNotebooks` (which updates via ApiContext -> Cache).
+   * If a pending notebook appears in the available list with units > 0,
+   * it triggers the actual integration logic and dequeues the ID.
+   */
+  useEffect(() => {
+    if (pendingIntegrations.size === 0) return;
+
+    const processQueue = async () => {
+      const toProcess: string[] = [];
+
+        console.log(`Debug: 3245 Inconsistent Ids:  doc id in pending integration ${JSON.stringify(pendingIntegrations)}`)
+      
+      // Check which pending items are now ready
+      pendingIntegrations.forEach(id => {
+        const meta = availableNotebooks.find(nb => nb.fileId === id);
+        // Data is ready if it exists in cache AND has valid units
+        if (meta && meta.totalUnits > 0) {
+          toProcess.push(id);
+        }
+      });
+
+      if (toProcess.length === 0) return;
+
+      console.log(`[CalendarContext] Data ready for pending integrations: ${toProcess.join(', ')}`);
+
+      // Execute integration for ready items
+      for (const id of toProcess) {
+        await integrateNotebook(id);
+        // Remove from queue after processing
+        setPendingIntegrations(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    };
+
+    processQueue();
+  }, [availableNotebooks, pendingIntegrations, integrateNotebook]);
 
   // "Autosave mechanism"
 
@@ -561,7 +721,10 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
 
     // utilities
     notebookVersions,
-  }), [selectedNotebooks, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, listRefreshing, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, updateStudyPlan, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, completedSessions, notebookVersions]);
+    isNotebookTracked, // update - 11
+    integrateNotebook,
+    queueNotebookIntegration,
+  }), [selectedNotebooks, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, listRefreshing, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, updateStudyPlan, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, completedSessions, notebookVersions, isNotebookTracked, integrateNotebook, queueNotebookIntegration]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
