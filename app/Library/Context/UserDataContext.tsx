@@ -414,7 +414,7 @@ const recordQuizSession = useCallback(() => {
       if (!prev || prev.bookmarks.some(x => x.resourceId === b.resourceId)) return prev;
       const next = { ...prev, bookmarks: [...prev.bookmarks, b] };
       setupdatedRivisionCard(true);
-      // console.log('[UserDataContext.tsx][9008] › Bookmark added, total now', next.bookmarks.length);
+      console.log(`[UserDataContext.tsx][9008] › Bookmark added, total now ${JSON.stringify(userRevisionData)}`);
       return next;
     });
   }, [setuserRevisionData, setupdatedRivisionCard]);

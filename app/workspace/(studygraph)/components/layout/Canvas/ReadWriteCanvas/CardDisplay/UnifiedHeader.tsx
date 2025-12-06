@@ -289,7 +289,6 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                   <path d="m21 21-4.35-4.35"></path>
                 </svg>
               </button>
-              <TopicsDropdown onTopicChange={onTopicChange!} />
             </>
           )}
         </div>
