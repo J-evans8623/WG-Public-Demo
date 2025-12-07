@@ -81,7 +81,7 @@ function WelcomeLandingPage(): JSX.Element {
       eyebrow: 'From messy chapters to clarity',
       heading: 'Turn any chapter into a clear roadmap',
       body:
-        'Upload a PDF chapter and WiseGraph unfolds it into a visual map of bite-size topics. Each node becomes a five minute micro-lesson with notes, flashcards, and quizzes—so you can scan your course at a glance and jump straight into what matters.',
+        'Upload your chapters and WiseGraph unfolds it into a visual map of bite-size topics. Each node becomes a five minute micro-lesson with notes, flashcards, and quizzes—so you can scan your course at a glance and jump straight into what matters.',
       videoSrc: '/demo/scene1-upload-to-lesson.mp4',
       stageBg: "url('/brand/scene1stage.png')",
       themeColor: '#E34432',

@@ -262,7 +262,7 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
                 {paymentsEnabled ? (
                   /* ORIGINAL ACTIVE DEMO LINK RESTORED */
                   /* Note: If you want a real demo link, put Link here. For now using placeholder button style */
-                  <Link className="wg-card-btn wg-btn-primary" href="/workspace" >
+                  <Link className="wg-card-btn wg-btn-primary-p" href="/workspace" >
                     Try a free demo
                   </Link>
                 ) : (
@@ -310,14 +310,14 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
                 {/* (new update - dynamic UI toggle) */}
                 {paymentsEnabled ? (
                   <button
-                    className="wg-card-btn wg-btn-primary"
+                    className="wg-card-btn wg-btn-primary-p"
                     onClick={() => handlePlanSelect('scholar')}
                     disabled={scholarIsBusy || scholarIsCurrent}
                   >
                     {scholarIsCurrent ? 'Current Plan' : scholarIsBusy ? 'Processing...' : 'Continue to Checkout'}
                   </button>
                 ) : (
-                  <button className="wg-card-btn wg-btn-primary" disabled={true}>
+                  <button className="wg-card-btn wg-btn-primary-p" disabled={true}>
                     Coming Soon
                   </button>
                 )}
@@ -357,14 +357,14 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
                 {/* (new update - dynamic UI toggle) */}
                 {paymentsEnabled ? (
                   <button
-                    className="wg-card-btn wg-btn-primary"
+                    className="wg-card-btn wg-btn-primary-p"
                     onClick={() => handlePlanSelect('educator')}
                     disabled={educatorIsBusy || educatorIsCurrent}
                   >
                     {educatorIsCurrent ? 'Current Plan' : educatorIsBusy ? 'Processing...' : 'Continue to Checkout'}
                   </button>
                 ) : (
-                  <button className="wg-card-btn wg-btn-primary" disabled={true}>
+                  <button className="wg-card-btn wg-btn-primary-p" disabled={true}>
                     Coming Soon
                   </button>
                 )}

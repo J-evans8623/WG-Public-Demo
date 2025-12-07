@@ -279,7 +279,7 @@
   border: none;
 }
 
-.wg-btn-primary {
+.wg-btn-primary-p{
   background-color: var(--wg-accent-sage);
   color: white;
 }

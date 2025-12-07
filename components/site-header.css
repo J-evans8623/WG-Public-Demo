@@ -1,10 +1,10 @@
 /**
  * @file app/components/site-header.css
- * @description Shared styles for the top navigation bar.
+ * @description 
+ * Shared styles for the top navigation bar.
+ * Enforces strict height to prevent expansion at top of scroll.
  */
 
-/* Use the fluid variables if they are defined globally. 
-   If not, we set a fallback here to ensure it doesn't break. */
 :root {
   --wg-nav-height: 64px;
   --wg-gutter: clamp(12px, 2vw, 32px);
@@ -14,19 +14,27 @@
 .wg-nav {
   position: sticky;
   top: 0;
-  z-index: 100; /* High z-index to stay above content */
+  z-index: 100;
   backdrop-filter: blur(16px);
-  background: rgba(254, 253, 252, 0.95); /* Slight transparency for blur effect */
+  background: rgba(254, 253, 252, 0.95);
+  
+  /* FIX: Enforce exact height to stop "expansion" */
+  height: var(--wg-nav-height); 
+  max-height: var(--wg-nav-height);
+  overflow: visible; /* Allows dropdowns if you add them later, but keeps bar height fixed */
 }
 
 .wg-nav-inner {
   max-width: var(--wg-content);
   margin: 0 auto;
-  padding: 14px var(--wg-gutter);
+  
+  /* FIX: Tighter padding (10px) to match the "shrunk" state consistently */
+  padding: 0 var(--wg-gutter);
+  height: 100%; 
+  
   display: flex;
   align-items: center;
-  justify-content: space-between; /* Pushes Logo Left, Links Right */
-  min-height: var(--wg-nav-height);
+  justify-content: space-between;
 }
 
 /* LEFT SIDE (Logo) */
@@ -34,21 +42,22 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: auto;
+  height: 100%;
 }
 
 .wg-nav-left a {
   display: flex;
   align-items: center;
   height: 100%;
-  color: #8b0000; /* Ensures SVG inherits this if set to currentColor */
+  color: #8b0000;
 }
 
 /* RIGHT SIDE (Links + CTA) */
 .wg-nav-right {
   display: flex;
   align-items: center;
-  gap: 24px; /* Space between links */
+  gap: 24px;
+  height: 100%;
 }
 
 .wg-nav-link {
@@ -62,9 +71,9 @@
 
 .wg-nav-sep {
   width: 1px;
-  height: 24px; /* Height of the bar */
-  background-color: #E2E4E7; /* Subtle grey matches existing borders */
-  margin: 0 4px; /* Slight extra breathing room */
+  height: 24px;
+  background-color: #E2E4E7;
+  margin: 0 4px;
 }
 
 .wg-nav-link:hover {
@@ -72,9 +81,10 @@
   transform: translateY(-1px);
 }
 
+
 /* CTA BUTTON */
 .wg-nav-cta {
-  padding: 10px 20px;
+  padding: 8px 18px;
   border-radius: 999px;
   background-color: #E34432; 
   color: #ffffff;
@@ -83,6 +93,10 @@
   text-decoration: none;
   box-shadow: 0 4px 12px rgba(227, 68, 50, 0.25);
   transition: all 0.2s ease;
+
+  /* --- ADD THESE TWO LINES --- */
+  white-space: nowrap; /* Prevents text from wrapping to a second line */
+  flex-shrink: 0;      /* Prevents the flex container from squishing the button width */
 }
 
 .wg-nav-cta:hover {
@@ -91,10 +105,9 @@
   box-shadow: 0 6px 16px rgba(227, 68, 50, 0.35);
 }
 
-/* Mobile Responsiveness for Nav */
 @media (max-width: 640px) {
   .wg-nav-link {
-    display: none; /* Hide text links on very small screens if needed */
+    display: none; 
   }
   .wg-nav-inner {
     padding-inline: 16px;

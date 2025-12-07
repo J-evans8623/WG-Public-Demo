@@ -22,7 +22,7 @@ import type { RatePolicy } from './types';
  *   2) Freeze to prevent mutation at runtime.
  */
 const NP_WINDOWS = Object.freeze([
-  { windowSeconds: 60,     maxRequests: 6 },
+  { windowSeconds: 60,     maxRequests: 10 },
   { windowSeconds: 5 * 60,  maxRequests: 15 },
   { windowSeconds: 15 * 60, maxRequests: 30 },
   { windowSeconds: 30 * 60, maxRequests: 45 },
@@ -31,7 +31,7 @@ const NP_WINDOWS = Object.freeze([
 
 
 const NP_WINDOWS_WRITTERS = Object.freeze([
-  { windowSeconds: 60,     maxRequests: 12 },
+  { windowSeconds: 60,     maxRequests: 15 },
   { windowSeconds: 5 * 60,  maxRequests: 25 },
   { windowSeconds: 15 * 60, maxRequests: 45 },
   { windowSeconds: 30 * 60, maxRequests: 70 },
@@ -39,8 +39,8 @@ const NP_WINDOWS_WRITTERS = Object.freeze([
 ]);
 
 const NP_WINDOWS_WRITTERS_XL = Object.freeze([
-  { windowSeconds: 60,     maxRequests: 15 },
-  { windowSeconds: 5 * 60,  maxRequests: 50 },
+  { windowSeconds: 60,     maxRequests: 20 },
+  { windowSeconds: 5 * 60,  maxRequests: 60 },
   { windowSeconds: 15 * 60, maxRequests: 125 },
   { windowSeconds: 30 * 60, maxRequests: 150 },
   { windowSeconds: 60 * 60, maxRequests: 200 },
@@ -62,7 +62,7 @@ export const NP_POLICIES: Readonly<Record<string, RatePolicy>> = Object.freeze({
   'np:documentLoad':            { scope: 'np:documentLoad',            identity: 'user', windows: NP_WINDOWS_WRITTERS_XL },
   'np:calendarPersist':         { scope: 'np:calendarPersist',         identity: 'user', windows: NP_WINDOWS_WRITTERS_XL },
   'np:calendarNotebookDetails': { scope: 'np:calendarNotebookDetails', identity: 'user', windows: NP_WINDOWS },
-  'np:listFiles':               {scope:'nplistFiles', identity:'user', windows:NP_WINDOWS_WRITTERS},
+  'np:listFiles':               {scope:'nplistFiles', identity:'user', windows:NP_WINDOWS_WRITTERS_XL},
   'np:vhList':                  { scope: 'np:vhList',                  identity: 'user', windows: NP_WINDOWS },
   'np:vhDownload':              { scope: 'np:vhDownload',              identity: 'user', windows: NP_WINDOWS },
   'np:vhSnapshotCreate':        { scope: 'np:vhSnapshotCreate',        identity: 'user', windows: NP_WINDOWS_WRITTERS },

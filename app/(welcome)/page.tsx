@@ -2,7 +2,7 @@
 
 import type { Metadata } from 'next';
 import React from 'react';
-import WelcomeLandingPage from '@/app/(welcome)/WelcomeLandingPage';
+import WelcomeLandingPage from '@/app/(welcome)/draft/WelcomeLandingPage';
 import SiteFooter from '@/components/SiteFooter';
 import SiteHeader from '@/components/SiteHeader';
 import SoftwareSchema from '@/components/seo/SoftwareSchema';

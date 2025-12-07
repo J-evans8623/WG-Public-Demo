@@ -1,0 +1,489 @@
+/**
+ * @file app\(marketing)\welcome1\welcomepage.css
+ * @description 
+ * Consolidated styling for the WiseGraph marketing page. 
+ * - Restores the .wg-hero (2-column desk stage)
+ * - Includes .wg-video-showcase (Video embed section)
+ * - Includes scrollytelling and shared styles
+ */
+
+/* Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:wght@400;600;700&display=swap');
+
+/* Design Tokens */
+:root{
+  --wg-gutter: clamp(12px, 2vw, 32px); 
+  --wg-content: min(96vw, 1440px);      
+  --wg-measure: clamp(56ch, 68vw, 84ch);
+  --wg-gap: clamp(24px, 4vw, 64px);
+}
+
+/* Base reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Page shell */
+.wg-page {
+  min-height: 100vh;
+  background-color: #fefdfc; /* warm off-white */
+  color: #2c3e50;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Main layout wrapper */
+.wg-main{
+  max-width: var(--wg-content);
+  margin: 0 auto;
+  padding: clamp(32px, 4vw, 48px) var(--wg-gutter) clamp(56px, 7vw, 80px);
+}
+
+/* ===========================
+   HERO LAYOUT (Design 1 - Restored)
+   =========================== */
+
+.wg-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 80px 48px 88px;
+  background-color: #fff6ea;
+
+  /* desk stage artwork */
+  background-image: url('/brand/scene-0-desk-stage-A.png');
+  background-repeat: no-repeat;
+  background-position: right center;
+  background-size: min(60vw, 900px);
+}
+
+/* soft fade between left copy panel and right desk art */
+.wg-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    #fff6ea 0%,
+    #fff6ea 34%,
+    rgba(255, 246, 234, 0) 60%,
+    rgba(255, 246, 234, 0) 100%
+  );
+  z-index: 0; 
+}
+
+.wg-hero-inner {
+  position: relative;
+  z-index: 1;           
+  max-width: 1160px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 48px;
+}
+
+/* 35% text column */
+.wg-hero-text {
+  flex: 0 0 35%;
+  max-width: 35%;
+  max-width: var(--wg-measure);
+  z-index: 1;
+}
+
+/* typography */
+.wg-hero-heading {
+  font-family: 'Crimson Text', serif;
+  font-size: 2.6rem;
+  line-height: 1.1;
+  margin-bottom: 1.25rem;
+  color: #2c3e50;
+}
+
+.wg-hero-subtitle {
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  color: #4b5563;
+}
+
+.wg-hero-cta-row {
+  margin-bottom: 0.75rem;
+}
+
+.wg-hero-reassurance {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+/* 65% visual column (monitor only – desk is the background) */
+.wg-hero-visual {
+  flex: 0 0 65%;
+  position: relative;
+  min-height: 360px;
+}
+
+/* MONITOR FRAME OVERLAY */
+.wg-hero-monitor {
+  position: absolute;
+  right: 8%;
+  top: 8%;
+  width: min(720px, 58vw);   
+  border-radius: 18px;
+  padding: 10px;
+  background-color: #151515; /* charcoal frame */
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+.wg-hero-monitor-inner {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.wg-hero-monitor-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ===========================
+   VIDEO SHOWCASE (Design 2 - Retained)
+   =========================== */
+
+.wg-video-showcase {
+  padding: clamp(40px, 6vw, 80px) var(--wg-gutter);
+  background: linear-gradient(to bottom, #fff6ea 0%, #fefdfc 100%); /* Adjusted gradient start to match hero */
+}
+
+.wg-video-showcase-inner {
+  max-width: var(--wg-content);
+  margin: 0 auto;
+}
+
+/* Wrapper for "See how it works" label and curled arrow */
+.wg-video-pointer-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center; 
+  gap: 16px;
+  margin-bottom: 24px;
+  margin-left: clamp(40px, 6vw, 80px);
+}
+
+.wg-video-pointer-label {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #2c3e50;
+  padding-top: 0px;
+}
+
+.wg-video-pointer-arrow {
+  width: clamp(70px, 10vw, 100px);
+  height: auto;
+  flex-shrink: 0;
+  animation: arrow-float 3s ease-in-out infinite;
+}
+
+@keyframes arrow-float {
+  0%, 100% { transform: translateY(0px) translateX(0px); }
+  50% { transform: translateY(-4px) translateX(2px); }
+}
+
+.wg-video-container {
+  position: relative;
+  width: 100%;
+  max-width: 1020px;
+  margin: 0 auto;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08);
+  background-color: #1a1a1a;
+  border: 1px solid rgba(212, 196, 176, 0.4);
+}
+
+/* 16:9 aspect ratio wrapper */
+.wg-video-wrapper {
+  position: relative;
+  padding-bottom: 56.25%; 
+  background: #000;
+}
+
+.wg-video-wrapper video,
+.wg-video-wrapper iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.wg-video-caption {
+  margin-top: 24px;
+  text-align: center;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.wg-video-caption-text {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #4b5563;
+}
+
+
+/* ===========================
+   GENERIC & SHARED SECTIONS
+   =========================== */
+
+/* Buttons */
+.wg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 28px;
+  border-radius: 999px;
+  font-size: 0.98rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.18s ease;
+}
+
+.wg-btn-primary {
+  background-color: #E34432; 
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(227, 68, 50, 0.25);
+}
+
+.wg-btn-primary:hover {
+  background-color: #CF3520;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(227, 68, 50, 0.25);
+}
+
+.wg-btn-secondary {
+  background-color: transparent;
+  color: #6c8ebf;
+  border-color: #6c8ebf;
+}
+
+.wg-btn-secondary:hover {
+  background-color: #6c8ebf;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Section Text */
+.wg-section-eyebrow {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6c8ebf;
+  margin-bottom: 8px;
+}
+
+.wg-section-heading {
+  font-family: 'Crimson Text', serif;
+  font-size: 1.9rem;
+  line-height: 1.25;
+  margin-bottom: 12px;
+  color: #2c3e50;
+}
+
+.wg-section-body {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #2c3e50;
+  opacity: 0.9;
+}
+
+/* Demo Placeholders */
+.wg-demo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  border-radius: 12px;
+  background: repeating-linear-gradient(
+      -45deg,
+      rgba(231, 223, 205, 0.5),
+      rgba(231, 223, 205, 0.5) 6px,
+      rgba(255, 248, 233, 0.6) 6px,
+      rgba(255, 248, 233, 0.6) 12px
+    );
+}
+
+.wg-demo-label {
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: #2c3e50;
+  opacity: 0.85;
+}
+
+/* ===========================
+   FINAL CTA SECTION
+   =========================== */
+
+.wg-final-cta {
+  padding: clamp(60px, 10vw, 100px) 0;
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.wg-cta-heading {
+  font-family: 'Crimson Text', serif;
+  font-size: clamp(2.2rem, 5vw, 2.8rem);
+  line-height: 1.2;
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-weight: 700;
+}
+
+.wg-cta-body {
+  font-size: clamp(1.05rem, 2.5vw, 1.25rem);
+  line-height: 1.65;
+  color: #4b5563;
+  margin-bottom: 32px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.wg-btn-cta {
+  padding: 16px 40px;
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+}
+
+.wg-cta-footer {
+  font-size: 0.88rem;
+  color: #6b7280;
+}
+
+/* Scene Stages */
+.wg-scene-stage {
+  position: relative;
+  width: 100%;
+  max-width: 540px;           
+  border-radius: 2px;
+  padding: clamp(14px, 2.4vw, 22px); 
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: 1px solid rgba(212, 196, 176, 0.9); 
+}
+
+/* ===========================
+   RESPONSIVE ADJUSTMENTS
+   =========================== */
+
+@media (max-width: 960px) {
+  .wg-main {
+    padding-top: 64px;
+  }
+
+  /* Hero: stack text + visual, keep bleed background */
+  .wg-hero {
+    padding: 64px 20px 72px;
+    background-position: center bottom;
+    background-size: 130%;
+  }
+
+  .wg-hero-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 28px;
+  }
+
+  .wg-hero-text {
+    max-width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .wg-hero-visual {
+    width: 100%;
+    min-height: 260px;
+    margin-top: 8px;
+  }
+
+  .wg-hero-monitor {
+    position: relative;
+    right: auto;
+    top: auto;
+    margin: 0 auto;
+    width: min(420px, 100%);
+  }
+
+  .wg-hero-heading {
+    font-size: 2.4rem;
+  }
+  
+  /* Video Pointer Adjustment */
+  .wg-video-pointer-wrapper {
+    margin-left: clamp(12px, 3vw, 24px);
+    margin-bottom: 24px;
+  }
+
+  .wg-video-pointer-arrow {
+    width: clamp(60px, 10vw, 90px);
+  }
+
+  .wg-video-container {
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .wg-nav-inner {
+    padding-inline: 16px;
+  }
+
+  .wg-main {
+    padding-inline: 16px;
+  }
+
+  .wg-hero-heading {
+    font-size: 2.15rem;
+  }
+
+  .wg-hero-subtitle {
+    font-size: 1rem;
+  }
+  
+  .wg-cta-heading {
+    font-size: 2rem;
+  }
+
+  .wg-cta-body {
+    font-size: 1.05rem;
+  }
+
+  /* Video Mobile */
+  .wg-video-pointer-wrapper {
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .wg-video-pointer-label {
+    font-size: 0.95rem;
+  }
+
+.wg-video-pointer-arrow {
+  width: clamp(70px, 10vw, 100px);
+  
+  /* ADD THIS LINE: This forces the height to respect the aspect ratio */
+  height: auto; 
+  
+  flex-shrink: 0;
+  animation: arrow-float 3s ease-in-out infinite;
+}
+  
+  .wg-video-container {
+    border-radius: 12px;
+  }
+}

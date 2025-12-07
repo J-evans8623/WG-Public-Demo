@@ -381,12 +381,7 @@
   transform: translateY(-1px);
 }
 
-/* REMOVED - OLD CTA BUTTON SIZE CLASS
-.wg-btn-large {
-  padding: 16px 36px;
-  font-size: 1.02rem;
-}
-*/
+
 
 /* Section shared styles */
 .wg-section {
@@ -542,36 +537,6 @@
   color: #6b7280;
 }
 
-/* REMOVED - OLD FINAL CTA STYLES
-.wg-final-card {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 40px 32px 44px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, #fff8ea 0%, #ffe9d0 100%);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
-  text-align: center;
-}
-
-.wg-final-heading {
-  font-family: 'Crimson Text', serif;
-  font-size: 2.1rem;
-  margin-bottom: 18px;
-  color: #2c3e50;
-}
-
-.wg-final-body {
-  font-size: 1rem;
-  line-height: 1.8;
-  margin-bottom: 24px;
-  color: #2c3e50;
-  opacity: 0.9;
-}
-*/
-
-/* ===========================
-   End of NEW FINAL CTA
-   =========================== */
 
 /* Scene stages (background plates for demo videos) */
 .wg-scene-stage {
