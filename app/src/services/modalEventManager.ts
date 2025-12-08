@@ -140,7 +140,7 @@ export class ModalEventManager {
       ...config
     };
 
-    console.log('[modalEventManager.ts][9001] ModalEventManager initialized with config', this.config);
+    //console.log('[modalEventManager.ts][9001] ModalEventManager initialized with config', this.config);
   }
 
   /**
@@ -155,7 +155,7 @@ export class ModalEventManager {
    */
   public static getInstance(config?: Partial<ModalEventManagerConfig>): ModalEventManager {
     if (!ModalEventManager.instance) {
-      console.log('[modalEventManager.ts][9002] Creating singleton ModalEventManager instance');
+      //console.log('[modalEventManager.ts][9002] Creating singleton ModalEventManager instance');
       ModalEventManager.instance = new ModalEventManager(config);
     }
     return ModalEventManager.instance;
@@ -175,11 +175,11 @@ export class ModalEventManager {
    */
   public async initialize(modalTriggerCallback: (modalType: ModalType, props: any) => void): Promise<void> {
     if (this.isInitialized) {
-      console.log('[modalEventManager.ts][9003] ModalEventManager already initialized');
+      //console.log('[modalEventManager.ts][9003] ModalEventManager already initialized');
       return;
     }
 
-    console.log('[modalEventManager.ts][9004] Initializing ModalEventManager with event subscriptions');
+    //console.log('[modalEventManager.ts][9004] Initializing ModalEventManager with event subscriptions');
 
     // Step 8: Store modal trigger callback for UI integration
     this.modalTriggerCallback = modalTriggerCallback;
@@ -187,7 +187,7 @@ export class ModalEventManager {
     // Step 9: Create and store general API error event handler with proper type safety
     this.errorEventHandler = (event: Event) => {
       if (event instanceof CustomEvent) {
-        console.log('[modalEventManager.ts][9005] Processing general API error event received');
+        //console.log('[modalEventManager.ts][9005] Processing general API error event received');
         return this.handleApiErrorEvent(event as CustomEvent<ApiErrorEvent>);
       }
     };
@@ -198,7 +198,7 @@ export class ModalEventManager {
     serviceTypes.forEach(serviceType => {
       const serviceHandler = (event: Event) => {
         if (event instanceof CustomEvent) {
-          console.log('[modalEventManager.ts][9006] Processing service-specific error event', { serviceType });
+          //console.log('[modalEventManager.ts][9006] Processing service-specific error event', { serviceType });
           return this.handleServiceErrorEvent(serviceType, event as CustomEvent<ApiErrorEvent>);
         }
       };
@@ -207,7 +207,7 @@ export class ModalEventManager {
     });
 
     this.isInitialized = true;
-    console.log('[modalEventManager.ts][9007] ModalEventManager initialization completed successfully');
+    //console.log('[modalEventManager.ts][9007] ModalEventManager initialization completed successfully');
   }
 
   /**
@@ -224,20 +224,13 @@ export class ModalEventManager {
   private async handleApiErrorEvent(event: CustomEvent<ApiErrorEvent>): Promise<void> {
     const errorEvent = event.detail;
     
-    console.log('[modalEventManager.ts][9008] Processing general API error event', {
-      type: errorEvent.type,
-      service: errorEvent.service,
-      requestId: errorEvent.requestId
-    });
+
 
     // Step 11: Get modal mappings for error type
     const mappings = this.getModalMappingsForError(errorEvent);
     
     if (mappings.length === 0) {
-      console.log('[modalEventManager.ts][9009] No modal mappings found for error type', {
-        errorType: errorEvent.type,
-        service: errorEvent.service
-      });
+
       return;
     }
 
@@ -264,11 +257,6 @@ export class ModalEventManager {
   private async handleServiceErrorEvent(serviceType: ApiServiceType, event: CustomEvent<ApiErrorEvent>): Promise<void> {
     const errorEvent = event.detail;
     
-    console.log('[modalEventManager.ts][9010] Processing service-specific error event', {
-      serviceType,
-      errorType: errorEvent.type,
-      requestId: errorEvent.requestId
-    });
 
     // Step 13: Apply service-specific modal customizations
     const mappings = this.getModalMappingsForError(errorEvent);
@@ -303,10 +291,6 @@ export class ModalEventManager {
   private getModalMappingsForError(errorEvent: ApiErrorEvent): ModalMapping[] {
     const mappings = this.errorModalMap[errorEvent.type] || [];
     
-    console.log('[modalEventManager.ts][9011] Retrieved modal mappings for error', {
-      errorType: errorEvent.type,
-      mappingCount: mappings.length
-    });
 
     return mappings.filter(mapping => this.evaluateConditions(mapping.conditions, errorEvent));
   }
@@ -359,10 +343,6 @@ export class ModalEventManager {
   private shouldShowModal(mapping: ModalMapping, errorEvent: ApiErrorEvent): boolean {
     // Step 18: Check if maximum queue size exceeded
     if (this.eventQueue.length >= this.config.maxQueueSize) {
-      console.log('[modalEventManager.ts][9012] Modal queue at maximum capacity, skipping modal', {
-        queueSize: this.eventQueue.length,
-        maxSize: this.config.maxQueueSize
-      });
       return false;
     }
 
@@ -372,10 +352,7 @@ export class ModalEventManager {
     );
 
     if (hasDuplicateModal) {
-      console.log('[modalEventManager.ts][9013] Duplicate modal detected, skipping', {
-        modalType: mapping.modalType,
-        errorType: errorEvent.type
-      });
+
       return false;
     }
 
@@ -383,10 +360,7 @@ export class ModalEventManager {
     if (this.activeModalId) {
       const activeModal = this.eventQueue.find(event => event.id === this.activeModalId);
       if (activeModal && activeModal.mapping.priority <= mapping.priority) {
-        console.log('[modalEventManager.ts][9014] Higher priority modal already active, queueing', {
-          activePriority: activeModal.mapping.priority,
-          newPriority: mapping.priority
-        });
+  
         return true; // Queue but don't show immediately
       }
     }
@@ -414,13 +388,6 @@ export class ModalEventManager {
       timestamp: Date.now(),
       processed: false
     };
-
-    console.log('[modalEventManager.ts][9015] Queueing modal event', {
-      modalType: mapping.modalType,
-      priority: mapping.priority,
-      errorType: errorEvent.type,
-      queueId: queuedEvent.id
-    });
 
     // Step 21: Insert with priority ordering if enabled
     if (this.config.enablePriorityQueue) {
@@ -459,11 +426,7 @@ export class ModalEventManager {
 
     this.eventQueue.splice(insertIndex, 0, queuedEvent);
     
-    console.log('[modalEventManager.ts][9016] Modal inserted at priority position', {
-      insertIndex,
-      priority: queuedEvent.mapping.priority,
-      totalQueue: this.eventQueue.length
-    });
+
   }
 
   /**
@@ -486,11 +449,6 @@ export class ModalEventManager {
       return;
     }
 
-    console.log('[modalEventManager.ts][9017] Processing next modal from queue', {
-      modalType: nextEvent.mapping.modalType,
-      priority: nextEvent.mapping.priority,
-      queueId: nextEvent.id
-    });
 
     // Step 24: Apply processing delay for smooth UX
     if (this.config.processingDelay > 0) {
@@ -516,11 +474,7 @@ export class ModalEventManager {
       };
 
       this.modalTriggerCallback(nextEvent.mapping.modalType, modalProps);
-      
-      console.log('[modalEventManager.ts][9018] Modal triggered successfully', {
-        modalType: nextEvent.mapping.modalType,
-        queueId: nextEvent.id
-      });
+
     }
   }
 
@@ -536,7 +490,7 @@ export class ModalEventManager {
    * @returns Promise resolving when modal closure processing is complete
    */
   private async handleModalClose(modalId: string): Promise<void> {
-    console.log('[modalEventManager.ts][9019] Handling modal close event', { modalId });
+    //console.log('[modalEventManager.ts][9019] Handling modal close event', { modalId });
 
     // Step 27: Clear active modal reference
     if (this.activeModalId === modalId) {
@@ -588,7 +542,7 @@ export class ModalEventManager {
     const clearedCount = this.eventQueue.length;
     this.eventQueue = [];
     
-    console.log('[modalEventManager.ts][9020] Modal queue cleared', { clearedCount });
+    //console.log('[modalEventManager.ts][9020] Modal queue cleared', { clearedCount });
     return clearedCount;
   }
 
@@ -634,19 +588,19 @@ export class ModalEventManager {
    * @returns Promise resolving when shutdown cleanup is complete
    */
   public async shutdown(): Promise<void> {
-    console.log('[modalEventManager.ts][9021] Shutting down ModalEventManager');
+    //console.log('[modalEventManager.ts][9021] Shutting down ModalEventManager');
 
     // Step 30: Remove general API error event listener using stored reference
     if (this.errorEventHandler) {
       apiService.removeEventListener('api-error', this.errorEventHandler);
       this.errorEventHandler = null;
-      console.log('[modalEventManager.ts][9022] General error event listener removed');
+      //console.log('[modalEventManager.ts][9022] General error event listener removed');
     }
     
     // Step 31: Remove service-specific event listeners using stored references
     for (const [serviceType, handler] of this.serviceEventHandlers) {
       apiService.removeEventListener(`api-error-${serviceType}`, handler);
-      console.log('[modalEventManager.ts][9023] Service event listener removed', { serviceType });
+      //console.log('[modalEventManager.ts][9023] Service event listener removed', { serviceType });
     }
     this.serviceEventHandlers.clear();
 
@@ -656,7 +610,7 @@ export class ModalEventManager {
     this.modalTriggerCallback = null;
     this.isInitialized = false;
 
-    console.log('[modalEventManager.ts][9024] ModalEventManager shutdown completed');
+    //console.log('[modalEventManager.ts][9024] ModalEventManager shutdown completed');
   }
 }
 

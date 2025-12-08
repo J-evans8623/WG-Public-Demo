@@ -40,10 +40,6 @@ export function registerModal(
   const hadExisting = modalFactoryMap.has(type);
   modalFactoryMap.set(type, factory);
   // Observability
-  console.log('[ModalRegistry.ts][6101] registerModal called', {
-    type,
-    replacedExisting: hadExisting,
-  });
 }
 
 /**
@@ -60,9 +56,5 @@ export function getModal(
 ): ((props: any) => React.ReactNode) | undefined {
   const found = modalFactoryMap.get(type);
   // Observability
-  console.log('[ModalRegistry.ts][6102] getModal lookup', {
-    type,
-    found: !!found,
-  });
   return found;
 }

@@ -60,7 +60,7 @@ class CollaborationManager {
   private opQueue = createOpQueue('CollabMgr');
 
   private constructor() {
-    console.log('CollaborationManager › Singleton instance created');
+    //console.log('CollaborationManager › Singleton instance created');
   }
 
   static getInstance(): CollaborationManager {
@@ -88,7 +88,7 @@ class CollaborationManager {
     return this.opQueue.run(async () => {
       // Step 1: Early success if already connected to the same doc with same ydoc.
       if (this.currentDocId === docId && this.currentYDoc === ydoc && this.provider) {
-        console.log('[CollaborationManager.ts][8421] › Already connected (same doc/ydoc)'); // update - 4
+        //console.log('[CollaborationManager.ts][8421] › Already connected (same doc/ydoc)'); // update - 4
         return;
       }
 
@@ -96,21 +96,21 @@ class CollaborationManager {
       const currentRetries = this.retryCountPerDoc.get(docId) || 0; // update - 5
       if (currentRetries >= this.MAX_RETRY_ATTEMPTS) {
         const msg = `CollaborationManager › Retry limit exceeded for doc ${docId} (${currentRetries}/${this.MAX_RETRY_ATTEMPTS})`; // update - 6
-        console.error('[CollaborationManager.ts][8422] › ' + msg);
+        //console.error('[CollaborationManager.ts][8422] › ' + msg);
         this.setStatus('disconnected'); // update - 7
         throw new Error(msg);
       }
       this.retryCountPerDoc.set(docId, currentRetries + 1); // update - 8
       if (!this.retryResetTimers.has(docId)) { // update - 9
         const t = setTimeout(() => {
-          console.log('[CollaborationManager.ts][8423] › Retry counter reset for doc', docId);
+          //console.log('[CollaborationManager.ts][8423] › Retry counter reset for doc', docId);
           this.retryCountPerDoc.delete(docId);
           this.retryResetTimers.delete(docId);
         }, this.RETRY_RESET_INTERVAL);
         this.retryResetTimers.set(docId, t);
       }
 
-      console.log('[CollaborationManager.ts][8424] › Connect queued → attempt', currentRetries + 1, 'doc:', docId); // update - 10
+      //console.log('[CollaborationManager.ts][8424] › Connect queued → attempt', currentRetries + 1, 'doc:', docId); // update - 10
 
       // Step 3: Ensure any previous provider is fully closed before proceeding.
       await awaitProviderClose(this.provider); // update - 11
@@ -127,7 +127,7 @@ class CollaborationManager {
       // Step 5: Optional jitter for dev retry visibility.
       const connectionDelay = this.isDevMode ? Math.min(currentRetries * 500, 2000) : 0; // update - 19
       if (connectionDelay > 0) {
-        console.log('[CollaborationManager.ts][8425] › Dev delay (ms):', connectionDelay); // update - 20
+        //console.log('[CollaborationManager.ts][8425] › Dev delay (ms):', connectionDelay); // update - 20
         await new Promise((r) => setTimeout(r, connectionDelay)); // update - 21
       }
 
@@ -145,12 +145,7 @@ class CollaborationManager {
           const changedParents = tx.changedParentTypes.size;
           const deletedClients = tx.deleteSet.clients.size;
           const locality = tx.local ? 'LOCAL' : 'REMOTE';
-          console.log('CollaborationManager.ts [7131] › afterTransaction probe', {
-            docId: this.currentDocId,
-            locality,
-            changedParentTypesSize: changedParents,
-            deleteSetClientsSize: deletedClients,
-          });
+
         });
       }
 
@@ -178,7 +173,7 @@ class CollaborationManager {
   disconnect(): void { // update - 33
     const docId = this.currentDocId;
     if (docId) {
-      console.log('[CollaborationManager.ts][8427] › Disconnect requested for doc:', docId); // update - 34
+      //console.log('[CollaborationManager.ts][8427] › Disconnect requested for doc:', docId); // update - 34
     }
 
     // Step 1: Clear timers immediately to stop refresh churn while teardown is enqueued.
@@ -200,7 +195,7 @@ class CollaborationManager {
 
       // 2.4: Publish status.
       this.setStatus('disconnected'); // update - 43
-      console.log('[CollaborationManager.ts][8428] › Disconnect complete'); // update - 44
+      //console.log('[CollaborationManager.ts][8428] › Disconnect complete'); // update - 44
     });
   }
 
@@ -219,7 +214,7 @@ class CollaborationManager {
    * DEBUGGING: Reset retry counter for a specific document (emergency use)
    */
   resetRetryCounter(docId: string): void {
-    console.log(`CollaborationManager › MANUAL RESET of retry counter for doc: ${docId}`);
+    //console.log(`CollaborationManager › MANUAL RESET of retry counter for doc: ${docId}`);
     this.retryCountPerDoc.delete(docId);
     const resetTimer = this.retryResetTimers.get(docId);
     if (resetTimer) {
@@ -232,7 +227,7 @@ class CollaborationManager {
    * DEBUGGING: Reset all retry counters (emergency use)
    */
   resetAllRetryCounters(): void {
-    console.log('CollaborationManager › MANUAL RESET of ALL retry counters');
+    //console.log('CollaborationManager › MANUAL RESET of ALL retry counters');
     this.retryCountPerDoc.clear();
     this.retryResetTimers.forEach(timer => clearTimeout(timer));
     this.retryResetTimers.clear();
@@ -283,7 +278,7 @@ class CollaborationManager {
 
   private setStatus(status: CollabStatus): void {
     if (this.status !== status) {
-      console.log('CollaborationManager › Status changed:', this.status, '→', status);
+      //console.log('CollaborationManager › Status changed:', this.status, '→', status);
       this.status = status;
       this.notifyStatusChange(status);
     }
@@ -294,7 +289,7 @@ class CollaborationManager {
       try {
         callback(status);
       } catch (error) {
-        console.error('CollaborationManager › Error in status callback:', error);
+        //console.error('CollaborationManager › Error in status callback:', error);
       }
     });
   }
@@ -312,7 +307,7 @@ class CollaborationManager {
         this.provider.disconnect();
         this.provider.destroy();
       } catch (error) {
-        console.warn('CollaborationManager › Error destroying provider:', error);
+        //console.warn('CollaborationManager › Error destroying provider:', error);
       }
       this.provider = null;
     }
@@ -325,7 +320,7 @@ class CollaborationManager {
    * with a token (since the caller needs it immediately to connect).
    */
   private async fetchToken(docId: string): Promise<TokenBundle> {
-    console.log('CollaborationManager › Fetching token for doc:', docId);
+    //console.log('CollaborationManager › Fetching token for doc:', docId);
 
     const key = `collab:start:${docId}`;
 
@@ -376,18 +371,18 @@ class CollaborationManager {
     // needs a deterministic result now).
     if (!response) {
       const msg = 'Token fetch deferred by rate limit (Retry-After active). Please try again.';
-      console.error('CollaborationManager › Token fetch deferred (null response):', msg);
+      //console.error('CollaborationManager › Token fetch deferred (null response):', msg);
       throw new Error(msg);
     }
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');
-      console.error('CollaborationManager › Token fetch failed:', response.status, errorText);
+      //console.error('CollaborationManager › Token fetch failed:', response.status, errorText);
       throw new Error(`Token fetch failed: ${response.status} ${errorText}`);
     }
 
     const { token, expiresIn } = await response.json();
-    console.log('CollaborationManager › Token fetched successfully; expiresIn(s)=', expiresIn);
+    //console.log('CollaborationManager › Token fetched successfully; expiresIn(s)=', expiresIn);
 
     return { token, expiresIn };
   }
@@ -418,7 +413,7 @@ private async connectWithToken(docId: string, ydoc: Y.Doc, jwt: string): Promise
   });
 
   this.setupProviderEvents();
-  console.log('CollaborationManager › WebSocket provider initialized (room=doc, params=?token=JWT)');
+  //console.log('CollaborationManager › WebSocket provider initialized (room=doc, params=?token=JWT)');
 }
 
 
@@ -430,40 +425,35 @@ private async connectWithToken(docId: string, ydoc: Y.Doc, jwt: string): Promise
 
     // Provider status events
     this.provider.on('status', (evt: { status: string }) => {
-      console.log('CollaborationManager › Provider status:', evt.status);
+      //console.log('CollaborationManager › Provider status:', evt.status);
       this.setStatus(evt.status === 'connected' ? 'connected' : 'disconnected');
     });
 
     this.provider.on('connection-close', (evt: unknown) => {
-      console.log('CollaborationManager › Connection close event:', evt);
+      //console.log('CollaborationManager › Connection close event:', evt);
     });
 
     this.provider.on('connection-error', (evt: unknown) => {
-      console.error('CollaborationManager › Connection error event:', evt);
+      //console.error('CollaborationManager › Connection error event:', evt);
     });
 
     this.provider.on('sync', (isSynced: boolean) => {
-      console.log('CollaborationManager › Sync state:', isSynced ? 'synced' : 'syncing');
+      //console.log('CollaborationManager › Sync state:', isSynced ? 'synced' : 'syncing');
     });
 
     // WebSocket-level events
     const ws = (this.provider as any).ws as WebSocket | undefined;
     if (ws) {
       ws.addEventListener('open', () => {
-        console.log('CollaborationManager › WebSocket opened successfully');
+        //console.log('CollaborationManager › WebSocket opened successfully');
       });
 
       ws.addEventListener('error', (event) => {
-        console.error('CollaborationManager › WebSocket error:', event);
+        //console.error('CollaborationManager › WebSocket error:', event);
       });
 
       ws.addEventListener('close', (event) => {
-        console.log('CollaborationManager › WebSocket closed', {
-          code: event.code,
-          reason: event.reason,
-          wasClean: event.wasClean,
-           online: navigator.onLine, hidden: document.hidden, ts: Date.now(),
-        });
+
         this.handleWebSocketClose(event);
       });
     }
@@ -475,7 +465,7 @@ private async connectWithToken(docId: string, ydoc: Y.Doc, jwt: string): Promise
   private handleWebSocketClose(event: CloseEvent): void {
     // 4003 → revoked: notify callback
     if (event.code === 4003) {
-      console.log('CollaborationManager › Access revoked by server (4003)');
+      //console.log('CollaborationManager › Access revoked by server (4003)');
       this.options.onRevoked?.({ docId: this.currentDocId! });
       this.setStatus('disconnected');
       return;
@@ -484,19 +474,19 @@ private async connectWithToken(docId: string, ydoc: Y.Doc, jwt: string): Promise
     // 4002 → invalid/expired token: try ONE immediate refresh per document
     if (event.code === 4002 && !this.triedImmediateFixRef) {
       this.triedImmediateFixRef = true;
-      console.log('CollaborationManager › Token invalid (4002); attempting immediate refresh...');
+      //console.log('CollaborationManager › Token invalid (4002); attempting immediate refresh...');
       
       // Check if we still have retry attempts left before trying refresh
       const currentRetries = this.retryCountPerDoc.get(this.currentDocId!) || 0;
       if (currentRetries >= this.MAX_RETRY_ATTEMPTS) {
-        console.error(`CollaborationManager › Cannot attempt token refresh - retry limit exceeded (${currentRetries}/${this.MAX_RETRY_ATTEMPTS})`);
+        //console.error(`CollaborationManager › Cannot attempt token refresh - retry limit exceeded (${currentRetries}/${this.MAX_RETRY_ATTEMPTS})`);
         this.options.onInvalidToken?.({ docId: this.currentDocId!, error: new Error('Retry limit exceeded') });
         this.setStatus('disconnected');
         return;
       }
       
       this.attemptTokenRefresh().catch(error => {
-        console.error('CollaborationManager › Immediate token refresh failed:', error);
+        //console.error('CollaborationManager › Immediate token refresh failed:', error);
         this.options.onInvalidToken?.({ docId: this.currentDocId!, error });
         this.setStatus('disconnected');
       });
@@ -527,19 +517,19 @@ private async connectWithToken(docId: string, ydoc: Y.Doc, jwt: string): Promise
     this.clearTimers();
     
     if (!tokenBundle.expiresIn || tokenBundle.expiresIn <= 90) {
-      console.log('CollaborationManager › Skipping refresh scheduling; expiresIn too small:', tokenBundle.expiresIn);
+      //console.log('CollaborationManager › Skipping refresh scheduling; expiresIn too small:', tokenBundle.expiresIn);
       return;
     }
 
     const refreshInMs = (tokenBundle.expiresIn - 60) * 1000; // Refresh 1 minute before expiry
-    console.log('CollaborationManager › Scheduling token refresh in(s)=', refreshInMs / 1000);
+    //console.log('CollaborationManager › Scheduling token refresh in(s)=', refreshInMs / 1000);
 
     this.refreshTimer = setTimeout(async () => {
       try {
-        console.log('CollaborationManager › Performing scheduled token refresh...');
+        //console.log('CollaborationManager › Performing scheduled token refresh...');
         await this.attemptTokenRefresh();
       } catch (error) {
-        console.error('CollaborationManager › Scheduled token refresh failed:', error);
+        //console.error('CollaborationManager › Scheduled token refresh failed:', error);
         this.setStatus('disconnected');
       }
     }, refreshInMs);

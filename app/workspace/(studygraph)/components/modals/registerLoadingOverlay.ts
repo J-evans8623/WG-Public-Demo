@@ -25,12 +25,7 @@ import { registerModal } from './ModalRegistry';
 
 // update - 1: Use React.createElement in a .ts file (no JSX). Register the factory under a unique key.
 registerModal('loadingOverlay', (props: any) => {
-  console.log('[registerLoadingOverlay.ts][6302] Factory invoked for loadingOverlay', {
-    hasProps: !!props,
-    keys: props ? Object.keys(props).slice(0, 5) : [],
-  });
+
   return React.createElement(LoadingOverlayModal, { ...props });
 });
 
-// update - 2: Keep bootstrap visibility log to confirm registration executed once per app lifetime.
-console.log('[registerLoadingOverlay.ts][6301] LoadingOverlay registered with ModalRegistry');

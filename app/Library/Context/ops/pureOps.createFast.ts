@@ -140,7 +140,7 @@ export async function opBootstrapNewDoc(args: {
   if (!putDoc.ok) {
     throw new Error(`opBootstrapNewDoc: doc upload failed: ${putDoc.status} ${putDoc.statusText}`);
   }
-  await saveDocBytes(args.docId, args.bytes);
+  //await saveDocBytes(args.docId, args.bytes);
 
   // (3)
   const putChat = await fetch(chatTicket.uploadUrl, {

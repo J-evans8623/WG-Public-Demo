@@ -22,7 +22,6 @@ import BaseResourceCard from '@/app/workspace/(studygraph)/components/layout/Car
  * pixel-parity, spacing, and tests remain stable without introducing additional logic or state.
  */
 const DefaultEmptyResourceCard: React.FC = () => {
-  console.log('[DefaultEmptyResourceCard.tsx][8412] render simple empty-state card');
 
   return (
     <BaseResourceCard className="resource-display preview-slide fixed-height" tabIndex={-1}>

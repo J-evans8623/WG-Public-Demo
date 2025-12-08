@@ -27,13 +27,278 @@ import type {
 import { type DayOfWeek, type ScheduleConfig, ALL_DAYS} from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/Configuration';
 import { NotebooksApi } from '@/app/src/services/calendar/NotebooksApi';
 import { CalendarPersistApi } from '@/app/src/services/calendar/CalendarPersistApi';
-import { StudyPlanService } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner';
+import { StudyPlanService, type PlanUpdateType } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/tentative/StudyPlanService';
 import type { StudyPlanOutput} from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/StudyPlanOutput.ts'
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useFileList, useApiContext  } from '@/app/src/context/ApiContext'; 
-
+import type { UserFileMetadata } from '@/app/src/types/fileTypes';
 
 const Ctx = createContext<CalendarContextType | undefined>(undefined);
+
+
+/**
+ * Revives JSON-parsed / Firestore-decoded objects back into full StudyPlanOutput
+ * with all Date-typed fields restored as real Date instances.
+ * This walks:
+ *   • planMetadata.startDate / endDate
+ *   • state.nextAvailableDate
+ *   • state.sessionsByDate[*].date
+ *   • state.sessionsByDate[*].notebookMeta.lastUpdated
+ *   • flat sessions[*].date / sessions[*].notebookMeta.lastUpdated
+ *   • state.learningSets[*].notebooks[*].lastUpdated
+ *   • state.notebookProgress[*].interleavedRevisionProgress.firstSessionDate
+ *   • state.notebookProgress[*].interleavedRevisionProgress.scheduledDates[*]
+ *   • state.notebookProgress[*].lessonProgress[*].completionDate
+ *   • state.notebookProgress[*].lessonProgress[*].blockLearningSessions[*].date
+ *   • state.notebookProgress[*].lessonProgress[*].blockRevisionSessions[*].date
+ */
+function reviveStudyPlan(rawPlan: any): StudyPlanOutput | null {
+  if (!rawPlan || !rawPlan.state) return null;
+
+  // Helper for any date-like value (string | number | Timestamp-like | Date | null/undefined)
+  const reviveDate = (d: any): Date => {
+    if (!d) return new Date();
+    if (d instanceof Date) return d;
+    if (typeof d?.toDate === 'function') {
+      const asDate = d.toDate();
+      return isNaN(asDate.getTime()) ? new Date() : asDate;
+    }
+    const parsed = new Date(d);
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
+  // ---- notebookProgress: Object/Map → Map and deep revive progress dates ----
+  let progressMap = rawPlan.state.notebookProgress;
+  if (!(progressMap instanceof Map)) {
+    if (typeof progressMap === 'object' && progressMap !== null) {
+      progressMap = new Map(Object.entries(progressMap));
+    } else {
+      progressMap = new Map();
+    }
+  }
+
+  // Deep-walk each NotebookProgress
+  for (const [nbId, progAny] of (progressMap as Map<string, any>).entries()) {
+    const prog = progAny ?? {};
+
+    // 1) InterleavedRevisionProgress dates
+    const ilp = prog.interleavedRevisionProgress;
+    if (ilp && typeof ilp === 'object') {
+      if (ilp.firstSessionDate) {
+        ilp.firstSessionDate = reviveDate(ilp.firstSessionDate);
+      }
+      if (Array.isArray(ilp.scheduledDates)) {
+        ilp.scheduledDates = ilp.scheduledDates.map((d: any) => reviveDate(d));
+      } else {
+        ilp.scheduledDates = [];
+      }
+    }
+
+    // 2) LessonProgress dates (completion + block session dates)
+    const lessons = Array.isArray(prog.lessonProgress) ? prog.lessonProgress : [];
+    prog.lessonProgress = lessons.map((lp: any) => {
+      const next = { ...lp };
+
+      if (next.completionDate) {
+        next.completionDate = reviveDate(next.completionDate);
+      }
+
+      const reviveBlockArray = (arr: any) =>
+        Array.isArray(arr)
+          ? arr.map((b: any) => ({
+              ...b,
+              date: reviveDate(b?.date),
+            }))
+          : [];
+
+      next.blockLearningSessions = reviveBlockArray(next.blockLearningSessions);
+      next.blockRevisionSessions = reviveBlockArray(next.blockRevisionSessions);
+
+      return next;
+    });
+
+    (progressMap as Map<string, any>).set(nbId, prog);
+  }
+
+  // ---- sessionsByDate: Object → Map + revive session + notebookMeta dates ----
+  let sessionsMap = rawPlan.state.sessionsByDate;
+  if (!(sessionsMap instanceof Map)) {
+    if (typeof sessionsMap === 'object' && sessionsMap !== null) {
+      const entries = Object.entries(sessionsMap).map(([key, val]) => {
+        const sessions = Array.isArray(val) ? val : [];
+        const revivedSessionsForDay = sessions.map((s: any) => ({
+          ...s,
+          date: reviveDate(s.date),
+          notebookMeta: {
+            ...s.notebookMeta,
+            lastUpdated: reviveDate(s.notebookMeta?.lastUpdated),
+          },
+        }));
+        return [key, revivedSessionsForDay];
+      });
+      sessionsMap = new Map(entries as any);
+    } else {
+      sessionsMap = new Map();
+    }
+  }
+
+  // ---- Flat sessions array: revive session + notebookMeta dates ----
+  const revivedSessions = (rawPlan.sessions || []).map((s: any) => ({
+    ...s,
+    date: reviveDate(s.date),
+    notebookMeta: {
+      ...s.notebookMeta,
+      lastUpdated: reviveDate(s.notebookMeta?.lastUpdated),
+    },
+  }));
+
+  // ---- planMetadata dates ----
+  const revivedMetadata = {
+    ...rawPlan.planMetadata,
+    startDate: reviveDate(rawPlan.planMetadata?.startDate),
+    endDate: reviveDate(rawPlan.planMetadata?.endDate),
+  };
+
+  // ---- learningSets: revive NotebookMeta.lastUpdated inside each set ----
+  const revivedLearningSets = Array.isArray(rawPlan.state.learningSets)
+    ? rawPlan.state.learningSets.map((ls: any) => ({
+        ...ls,
+        notebooks: Array.isArray(ls.notebooks)
+          ? ls.notebooks.map((nb: any) => ({
+              ...nb,
+              lastUpdated: reviveDate(nb?.lastUpdated),
+            }))
+          : [],
+      }))
+    : [];
+
+  // ---- Assemble final revived StudyPlanOutput ----
+  return {
+    ...rawPlan,
+    sessions: revivedSessions,
+    planMetadata: revivedMetadata,
+    state: {
+      ...rawPlan.state,
+      learningSets: revivedLearningSets,
+      notebookProgress: progressMap,
+      sessionsByDate: sessionsMap,
+      nextAvailableDate: reviveDate(rawPlan.state.nextAvailableDate),
+    },
+  };
+}
+
+/**
+ * Serializes Maps into Objects for the Persistence Layer (JSON.stringify).
+ * This prevents Maps from being saved as empty objects "{}".
+ */
+function serializeStudyPlan(plan: StudyPlanOutput): any {
+  if (!plan) return null;
+
+  const sessionsByDateObj = plan.state.sessionsByDate instanceof Map
+    ? Object.fromEntries(plan.state.sessionsByDate)
+    : plan.state.sessionsByDate;
+
+  const notebookProgressObj = plan.state.notebookProgress instanceof Map
+    ? Object.fromEntries(plan.state.notebookProgress)
+    : plan.state.notebookProgress;
+
+  return {
+    ...plan,
+    state: {
+      ...plan.state,
+      sessionsByDate: sessionsByDateObj,
+      notebookProgress: notebookProgressObj,
+    }
+  };
+}
+
+
+/**
+ * @function syncPlanMetaWithFileList
+ * @description
+ * Pure helper that deep-walks the StudyPlanOutput and updates notebook display metadata
+ * (fileName, colorCode) to match the current authoritative file list.
+ * Returns the original plan object if no changes were needed, ensuring referential stability.
+ */
+function syncPlanMetaWithFileList(
+  plan: StudyPlanOutput,
+  files: UserFileMetadata[]
+): StudyPlanOutput {
+  if (!plan || !files || files.length === 0) return plan;
+
+  // 1. Build a lookup map for O(1) access
+  const fileMap = new Map<string, { fileName: string; colorCode: string }>();
+  for (const f of files) {
+    fileMap.set(f.fileId, { fileName: f.fileName, colorCode: f.colorCode! });
+  }
+
+  let hasChanges = false;
+
+  // Helper to patch a NotebookMeta object if needed
+  const patchMeta = (meta: NotebookMeta): NotebookMeta => {
+    const fresh = fileMap.get(meta.fileId);
+    if (fresh && (fresh.fileName !== meta.fileName || fresh.colorCode !== meta.colorCode)) {
+      hasChanges = true;
+      return { ...meta, fileName: fresh.fileName, colorCode: fresh.colorCode };
+    }
+    return meta;
+  };
+
+  // 2. Patch flat sessions array
+  const newSessions = plan.sessions.map(s => {
+    const newMeta = patchMeta(s.notebookMeta);
+    return newMeta === s.notebookMeta ? s : { ...s, notebookMeta: newMeta };
+  });
+
+  // 3. Patch sessionsByDate (Map)
+  const newSessionsByDate = new Map(plan.state.sessionsByDate);
+  for (const [dateKey, daySessions] of plan.state.sessionsByDate.entries()) {
+    let dayChanged = false;
+    const newDaySessions = daySessions.map((s: any) => {
+      const newMeta = patchMeta(s.notebookMeta);
+      if (newMeta !== s.notebookMeta) {
+        dayChanged = true;
+        return { ...s, notebookMeta: newMeta };
+      }
+      return s;
+    });
+
+    if (dayChanged) {
+      newSessionsByDate.set(dateKey, newDaySessions);
+    }
+  }
+
+  // 4. Patch learningSets
+  // learningSets structure: { notebooks: NotebookMeta[], ... }
+  const newLearningSets = plan.state.learningSets.map((ls: any) => {
+    let setChanged = false;
+    const newNotebooks = ls.notebooks.map((nb: NotebookMeta) => {
+      const newMeta = patchMeta(nb);
+      if (newMeta !== nb) {
+        setChanged = true;
+        return newMeta;
+      }
+      return nb;
+    });
+
+    return setChanged ? { ...ls, notebooks: newNotebooks } : ls;
+  });
+
+  // If nothing changed, return original to preventing rendering loops
+  if (!hasChanges) return plan;
+
+  // Return new object with patches
+  return {
+    ...plan,
+    sessions: newSessions,
+    state: {
+      ...plan.state,
+      sessionsByDate: newSessionsByDate,
+      learningSets: newLearningSets,
+    },
+  };
+}
+
 
 /**
  * @function groupSessionsIntoMonth
@@ -127,7 +392,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [saveNeeded, setSaveNeeded] =useState(false);
   const { userEmail } = useApiContext();
 
-  const [pendingIntegrations, setPendingIntegrations] = useState<Set<string>>(new Set());
+  const [pendingIntegrations, setPendingIntegrations] =useState<Map<string, number>>(new Map());
 
   // Version tracking (unchanged conceptually)
   const [notebookVersions, setNotebookVersions] = useState<Map<string, NotebookVersionState>>(new Map());
@@ -179,6 +444,26 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, [ownedFiles]);
 
 
+  /**
+   * @effect Metadata Reconciliation
+   * @description
+   * Watches `studyPlan` and `ownedFiles`. If the plan contains stale metadata (e.g., old names),
+   * creates a new plan reference with updated metadata and commits it to state.
+   * The `syncPlanMetaWithFileList` helper is stable (returns same ref) if no changes occur,
+   * preventing infinite loops.
+   */
+  useEffect(() => {
+    if (!studyPlan || ownedFiles.length === 0) return;
+
+    const reconciled = syncPlanMetaWithFileList(studyPlan, ownedFiles);
+    
+    // Strict reference check ensures we only trigger a re-render if data actually changed
+    if (reconciled !== studyPlan) {
+
+      setStudyPlan(reconciled);
+    }
+  }, [studyPlan, ownedFiles]);
+
   // ── Derived month (pure; recompute when inputs change)
   const currentMonth = useMemo<CalendarMonth | null>(() => {
     if (!studyPlan) return null;
@@ -206,7 +491,8 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
       const data = await persistApi.load();
       setSelectedNotebooks(data.selectedNotebooks ?? []);
       setCompletedSessions(data.completedSessions ?? []);
-      setStudyPlan(data.studyPlan ?? null);
+      const revived = reviveStudyPlan(data.studyPlan);
+      setStudyPlan(revived);
     } catch (e) {
       console.warn('[CalendarContext][H001] hydrate failed', e);
     } finally {
@@ -226,8 +512,10 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   const persistOptimistic = useCallback(async () => {
     if (!studyPlan) return;
     try {
+      // FIX: Serialize Maps -> Objects before sending
+      const wirePlan = serializeStudyPlan(studyPlan);
       await persistApi.store({
-        studyPlan,
+        studyPlan: wirePlan as any, // Cast to satisfy strict type check (transport layer will JSON.stringify)
         selectedNotebooks,
         completedSessions,
       });
@@ -345,8 +633,13 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
     setIsLoading(true); setError(null);
     try {
       const metas = await notebooksApi.details(selectedNotebooks);
-      const out = service.generateStudyPlan(metas, scheduleConfig, planStartDate);
-      setStudyPlan(out);
+      const nextPlan = service.generateStudyPlan(metas, scheduleConfig, planStartDate);
+
+      if (!nextPlan || !nextPlan.sessions) {
+         throw new Error("Service generated an invalid plan.");
+      }
+
+      setStudyPlan(nextPlan);
       // initialize versions
       const map = new Map<string, NotebookVersionState>();
       metas.forEach(nb => {
@@ -359,7 +652,8 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
         });
       });
       setNotebookVersions(map);
-      await persistApi.store({ studyPlan: out, selectedNotebooks, completedSessions });
+      const wirePlan = serializeStudyPlan(nextPlan);
+      await persistApi.store({ studyPlan: wirePlan, selectedNotebooks, completedSessions });
     } catch (e: any) {
       setError(e?.message ?? 'Failed to generate plan');
     } finally {
@@ -442,7 +736,7 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
 
 
   /**
-   * @function updateStudyPlan // update - 6
+   * @function updateStudyPlan
    * @description
    *  Extend the existing plan using updated NotebookMeta (from selection) and
    *  write the **merged** plan back to state + persistence.
@@ -452,6 +746,12 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
    *  3) Call service.extendStudyPlan(studyPlan, metas) to get a unified plan.
    *  4) setStudyPlan(merged) and POST envelope optimistically.
    *  5) Refresh version tracking snapshot.
+   */
+/**
+   * @function updateStudyPlan
+   * @description
+   * Extend the existing plan using updated NotebookMeta (from selection).
+   * (new update - detects structural changes vs content updates)
    */
   const updateStudyPlan = useCallback(async () => { 
     if (!studyPlan) {
@@ -465,21 +765,37 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
 
     setIsLoading(true); setError(null);
     try {
-      // 2) fetch latest notebook metadata
+      // 1. Fetch latest metadata for ALL selected notebooks
       const metas = await notebooksApi.details(selectedNotebooks);
 
-      // 3) service returns a merged plan (existing + tail)
-      const merged = service.extendStudyPlan(studyPlan, metas);
+      // 2. Determine Strategy:
+      // If ANY selected notebook is NOT in the current plan, it's an Insertion.
+      // If ALL selected notebooks are already in the plan, it's an Update.
+      // Note: If a notebook was REMOVED from selection, we also treat as Structure Change (InsertNotebook).
+      
+      const currentPlanIds = new Set(studyPlan.state.notebookProgress.keys());
+      const selectedSet = new Set(selectedNotebooks);
 
-      // 4) update state + persist
+      const hasNewNotebooks = selectedNotebooks.some(id => !currentPlanIds.has(id));
+      const hasRemovedNotebooks = Array.from(currentPlanIds).some(id => !selectedSet.has(id));
+
+      const isStructureChange = hasNewNotebooks || hasRemovedNotebooks;
+      const updateType: PlanUpdateType = isStructureChange ? 'InsertNotebook' : 'UpdateNotebook';
+
+
+      // 3. Call Service with the specific strategy
+      const merged = service.extendStudyPlan(studyPlan, metas, updateType);
+
+      // 4. Commit State
       setStudyPlan(merged);
+      const wirePlan = serializeStudyPlan(merged);
       await persistApi.store({
-        studyPlan: merged,
+        studyPlan: wirePlan,
         selectedNotebooks,
         completedSessions,
       });
 
-      // 5) version snapshot bookkeeping
+      // 5. Update Versions
       setNotebookVersions(prev => {
         const m = new Map(prev);
         metas.forEach(nb => {
@@ -498,7 +814,7 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
     } finally {
       setIsLoading(false);
     }
-  }, [studyPlan, selectedNotebooks, notebooksApi, service, persistApi, completedSessions]); // update - 6
+  }, [studyPlan, selectedNotebooks, notebooksApi, service, persistApi, completedSessions]);
 
 
   // update - 10: New automation helpers
@@ -507,155 +823,196 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
    * @description Checks if a specific notebook ID is part of the active schedule.
    */
   const isNotebookTracked = useCallback((notebookId: string): boolean => {
+
     if (!studyPlan) return false;
     return studyPlan.state.notebookProgress.has(notebookId);
   }, [studyPlan]);
 
-  /**
-   * @function queueNotebookIntegration
-   * @description
-   * Registers a user's intent to add a notebook to the plan. This does NOT trigger
-   * an immediate update. Instead, it adds the ID to a watchlist. The useEffect below
-   * monitors the data cache and executes the update only when the data arrives.
-   */
-  const queueNotebookIntegration = useCallback((notebookId: string) => {
-    console.log(`[CalendarContext] Queueing integration for ${notebookId}`);
-    setPendingIntegrations(prev => new Set(prev).add(notebookId));
-    setIsLoading(true); // Show loading immediately to indicate "work in progress"
-  }, []);
+/**
+ * @function queueNotebookIntegration
+ * @description
+ * Registers a user's intent to add or refresh a notebook in the plan.
+ * Instead of a bare ID set, we now capture a baseline unit count:
+ *   • For new notebooks, baseline will be 0 (no lesson units yet).
+ *   • For existing notebooks, baseline will be the current totalUnits.
+ * The reactive effect will only integrate once totalUnits > baseline,
+ * ensuring we do not race against stale cache snapshots.
+ */
+const queueNotebookIntegration = useCallback((notebookId: string) => {
+  // Look up the notebook's current unit count in the canonical file list.
+  // If it's not present or has no units yet, baseline defaults to 0.
+  const baselineUnits =
+    availableNotebooks.find(nb => nb.fileId === notebookId)?.totalUnits ?? 0;
+
+  setPendingIntegrations(prev => {
+    const next = new Map(prev);
+    // Avoid overwriting an existing baseline if the notebook is already queued.
+    if (!next.has(notebookId)) {
+      next.set(notebookId, baselineUnits);
+
+    }
+    return next;
+  });
+
+  // Surface immediate feedback that work is in progress.
+  setIsLoading(true);
+}, [availableNotebooks]);
+
 
 /**
-   * @function integrateNotebook
-   * @description
-   * Atomically adds a notebook to the selection and triggers an update.
-   * UPDATE: Combines Cache-First optimization with a Polling Safety Net.
-   * It attempts to fetch using the cache first. If the specific target notebook
-   * comes back with 0 units (stale/empty), it enters a retry loop to wait for
-   * the data to propagate.
-   */
-  const integrateNotebook = useCallback(async (notebookId: string) => {
-    // 1. Optimistically update local selection state
-    setSelectedNotebooks(prev => {
-      if (prev.includes(notebookId)) return prev;
-      return [...prev, notebookId];
+ * @function integrateNotebook
+ * @description
+ * Atomically adds a notebook to the selection and triggers a plan update.
+ *
+ * IMPORTANT:
+ *  - We no longer perform a "does it have any units yet?" retry loop here.
+ *  - Instead, the reactive effect above ensures we only call this function
+ *    once the cached notebook metadata has moved past its baseline unit
+ *    count (0 → N for new notebooks, N → N+M for updates).
+ *
+ * This keeps the responsibilities clean:
+ *  - queueNotebookIntegration: remembers the baseline unit count.
+ *  - useEffect watcher: waits for totalUnits > baseline before integrating.
+ *  - integrateNotebook: trusts that data is fresh and extends/generates the plan.
+ */
+const integrateNotebook = useCallback(async (notebookId: string) => {
+  // Snapshot previous selection for rollback on failure
+  const previousSelection = selectedNotebooks;
+
+  // 1. Optimistically update local selection state
+  setSelectedNotebooks(prev => {
+    if (prev.includes(notebookId)) return prev;
+    return [...prev, notebookId];
+  });
+
+  const targetIds = Array.from(new Set([...selectedNotebooks, notebookId]));
+
+  setIsLoading(true);
+  setError(null);
+
+  try {
+    // 2. Fetch latest metadata for all target notebooks
+    const metas: NotebookMeta[] = await notebooksApi.details(targetIds, userEmail);
+
+    // Sanity check: ensure the target notebook exists in the response
+    const targetMeta = metas.find(m => m.fileId === notebookId);
+    if (!targetMeta) {
+      throw new Error(`Notebook metadata not found for id ${notebookId}.`);
+    }
+
+    // 3. Execute Study Plan Service logic
+    let nextPlan: StudyPlanOutput;
+
+    if (!studyPlan) {
+      // CASE: No existing plan → generate a new one from scratch
+      const config: ScheduleConfig = { DayAvailability: ALL_DAYS };
+      const startDate = new Date();
+      nextPlan = service.generateStudyPlan(metas, config, startDate);
+    } else {
+      // CASE: Plan exists → decide whether this is an insertion or an update
+      const isAlreadyTracked = studyPlan.state.notebookProgress.has(notebookId);
+      const updateType: PlanUpdateType = isAlreadyTracked ? 'UpdateNotebook' : 'InsertNotebook';
+      nextPlan = service.extendStudyPlan(studyPlan, metas, updateType);
+    }
+
+    // 4. Commit plan + persist
+    setStudyPlan(nextPlan);
+    const wirePlan = serializeStudyPlan(nextPlan);
+    await persistApi.store({
+      studyPlan: wirePlan,
+      selectedNotebooks: targetIds,
+      completedSessions,
     });
 
-    const targetIds = Array.from(new Set([...selectedNotebooks, notebookId]));
-
-    setIsLoading(true); setError(null);
-    try {
-      let metas: NotebookMeta[] = [];
-      const maxRetries = 5;
-      let attempt = 0;
-
-      // Retry loop: Ensure we get valid data for the *new* notebook
-      while (attempt < maxRetries) {
-        // 2. Fetch details (Cache-First via userEmail)
-        metas = await notebooksApi.details(targetIds, userEmail); 
-
-        // 3. Validation: Check if the target notebook has units
-        const targetMeta = metas.find(m => m.fileId === notebookId);
-        const hasUnits = targetMeta && targetMeta.lessonUnits && targetMeta.lessonUnits.length > 0;
-
-        if (hasUnits) {
-           console.log(`[CalendarContext] Successfully retrieved content for ${notebookId} on attempt ${attempt + 1}`);
-           break;
-        }
-
-        console.warn(`[CalendarContext] Lesson units empty for ${notebookId}. Waiting for cache/backend... (${attempt + 1}/${maxRetries})`);
-        await new Promise(r => setTimeout(r, 1000)); // Wait 1s
-        attempt++;
-      }
-
-      // If retries fail, we likely throw, but let's do a final check to be safe or proceed best-effort
-      const finalCheck = metas.find(m => m.fileId === notebookId);
-      if (!finalCheck || !finalCheck.lessonUnits || finalCheck.lessonUnits.length === 0) {
-         // Choosing to throw here because the scheduling algo WILL fail or produce 0 sessions otherwise
-         throw new Error(`Timed out waiting for lesson content for notebook ${notebookId}. Please try updating the schedule manually in a few moments.`);
-      }
-
-      // 4. If no plan exists, create one; otherwise extend.
-      let merged: StudyPlanOutput;
-      if (!studyPlan) {
-        const config = { DayAvailability: ALL_DAYS };
-        const startDate = new Date();
-        merged = service.generateStudyPlan(metas, config, startDate);
-      } else {
-         merged = service.extendStudyPlan(studyPlan, metas);
-      }
-
-      // 5. Commit
-      setStudyPlan(merged);
-      await persistApi.store({
-        studyPlan: merged,
-        selectedNotebooks: targetIds,
-        completedSessions,
-      });
-
-      // 6. Update versions
-      setNotebookVersions(prev => {
-        const m = new Map(prev);
-        metas.forEach(nb => {
-          m.set(nb.fileId, {
-            notebookId: nb.fileId,
-            trackedVersion: nb.version ?? 'unknown',
-            currentVersion: nb.version ?? 'unknown',
-            needsUpdate: false,
-            lastChecked: new Date(),
-          });
+    // 5. Refresh version tracking for all involved notebooks
+    setNotebookVersions(prev => {
+      const m = new Map(prev);
+      metas.forEach(nb => {
+        m.set(nb.fileId, {
+          notebookId: nb.fileId,
+          trackedVersion: nb.version ?? 'unknown',
+          currentVersion: nb.version ?? 'unknown',
+          needsUpdate: false,
+          lastChecked: new Date(),
         });
-        return m;
       });
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to integrate notebook');
-    } finally {
-      setIsLoading(false);
+      return m;
+    });
+  } catch (e: any) {
+    console.error('[CalendarContext] integrateNotebook failed', e);
+    setError(e?.message ?? 'Failed to integrate notebook');
+
+    // Roll back to previous selection on failure
+    setSelectedNotebooks(previousSelection);
+  } finally {
+    setIsLoading(false);
+  }
+}, [studyPlan, selectedNotebooks, notebooksApi, service, persistApi, completedSessions, userEmail]);
+
+
+/**
+ * @effect Reactive Integration
+ * @description
+ * Watches `availableNotebooks` (fed by ApiContext / YDoc write-through cache)
+ * and integrates notebooks only when their unit counts are demonstrably fresh.
+ *
+ * For each queued notebook:
+ *   baselineUnits = unit count at the time of queuing
+ *   currentUnits  = live unit count from `availableNotebooks`
+ *
+ * We integrate ONLY when:
+ *   currentUnits > baselineUnits
+ *
+ * This prevents the race where an existing notebook (N units) is integrated
+ * using its old snapshot before the N+M units from lesson generation have
+ * propagated through the cache.
+ */
+useEffect(() => {
+  if (pendingIntegrations.size === 0) return;
+
+  const processQueue = async () => {
+    const toProcess: string[] = [];
+
+    // Debug visibility into the queue (Map → array for logging)
+    const debugQueue = Array.from(pendingIntegrations.entries()).map(
+      ([id, baseline]) => ({ id, baseline })
+    );
+
+
+    // Determine which queued notebooks are now "fresh enough" to integrate
+    pendingIntegrations.forEach((baselineUnits, id) => {
+      const meta = availableNotebooks.find(nb => nb.fileId === id);
+      if (!meta) return;
+
+      const currentUnits = meta.totalUnits ?? 0;
+
+      // READY when the cache shows strictly more units than when we queued.
+      if (currentUnits > baselineUnits) {
+
+        toProcess.push(id);
+      }
+    });
+
+    if (toProcess.length === 0) {
+      return;
     }
-  }, [studyPlan, selectedNotebooks, notebooksApi, service, persistApi, completedSessions, userEmail]); 
 
+    // Execute integration for ready items
+    for (const id of toProcess) {
+      await integrateNotebook(id);
 
-  /**
-   * @effect Reactive Integration
-   * @description
-   * Watches `availableNotebooks` (which updates via ApiContext -> Cache).
-   * If a pending notebook appears in the available list with units > 0,
-   * it triggers the actual integration logic and dequeues the ID.
-   */
-  useEffect(() => {
-    if (pendingIntegrations.size === 0) return;
-
-    const processQueue = async () => {
-      const toProcess: string[] = [];
-
-        console.log(`Debug: 3245 Inconsistent Ids:  doc id in pending integration ${JSON.stringify(pendingIntegrations)}`)
-      
-      // Check which pending items are now ready
-      pendingIntegrations.forEach(id => {
-        const meta = availableNotebooks.find(nb => nb.fileId === id);
-        // Data is ready if it exists in cache AND has valid units
-        if (meta && meta.totalUnits > 0) {
-          toProcess.push(id);
-        }
+      // Remove from queue after successful processing
+      setPendingIntegrations(prev => {
+        const next = new Map(prev);
+        next.delete(id);
+        return next;
       });
+    }
+  };
 
-      if (toProcess.length === 0) return;
+  void processQueue();
+}, [availableNotebooks, pendingIntegrations, integrateNotebook]);
 
-      console.log(`[CalendarContext] Data ready for pending integrations: ${toProcess.join(', ')}`);
-
-      // Execute integration for ready items
-      for (const id of toProcess) {
-        await integrateNotebook(id);
-        // Remove from queue after processing
-        setPendingIntegrations(prev => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
-      }
-    };
-
-    processQueue();
-  }, [availableNotebooks, pendingIntegrations, integrateNotebook]);
 
   // "Autosave mechanism"
 

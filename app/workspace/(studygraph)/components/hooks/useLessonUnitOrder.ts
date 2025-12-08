@@ -34,7 +34,7 @@ function traverseUnit(
   },
   rootId?:string
 ) {
-  console.log('[useLessonUnitOrder.ts:1002] Processing node:', nodeId);
+  //console.log('[useLessonUnitOrder.ts:1002] Processing node:', nodeId);
   const title = getNodeTitle(nodeId) || 'Untitled';
 
   // 1. Lecture-note slides
@@ -42,7 +42,7 @@ function traverseUnit(
     ...raw,
     conceptNodeTitle: title
   }));
-  console.log('[useLessonUnitOrder.ts:1003] Collected', notes.length, 'note slides for', nodeId);
+  //console.log('[useLessonUnitOrder.ts:1003] Collected', notes.length, 'note slides for', nodeId);
   accumulator.push(...notes);
 
   // 3. Cue-card slides
@@ -50,7 +50,7 @@ function traverseUnit(
     ...raw,
     conceptNodeTitle: title
   }));
-  console.log('[useLessonUnitOrder.ts:1005] Collected', cues.length, 'cue slides for', nodeId);
+  //console.log('[useLessonUnitOrder.ts:1005] Collected', cues.length, 'cue slides for', nodeId);
   accumulator.push(...cues);
 
   // 4. Recurse into children
@@ -80,7 +80,7 @@ function traverseUnit(
     ...raw,
     conceptNodeTitle: title
   }));
-  console.log('[useLessonUnitOrder.ts:1006] Collected', quizzes.length, 'quiz slides for', nodeId);
+  //console.log('[useLessonUnitOrder.ts:1006] Collected', quizzes.length, 'quiz slides for', nodeId);
   accumulator.push(...quizzes);
 }
 
@@ -94,7 +94,7 @@ export function useLessonUnitOrder(): ResourceCard[] {
 
   return useMemo(() => {
     const rootId = getRootNode();
-    console.log('[useLessonUnitOrder.ts:1001] Starting unit ordering from root:', rootId);
+    //console.log('[useLessonUnitOrder.ts:1001] Starting unit ordering from root:', rootId);
     const result: ResourceCard[] = [];
 
     // Main DFS-based unit ordering
@@ -109,22 +109,22 @@ export function useLessonUnitOrder(): ResourceCard[] {
     if (reviewInfo.exist && reviewInfo.id) {
       const reviewId = reviewInfo.id;
       const reviewTitle = getNodeTitle(reviewId) || 'Review';
-      console.log('[useLessonUnitOrder.ts:1008] Appending review-node slides for:', reviewId);
+      //console.log('[useLessonUnitOrder.ts:1008] Appending review-node slides for:', reviewId);
 
       const revNotes = selectNoteCards(reviewId).map(raw => ({ ...raw, conceptNodeTitle: reviewTitle }));
-      console.log('[useLessonUnitOrder.ts:1009] Collected', revNotes.length, 'review note slides');
+      //console.log('[useLessonUnitOrder.ts:1009] Collected', revNotes.length, 'review note slides');
       result.push(...revNotes);
 
       const revCues = selectCueCards(reviewId).map(raw => ({ ...raw, conceptNodeTitle: reviewTitle }));
-      console.log('[useLessonUnitOrder.ts:1011] Collected', revCues.length, 'review cue slides');
+      //console.log('[useLessonUnitOrder.ts:1011] Collected', revCues.length, 'review cue slides');
       result.push(...revCues);
 
       const revQuizzes = selectPracticeSheets(reviewId).map(raw => ({ ...raw, conceptNodeTitle: reviewTitle }));
-      console.log('[useLessonUnitOrder.ts:1012] Collected', revQuizzes.length, 'review quiz slides');
+      //console.log('[useLessonUnitOrder.ts:1012] Collected', revQuizzes.length, 'review quiz slides');
       result.push(...revQuizzes);
     }
 
-    console.log('[useLessonUnitOrder.ts:1013] Completed ordering. Total slides:', result.length);
+    //console.log('[useLessonUnitOrder.ts:1013] Completed ordering. Total slides:', result.length);
     return result;
   }, [
     nodes,

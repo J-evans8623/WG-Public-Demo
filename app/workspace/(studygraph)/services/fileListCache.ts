@@ -54,23 +54,19 @@ export function getFileListCache(
   try {
     const raw = localStorage.getItem(getCacheKey(userKey));
     if (!raw) {
-      console.log('[fileListCache.ts][5101] getFileListCache: miss (no entry)', { userKey });
+      //console.log('[fileListCache.ts][5101] getFileListCache: miss (no entry)', { userKey });
       return null;
     }
 
     const parsed: CacheEnvelope = JSON.parse(raw);
     if (parsed?.schemaVersion !== SCHEMA_VERSION) {
-      console.log('[fileListCache.ts][5102] getFileListCache: schema mismatch → ignore', {
-        userKey,
-        found: parsed?.schemaVersion,
-        expected: SCHEMA_VERSION,
-      });
+ 
       return null;
     }
 
     const age = Date.now() - parsed.updatedAt;
     if (age > ttlMs) {
-      console.log('[fileListCache.ts][5103] getFileListCache: expired', { userKey, age, ttlMs });
+      //console.log('[fileListCache.ts][5103] getFileListCache: expired', { userKey, age, ttlMs });
       return null;
     }
 
@@ -79,19 +75,14 @@ export function getFileListCache(
       !Array.isArray(parsed.data.ownedFiles) ||
       !Array.isArray(parsed.data.sharedFiles)
     ) {
-      console.log('[fileListCache.ts][5104] getFileListCache: malformed data', { userKey });
+      //console.log('[fileListCache.ts][5104] getFileListCache: malformed data', { userKey });
       return null;
     }
 
-    console.log('[fileListCache.ts][5105] getFileListCache: hit', {
-      userKey,
-      owned: parsed.data.ownedFiles.length,
-      shared: parsed.data.sharedFiles.length,
-      ageMs: age,
-    });
+
     return parsed.data;
   } catch (e) {
-    console.warn('[fileListCache.ts][5191] getFileListCache: error (non-fatal)', e);
+    //console.warn('[fileListCache.ts][5191] getFileListCache: error (non-fatal)', e);
     return null;
   }
 }
@@ -111,13 +102,9 @@ export function setFileListCache(userKey: string, data: FileListShape): void {
       data,
     };
     localStorage.setItem(getCacheKey(userKey), JSON.stringify(envelope));
-    console.log('[fileListCache.ts][5106] setFileListCache: stored', {
-      userKey,
-      owned: data.ownedFiles.length,
-      shared: data.sharedFiles.length,
-    });
+
   } catch (e) {
-    console.warn('[fileListCache.ts][5192] setFileListCache: error (non-fatal)', e);
+    //console.warn('[fileListCache.ts][5192] setFileListCache: error (non-fatal)', e);
   }
 }
 
@@ -130,8 +117,8 @@ export function setFileListCache(userKey: string, data: FileListShape): void {
 export function clearFileListCache(userKey: string): void {
   try {
     localStorage.removeItem(getCacheKey(userKey));
-    console.log('[fileListCache.ts][5107] clearFileListCache: cleared', { userKey });
+    //console.log('[fileListCache.ts][5107] clearFileListCache: cleared', { userKey });
   } catch (e) {
-    console.warn('[fileListCache.ts][5193] clearFileListCache: error (non-fatal)', e);
+    //console.warn('[fileListCache.ts][5193] clearFileListCache: error (non-fatal)', e);
   }
 }

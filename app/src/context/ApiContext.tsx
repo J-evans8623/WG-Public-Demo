@@ -87,6 +87,7 @@ interface ApiContextType {
   
   addFileMeta: (meta: UserFileMetadata) => void;
   updateFileMeta: (fileId: string, patch: Partial<UserFileMetadata>) => void;
+  upsertFileMeta: (fileId: string, patch: Partial<UserFileMetadata>) => void;
   removeFileMeta: (fileId: string) => void;
 
   // Step 3: New account status management
@@ -242,7 +243,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
       throw new Error('SESSION_LOADING');
     }
     if (!normalizedEmail) {
-      console.error('[ApiContext.tsx][7001] Missing session email. Auth is required.');
+      //console.error('[ApiContext.tsx][7001] Missing session email. Auth is required.');
       throw new Error('SESSION_REQUIRED');
     }
     return normalizedEmail;
@@ -263,11 +264,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
     if (!mountedRef.current) return;
 
     const errorEvent = event.detail;
-    console.log('[ApiContext.tsx][8002] Handling API error event', {
-      type: errorEvent.type,
-      service: errorEvent.service,
-      requestId: errorEvent.requestId
-    });
+
 
     setApiError(errorEvent);
 
@@ -309,7 +306,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
         },
       });
       if (!response.ok) {
-        console.warn('[ApiContext.tsx][1002] Account status fetch failed:', response.status);
+        //console.warn('[ApiContext.tsx][1002] Account status fetch failed:', response.status);
         throw new Error(`Account status fetch failed: ${response.statusText}`);
       }
 
@@ -317,18 +314,14 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
 
       if (mountedRef.current) {
         setAccountStatus(data);
-        console.log('[ApiContext.tsx][8004] Account status refreshed successfully', {
-          accountType: data.accountType,
-          subscriptionTier: data.subscriptionTier
-        });
       }
 
-      console.log(' Debug : 8932 [ApiContext.tsx][1003] Account status received:', JSON.stringify(data));
+      //console.log(' Debug : 8932 [ApiContext.tsx][1003] Account status received:', JSON.stringify(data));
       
     } catch (error) {
 
       if(mountedRef.current) {
-      console.error('[ApiContext.tsx][1005] Account status fetch error:', error);
+      //console.error('[ApiContext.tsx][1005] Account status fetch error:', error);
       
       // Step 8: Graceful fallback to safe defaults
       const fallbackStatus: AccountStatus = {
@@ -349,7 +342,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
       };
       
       setAccountStatus(fallbackStatus);
-      console.log('[ApiContext.tsx][1006] Applied fallback account status');
+      //console.log('[ApiContext.tsx][1006] Applied fallback account status');
     }
     } finally {
       if (mountedRef.current) {
@@ -386,7 +379,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
    * account data from persisting across sessions.
    */
   const signOut = async () => {
-    console.log('[ApiContext.tsx][7008] Sign out initiated');
+    //console.log('[ApiContext.tsx][7008] Sign out initiated');
     try {
       
       const emailKey = normalizedEmail;
@@ -399,9 +392,9 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
       setFileList(null);
       setIsFileListHydrated(false);
       setFileListUpdatedAt(null);
-      console.log('[ApiContext.tsx][7009] Sign out completed; cache cleared for user', emailKey);
+      //console.log('[ApiContext.tsx][7009] Sign out completed; cache cleared for user', emailKey);
     } catch (err) {
-      console.error('[ApiContext.tsx][7010] Logout error', err);
+      //console.error('[ApiContext.tsx][7010] Logout error', err);
     }
   };
 
@@ -413,7 +406,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
    * Includes comprehensive logging for debugging file listing operations.
    */
 const fetchFilesFromServer = async (query?: string): Promise<UserFilesResponse> => {
-  console.log('[ApiContext.tsx][1011] Fetching file lists (via SupersedingCaller)');
+  //console.log('[ApiContext.tsx][1011] Fetching file lists (via SupersedingCaller)');
 
   // Stable lane per feature (and per-query so rapid re-queries supersede each other)
   const lane = query ? `files:list?q=${encodeURIComponent(query)}` : 'files:list';
@@ -440,7 +433,7 @@ const fetchFilesFromServer = async (query?: string): Promise<UserFilesResponse> 
 
   // Superseded or waiting for a Retry-After timer — surface a soft signal to caller.
   if (!resp) {
-    console.log('[ApiContext.tsx][1011a] list() deferred/superseded (429 timer or abort).');
+    //console.log('[ApiContext.tsx][1011a] list() deferred/superseded (429 timer or abort).');
     const err: any = new Error('LIST_DEFERRED');
     err.deferred = true;
     throw err;
@@ -448,7 +441,7 @@ const fetchFilesFromServer = async (query?: string): Promise<UserFilesResponse> 
 
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
-    console.error('[ApiContext.tsx][1012] ListFiles failed:', resp.status, text);
+    //console.error('[ApiContext.tsx][1012] ListFiles failed:', resp.status, text);
     throw new Error(`List files failed: ${resp.statusText}`);
   }
 
@@ -517,7 +510,7 @@ const listFiles = async (): Promise<UserFilesResponse> => {
 
     // Step 2 — Kick background revalidation exactly once (and make sure we clear the flag)
     if (!inflightListPromiseRef.current) {
-      console.log('[ApiContext.tsx][7211] revalidate begin (bg)', { userKey });
+      //console.log('[ApiContext.tsx][7211] revalidate begin (bg)', { userKey });
       setIsFileListRefreshing(true);
 
       const p = fetchFilesFromServer()
@@ -531,12 +524,12 @@ const listFiles = async (): Promise<UserFilesResponse> => {
         .catch((err) => {
           // (Background path) Only surface hard errors
           if (!(err?.deferred || err?.message === 'LIST_DEFERRED')) {
-            console.error('[ApiContext.tsx][7298] revalidate failed (bg)', err);
+            //console.error('[ApiContext.tsx][7298] revalidate failed (bg)', err);
             if (mountedRef.current) {
               setFileListError(err?.message ?? 'File list refresh failed');
             }
           } else {
-            console.log('[ApiContext.tsx][7298] revalidate deferred (bg): suppressed user-visible error');
+            //console.log('[ApiContext.tsx][7298] revalidate deferred (bg): suppressed user-visible error');
           }
           return cached;
         })
@@ -555,7 +548,7 @@ const listFiles = async (): Promise<UserFilesResponse> => {
     return Promise.resolve(cached);
   }
 
-  console.log('[ApiContext.tsx][7202] listFiles cache miss → fallback to network', { userKey });
+  //console.log('[ApiContext.tsx][7202] listFiles cache miss → fallback to network', { userKey });
 
   // Step 3 — No cache, perform network path (write-through) and await once
   setIsFileListLoading(true);
@@ -576,7 +569,7 @@ const listFiles = async (): Promise<UserFilesResponse> => {
     if (!(err?.deferred || err?.message === 'LIST_DEFERRED')) {
       setFileListError(err?.message ?? 'File list load failed');
     } else {
-      console.log('[ApiContext.tsx][7202a] initial list deferred/superseded: suppressed user-visible error');
+      //console.log('[ApiContext.tsx][7202a] initial list deferred/superseded: suppressed user-visible error');
     }
     throw err;
   } finally {
@@ -603,10 +596,10 @@ const refreshFileList = async (): Promise<void> => {
     if (!(e?.deferred || e?.message === 'LIST_DEFERRED')) {
       setFileListError(e?.message ?? 'File list refresh failed');
     } else {
-      console.log('[ApiContext.tsx][7294a] refresh deferred/superseded: suppressed user-visible error');
+      //console.log('[ApiContext.tsx][7294a] refresh deferred/superseded: suppressed user-visible error');
     }
 
-    console.warn('[ApiContext.tsx][7294] refreshList network failed; preserving current state', e);
+    //console.warn('[ApiContext.tsx][7294] refreshList network failed; preserving current state', e);
       // Optional: fallback to cached data if state is empty and cache exists
       if (!fileList) {
         const cached = getFileListCache(userKey);
@@ -643,9 +636,9 @@ const refreshFileList = async (): Promise<void> => {
         setFileListCache(userKey, next);
         setFileListUpdatedAt(Date.now()); 
         setIsFileListHydrated(true); 
-        console.log('[ApiContext.tsx][7207] applyAndSync → cache stored', { userKey });
+        //console.log('[ApiContext.tsx][7207] applyAndSync → cache stored', { userKey });
       } catch (e) {
-        console.warn('[ApiContext.tsx][7297] applyAndSync cache store failed (non-fatal)', e);
+        //console.warn('[ApiContext.tsx][7297] applyAndSync cache store failed (non-fatal)', e);
       }
       return next;
     });
@@ -668,10 +661,7 @@ const refreshFileList = async (): Promise<void> => {
         meta,
         email
       );
-      console.log('ApiContext.tsx 4118 › [] addFileMeta', {
-        fileId: meta.fileId,
-        bucket: resolveBucket(meta, email),
-      });
+
       return { ownedFiles: next.owned, sharedFiles: next.shared };
     });
   }, [applyAndSync, currentUserEmail]);
@@ -694,10 +684,75 @@ const refreshFileList = async (): Promise<void> => {
         patch,
         email
       );
-      console.log('ApiContext.tsx 4119 › [] updateFileMeta', { fileId, patchKeys: Object.keys(patch || {}) });
+      //console.log('ApiContext.tsx 4119 › [] updateFileMeta', { fileId, patchKeys: Object.keys(patch || {}) });
       return { ownedFiles: next.owned, sharedFiles: next.shared };
     });
   }, [applyAndSync, currentUserEmail]);
+
+
+  /**
+   * @function upsertFileMeta
+   * @description
+   *   Safe “upsert” primitive for file metadata. It first checks whether the given file id is
+   *   already present in either the owned or shared file lists. If so, it delegates to the same
+   *   `updateByIdSorted` helper used elsewhere, preserving existing bucket placement and sort
+   *   order. If the file does not yet exist, it synthesizes a minimally complete `UserFileMetadata`
+   *   object using the caller-supplied patch plus conservative defaults (owner = current user,
+   *   role = Owner, neutral color, and standard content type) and inserts it via
+   *   `insertDedupSorted`. This keeps complexity linear in the number of files while providing
+   *   a single stable entry point for creation-or-update flows.
+   */
+  const upsertFileMeta = useCallback(
+    (fileId: string, patch: Partial<UserFileMetadata>): void => {
+      const email = currentUserEmail();
+      applyAndSync(prev => {
+        const materialized = prev ?? { ownedFiles: [], sharedFiles: [] };
+
+        const existsInOwned = materialized.ownedFiles.some(f => f.fileId === fileId);
+        const existsInShared = materialized.sharedFiles.some(f => f.fileId === fileId);
+
+        if (existsInOwned || existsInShared) {
+          const next = updateByIdSorted(
+            { owned: materialized.ownedFiles, shared: materialized.sharedFiles },
+            fileId,
+            patch,
+            email
+          );
+          return { ownedFiles: next.owned, sharedFiles: next.shared };
+        }
+
+        const nowIso = new Date().toISOString();
+
+        const meta: UserFileMetadata = {
+          fileId,
+          ownerId: patch.ownerId ?? email,
+          fileName: patch.fileName ?? 'Untitled Document',
+          fileStoragePath: patch.fileStoragePath ?? '',
+          colorCode: patch.colorCode ?? '#B3B3B3',
+          version: patch.version ?? 1,
+          timestamp: patch.timestamp ?? nowIso,
+          updatedAt: patch.updatedAt ?? nowIso,
+          fileSize: patch.fileSize ?? 0,
+          contentType: patch.contentType ?? 'application/octet-stream',
+          editors: patch.editors ?? [email],
+          sharedWith: patch.sharedWith ?? [],
+          publicEdit: patch.publicEdit ?? false,
+          publicView: patch.publicView ?? false,
+          role: patch.role ?? 'Owner',
+          lessonUnitsMeta: patch.lessonUnitsMeta,
+        };
+
+        const next = insertDedupSorted(
+          { owned: materialized.ownedFiles, shared: materialized.sharedFiles },
+          meta,
+          email
+        );
+
+        return { ownedFiles: next.owned, sharedFiles: next.shared };
+      });
+    },
+    [applyAndSync, currentUserEmail]
+  );
 
   /**
    * 
@@ -713,7 +768,7 @@ const refreshFileList = async (): Promise<void> => {
         { owned: materialized.ownedFiles, shared: materialized.sharedFiles },
         fileId
       );
-      console.log('ApiContext.tsx 4120 › [] removeFileMeta', { fileId, removed: next.removed });
+      //console.log('ApiContext.tsx 4120 › [] removeFileMeta', { fileId, removed: next.removed });
       return { ownedFiles: next.owned, sharedFiles: next.shared };
     });
   }, [applyAndSync]);
@@ -726,7 +781,7 @@ const refreshFileList = async (): Promise<void> => {
    * Essential for maintaining stable collaboration connections in production environments.
    */
   const getWebSocketUrl = async (documentId: string): Promise<string> => {
-    console.log('[ApiContext.tsx][1014] Generating WebSocket URL for document:', documentId);
+    //console.log('[ApiContext.tsx][1014] Generating WebSocket URL for document:', documentId);
     
     try {
       const maxRetries = 3;
@@ -750,21 +805,21 @@ const refreshFileList = async (): Promise<void> => {
           const wsUrl = new URL(process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:1234');
           wsUrl.searchParams.append('token', data.token);
           
-          console.log('[ApiContext.tsx][1015] WebSocket URL generated successfully');
+          //console.log('[ApiContext.tsx][1015] WebSocket URL generated successfully');
           return wsUrl.toString();
         } catch (error) {
           lastError = error as Error;
           retryCount++;
           if (retryCount < maxRetries) {
             const delay = Math.pow(2, retryCount) * 1000;
-            console.log('[ApiContext.tsx][1016] WebSocket URL generation retry:', retryCount, 'delay:', delay);
+            //console.log('[ApiContext.tsx][1016] WebSocket URL generation retry:', retryCount, 'delay:', delay);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
       }
       throw lastError || new Error('Failed to get WebSocket URL after retries');
     } catch (error) {
-      console.error('[ApiContext.tsx][1017] WebSocket URL generation failed:', error);
+      //console.error('[ApiContext.tsx][1017] WebSocket URL generation failed:', error);
       throw error;
     }
   };
@@ -778,7 +833,7 @@ const refreshFileList = async (): Promise<void> => {
    * backend validation of deletion permissions.
    */
   const deleteFile = async (fileStorageId: string): Promise<void> => {
-    console.log('[ApiContext.tsx][1018] Deleting file:', fileStorageId);
+    //console.log('[ApiContext.tsx][1018] Deleting file:', fileStorageId);
     
     try {
       const url = new URL('/api/document/delete', window.location.origin);
@@ -791,7 +846,7 @@ const refreshFileList = async (): Promise<void> => {
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[ApiContext.tsx][1019] Delete file failed:', response.statusText, errorText);
+        //console.error('[ApiContext.tsx][1019] Delete file failed:', response.statusText, errorText);
         throw new Error(`Delete file failed: ${response.statusText}`);
       }
 
@@ -809,9 +864,9 @@ const refreshFileList = async (): Promise<void> => {
        await refreshFileList();
 
       
-      console.log('[ApiContext.tsx][1020] File deleted successfully:', fileStorageId);
+      //console.log('[ApiContext.tsx][1020] File deleted successfully:', fileStorageId);
     } catch (error) {
-      console.error('[ApiContext.tsx][1021] Error deleting file:', error);
+      //console.error('[ApiContext.tsx][1021] Error deleting file:', error);
       throw error;
     }
   };
@@ -853,7 +908,7 @@ const refreshFileList = async (): Promise<void> => {
     fileID: string,
     config: ApiRequestConfig = {}
   ): Promise<ApiResponse> => {
-    console.log('[ApiContext.tsx][8006] Processing ask assistant request through enhanced API service');
+    //console.log('[ApiContext.tsx][8006] Processing ask assistant request through enhanced API service');
     updateRequestActivityState();
     
     try {
@@ -870,7 +925,7 @@ const refreshFileList = async (): Promise<void> => {
     options: { isPublic?: boolean } = {},
     config: ApiRequestConfig = {}
   ): Promise<ApiResponse> => {
-    console.log('[ApiContext.tsx][8007] Processing lesson generation request through enhanced API service');
+    //console.log('[ApiContext.tsx][8007] Processing lesson generation request through enhanced API service');
     updateRequestActivityState();
     
     try {
@@ -888,7 +943,7 @@ const refreshFileList = async (): Promise<void> => {
     textSelection?: string,
     config: ApiRequestConfig = {}
   ): Promise<ApiResponse> => {
-    console.log('[ApiContext.tsx][8008] Processing topic exploration request through enhanced API service');
+    //console.log('[ApiContext.tsx][8008] Processing topic exploration request through enhanced API service');
     updateRequestActivityState();
     
     try {
@@ -909,14 +964,7 @@ const refreshFileList = async (): Promise<void> => {
       textSelection?: string,            // optional: focused selection
       config: ApiRequestConfig = {}
     ): Promise<ApiResponse> => {
-      console.log('[ApiContext.tsx][8809] createQuiz begin', {
-        lessonId,
-        fileID,
-        quizTypes,
-        questionCount: questionCount ?? null,
-        hasExportData: typeof exportData === 'string' && exportData.length > 0,
-        hasTextSelection: typeof textSelection === 'string' && textSelection.length > 0,
-      });
+
 
       updateRequestActivityState();
 
@@ -958,7 +1006,7 @@ const refreshFileList = async (): Promise<void> => {
 
   // Gradebook wrappers (centralize logging + request activity state)
   const assignMetaUpsert = useCallback(async (req: AssignMetaUpsertReq): Promise<AssignMetaUpsertRes> => {
-    console.log('[ApiContext.tsx][6701] assignMetaUpsert begin', { docId: req.docId, assignmentId: req.assignmentId });
+    //console.log('[ApiContext.tsx][6701] assignMetaUpsert begin', { docId: req.docId, assignmentId: req.assignmentId });
     updateRequestActivityState();
     try {
       const res = await gradebookClient.assignMetaUpsert(req);
@@ -969,7 +1017,7 @@ const refreshFileList = async (): Promise<void> => {
   }, [updateRequestActivityState]);
 
   const assignMetaPatch = useCallback(async (req: AssignMetaPatchReq): Promise<AssignMetaPatchRes> => {
-    console.log('[ApiContext.tsx][6702] assignMetaPatch begin', { docId: req.docId, assignmentId: req.assignmentId });
+    //console.log('[ApiContext.tsx][6702] assignMetaPatch begin', { docId: req.docId, assignmentId: req.assignmentId });
     updateRequestActivityState();
     try {
       const res = await gradebookClient.assignMetaPatch(req);
@@ -980,7 +1028,7 @@ const refreshFileList = async (): Promise<void> => {
   }, [updateRequestActivityState]);
 
   const getGradebook = useCallback(async (docId: string): Promise<GradebookQueryRes> => {
-    console.log('[ApiContext.tsx][6703] getGradebook begin', { docId });
+    //console.log('[ApiContext.tsx][6703] getGradebook begin', { docId });
     updateRequestActivityState();
     try {
       const res = await gradebookClient.getGradebook(docId);
@@ -991,7 +1039,7 @@ const refreshFileList = async (): Promise<void> => {
   }, [updateRequestActivityState]);
 
   const startAttempt = useCallback(async (req: AttemptStartReq): Promise<AttemptStartRes> => {
-    console.log('[ApiContext.tsx][6704] startAttempt begin', { docId: req.docId, assignmentId: req.assignmentId });
+    //console.log('[ApiContext.tsx][6704] startAttempt begin', { docId: req.docId, assignmentId: req.assignmentId });
     updateRequestActivityState();
     try {
       const res = await gradebookClient.startAttempt(req);
@@ -1002,7 +1050,7 @@ const refreshFileList = async (): Promise<void> => {
   }, [updateRequestActivityState]);
 
   const submitAttempt = useCallback(async (req: AttemptSubmitReq): Promise<AttemptSubmitRes> => {
-    console.log('[ApiContext.tsx][6705] submitAttempt begin', { docId: req.docId, attemptId: req.attemptId });
+    //console.log('[ApiContext.tsx][6705] submitAttempt begin', { docId: req.docId, attemptId: req.attemptId });
     updateRequestActivityState();
     try {
       const res = await gradebookClient.submitAttempt(req);
@@ -1019,7 +1067,7 @@ const refreshFileList = async (): Promise<void> => {
     if (status === 'loading') return; // wait until session resolves
     
     if (status !== 'authenticated' || !normalizedEmail) {
-      console.error('[ApiContext.tsx][7020] ApiProvider mounted without authenticated session');
+      //console.error('[ApiContext.tsx][7020] ApiProvider mounted without authenticated session');
       setIsAccountLoading(false);
       return;
     }
@@ -1027,7 +1075,7 @@ const refreshFileList = async (): Promise<void> => {
     // REFACTOR: Call the function defined above instead of duplicating fetch logic.
     // This ensures the cache-busting headers we added above are actually used on mount.
     fetchAccountStatus().catch(err => {
-       console.error('[ApiContext.tsx] Initial fetch failed', err);
+       //console.error('[ApiContext.tsx] Initial fetch failed', err);
     });
 
   }, [normalizedEmail, status, fetchAccountStatus]);
@@ -1038,7 +1086,7 @@ useEffect(() => {
     if (status !== 'authenticated' || !normalizedEmail) return;
     // Call listFiles which will hydrate from cache and revalidate in background 
     listFiles().catch((e) => {
-      console.warn('[ApiContext.tsx][7299] initial listFiles failed', e); 
+      //console.warn('[ApiContext.tsx][7299] initial listFiles failed', e); 
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, normalizedEmail]);
@@ -1080,6 +1128,7 @@ useEffect(() => {
     addFileMeta,        
     updateFileMeta,    
     removeFileMeta,   
+    upsertFileMeta,
     
     // Gradebook methods (now available app-wide)
     assignMetaUpsert,

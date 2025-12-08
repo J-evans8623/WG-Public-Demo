@@ -51,23 +51,23 @@ const ActionFooter: React.FC<ActionFooterProps> = ({  // update - 33
   canEdit,
 }) => {
   // Step 1: Log current footer state for debugging  // update - 40
-  console.log('[ActionFooter.tsx][8001] render footer', { editing, isSaveDisabled });  // update - 41
+  //console.log('[ActionFooter.tsx][8001] render footer', { editing, isSaveDisabled });  // update - 41
 
   // Step 2: Handle save with validation and logging  // update - 42
   const handleSaveClick = () => {  // update - 43
-    console.log('[ActionFooter.tsx][8002] Save clicked — disabled:', isSaveDisabled);  // update - 44
+    //console.log('[ActionFooter.tsx][8002] Save clicked — disabled:', isSaveDisabled);  // update - 44
     if (!isSaveDisabled) onSave();  // update - 45
   };
 
   // Step 3: Handle cancel with logging  // update - 46
   const handleCancelClick = () => {  // update - 47
-    console.log('[ActionFooter.tsx][8003] Cancel clicked');  // update - 48
+    //console.log('[ActionFooter.tsx][8003] Cancel clicked');  // update - 48
     onCancel();  // update - 49
   };
 
   // Step 4: Handle Add selection with logging  // update - 50
   const handleResourceSelect = (type: CardResourceType) => {  // update - 51
-    console.log('[ActionFooter.tsx][8004] add resource selected', { type });  // update - 52
+    //console.log('[ActionFooter.tsx][8004] add resource selected', { type });  // update - 52
     onAddResource(type);  // update - 53
   };
 

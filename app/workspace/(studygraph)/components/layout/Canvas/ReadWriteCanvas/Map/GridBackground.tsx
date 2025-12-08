@@ -118,7 +118,7 @@ const GridBackground: React.FC<GridBackgroundProps> = ({
     if (!align) {
       // No alignment provided; default to origin (0,0). Log once for visibility.
       // Note: avoid noisy logs by keeping this as a single checkpoint.
-      console.log('[GridBackground.tsx][6100] align not provided; using (0,0) background-position');
+      //console.log('[GridBackground.tsx][6100] align not provided; using (0,0) background-position');
       return { bgPosX: 0, bgPosY: 0 };
     }
     const { worldOriginXPx, worldOriginYPx, zoom } = align;
@@ -128,20 +128,13 @@ const GridBackground: React.FC<GridBackgroundProps> = ({
     const posY = -mod(worldOriginYPx * zoom, spacingPx);
 
     // Focused alignment log (once per input change).
-    console.log('[GridBackground.tsx][6101] phase align', {
-      spacingPx,
-      zoom,
-      worldOriginXPx,
-      worldOriginYPx,
-      bgPosX: posX,
-      bgPosY: posY,
-    });
+
 
     return { bgPosX: posX, bgPosY: posY };
   }, [align, spacingPx]);
 
   if (disabled) {
-    console.log('[GridBackground.tsx][6199] disabled=true; not rendering background');
+    //console.log('[GridBackground.tsx][6199] disabled=true; not rendering background');
     return null;
   }
 

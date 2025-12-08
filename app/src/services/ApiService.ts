@@ -116,7 +116,7 @@ export class EnhancedApiService extends EventTarget {
    */
   public static getInstance(): EnhancedApiService {
     if (!EnhancedApiService.instance) {
-      console.log('[enhancedApiService.ts][7001] Creating singleton EnhancedApiService instance');
+      //console.log('[enhancedApiService.ts][7001] Creating singleton EnhancedApiService instance');
       EnhancedApiService.instance = new EnhancedApiService();
     }
     return EnhancedApiService.instance;
@@ -150,7 +150,7 @@ export class EnhancedApiService extends EventTarget {
    * @returns Classified error type for standardized handling and modal triggering
    */
   private classifyError(error: any, service: ApiServiceType): ApiErrorType {
-    console.log('[enhancedApiService.ts][7002] Classifying error for service', { service, error });
+    //console.log('[enhancedApiService.ts][7002] Classifying error for service', { service, error });
 
     // Step 6: Handle structured error responses from enhanced backend
     if (error?.error) {
@@ -189,7 +189,7 @@ export class EnhancedApiService extends EventTarget {
       return ApiErrorType.PERMISSION_DENIED;
     }
 
-    console.log('[enhancedApiService.ts][7003] Error classification defaulted to unknown', { errorMessage });
+    //console.log('[enhancedApiService.ts][7003] Error classification defaulted to unknown', { errorMessage });
     return ApiErrorType.UNKNOWN_ERROR;
   }
 
@@ -210,11 +210,6 @@ export class EnhancedApiService extends EventTarget {
     const errorType = this.classifyError(error, service);
     const timestamp = new Date().toISOString();
 
-    console.log('[enhancedApiService.ts][7004] Creating API error event', {
-      errorType,
-      service,
-      requestId
-    });
 
     // Step 10: Extract error details from structured response
     const apiErrorEvent: ApiErrorEvent = {
@@ -287,11 +282,7 @@ export class EnhancedApiService extends EventTarget {
    * @returns Promise resolving when event emission is complete
    */
   private async emitErrorEvent(errorEvent: ApiErrorEvent): Promise<void> {
-    console.log('[enhancedApiService.ts][7005] Emitting API error event', {
-      type: errorEvent.type,
-      service: errorEvent.service,
-      requestId: errorEvent.requestId
-    });
+
 
     // Step 15: Create CustomEvent for error emission
     const customEvent = new CustomEvent('api-error', {
@@ -333,12 +324,7 @@ export class EnhancedApiService extends EventTarget {
     const requestId = config.requestId || this.generateRequestId();
     const startTime = Date.now();
 
-    console.log('[enhancedApiService.ts][7006] Starting API request', {
-      url,
-      service,
-      requestId,
-      method: options.method || 'GET'
-    });
+
 
     // Step 18: Set up request tracking and metrics
     const abortController = new AbortController();
@@ -373,13 +359,7 @@ export class EnhancedApiService extends EventTarget {
       // Step 22: Handle successful response
       if (response.ok) {
         const data = await response.json();
-        
-        console.log('[enhancedApiService.ts][7007] API request completed successfully', {
-          requestId,
-          service,
-          processingTime,
-          status: response.status
-        });
+
 
         return {
           success: true,
@@ -402,14 +382,6 @@ export class EnhancedApiService extends EventTarget {
       if (!config.suppressEvents) {
         await this.emitErrorEvent(errorEvent);
       }
-
-      console.log('[enhancedApiService.ts][7008] API request failed with error response', {
-        requestId,
-        service,
-        status: response.status,
-        errorType: errorEvent.type
-      });
-
       return {
         success: false,
         error: errorEvent,
@@ -473,11 +445,7 @@ export class EnhancedApiService extends EventTarget {
     fileID: string,
     config: ApiRequestConfig = {}
   ): Promise<ApiResponse> {
-    console.log('[enhancedApiService.ts][7010] Processing ask assistant request', {
-      fileID,
-      hasQuestion: !!question,
-      hasSelection: !!textSelection
-    });
+
 
     const payload = { question, textSelection, fileID };
 
@@ -513,12 +481,7 @@ export class EnhancedApiService extends EventTarget {
     options: { isPublic?: boolean } = {},
     config: ApiRequestConfig = {}
   ): Promise<ApiResponse> {
-    console.log('[enhancedApiService.ts][7011] Processing lesson generation request', {
-      fileName: file.name,
-      fileSize: file.size,
-      docId,
-      isPublic: options.isPublic
-    });
+ 
 
     const formData = new FormData();
     formData.append('file', file);
@@ -558,11 +521,6 @@ export class EnhancedApiService extends EventTarget {
     textSelection?: string,
     config: ApiRequestConfig = {}
   ): Promise<ApiResponse> {
-    console.log('[enhancedApiService.ts][7012] Processing topic exploration request', {
-      fileID,
-      hasTopicRequest: !!userTopicRequest,
-      hasSelection: !!textSelection
-    });
 
     const payload = { userTopicRequest, exportData, fileID, textSelection };
 
@@ -627,14 +585,7 @@ export class EnhancedApiService extends EventTarget {
     if (typeof questionCount === 'number') payload.questionCount = questionCount;
     if (typeof exportData === 'string') payload.exportData = exportData;
 
-    console.log('[enhancedApiService.ts][7413] createQuiz payload shaped', {
-      fileID,
-      quizTypes,
-      topicIdsLen: resolvedTopicIds.length,
-      hasLessonId: !!lessonId,
-      questionCount: questionCount ?? null,
-      hasExportData: typeof exportData === 'string' && exportData.length > 0,
-    });
+
 
     // 4) Dispatch request through the unified request pipeline
     return await this.makeApiRequest(
@@ -668,11 +619,11 @@ export class EnhancedApiService extends EventTarget {
       this.activeRequests.delete(requestId);
       this.requestMetrics.delete(requestId);
       
-      console.log('[enhancedApiService.ts][7014] Request cancelled successfully', { requestId });
+      //console.log('[enhancedApiService.ts][7014] Request cancelled successfully', { requestId });
       return true;
     }
     
-    console.log('[enhancedApiService.ts][7015] Request not found for cancellation', { requestId });
+    //console.log('[enhancedApiService.ts][7015] Request not found for cancellation', { requestId });
     return false;
   }
 
@@ -695,7 +646,7 @@ export class EnhancedApiService extends EventTarget {
     this.activeRequests.clear();
     this.requestMetrics.clear();
     
-    console.log('[enhancedApiService.ts][7016] All requests cancelled', { cancelledCount });
+    //console.log('[enhancedApiService.ts][7016] All requests cancelled', { cancelledCount });
     return cancelledCount;
   }
 

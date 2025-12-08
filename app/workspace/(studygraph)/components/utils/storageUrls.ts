@@ -51,11 +51,7 @@ export async function getUploadUrl(
   type: 'doc' | 'chat',
   preconditions?: { expectStorageGeneration?: string | number | null; expectVersionNumber?: number | null }
 ): Promise<UploadOk> {
-  console.log('[storageUrls.ts][9301] › fetching upload URL', {
-    docFileID,
-    type,
-    hasPre: !!preconditions,
-  });
+
 
   // Lane: per-doc + type + "upload-urlv1" (latest wins for the same doc/type)
   const lane = `storage:upload-urlv1:${type}:${docFileID}`;
@@ -94,7 +90,7 @@ export async function getUploadUrl(
   // Conflict: surface parsed body for reconciliation
   if (res.status === 409) {
     const body = await res.json().catch(() => ({}));
-    console.warn('[storageUrls.ts][9302] › upload precondition conflict', body);
+    //console.warn('[storageUrls.ts][9302] › upload precondition conflict', body);
     const err: any = new Error('UPLOAD_PRECONDITION_FAILED');
     err.code = 409;
     err.body = body;
@@ -105,7 +101,7 @@ export async function getUploadUrl(
 
   const raw = (await res.json()) as UploadOk;
   if (!isNonEmptyString(raw.uploadUrl) || !isNonEmptyString(raw.fileStoragePath)) {
-    console.error('[storageUrls.ts][9303] › malformed upload-url payload', raw);
+    //console.error('[storageUrls.ts][9303] › malformed upload-url payload', raw);
     throw new Error('Upload URL error: malformed payload');
   }
   return { uploadUrl: raw.uploadUrl, fileStoragePath: raw.fileStoragePath };
@@ -122,7 +118,7 @@ export async function getDownloadUrl(
   docFileID: string,
   type: 'doc' | 'chat'
 ): Promise<DownloadOk> {
-  console.log('[storageUrls.ts][9304] › fetching download URL', { docFileID, type });
+  //console.log('[storageUrls.ts][9304] › fetching download URL', { docFileID, type });
 
   const lane = `storage:download-urlv1:${type}:${docFileID}`;
 
@@ -143,7 +139,7 @@ export async function getDownloadUrl(
 
   const raw = (await res.json()) as DownloadOk;
   if (!isNonEmptyString(raw.downloadUrl) || !isNonEmptyString(raw.fileStoragePath)) {
-    console.error('[storageUrls.ts][9305] › malformed download-url payload', raw);
+    //console.error('[storageUrls.ts][9305] › malformed download-url payload', raw);
     throw new Error('Download URL error: malformed payload');
   }
 
@@ -170,7 +166,7 @@ export type InitialUploadResult = {
  *   - On 429, returns DEFERRED.
  */
 export async function initialUpload(docFileID: string): Promise<InitialUploadResult> {
-  console.log('[storageUrls.ts][9306] › initialUpload (newDoc bootstrap)', { docFileID });
+  //console.log('[storageUrls.ts][9306] › initialUpload (newDoc bootstrap)', { docFileID });
 
   const lane = `storage:initial-upload:${docFileID}`;
 
@@ -212,7 +208,7 @@ export async function initialUpload(docFileID: string): Promise<InitialUploadRes
     isNonEmptyString(raw.chatFileStoragePath);
 
   if (!ok) {
-    console.error('[storageUrls.ts][9307] › malformed initialUpload payload', raw);
+    //console.error('[storageUrls.ts][9307] › malformed initialUpload payload', raw);
     throw new Error('Initial upload URL error: malformed payload');
   }
 

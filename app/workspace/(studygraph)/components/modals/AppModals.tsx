@@ -154,14 +154,10 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({
   onUpgrade,
   errorContext
 }) => {
-  console.log('[AppModals.tsx][5001] SubscribeModal rendered with enhanced context', { 
-    featureName, 
-    serviceContext,
-    errorContext 
-  });
+
 
   const handleUpgrade = () => {
-    console.log('[AppModals.tsx][5002] Upgrade button clicked with context', { serviceContext });
+    //console.log('[AppModals.tsx][5002] Upgrade button clicked with context', { serviceContext });
     onUpgrade?.();
     onClose();
   };
@@ -238,11 +234,6 @@ export const RateLimitModal: React.FC<RateLimitModalProps> = ({
   serviceContext,
   errorContext
 }) => {
-  console.log('[AppModals.tsx][5003] RateLimitModal rendered with enhanced context', { 
-    retryAfter, 
-    serviceContext,
-    errorContext 
-  });
 
   const getRetryMessage = () => {
     if (retryAfter && retryAfter > 0) {
@@ -314,7 +305,7 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
   onUploadSuccess,
   errorContext
 }) => {
-  console.log('[AppModals.tsx][5004] FileUploadModal rendered with enhanced context', { errorContext });
+  //console.log('[AppModals.tsx][5004] FileUploadModal rendered with enhanced context', { errorContext });
 
   const { hasFeature } = useAccountStatus();
   
@@ -325,24 +316,24 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
 
   const canUploadPublic = hasFeature('canCreatePublicFiles');
 
-  console.log('[AppModals.tsx][5005] Upload permissions - canUploadPublic:', canUploadPublic);
+  //console.log('[AppModals.tsx][5005] Upload permissions - canUploadPublic:', canUploadPublic);
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       setSelectedFile(files[0]);
       setError('');
-      console.log('[AppModals.tsx][5006] File selected:', files[0].name);
+      //console.log('[AppModals.tsx][5006] File selected:', files[0].name);
     }
   };
 
   const handleVisibilityChange = (isPublicOption: boolean) => {
     if (isPublicOption && !canUploadPublic) {
-      console.log('[AppModals.tsx][5007] Public upload blocked for Scholar account');
+      //console.log('[AppModals.tsx][5007] Public upload blocked for Scholar account');
       return;
     }
     setIsPublic(isPublicOption);
-    console.log('[AppModals.tsx][5008] Visibility changed to:', isPublicOption ? 'public' : 'private');
+    //console.log('[AppModals.tsx][5008] Visibility changed to:', isPublicOption ? 'public' : 'private');
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -353,7 +344,7 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
       return;
     }
 
-    console.log('[AppModals.tsx][5009] Upload initiated - file:', selectedFile.name, 'public:', isPublic);
+    //console.log('[AppModals.tsx][5009] Upload initiated - file:', selectedFile.name, 'public:', isPublic);
     
     setIsUploading(true);
     setError('');
@@ -362,10 +353,10 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       onUploadSuccess(selectedFile, isPublic);
-      console.log('[AppModals.tsx][5010] Upload completed successfully');
+      //console.log('[AppModals.tsx][5010] Upload completed successfully');
       onClose();
     } catch (err: any) {
-      console.error('[AppModals.tsx][5011] Upload failed:', err);
+      //console.error('[AppModals.tsx][5011] Upload failed:', err);
       setError(err?.message || 'Upload failed. Please try again.');
     } finally {
       setIsUploading(false);
@@ -487,7 +478,7 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
   checkTrackedStatus, 
   onQueueIntegration       
 }) => {
-  console.log('[AppModals.tsx][5012] EnhancedLessonGenerationModal rendered', { docFileId });
+  //console.log('[AppModals.tsx][5012] EnhancedLessonGenerationModal rendered', { docFileId });
 
   const { hasFeature } = useAccountStatus();
   
@@ -519,7 +510,7 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
 
     try {
       const responseData = await generateAILesson(selectedFile, docFileId, { isPublic });
-      console.log('[AppModals.tsx][5018] Lesson generation completed successfully');
+      //console.log('[AppModals.tsx][5018] Lesson generation completed successfully');
       
       // update - 3: Pass the choice back to the parent.
       // We do NOT await integration here anymore. We let the parent handle the sequence.
@@ -527,7 +518,7 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
       
       onClose();
     } catch (err: any) {
-      console.error('[AppModals.tsx][5019] Lesson generation failed:', err);
+      //console.error('[AppModals.tsx][5019] Lesson generation failed:', err);
       setError(err?.message || 'An unknown error occurred');
     } finally {
       setIsLoading(false);
@@ -638,7 +629,7 @@ export const createModal = (type: ModalType, props: any) => {
     case 'blockingProgress':                             
       return <BlockingProgressModal {...props} />;
     default:
-      console.error('[AppModals.tsx][5021] Unknown modal type requested:', type);
+      //console.error('[AppModals.tsx][5021] Unknown modal type requested:', type);
       return null;
   }
 };
@@ -664,17 +655,17 @@ export const useModalManager = () => {
     const initializeModalEventManager = async () => {
       if (modalManagerRef.current) return;
 
-      console.log('[AppModals.tsx][5022] Initializing event-driven modal integration');
+      //console.log('[AppModals.tsx][5022] Initializing event-driven modal integration');
 
       try {
         await modalEventManager.initialize((modalType: ModalType, props: any) => {
-          console.log('[AppModals.tsx][5023] Event-driven modal triggered', { modalType });
+          //console.log('[AppModals.tsx][5023] Event-driven modal triggered', { modalType });
           setActiveModal({
             type: modalType,
             props: {
               ...props,
               onClose: () => {
-                console.log('[AppModals.tsx][5024] Event-driven modal closed', { modalType });
+                //console.log('[AppModals.tsx][5024] Event-driven modal closed', { modalType });
                 setActiveModal(null);
                 // Let the event manager handle the close callback
                 if (props.onClose) {
@@ -686,9 +677,9 @@ export const useModalManager = () => {
         });
 
         modalManagerRef.current = true;
-        console.log('[AppModals.tsx][5025] Event-driven modal integration initialized successfully');
+        //console.log('[AppModals.tsx][5025] Event-driven modal integration initialized successfully');
       } catch (error) {
-        console.error('[AppModals.tsx][5026] Failed to initialize modal event manager:', error);
+        //console.error('[AppModals.tsx][5026] Failed to initialize modal event manager:', error);
       }
     };
 
@@ -704,13 +695,13 @@ export const useModalManager = () => {
   }, []);
 
   const showModal = useCallback((type: ModalType, props: any = {}) => {
-    console.log('[AppModals.tsx][5027] Manual modal triggered:', type);
+    //console.log('[AppModals.tsx][5027] Manual modal triggered:', type);
     setActiveModal({
       type,
       props: {
         ...props,
         onClose: () => {
-          console.log('[AppModals.tsx][5028] Manual modal closed:', type);
+          //console.log('[AppModals.tsx][5028] Manual modal closed:', type);
           setActiveModal(null);
           props.onClose?.();
         }
@@ -719,7 +710,7 @@ export const useModalManager = () => {
   }, []);
 
   const hideModal = useCallback(() => {
-    console.log('[AppModals.tsx][5029] Hiding active modal');
+    //console.log('[AppModals.tsx][5029] Hiding active modal');
     setActiveModal(null);
   }, []);
 

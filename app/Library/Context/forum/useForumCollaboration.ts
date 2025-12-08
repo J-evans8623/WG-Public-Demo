@@ -101,7 +101,7 @@ export function useForumCollaboration() {
         // FIX: Update ref on error
         phaseRef.current = 'Error';
         setStatus((s) => ({ ...s, isConnected: false, lastError: err?.message ?? 'connect error', phase: 'Error' }));
-        console.error('useForumCollaboration.ts [4399] › connect:error', { error: err?.message });
+        //console.error('useForumCollaboration.ts [4399] › connect:error', { error: err?.message });
         throw err;
       }
     },
@@ -128,9 +128,9 @@ export function useForumCollaboration() {
       // FIX: Update ref on disconnect
       phaseRef.current = 'Idle';
       setStatus({ isConnected: false, lastError: null, phase: 'Idle' });
-      // console.log('useForumCollaboration.ts [4109] › disconnect:ok');
+      // //console.log('useForumCollaboration.ts [4109] › disconnect:ok');
     } catch (err: any) {
-      console.warn('useForumCollaboration.ts [4401] › disconnect:warn', { error: err?.message });
+      //console.warn('useForumCollaboration.ts [4401] › disconnect:warn', { error: err?.message });
       
       // FIX: Ensure ref reset even on error
       phaseRef.current = 'Idle';

@@ -143,7 +143,7 @@ function centerAwareSequencev2<T>(items:T[]):T[]{
 
     }
   }
-  console.log(`centerAwareSequencev2 results [2009] ${console.log(JSON.stringify(result))}`);
+  //console.log(`centerAwareSequencev2 results [2009] ${//console.log(JSON.stringify(result))}`);
   return result
 }
 
@@ -175,10 +175,10 @@ export async function parseConceptMap(
 
   // Create resources for the root node.
   if (responseData?.main_topic?.introduction) {
-        console.log(`pCM-1234: rendering introduction for rootNode ${rootNodeId}`);
+        //console.log(`pCM-1234: rendering introduction for rootNode ${rootNodeId}`);
     const content = renderMarkdownWithMath(responseData.main_topic.introduction);
-    console.log(`pCM-1234: Before : rendering introduction for rootNode ${responseData.main_topic.introduction}`);
-    console.log(`pCM-1234: After : rendering introduction for rootNode ${content}`);
+    //console.log(`pCM-1234: Before : rendering introduction for rootNode ${responseData.main_topic.introduction}`);
+    //console.log(`pCM-1234: After : rendering introduction for rootNode ${content}`);
     await dependencies.createResource({
       nodeId: rootNodeId,
       type: 'note',
@@ -210,12 +210,12 @@ export async function parseConceptMap(
     depth: number,
     parentCitation?:Citation[],
   ) => {
-    console.log(`\n=== PROCESSING DEPTH ${depth} NODES ===`);
-    console.log(`Number of subtopics at depth ${depth}: ${subtopics.length}`);
+    //console.log(`\n=== PROCESSING DEPTH ${depth} NODES ===`);
+    //console.log(`Number of subtopics at depth ${depth}: ${subtopics.length}`);
 
     for (const subtopic of subtopics) {
       const subtopicNodeId = uuidv4();
-      console.log(`Processing subtopic: ${subtopic.title}`);
+      //console.log(`Processing subtopic: ${subtopic.title}`);
 
 
       // Prioritize the subtopic's own citations. If missing or empty, fall back to parent's.
@@ -238,7 +238,7 @@ export async function parseConceptMap(
         lessonOrder: subtopic.lessonOrder ?? null,
       };
 
-      console.log(`220 - Processing node: ${JSON.stringify(newNode)}`);
+      //console.log(`220 - Processing node: ${JSON.stringify(newNode)}`);
 
       // Update the local state.
       localNodes.set(subtopicNodeId, newNode);
@@ -251,14 +251,9 @@ export async function parseConceptMap(
         ];
       }
 
-      console.log('Node created:', {
-        id: subtopicNodeId,
-        title: subtopic.title,
-        depth,
-        parentId: parentNodeId,
-      });
 
-      console.log('Updating layout...');
+
+      //console.log('Updating layout...');
 
       // Run the composite layout algorithm on the LOCAL state.
       compositeLayout({
@@ -272,7 +267,7 @@ export async function parseConceptMap(
         },
       });
 
-      console.log('Layout updated.');
+      //console.log('Layout updated.');
 
       // ---------------------------------------------------------------------------
       // Create resources for the subtopic.
@@ -283,8 +278,8 @@ export async function parseConceptMap(
 
             let transformedContent = transformPlaceholders(subtopic.lesson.lecture_note, effectiveCitations);//
           const content = renderMarkdownWithMath(transformedContent.content);
-          console.log(`Subtopic title:  ${subtopic.title}, Before rendering content : ${transformedContent.content}`)
-          console.log(`Subtopic title:  ${subtopic.title}, After rendering content : ${content}`)
+          //console.log(`Subtopic title:  ${subtopic.title}, Before rendering content : ${transformedContent.content}`)
+          //console.log(`Subtopic title:  ${subtopic.title}, After rendering content : ${content}`)
 
           await dependencies.createResource({
             nodeId: subtopicNodeId,
@@ -297,7 +292,7 @@ export async function parseConceptMap(
         }
         if (subtopic.lesson.flash_cards && Array.isArray(subtopic.lesson.flash_cards)) {
           for (const card of subtopic.lesson.flash_cards) {
-            console.log(`pCM-1234: rendering flash_card "${card.term}" for node ${subtopicNodeId}`);
+            //console.log(`pCM-1234: rendering flash_card "${card.term}" for node ${subtopicNodeId}`);
           let transformedContent = transformPlaceholders(card.definition, effectiveCitations)
           const content = renderMarkdownWithMath(transformedContent.content);
             await dependencies.createResource({
@@ -334,8 +329,8 @@ export async function parseConceptMap(
 
           let transformedContent = transformPlaceholders(subtopic.lecture_note, effectiveCitations)
           const content = renderMarkdownWithMath(transformedContent.content);
-           console.log(`Subtopic title:  ${subtopic.title}, Before rendering content : ${transformedContent.content}`)
-          console.log(`Subtopic title:  ${subtopic.title}, After rendering content : ${content}`)
+           //console.log(`Subtopic title:  ${subtopic.title}, Before rendering content : ${transformedContent.content}`)
+          //console.log(`Subtopic title:  ${subtopic.title}, After rendering content : ${content}`)
 
         await dependencies.createResource({
           nodeId: subtopicNodeId,
@@ -369,7 +364,7 @@ export async function parseConceptMap(
         Array.isArray(subtopic.secondary_subtopic) &&
         subtopic.secondary_subtopic.length > 0
       ) {
-        console.log(`Recursing into secondary_subtopics for "${subtopic.title}"`);
+        //console.log(`Recursing into secondary_subtopics for "${subtopic.title}"`);
         await processSubtopicsInOrder(
           subtopic.secondary_subtopic,
           subtopicNodeId,
@@ -378,7 +373,7 @@ export async function parseConceptMap(
         );
       }
 
-      console.log(`=== End of PROCESSING DEPTH ${depth} NODES ===`);
+      //console.log(`=== End of PROCESSING DEPTH ${depth} NODES ===`);
     }
   };
 
@@ -386,18 +381,15 @@ export async function parseConceptMap(
   // STEP 4: Start recursion over primary subtopics
   // ---------------------------------------------------------------------------
   if (responseData?.main_topic?.primary_subtopics) {
-    console.log('\n=== STARTING PRIMARY SUBTOPIC PROCESSING ===');
-    console.log(
-      'Primary subtopics count:',
-      responseData.main_topic.primary_subtopics.length
-    );
+    //console.log('\n=== STARTING PRIMARY SUBTOPIC PROCESSING ===');
+
     const primaries: any[] = responseData.main_topic.primary_subtopics;
     const sorted = [...primaries].sort(
   (a, b) => (a.ChronologicalOrder ?? 0) - (b.ChronologicalOrder ?? 0)
 );;
-    console.log('[parseConceptMap.ts][2009] processing primary subtopics in feed order', { order: sorted.map((s: any) => s.title) });
+    //console.log('[parseConceptMap.ts][2009] processing primary subtopics in feed order', { order: sorted.map((s: any) => s.title) });
     const feedOrder = centerAwareSequencev2(sorted);
-    console.log('[parseConceptMap.ts][2010] processing primary subtopics in feed order', { order: feedOrder.map((s: any) => s.title) });
+    //console.log('[parseConceptMap.ts][2010] processing primary subtopics in feed order', { order: feedOrder.map((s: any) => s.title) });
 
     await processSubtopicsInOrder(
       feedOrder,

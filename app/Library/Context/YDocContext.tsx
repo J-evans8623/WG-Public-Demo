@@ -191,7 +191,7 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   // Initialize state for Y.Doc, snapshot, and supporting services.
   const [ydoc, setYDoc] = useState<Y.Doc>(() => new Y.Doc());
   const [snapshotYDoc, setSnapshotYDoc] = useState<Y.Doc | null>(null);
-  const { addFileMeta, updateFileMeta, refreshList, userEmail } = useApiContext();
+  const { refreshList, userEmail ,upsertFileMeta} = useApiContext();
 
   /** Flag to indicate read-only mode. */
   const isReadOnly = snapshotYDoc !== null;
@@ -604,7 +604,7 @@ const createLocalRef = useRef<{ docId: string; bytes: Uint8Array } | null>(null)
       console.error('[YDocContextv2.tsx][9791] doc PUT failed', { status: putDoc.status, statusText: putDoc.statusText });
       throw new Error(`Doc upload failed: ${putDoc.status} ${putDoc.statusText}`);
     }
-    await saveDocBytes(newDocId, stateBytes)    
+    //await saveDocBytes(newDocId, stateBytes)    
     // console.log('[YDocContextv2.tsx][9705] doc PUT complete', { path: doc.fileStoragePath });
 
     // 3b) initialized chat (empty array for new docs)
@@ -965,14 +965,15 @@ const loadData = useCallback(async (
       const resp = await supersedingCall(key, savePayload, makeRequest);
 
       if (lessonUnitsMeta) {
-        console.log('YDocContextv2.tsx [9805] › Write-Through Cache: Updating lessonUnitsMeta locally');
-        updateFileMeta(docFileID, {
+        const dataEntry = {
             fileName,
             lessonUnitsMeta: lessonUnitsMeta,
             fileSize,
             version: currentVersion,
             updatedAt: new Date().toISOString()
-        });
+        }
+        console.log(`YDocContextv2.tsx [9805] › Write-Through Cache: Updating lessonUnitsMeta locally adding the following data : ${JSON.stringify(dataEntry)}`);
+        upsertFileMeta(docFileID, dataEntry);
       }
       
       if (!resp) {
@@ -1017,7 +1018,7 @@ const loadData = useCallback(async (
 
       return result;
     },
-    [assertDocIdentityOrThrow, docFileID, fileName, readPersistFromDoc, updateFileMeta, ydoc]   // update - 117
+    [assertDocIdentityOrThrow, docFileID, fileName, readPersistFromDoc, upsertFileMeta, ydoc]   // update - 117
   );
 
   /**
@@ -1304,7 +1305,7 @@ case 'BOOTSTRAP_NEW': {
 
     // ---------------------------------------------------------------
               // [FIX] CRITICAL: Seed Local Cache Immediately
-              // This ensures that subsequent updateFileMeta calls (e.g. from 
+              // This ensures that subsequent upsertFileMeta calls (e.g. from 
               // saveToFirebase during lesson generation) find a valid target
               // in the ApiContext list, resolving the "Ghost File" race condition.
               // ---------------------------------------------------------------
@@ -1327,11 +1328,11 @@ case 'BOOTSTRAP_NEW': {
                 lessonUnitsMeta: undefined // Correctly starts empty
               };
 
-              addFileMeta(newFileMeta);
+              //addFileMeta(newFileMeta);
               console.log('[YDocContext] Bootstrapped & cached new file:', handoff.docId);
               
               // Trigger eventual consistency with backend
-              void refreshList();
+              //void refreshList();
 
     // (2) Reconcile identifiers, access, chat
     commitPersistIds(boot.identifiers, 'bootstrap');
@@ -1455,7 +1456,7 @@ case 'BOOTSTRAP_NEW': {
       aborted = true;
       ac.abort();
     };
-  }, [machine, docFileID, access,addFileMeta, userEmail, refreshList, teardownPreviousDoc, ydoc, loadData, commitHydratedDoc, commitPersistIds, emitChatReady]);
+  }, [machine, docFileID, access,/*addFileMeta*/, userEmail, refreshList, teardownPreviousDoc, ydoc, loadData, commitHydratedDoc, commitPersistIds, emitChatReady]);
 
   //--------------------------------- END STATE MACHINE --------------------------------
 

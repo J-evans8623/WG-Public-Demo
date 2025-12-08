@@ -148,6 +148,7 @@ public async list(): Promise<NotebookSummary[]> {
         const cache = getFileListCache(userEmail);
         if (cache) {
           const allCached = [...cache.ownedFiles, ...cache.sharedFiles];
+          console.log(`NotebooksAPI read the following from the cache ${JSON.stringify(allCached)}`)
           
           for (const id of uniqueIds) {
             const hit = allCached.find(f => f.fileId === id);

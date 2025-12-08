@@ -52,16 +52,16 @@ const NotesTab: React.FC<NotesTabProps> = ({
    const { removeSelectedResult } = useSearchContext();
 
   useEffect(() => {
-    console.log('[NotesTab.tsx][7301] mount → ordered resources:', ordered.length, 'canEdit:', canEdit);
+    //console.log('[NotesTab.tsx][7301] mount → ordered resources:', ordered.length, 'canEdit:', canEdit);
   }, [ordered.length, canEdit]);
 
   const handleTabMouseEnter = () => {
     setIsHoveringTab(true);
-    console.log('[NotesTab.tsx][7302] hover enter');
+    //console.log('[NotesTab.tsx][7302] hover enter');
   };
   const handleTabMouseLeave = () => {
     setIsHoveringTab(false);
-    console.log('[NotesTab.tsx][7303] hover leave');
+    //console.log('[NotesTab.tsx][7303] hover leave');
   };
   const handleCardMouseEnter = () => setIsHoveringCard(true);
   const handleCardMouseLeave = () => setIsHoveringCard(false);
@@ -69,16 +69,16 @@ const NotesTab: React.FC<NotesTabProps> = ({
   useEffect(() => {
     const node = tabRef.current;
     if (!node) {
-      console.log('[NotesTab.tsx][7304] tabRef not mounted');
+      //console.log('[NotesTab.tsx][7304] tabRef not mounted');
       return;
     }
     node.addEventListener('mouseenter', handleTabMouseEnter);
     node.addEventListener('mouseleave', handleTabMouseLeave);
-    console.log('[NotesTab.tsx][7305] listeners attached');
+    //console.log('[NotesTab.tsx][7305] listeners attached');
     return () => {
       node.removeEventListener('mouseenter', handleTabMouseEnter);
       node.removeEventListener('mouseleave', handleTabMouseLeave);
-      console.log('[NotesTab.tsx][7306] listeners removed');
+      //console.log('[NotesTab.tsx][7306] listeners removed');
     };
   }, []);
 
@@ -152,7 +152,7 @@ const NotesTab: React.FC<NotesTabProps> = ({
       <div className="notes-content-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {visible.length > 0 ? (
           visible.map((r) => {
-            console.log('[NotesTab.tsx][7321] render item', { id: r.id, type: r.type });
+            //console.log('[NotesTab.tsx][7321] render item', { id: r.id, type: r.type });
             return (
               <div
                 key={r.id}

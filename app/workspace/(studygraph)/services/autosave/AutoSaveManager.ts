@@ -43,7 +43,7 @@ export class AutoSaveManager {
     saveCb: () => Promise<void>,
     configOvrs: Partial<AutoSaveConfig> = {}
   ) {
-    console.log('AutoSaveManager.ts 1001 › Initializing AutoSaveManager');
+    //console.log('AutoSaveManager.ts 1001 › Initializing AutoSaveManager');
     this.ydoc = ydoc;
     this.saveCallback = saveCb;
     this.config = {
@@ -60,18 +60,18 @@ export class AutoSaveManager {
 
       // Step 2: Ignore any non-local transactions (remote sync, awareness, system loads).
       if (!isLocal) {
-        console.log('AutoSaveManager.ts 1102 › afterTx ignored (non-local)', { origin, local: isLocal }); // update - 001
+        //console.log('AutoSaveManager.ts 1102 › afterTx ignored (non-local)', { origin, local: isLocal }); // update - 001
         return; // update - 001
       }
 
       // Step 3: Only accept transactions explicitly tagged with LOCAL_ORIGIN.
       if (origin !== LOCAL_ORIGIN) {
-        console.log('AutoSaveManager.ts 1103 › afterTx ignored (origin mismatch)', { originExpected: LOCAL_ORIGIN, originActual: origin }); // update - 001
+        //console.log('AutoSaveManager.ts 1103 › afterTx ignored (origin mismatch)', { originExpected: LOCAL_ORIGIN, originActual: origin }); // update - 001
         return; // update - 001
       }
 
       // Step 4: Eligible local transaction → schedule autosave.
-      console.log('AutoSaveManager.ts 1104 › afterTx accepted (local + LOCAL_ORIGIN)', { origin, local: isLocal }); // update - 001
+      //console.log('AutoSaveManager.ts 1104 › afterTx accepted (local + LOCAL_ORIGIN)', { origin, local: isLocal }); // update - 001
       this.handleLocalChange(); // update - 001
     };
     this.ydoc.on('afterTransaction', this.afterTxHandler);
@@ -83,13 +83,13 @@ export class AutoSaveManager {
   private setupBeforeUnloadHandler(): void {
     const handler = async (event: BeforeUnloadEvent) => {
       if (this.hasUntrackedChanges) {
-        console.log('AutoSaveManager.ts 1003 › beforeunload: unsaved changes detected');
+        //console.log('AutoSaveManager.ts 1003 › beforeunload: unsaved changes detected');
         event.preventDefault();
         event.returnValue = '';
         try {
           await this.forceSave();
         } catch (err) {
-          console.error('AutoSaveManager.ts 1004 › forceSave on unload failed', err);
+          //console.error('AutoSaveManager.ts 1004 › forceSave on unload failed', err);
         }
       }
     };
@@ -100,10 +100,10 @@ export class AutoSaveManager {
   /** Marks that a local change occurred and schedules saves. */
   private handleLocalChange(): void {
     if (this.isAutosaving) {
-      console.log('AutoSaveManager.ts 1005 › Save in progress, skipping scheduling');
+      //console.log('AutoSaveManager.ts 1005 › Save in progress, skipping scheduling');
       return;
     }
-    console.log('AutoSaveManager.ts 1006 › Scheduling save timers');
+    //console.log('AutoSaveManager.ts 1006 › Scheduling save timers');
     this.hasUntrackedChanges = true;
     this.resetInactivityTimer();
     this.ensureGuaranteedSaveTimer();
@@ -119,7 +119,7 @@ export class AutoSaveManager {
     if (this.inactivityTimer) clearTimeout(this.inactivityTimer);
     this.inactivityTimer = setTimeout(async () => {
       if (this.hasUntrackedChanges && !this.isAutosaving) {
-        console.log('AutoSaveManager.ts 1007 › Inactivity threshold reached');
+        //console.log('AutoSaveManager.ts 1007 › Inactivity threshold reached');
         await this.save();
       }
     }, this.config.inactivitySaveDelay);
@@ -130,7 +130,7 @@ export class AutoSaveManager {
     if (!this.guaranteedSaveTimer) {
       this.guaranteedSaveTimer = setTimeout(async () => {
         if (this.hasUntrackedChanges && !this.isAutosaving) {
-          console.log('AutoSaveManager.ts 1008 › Guaranteed interval reached');
+          //console.log('AutoSaveManager.ts 1008 › Guaranteed interval reached');
           await this.save();
         }
         this.guaranteedSaveTimer = null;
@@ -140,17 +140,14 @@ export class AutoSaveManager {
 
   /** Performs the save callback with concurrency protection and logging. */
   private async save(): Promise<void> {
-    console.log('AutoSaveManager.ts 1009 › save() start', {
-      hasUntrackedChanges: this.hasUntrackedChanges,
-      timeSinceLast: Date.now() - this.lastSaveTime
-    });
+
 
     if (this.isAutosaving) {
-      console.log('AutoSaveManager.ts 1010 › Already autosaving; awaiting existing promise');
+      //console.log('AutoSaveManager.ts 1010 › Already autosaving; awaiting existing promise');
       return this.savePromise || Promise.resolve();
     }
     if (!this.hasUntrackedChanges) {
-      console.log('AutoSaveManager.ts 1011 › No changes to save; skipping');
+      //console.log('AutoSaveManager.ts 1011 › No changes to save; skipping');
       return;
     }
 
@@ -161,9 +158,9 @@ export class AutoSaveManager {
         this.lastSaveTime = Date.now();
         this.hasUntrackedChanges = false;
         this.clearTimers();
-        console.log('AutoSaveManager.ts 1012 › saveCallback succeeded');
+        //console.log('AutoSaveManager.ts 1012 › saveCallback succeeded');
       } catch (err) {
-        console.error('AutoSaveManager.ts 1013 › saveCallback failed', err);
+        //console.error('AutoSaveManager.ts 1013 › saveCallback failed', err);
         throw err;
       } finally {
         this.isAutosaving = false;
@@ -177,7 +174,7 @@ export class AutoSaveManager {
   /** Forces an immediate save if needed. */
   public async forceSave(): Promise<void> {
     if (this.hasUntrackedChanges || this.isAutosaving) {
-      console.log('AutoSaveManager.ts 1014 › forceSave invoked');
+      //console.log('AutoSaveManager.ts 1014 › forceSave invoked');
       return this.save();
     }
   }
@@ -196,7 +193,7 @@ export class AutoSaveManager {
 
   /** Cleans up all listeners and timers when disposing of this manager. */
   public destroy(): void {
-    console.log('AutoSaveManager.ts 1015 › destroy() cleaning up');
+    //console.log('AutoSaveManager.ts 1015 › destroy() cleaning up');
     this.clearTimers();
 
     if (this.ydoc && this.afterTxHandler) {

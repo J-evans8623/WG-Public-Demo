@@ -129,13 +129,7 @@ const MapRenderer: React.FC = () => {
     const height = Math.max(withMarginH, BED_MIN_HEIGHT_PX);
 
     if (process.env.NODE_ENV !== 'production') {
-      console.log('[Canvas/MapRenderer.tsx][9731] bed size computed', {
-        totalWidth: totalW,
-        maxHeight: maxH,
-        width,
-        height,
-        margin: BED_EXTRA_MARGIN_PX
-      });
+
     }
 
     return { bedWidthPx: width, bedHeightPx: height };
@@ -168,14 +162,14 @@ const MapRenderer: React.FC = () => {
     if (fitScale < 1) {
       targetZoom = Math.max(MIN_ZOOM, zoomLevel * fitScale);
       if (process.env.NODE_ENV !== 'production') {
-        console.log('MapRenderer.tsx 9721 › initial zoom fit', { targetZoom, vw, vh, mapWidth, mapHeight });
+        //console.log('MapRenderer.tsx 9721 › initial zoom fit', { targetZoom, vw, vh, mapWidth, mapHeight });
       }
       zoomDispatch({ type: ZoomActionType.SET_ZOOM_LEVEL, payload: targetZoom });
       setInitialFitZoom(targetZoom);
     } else {
       setInitialFitZoom(zoomLevel);
       if (process.env.NODE_ENV !== 'production') {
-        console.log('MapRenderer.tsx 9721.1 › initial fit equals current zoom', { zoomLevel });
+        //console.log('MapRenderer.tsx 9721.1 › initial fit equals current zoom', { zoomLevel });
       }
     }
 
@@ -189,7 +183,7 @@ const MapRenderer: React.FC = () => {
     el.scrollLeft = targetScrollX;
     el.scrollTop = targetScrollY;
     if (process.env.NODE_ENV !== 'production') {
-      console.log('MapRenderer.tsx 9722 › centered to scroll bed', { bedW, bedH, targetScrollX, targetScrollY });
+      //console.log('MapRenderer.tsx 9722 › centered to scroll bed', { bedW, bedH, targetScrollX, targetScrollY });
     }
     return { x: targetScrollX, y: targetScrollY };
   }, []);
@@ -217,14 +211,14 @@ const MapRenderer: React.FC = () => {
 
     centerToBedMidpoint(el, bedWidthPx, bedHeightPx);
     if (process.env.NODE_ENV !== 'production') {
-      console.log('MapRenderer.tsx 9723 › recenter applied', { opts: opts ?? null });
+      //console.log('MapRenderer.tsx 9723 › recenter applied', { opts: opts ?? null });
     }
 
     if (opts?.clampToInitialFit) {
       const initial = getInitialFitZoom();
       if (typeof initial === 'number' && zoomLevel > initial) {
         if (process.env.NODE_ENV !== 'production') {
-          console.log('MapRenderer.tsx 9724 › clamping zoom to initial fit', { initial, current: zoomLevel });
+          //console.log('MapRenderer.tsx 9724 › clamping zoom to initial fit', { initial, current: zoomLevel });
         }
         zoomDispatch({ type: ZoomActionType.SET_ZOOM_LEVEL, payload: initial });
       }
@@ -244,9 +238,7 @@ const MapRenderer: React.FC = () => {
     const translateX = WORLD_TX; // update - 8: use constant
     const origin = bedCenterX - translateX * zoomLevel; // keeping prior math; background aligns off this
     if (process.env.NODE_ENV !== 'production') {
-      console.log('[Canvas/MapRenderer.tsx][9725] worldOriginXPx computed', {
-        bedCenterX, translateX, zoomLevel, worldOriginXPx: origin
-      });
+  
     }
     return origin;
   }, [bedWidthPx, zoomLevel]);
@@ -256,9 +248,7 @@ const MapRenderer: React.FC = () => {
     const translateY = WORLD_TY; // update - 8: use constant
     const origin = bedCenterY - translateY * zoomLevel; // keeping prior math; background aligns off this
     if (process.env.NODE_ENV !== 'production') {
-      console.log('[Canvas/MapRenderer.tsx][9726] worldOriginYPx computed', {
-        bedCenterY, translateY, zoomLevel, worldOriginYPx: origin
-      });
+
     }
     return origin;
   }, [bedHeightPx, zoomLevel]);

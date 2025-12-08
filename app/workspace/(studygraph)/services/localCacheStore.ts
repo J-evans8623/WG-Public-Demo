@@ -83,15 +83,15 @@ function openDB(): Promise<IDBDatabase> {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
-        console.log('[localCacheStore.ts][4001] onupgradeneeded: created store "bytes"'); 
+        //console.log('[localCacheStore.ts][4001] onupgradeneeded: created store "bytes"'); 
       }
     };
     req.onsuccess = () => {
-      console.log('[localCacheStore.ts][4002] openDB: success');             
+      //console.log('[localCacheStore.ts][4002] openDB: success');             
       resolve(req.result);
     };
     req.onerror = () => {
-      console.warn('[localCacheStore.ts][4003] openDB: error', req.error);   
+      //console.warn('[localCacheStore.ts][4003] openDB: error', req.error);   
       reject(req.error);
     };
   });
@@ -110,11 +110,11 @@ async function idbPut(key: string, value: Uint8Array): Promise<void> {
     const store = tx.objectStore(STORE_NAME);
     store.put(value, key);
     tx.oncomplete = () => {
-      console.log('[localCacheStore.ts][4004] idbPut: complete for key=', key); 
+      //console.log('[localCacheStore.ts][4004] idbPut: complete for key=', key); 
       resolve();
     };
     tx.onerror = () => {
-      console.warn('[localCacheStore.ts][4005] idbPut: error', tx.error);    
+      //console.warn('[localCacheStore.ts][4005] idbPut: error', tx.error);    
       reject(tx.error);
     };
   });
@@ -134,7 +134,7 @@ async function idbGet<T = Uint8Array>(key: string): Promise<T | undefined> {
     const req = store.get(key);
     req.onsuccess = () => resolve(req.result as T | undefined);
     req.onerror = () => {
-      console.warn('[localCacheStore.ts][4006] idbGet: error', req.error);   
+      //console.warn('[localCacheStore.ts][4006] idbGet: error', req.error);   
       reject(req.error);
     };
   });
@@ -155,11 +155,11 @@ async function idbDelete(key: string): Promise<void> {
     const store = tx.objectStore(STORE_NAME);
     store.delete(key);
     tx.oncomplete = () => {
-      console.log('[localCacheStore.ts][4007] idbDelete: complete for key=', key); 
+      //console.log('[localCacheStore.ts][4007] idbDelete: complete for key=', key); 
       resolve();
     };
     tx.onerror = () => {
-      console.warn('[localCacheStore.ts][4008] idbDelete: error', tx.error); 
+      //console.warn('[localCacheStore.ts][4008] idbDelete: error', tx.error); 
       reject(tx.error);
     };
   });
@@ -179,11 +179,11 @@ async function idbClearAll(): Promise<void> {
     const store = tx.objectStore(STORE_NAME);
     store.clear();
     tx.oncomplete = () => {
-      console.log('[localCacheStore.ts][4009] idbClearAll: complete');       
+      //console.log('[localCacheStore.ts][4009] idbClearAll: complete');       
       resolve();
     };
     tx.onerror = () => {
-      console.warn('[localCacheStore.ts][4010] idbClearAll: error', tx.error);
+      //console.warn('[localCacheStore.ts][4010] idbClearAll: error', tx.error);
       reject(tx.error);
     };
   });
@@ -219,7 +219,7 @@ export function getIndex(cachetype?:cachetype): CacheIndex {
     const raw = localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as CacheIndex) : {};
   } catch (e) {
-    console.warn('[localCacheStore.ts][4011] getIndex: parse error', e);      
+    //console.warn('[localCacheStore.ts][4011] getIndex: parse error', e);      
     return {};
   }
 }
@@ -234,7 +234,7 @@ export function setIndex(idx: CacheIndex, cachetype?:cachetype): void {
   try {
     localStorage.setItem(key, JSON.stringify(idx));
   } catch (e) {
-    console.warn('[localCacheStore.ts][4012] setIndex: setItem failed', e);   
+    //console.warn('[localCacheStore.ts][4012] setIndex: setItem failed', e);   
   }
 }
 
@@ -263,7 +263,7 @@ export function setDocIdentifiers(
     lastAccessed: typeof ids.updatedAt === 'number' ? ids.updatedAt : Date.now(),
   };
   setIndex(idx);
-  console.log('[localCacheStore.ts][4013] setDocIdentifiers: upserted docId=', docId); 
+  //console.log('[localCacheStore.ts][4013] setDocIdentifiers: upserted docId=', docId); 
 }
 
 /**
@@ -297,7 +297,7 @@ export function clearDocIdentifiers(docId: string): void {
   if (docId in idx) {
     delete idx[docId];
     setIndex(idx);
-    console.log('[localCacheStore.ts][4014] clearDocIdentifiers: removed docId=', docId); 
+    //console.log('[localCacheStore.ts][4014] clearDocIdentifiers: removed docId=', docId); 
   }
 }
 
@@ -312,9 +312,9 @@ export function clearAllIdentifiers(): void {
     localStorage.removeItem(INDEX_KEY_START);
     localStorage.removeItem(INDEX_KEY_REVIEW);
     localStorage.removeItem(INDEX_KEY_SESSION);
-    console.log('[localCacheStore.ts][4015] clearAllIdentifiers: index cleared'); 
+    //console.log('[localCacheStore.ts][4015] clearAllIdentifiers: index cleared'); 
   } catch (e) {
-    console.warn('[localCacheStore.ts][4016] clearAllIdentifiers: failed', e); 
+    //console.warn('[localCacheStore.ts][4016] clearAllIdentifiers: failed', e); 
   }
 }
 
@@ -349,9 +349,9 @@ export async function saveDocBytes(
     setIndex(idx);
 
     await pruneCache(cap);
-    console.log('[localCacheStore.ts][4017] saveDocBytes: saved & pruned docId=', docId); 
+    //console.log('[localCacheStore.ts][4017] saveDocBytes: saved & pruned docId=', docId); 
   } catch (e) {
-    console.warn('[localCacheStore.ts][4018] saveDocBytes: failed (non-fatal)', e); 
+    //console.warn('[localCacheStore.ts][4018] saveDocBytes: failed (non-fatal)', e); 
   }
 }
 
@@ -370,7 +370,7 @@ export async function loadDocBytes(docId: string): Promise<Uint8Array | null> {
     }
     return inMemoryBytes.get(docId) ?? null;
   } catch (e) {
-    console.warn('[localCacheStore.ts][4019] loadDocBytes: failed (non-fatal)', e); 
+    //console.warn('[localCacheStore.ts][4019] loadDocBytes: failed (non-fatal)', e); 
     return null;
   }
 }
@@ -388,9 +388,9 @@ export async function deleteDocBytes(docId: string): Promise<void> {
       await idbDelete(`doc:${docId}`);
     }
     inMemoryBytes.delete(docId);
-    console.log('[localCacheStore.ts][4020] deleteDocBytes: removed bytes for docId=', docId); 
+    //console.log('[localCacheStore.ts][4020] deleteDocBytes: removed bytes for docId=', docId); 
   } catch (e) {
-    console.warn('[localCacheStore.ts][4021] deleteDocBytes: failed (non-fatal)', e); 
+    //console.warn('[localCacheStore.ts][4021] deleteDocBytes: failed (non-fatal)', e); 
   }
 }
 
@@ -407,9 +407,9 @@ export async function clearAllBytes(): Promise<void> {
       await idbClearAll();
     }
     inMemoryBytes.clear();
-    console.log('[localCacheStore.ts][4022] clearAllBytes: all bytes cleared'); 
+    //console.log('[localCacheStore.ts][4022] clearAllBytes: all bytes cleared'); 
   } catch (e) {
-    console.warn('[localCacheStore.ts][4023] clearAllBytes: failed (non-fatal)', e); 
+    //console.warn('[localCacheStore.ts][4023] clearAllBytes: failed (non-fatal)', e); 
   }
 }
 
@@ -437,11 +437,11 @@ export async function pruneCache(cap: number = DEFAULT_CAP): Promise<void> {
       inMemoryBytes.delete(docId);
       delete idx[docId];
     } catch (e) {
-      console.warn('[localCacheStore.ts][4024] pruneCache: failed for docId=', docId, e); 
+      //console.warn('[localCacheStore.ts][4024] pruneCache: failed for docId=', docId, e); 
     }
   }
   setIndex(idx);
-  console.log('[localCacheStore.ts][4025] pruneCache: removed', toRemove.length, 'docs'); 
+  //console.log('[localCacheStore.ts][4025] pruneCache: removed', toRemove.length, 'docs'); 
 }
 
 /**
@@ -500,7 +500,7 @@ export function setLastViewedSlide(docId: string, slideId: string, cachetype:cac
 
   // 3) Save
   setIndex(idx, cachetype);
-  console.log('[localCacheStore.ts][4101] setLastViewedSlide (doc, slide, at)=', docId, slideId, now);
+  //console.log('[localCacheStore.ts][4101] setLastViewedSlide (doc, slide, at)=', docId, slideId, now);
 }
 
 
@@ -541,6 +541,6 @@ export function clearLastViewedSlide(docId: string): void {
     delete idx[docId].lastViewedSlideId;
     delete idx[docId].lastViewedAt;
     setIndex(idx);
-    console.log('[localCacheStore.ts][4102] clearLastViewedSlide (doc)=', docId);
+    //console.log('[localCacheStore.ts][4102] clearLastViewedSlide (doc)=', docId);
   }
 }

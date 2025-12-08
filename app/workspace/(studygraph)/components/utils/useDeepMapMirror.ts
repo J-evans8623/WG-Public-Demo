@@ -52,11 +52,11 @@ export function useDeepMapMirror(
       project();
       // [useDeepMapMirror.ts][6201]
       // eslint-disable-next-line no-console
-      console.log('[useDeepMapMirror.ts][6201] Initial projection executed');
+      //console.log('[useDeepMapMirror.ts][6201] Initial projection executed');
     } catch (err) {
       // [useDeepMapMirror.ts][6291]
       // eslint-disable-next-line no-console
-      console.error('[useDeepMapMirror.ts][6291] Initial projection failed', err);
+      //console.error('[useDeepMapMirror.ts][6291] Initial projection failed', err);
     }
 
     // Step 2: Attach deep observer; re-run projector on non-system transactions.
@@ -66,7 +66,7 @@ export function useDeepMapMirror(
         project();
         // [useDeepMapMirror.ts][6202]
         // eslint-disable-next-line no-console
-        console.log('[useDeepMapMirror.ts][6202] Projection executed after deep update');
+        //console.log('[useDeepMapMirror.ts][6202] Projection executed after deep update');
       } catch (err) {
         // [useDeepMapMirror.ts][6292]
         // eslint-disable-next-line no-console
@@ -77,13 +77,13 @@ export function useDeepMapMirror(
     yMap.observeDeep(onDeep);
     // [useDeepMapMirror.ts][6203]
     // eslint-disable-next-line no-console
-    console.log('[useDeepMapMirror.ts][6203] Deep observer attached');
+    //console.log('[useDeepMapMirror.ts][6203] Deep observer attached');
 
     return () => {
       yMap.unobserveDeep(onDeep);
       // [useDeepMapMirror.ts][6204]
       // eslint-disable-next-line no-console
-      console.log('[useDeepMapMirror.ts][6204] Deep observer detached');
+      //console.log('[useDeepMapMirror.ts][6204] Deep observer detached');
     };
   }, [yMap, project]);
 }
