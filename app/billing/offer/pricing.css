@@ -195,6 +195,112 @@
   border-top: 4px solid var(--wg-accent-sage);
 }
 
+
+/* =========================================
+   (new update - holiday ribbon promo banner)
+   PROMOTIONAL RIBBON BANNER
+   ========================================= */
+.wg-ribbon-banner {
+  position: relative;
+  margin: 0 0 32px 0;
+  padding: 0;
+}
+
+.wg-ribbon-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  
+  /* Ribbon styling with paper texture isolation */
+  background: linear-gradient(135deg, 
+    rgba(227, 68, 50, 0.08) 0%, 
+    rgba(140, 123, 108, 0.06) 100%);
+  backdrop-filter: blur(2px);
+  
+  /* Solid backing for readability on texture */
+  position: relative;
+  z-index: 1;
+  
+  padding: 14px 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(227, 68, 50, 0.15);
+  border-left: 4px solid var(--wg-accent-red);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.wg-ribbon-content::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(254, 253, 252, 0.92);
+  border-radius: 8px;
+  z-index: -1;
+}
+
+.wg-ribbon-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.wg-ribbon-text {
+  font-family: var(--wg-font-sans);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--wg-text-main);
+  margin: 0;
+  text-align: center;
+}
+
+.wg-ribbon-text strong {
+  font-weight: 600;
+  color: #3d2c29;
+}
+
+.wg-ribbon-code {
+  display: inline-block;
+  background: white;
+  color: var(--wg-accent-red);
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 2px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(227, 68, 50, 0.2);
+  letter-spacing: 0.5px;
+  margin: 0 2px;
+}
+
+/* =========================================
+   RESPONSIVE: RIBBON
+   ========================================= */
+@media (max-width: 960px) {
+  .wg-ribbon-banner {
+    margin: 0 0 24px 0;
+  }
+  
+  .wg-ribbon-content {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    gap: 8px;
+  }
+  
+  .wg-ribbon-text {
+    font-size: 0.9rem;
+    text-align: left;
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  .wg-ribbon-icon {
+    font-size: 1.3rem;
+  }
+}
+
 /* Card Content */
 .wg-card-header {
   margin-bottom: 24px;

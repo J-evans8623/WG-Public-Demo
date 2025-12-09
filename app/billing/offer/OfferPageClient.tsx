@@ -245,6 +245,16 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
               </div>
             </div>
 
+            {/* (new update - holiday ribbon promo banner) */}
+<div className="wg-ribbon-banner">
+  <div className="wg-ribbon-content">
+    <span className="wg-ribbon-icon">🎁</span>
+    <p className="wg-ribbon-text">
+      <strong>Holiday Offer:</strong> Use code <span className="wg-ribbon-code">HOLIDAY25</span> at checkout for 25% off your next purchase  (first 100 customers)
+    </p>
+  </div>
+</div>
+
             <div className="wg-cards-grid">
               
               {/* Card 1: STARTER  update to 5 monthly lessons instead of "one free lifetime credit" */}
