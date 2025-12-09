@@ -254,7 +254,7 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
                   <div className="wg-card-price">Free</div>
                 </div>
                 <ul className="wg-feature-list">
-                   <li className="wg-feature-item">5 free lesson generations per month</li> 
+                   <li className="wg-feature-item">3 lesson generations per month</li> 
                    <li className="wg-feature-item">Limitted access to Spaced-Repetition Planner</li>
                    <li className="wg-feature-item">Join or create Study groups</li>
                 </ul>

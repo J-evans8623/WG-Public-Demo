@@ -327,7 +327,7 @@ const CalendarDayCell: React.FC<
   const dayNumber = date.getDate();
   const sessions = dailyPlan?.sessions || [];
   
-  const maxVisible = 2; 
+  const maxVisible = 3; 
   const visibleSessions = isExpanded ? sessions : sessions.slice(0, maxVisible);
   const hiddenCount = Math.max(0, sessions.length - maxVisible);
   const hasOverflow = sessions.length > maxVisible;

@@ -255,7 +255,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                   onClick={() => handleOpenTutorial('generate_lesson')}
                 >
                   <Sparkles className="action-icon" />
-                  <div className="action-title">Generate Lesson</div>
+                  <div className="action-title">How to Generate a Lesson</div>
                   <div className="action-desc">AI-powered creation</div>
                 </div>
 
@@ -265,7 +265,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                   onClick={() => handleOpenTutorial('study_group')}
                 >
                   <Users className="action-icon" />
-                  <div className="action-title">Start Study Group</div>
+                  <div className="action-title">How to start a Study Group</div>
                   <div className="action-desc">Collaborate</div>
                 </div>
               </div>
