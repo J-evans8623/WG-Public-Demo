@@ -40,6 +40,11 @@ import { computeLessonLimitState , toDate} from './redisCache/rateLogic';
 export type ServiceType = 'lessonGeneration' | 'askAssistant' | 'exploreTopic' | 'createQuiz';
 
 
+// Freemium monthly allowance limit (mirrors UserService configuration).  // update - 25
+const FREEMIUM_MONTHLY_LESSON_LIMIT = parseInt(
+  process.env.FREEMIUM_MONTHLY_LESSON_LIMIT || '5',
+  10
+)
 
 
 // Step 2: Define comprehensive user status interface for single-call optimization
@@ -87,8 +92,8 @@ const SECONDARY_SERVICES_RATE_LIMIT = {
 } as const;
 
 const PREMIUM_LESSON_RATE_LIMITS = {
-  scholar: { hourlyLimit: 8, monthlyLimit: 100 },
-  educator: { hourlyLimit: 15, monthlyLimit: 200 },
+  scholar: { hourlyLimit: 15, monthlyLimit: 125 },
+  educator: { hourlyLimit: 25, monthlyLimit: 150 },
 } as const;
 
 /**
@@ -185,6 +190,39 @@ async function getComprehensiveUserStatus(email: string): Promise<ComprehensiveU
    // Step 2: Establish a single "now" for consistent math.
   const now = new Date();
 
+  const rawDemo: any = (userUsage as any).demoCredits || {};
+  const lastRenewalDate =
+    rawDemo.lastRenewal instanceof admin.firestore.Timestamp
+      ? rawDemo.lastRenewal.toDate()
+      : rawDemo.lastRenewal instanceof Date
+      ? rawDemo.lastRenewal
+      : now;
+
+  
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+  const demoWindowExpired =
+    now.getTime() - lastRenewalDate.getTime() >= THIRTY_DAYS_MS;
+
+  const recordedUsed =
+    typeof rawDemo.used === 'number' && rawDemo.used >= 0
+      ? rawDemo.used
+      : 0;
+
+  let effectiveDemoUsed: number;
+  let effectiveDemoRemaining: number;
+
+  if (demoWindowExpired) {
+    // New month: report a full allowance even if Firestore still shows 0.  // update - 27
+    effectiveDemoUsed = 0;
+    effectiveDemoRemaining = FREEMIUM_MONTHLY_LESSON_LIMIT;
+  } else {
+    effectiveDemoUsed = recordedUsed;
+    effectiveDemoRemaining = Math.max(
+      0,
+      FREEMIUM_MONTHLY_LESSON_LIMIT - recordedUsed
+    );
+  }
+
   // Step 3: Resolve limits (0/0 for freemium to keep math simple).
   const lessonRateLimits = userProfile.subscriptionTier === 'premium'
     ? PREMIUM_LESSON_RATE_LIMITS[userProfile.accountType]
@@ -255,8 +293,8 @@ async function getComprehensiveUserStatus(email: string): Promise<ComprehensiveU
     profile: userProfile,
     usage: {
       demoCredits: {
-        remaining: userUsage.demoCredits.remaining,
-        used: userUsage.demoCredits.used
+        remaining:effectiveDemoRemaining,
+        used: effectiveDemoUsed
       },
       rateLimits: {
         lessonGeneration: lessonStatus,

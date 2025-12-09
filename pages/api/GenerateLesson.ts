@@ -349,13 +349,30 @@ export default async function handler(
     const generatedLessons = await Promise.all(lessonPromises);
     console.timeEnd('[GenerateLesson.ts][4017] Lesson generation timer');
 
+
+     const lessonUnits =
+      Array.isArray(generatedLessons) && generatedLessons.length > 0
+        ? generatedLessons.length
+        : 0; 
+
+      let updatedRemainingCredits: number | undefined = undefined;
+
+
+
     // Step 14: Enhanced usage tracking through centralized system
     try {
-      if (validation.userStatus.profile.subscriptionTier === 'freemium') {
+      if (validation.userStatus.profile.subscriptionTier === 'freemium' &&
+        lessonUnits > 0 ) {
         // Consume demo credit for freemium users
-        const remainingCredits = await UserService.consumeDemoCredit(userEmail);
-        console.log('[GenerateLesson.ts][4018] Demo credit consumed successfully', { remainingCredits });
-      } else {
+        //const remainingCredits = await UserService.consumeDemoCredit(userEmail);
+        const { remaining } = await UserService.consumeFreemiumQuota(
+          userEmail,
+          lessonUnits
+        );
+        updatedRemainingCredits = remaining;
+
+        console.log('[GenerateLesson.ts][4018] Demo credit consumed successfully');
+      } else if (validation.userStatus.profile.subscriptionTier !== 'freemium') {
         // Increment rate limit counters for premium users
         await UserService.incrementUsageCounter(userEmail, 'lessonGeneration');
         console.log('[GenerateLesson.ts][4019] Premium usage counter incremented successfully');
@@ -386,7 +403,9 @@ export default async function handler(
         subscriptionTier: validation.userStatus.profile.subscriptionTier,
         // Include updated usage statistics based on user type
         ...(validation.userStatus.profile.subscriptionTier === 'freemium' && {
-          remainingDemoCredits: Math.max(0, validation.userStatus.usage.demoCredits.remaining - 1)
+          remainingDemoCredits: typeof updatedRemainingCredits === 'number'
+              ? updatedRemainingCredits
+              : validation.userStatus.usage.demoCredits.remaining,
         }),
         ...(validation.userStatus.profile.subscriptionTier === 'premium' && {
           rateLimitInfo: {

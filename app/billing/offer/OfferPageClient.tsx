@@ -44,6 +44,7 @@ const SCHOLAR_FEATURES = [
   "On-Demand AI Tutor",
   "Self-Paced Quiz Generation",
   "Real-Time Peer Collaboration",
+  "Create or Join Study groups",
   "Standard Rate Limits",
 ];
 
@@ -54,6 +55,7 @@ const EDUCATOR_FEATURES =  [
   "On-Demand AI Tutor",
   "Self-Paced Quiz Generation",
   "Real-Time Peer Collaboration",
+   "Create or Join Study groups",
   "Track student performance on quiz assements with a gradebook",
   "Assignable Quizzes with Deadlines",
   "Manage permissions for all uploaded materials.",
@@ -245,16 +247,16 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
 
             <div className="wg-cards-grid">
               
-              {/* Card 1: STARTER */}
+              {/* Card 1: STARTER  update to 5 monthly lessons instead of "one free lifetime credit" */}
               <div className="wg-paper-card starter">
                 <div className="wg-card-header">
                   <h3 className="wg-card-title">Starter</h3>
                   <div className="wg-card-price">Free</div>
                 </div>
                 <ul className="wg-feature-list">
-                   <li className="wg-feature-item">One free credit to create your first Lesson</li>
-                   <li className="wg-feature-item">Basic Features Access</li>
-                   <li className="wg-feature-item">Community Access</li>
+                   <li className="wg-feature-item">5 free lesson generations per month</li> 
+                   <li className="wg-feature-item">Limitted access to Spaced-Repetition Planner</li>
+                   <li className="wg-feature-item">Join or create Study groups</li>
                 </ul>
 
                 {/* (new update - dynamic UI toggle) 

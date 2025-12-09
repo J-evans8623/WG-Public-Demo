@@ -43,8 +43,14 @@ import type { BillingSnapshot } from '@/app/src/billing/types';
 export type AccountType = 'scholar' | 'educator';
 export type SubscriptionTier = 'freemium' | 'premium';
 
+
+const FREEMIUM_MONTHLY_LESSON_LIMIT = parseInt(
+  process.env.FREEMIUM_MONTHLY_LESSON_LIMIT || '5',
+  10
+);
+
 // Add this near line ~110
-const DEFAULT_DEMO_CREDITS = parseInt(process.env.DEMO_CREDITS || '1', 10);
+const DEFAULT_DEMO_CREDITS = FREEMIUM_MONTHLY_LESSON_LIMIT;
 
 
 export interface UserProfile {
@@ -82,12 +88,13 @@ export interface UserProfile {
 export interface UserUsage {
   userId: string;
   
-  // Demo credits tracking (LIFETIME ONLY - NO REFRESH) - Freemium only
+  /// Freemium “demo credits” now behave as a monthly recurring pool, not a lifetime bucket.
   demoCredits: {
     total: number;
     remaining: number;
     used: number;
-    lastUsedAt?: admin.firestore.Timestamp;
+    lastUsedAt?: admin.firestore.Timestamp;      
+    lastRenewal: admin.firestore.Timestamp; // Anchor for 30-day/monthly reset window  
   };
   
   // Enhanced rate limiting for all services
@@ -159,11 +166,11 @@ const RATE_LIMITS = {
     lessonGeneration: {
       scholar: {
         hourlyLimit: 15,
-        monthlyLimit: 125,
+        monthlyLimit: 125, // use economy mode when exceeded
       },
       educator: {
         hourlyLimit: 25,
-        monthlyLimit: 150,
+        monthlyLimit: 150, // use economy mode when exceeded
       }
     },
     // NEW: Defensive rate limits for secondary services
@@ -239,6 +246,7 @@ export class UserService {
         total: DEFAULT_DEMO_CREDITS,
         remaining: DEFAULT_DEMO_CREDITS,
         used: 0,
+        lastRenewal: now
       },
       rateLimits: {
         dailyUploads: 0,
@@ -484,7 +492,7 @@ static async updateSubscriptionTier(
    *   detailed logging for business analytics.
    * @param email User email
    * @returns Promise resolving to remaining credits after consumption
-   */
+   
   static async consumeDemoCredit(email: string): Promise<number> {
     console.log('[userService.ts][7010] Consuming demo credit for lesson generation - User:', email);
     
@@ -528,6 +536,28 @@ static async updateSubscriptionTier(
        await bumpUserVersion(normalizedEmail);
       return remainingCredits;
     });
+  }*/
+
+   /**
+   * consumeDemoCredit
+   * @description
+   *   Legacy helper that previously consumed a single, non-renewing demo credit for lesson generation.
+   *   To preserve backwards compatibility during the Freemium migration, this method now delegates to
+   *   `consumeFreemiumQuota` with a fixed `lessonCount` of 1. Any existing endpoints or helpers that
+   *   still call `consumeDemoCredit` therefore inherit the new monthly allowance semantics without
+   *   requiring immediate refactors. Time complexity remains O(1) because it wraps a single internal
+   *   transaction and performs no extra database work of its own.
+   * @param email User email
+   * @returns Promise resolving to remaining credits after consumption
+   */
+  static async consumeDemoCredit(email: string): Promise<number> {
+    console.log(
+      '[userService.ts][7010] Consuming demo credit for lesson generation (delegates to monthly Freemium quota)',
+      { email }
+    ); // update - 18
+
+    const { remaining } = await this.consumeFreemiumQuota(email, 1); // update - 18
+    return remaining;
   }
   
   /**
@@ -715,12 +745,39 @@ static async getUserUsage(email: string): Promise<UserUsage> { // update - 9
       const now = admin.firestore.Timestamp.now();
       if (snapshot.exists) {
         const usage = snapshot.data() as Partial<UserUsage>;
+
+
+        const rawDemo = (usage as any).demoCredits || {};
+        const normalizedDemo = {
+          total:
+            typeof rawDemo.total === 'number' && rawDemo.total > 0
+              ? rawDemo.total
+              : DEFAULT_DEMO_CREDITS,
+          used:
+            typeof rawDemo.used === 'number' && rawDemo.used >= 0
+              ? rawDemo.used
+              : 0,
+          remaining:
+            typeof rawDemo.remaining === 'number' && rawDemo.remaining >= 0
+              ? rawDemo.remaining
+              : DEFAULT_DEMO_CREDITS,
+          lastUsedAt:
+            rawDemo.lastUsedAt instanceof admin.firestore.Timestamp
+              ? rawDemo.lastUsedAt
+              : undefined,
+          lastRenewal:
+            rawDemo.lastRenewal instanceof admin.firestore.Timestamp
+              ? rawDemo.lastRenewal
+              : now,
+        } as UserUsage['demoCredits'];
+
+
         // Migration for secondary-services fields / metrics if missing
         if (!usage.rateLimits?.secondaryServices || (usage as any)?.metrics?.totalQuestionsAsked == null) {
           console.log('[userService.ts][2010] Migrating usage to secondary-services support', { email: normalizedEmail });
           const migrated: UserUsage = {
             userId: normalizedEmail,
-            demoCredits: usage.demoCredits || { total: DEFAULT_DEMO_CREDITS, remaining: DEFAULT_DEMO_CREDITS, used: 0 },
+            demoCredits: normalizedDemo,
             rateLimits: {
               ...usage.rateLimits,
               secondaryServices: {
@@ -748,7 +805,12 @@ static async getUserUsage(email: string): Promise<UserUsage> { // update - 9
 
       const created: UserUsage = {
         userId: normalizedEmail,
-        demoCredits: { total: 2, remaining: 2, used: 0 },
+        demoCredits: {
+          total: DEFAULT_DEMO_CREDITS,
+          remaining: DEFAULT_DEMO_CREDITS,
+          used: 0,
+          lastRenewal: now,
+        },
         rateLimits: {
           dailyUploads: 0,
           currentPeriodStart: now,
@@ -936,11 +998,39 @@ static async getUserUsage(email: string): Promise<UserUsage> { // update - 9
     
     try {
       const userProfile = await this.getUserProfile(email);
+
+
       
       // Step 19: Handle freemium users with demo credits
       if (userProfile.subscriptionTier === 'freemium') {
         const usage = await this.getUserUsage(email);
-        if (usage.demoCredits.remaining <= 0) {
+
+        const rawDemo: any = (usage as any).demoCredits || {}; // update - 30
+        const now = new Date(); // update - 30
+
+        const lastRenewalDate =
+          rawDemo.lastRenewal instanceof admin.firestore.Timestamp
+            ? rawDemo.lastRenewal.toDate()
+            : rawDemo.lastRenewal instanceof Date
+            ? rawDemo.lastRenewal
+            : now; // fallback keeps logic safe even for legacy records // update - 30
+
+        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000; // update - 30
+        const demoWindowExpired =
+          now.getTime() - lastRenewalDate.getTime() >= THIRTY_DAYS_MS; // update - 30
+
+        const recordedUsed =
+          typeof rawDemo.used === 'number' && rawDemo.used >= 0
+            ? rawDemo.used
+            : 0; // update - 30
+
+        const effectiveUsed = demoWindowExpired ? 0 : recordedUsed; // update - 30
+        const effectiveRemaining = Math.max(
+          0,
+          FREEMIUM_MONTHLY_LESSON_LIMIT - effectiveUsed
+        ); // update - 30
+
+        if (effectiveRemaining <= 0) {
           console.log('[userService.ts][7030] Lesson generation denied - no demo credits remaining');
           return {
             allowed: false,
@@ -1011,5 +1101,113 @@ static async getUserUsage(email: string): Promise<UserUsage> { // update - 9
       console.error('[userService.ts][7033] Error validating lesson generation permissions:', error);
       throw error;
     }
+  }
+
+
+  /**
+   * consumeFreemiumQuota
+   * @description
+   *   Atomically consumes a variable number of Freemium lesson units from the user’s monthly pool.
+   *   This method performs a read-modify-write in a single Firestore transaction, first checking
+   *   whether the current monthly window has expired based on `demoCredits.lastRenewal`. If more
+   *   than 30 days have elapsed, it virtually “renews” the quota by resetting `used` to zero,
+   *   `remaining` to the configured monthly limit, and updating `lastRenewal` to the current time.
+   *   It then deducts `lessonCount` from the pool, updating both usage metrics and remaining quota.
+   *   Time complexity is O(1) because it touches a single document and does constant work.
+   * @param email User email
+   * @param lessonCount Number of lesson units to deduct from the monthly allowance
+   * @returns Promise resolving to remaining credits and a flag indicating whether a renewal occurred
+   */
+  static async consumeFreemiumQuota(
+    email: string,
+    lessonCount: number
+  ): Promise<{ remaining: number; renewed: boolean }> {
+    console.log(
+      '[userService.ts][7050] Consuming Freemium monthly quota for lesson generation',
+      { email, lessonCount }
+    ); // update - 15
+
+    if (!Number.isFinite(lessonCount) || lessonCount <= 0) {
+      throw new Error('lessonCount must be a positive number');
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const usageRef = firestore.collection('userUsage').doc(normalizedEmail);
+
+    const result = await firestore.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(usageRef);
+      if (!snapshot.exists) {
+        throw new Error('User usage data not found');
+      }
+
+      const usage = snapshot.data() as any;
+      const now = admin.firestore.Timestamp.now();
+
+      const rawDemo = usage.demoCredits || {};
+      const monthlyLimit = FREEMIUM_MONTHLY_LESSON_LIMIT;
+
+      // Step 1: Resolve last renewal with safe defaults.  // update - 16
+      const lastRenewalTs =
+        rawDemo.lastRenewal instanceof admin.firestore.Timestamp
+          ? rawDemo.lastRenewal
+          : rawDemo.lastUsedAt instanceof admin.firestore.Timestamp
+          ? rawDemo.lastUsedAt
+          : usage.createdAt instanceof admin.firestore.Timestamp
+          ? usage.createdAt
+          : now;
+
+      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+      const elapsedMs = now.toMillis() - lastRenewalTs.toMillis();
+      const windowExpired = elapsedMs >= THIRTY_DAYS_MS;
+
+      const baselineUsed =
+        windowExpired || typeof rawDemo.used !== 'number' || rawDemo.used < 0
+          ? 0
+          : rawDemo.used;
+
+      // Step 2: Compute new usage and remaining quota.  // update - 17
+      const newUsed = baselineUsed + lessonCount;
+      const remaining = Math.max(0, monthlyLimit - newUsed);
+
+      const updatedDemo = {
+        total: monthlyLimit,
+        remaining,
+        used: newUsed,
+        lastUsedAt:
+          rawDemo.lastUsedAt instanceof admin.firestore.Timestamp
+            ? now
+            : now,
+        lastRenewal: windowExpired ? now : lastRenewalTs,
+      };
+
+      const updatedMetrics = {
+        ...(usage.metrics || {}),
+        totalLessonsGenerated:
+          (usage.metrics?.totalLessonsGenerated || 0) + lessonCount,
+      };
+
+      const updatedUsage: Partial<UserUsage> = {
+        ...(usage as UserUsage),
+        demoCredits: updatedDemo,
+        metrics: updatedMetrics,
+        updatedAt: now,
+      };
+
+      transaction.set(usageRef, updatedUsage, { merge: true });
+
+      console.log(
+        '[userService.ts][7051] Freemium quota updated',
+        {
+          email: normalizedEmail,
+          remaining,
+          renewed: windowExpired,
+        }
+      );
+
+      return { remaining, renewed: windowExpired };
+    });
+
+    await bumpUserVersion(normalizedEmail);
+    return result;
   }
 }
