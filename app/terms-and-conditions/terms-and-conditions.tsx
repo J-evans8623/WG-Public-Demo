@@ -32,7 +32,7 @@ const TermsAndConditionsContent = () => {
         
         {/* Header */}
         <h1 className="wg-legal-main-title">Terms of Service</h1>
-        <span className="wg-legal-last-updated">Last Updated: November 22, 2025</span>
+        <span className="wg-legal-last-updated">Last Updated: December 09, 2025</span>
 
         {/* Section 1 */}
         <section className="wg-legal-section">
@@ -78,7 +78,7 @@ const TermsAndConditionsContent = () => {
         <section className="wg-legal-section">
           <h2 className="wg-legal-heading">6. Payment, Subscription, and Cancellation Terms</h2>
           <p className="wg-legal-text">
-            Wisegraph offers Freemium and Paid tiers. The Freemium tier grants monthly credits to create exactly five lessons (this is exactly five concept maps), this amount is renewed every 30 days , and Wisegraph may revoke, modify, or reinstate at its sole discretion. For Paid subscriptions, fees are billed in advance on a recurring basis. All payments are non-refundable. You may cancel your subscription at any time via your account settings; however, cancellation must be effected prior to the renewal date to avoid subsequent charges. No refunds or credits will be issued for partial months or unused service. Account tier changes (e.g., Scholar to Educator) must be requested through Customer Support.
+            Wisegraph offers Freemium and Paid tiers. The Freemium tier grants monthly credits to create exactly three lessons (this is exactly three concept maps), this amount is renewed every 30 days , and Wisegraph may revoke, modify, or reinstate at its sole discretion. For Paid subscriptions, fees are billed in advance on a recurring basis. All payments are non-refundable. You may cancel your subscription at any time via your account settings; however, cancellation must be effected prior to the renewal date to avoid subsequent charges. No refunds or credits will be issued for partial months or unused service. Account tier changes (e.g., Scholar to Educator) must be requested through Customer Support.
           </p>
         </section>
 
