@@ -6,6 +6,7 @@ import WelcomeLandingPage from '@/app/(welcome)/draft/WelcomeLandingPage';
 import SiteFooter from '@/components/SiteFooter';
 import SiteHeader from '@/components/SiteHeader';
 import SoftwareSchema from '@/components/seo/SoftwareSchema';
+import VideoSchema from '@/components/seo/VideoSchema';
 
 export const metadata: Metadata = {
   // Keep keywords, but no "Free" promise here
@@ -27,6 +28,7 @@ export default function Page(): JSX.Element {
   return (
     <>
       <SoftwareSchema />
+      <VideoSchema />
       <SiteHeader />
       <WelcomeLandingPage />
       <SiteFooter />
