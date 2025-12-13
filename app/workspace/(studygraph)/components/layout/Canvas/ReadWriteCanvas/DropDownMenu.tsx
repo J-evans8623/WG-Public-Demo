@@ -19,7 +19,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FileText, FolderOpen, Plus, Sparkles } from 'lucide-react';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
-import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
+import { useViewSwitch } from '@/app/workspace/(studygraph)/components/layout/Canvas/pdf/ViewSwitchContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useLessonData } from '@/app/Library/Context/LessonDataContext';
 import { useFileAsset } from '@/app/Library/Context/FileAssetContext';

@@ -18,7 +18,7 @@
  ***************************************************************************************/
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
+import { useViewSwitch } from '@/app/workspace/(studygraph)/components/layout/Canvas/pdf/ViewSwitchContext';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
 import SearchButton from '../../CardDisplay/SearchButton';
 import '@/app/workspace/styles/brand/brand-utilities.css';

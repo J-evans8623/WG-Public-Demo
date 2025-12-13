@@ -31,7 +31,7 @@ import PDFRenderer from '../pdf/PDFRenderer';
 import { useZoomContext } from '@/app/Library/Context/ZoomProvider';
 import { ZoomActionType } from '@/app/Library/Definitions/Definitions';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
-import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
+import { useViewSwitch } from '@/app/workspace/(studygraph)/components/layout/Canvas/pdf/ViewSwitchContext';
 import { useUndoRedo } from '@/app/workspace/(studygraph)/components/Context/UndoRedoContext';
 import BottomToolbar from '../toolbar/BottomToolbar';
 import QuizGeneratorModal from '../QuizGeneratorModal';

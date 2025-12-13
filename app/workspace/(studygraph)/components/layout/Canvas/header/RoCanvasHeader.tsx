@@ -52,7 +52,7 @@ import { LessonsDropdown } from './ReadOnlyDropdown';
 import {  UploadsDropdown } from './DropdownComponents';
 import { TextFileMessage } from '@/app/Library/Definitions/Definitions';
 import './CanvasHeader.css';
-import { useViewSwitch } from '@/app/Library/Context/pdf/ViewSwitchContext';
+import { useViewSwitch } from '@/app/workspace/(studygraph)/components/layout/Canvas/pdf/ViewSwitchContext';
 
 export interface CanvasHeaderProps {
   onMenuToggle: () => void;
