@@ -10,7 +10,7 @@
  * success message and forward the user to the app.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react'
 import './success-page.css';
 
 // -- Icons --
@@ -30,6 +30,32 @@ const Icons = {
 };
 
 export default function SuccessPage() {
+
+  useEffect(() => {
+    // 1. Retrieve the stored ad context from the landing page capture
+    const storedContext = localStorage.getItem('wisegraph_ad_context');
+    
+    if (storedContext) {
+      try {
+        const { gclid } = JSON.parse(storedContext);
+
+        // 2. Fire Google Ads Event only if a valid GCLID was captured
+        // We rely on window.gtag being available from the global layout script
+        if (gclid && typeof window !== 'undefined' && (window as any).gtag) {
+           (window as any).gtag('event', 'conversion', {
+              'send_to': 'AW-17797042132/yVVBCLjojtAbENSfpaZC',
+              'transaction_id': '', // Optional: Transaction ID left blank as this is a static success page
+           });
+           
+           // 3. Cleanup: Remove the context to ensure this event is exactly one-time use.
+           localStorage.removeItem('wisegraph_ad_context');
+        }
+      } catch (e) {
+        console.error('Error parsing ad context on success page:', e);
+      }
+    }
+  }, []);
+  
   return (
     <main className="sp-page">
       <div className="sp-container">

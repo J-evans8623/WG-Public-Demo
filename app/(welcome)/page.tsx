@@ -9,7 +9,7 @@ import SoftwareSchema from '@/components/seo/SoftwareSchema';
 import VideoSchema from '@/components/seo/VideoSchema';
 
 export const metadata: Metadata = {
-  // Keep keywords, but no "Free" promise here
+  // Keep keywords, but no "Free" promise here seo
   title: 'WiseGraph | Spaced Repetition App & AI Study Planner',
   
   description:

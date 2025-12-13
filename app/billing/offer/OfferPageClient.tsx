@@ -249,9 +249,9 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
 <div className="wg-ribbon-banner">
   <div className="wg-ribbon-content">
     <span className="wg-ribbon-icon">🎁</span>
-    <p className="wg-ribbon-text">
-      <strong>Holiday Offer:</strong> Use code <span className="wg-ribbon-code">HOLIDAY25</span> at checkout for 25% off your next purchase  (first 100 customers)
-    </p>
+<p className="wg-ribbon-text">
+  <strong>Holiday Offer:</strong> Annual plans are 25% off. Use code <span className="wg-ribbon-code">HOLIDAY25</span> to stack another 25% off.  (first 100 customers).
+</p>
   </div>
 </div>
 

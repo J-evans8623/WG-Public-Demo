@@ -4,7 +4,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://wisegraph.app';
 
   return [
-    // 1. Home Page (Root)
+    // 1. Home Page (Root) seo
     // Served from app/(welcome)/page.tsx
     {
       url: baseUrl,

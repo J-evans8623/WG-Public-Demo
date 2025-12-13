@@ -14,6 +14,7 @@ import './welcomepage.css';
 import '../scroll-sections.css';
 import Image from 'next/image';
 import SeeMoreArrow from '@/public/brand/doodle-arrow-pointer.svg'; 
+import { useSearchParams } from 'next/navigation';
 
 type SceneConfig = {
   id: number;
@@ -29,6 +30,27 @@ function WelcomeLandingPage(): JSX.Element {
   const [activeScene, setActiveScene] = useState(1);
   const scenesRef = useRef<(HTMLDivElement | null)[]>([]);
   const stickyRef = useRef<HTMLDivElement | null>(null);
+
+  // google ad conversion tracking
+  const searchParams = useSearchParams();
+
+  // u Capture and Persist GCLID Logic
+  useEffect(() => {
+    // 1. Extract the 'gclid' parameter from the current URL
+    const gclid = searchParams?.get('gclid');
+
+    // 2. If present, persist to localStorage for retrieval on the success page
+    if (gclid) {
+      try {
+        localStorage.setItem('wisegraph_ad_context', JSON.stringify({ 
+          gclid, 
+          timestamp: Date.now() 
+        }));
+      } catch (err) {
+        console.warn('Failed to save ad context:', err);
+      }
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const observers = scenesRef.current.map((sceneEl, index) => {
@@ -60,7 +82,7 @@ function WelcomeLandingPage(): JSX.Element {
   const scenes: SceneConfig[] = [
     {
       id: 1,
-      eyebrow: 'From messy chapters to clarity',
+      eyebrow: 'Built for the Academic Comeback',
       heading: 'Turn any chapter into a clear roadmap',
       body:
         'Upload your chapters and WiseGraph unfolds it into a visual map of bite-size topics. Each node becomes a five minute micro-lesson with notes, flashcards, and quizzes—so you can scan your course at a glance and jump straight into what matters.',

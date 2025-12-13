@@ -9,7 +9,7 @@ const VideoSchema = () => {
     '@type': 'VideoObject',
     name: 'WiseGraph Demo - How It Works',
     description: 'See how WiseGraph turns chapters into clear concept maps, generates AI quizzes, and prevents cramming via spaced repetition.',
-    // Thumbnails are automatically fetched from YouTube structure
+    // Thumbnails are automatically fetched from YouTube structure seo
     thumbnailUrl: [
       `https://img.youtube.com/vi/${videoID}/maxresdefault.jpg`,
       `https://img.youtube.com/vi/${videoID}/hqdefault.jpg`

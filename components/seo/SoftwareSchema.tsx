@@ -9,7 +9,7 @@ const SoftwareSchema = () => {
     applicationCategory: 'EducationalApplication',
     operatingSystem: 'Any', 
     
-    // UPDATE: Removed "free SaaS" from description
+    // UPDATE: Removed "free SaaS" from description seo
     description: 'WiseGraph is an AI-powered study planner for students. It converts PDFs to summarized notes, flash cards ,quizzes and concept maps, prevents cramming via spaced repetition and utilizes active recall for academic success.',
     
     browserRequirements: 'Requires JavaScript. Works on Chrome, Firefox, Safari, Edge.',
