@@ -82,7 +82,7 @@ function WelcomeLandingPage(): JSX.Element {
   const scenes: SceneConfig[] = [
     {
       id: 1,
-      eyebrow: 'Built for the Academic Comeback',
+      eyebrow: 'Stop getting lost in long chapters',
       heading: 'Turn any chapter into a clear roadmap',
       body:
         'Upload your chapters and WiseGraph unfolds it into a visual map of bite-size topics. Each node becomes a five minute micro-lesson with notes, flashcards, and quizzes—so you can scan your course at a glance and jump straight into what matters.',
@@ -92,10 +92,10 @@ function WelcomeLandingPage(): JSX.Element {
     },
     {
       id: 2,
-      eyebrow: 'End the cycle of cramming',
-      heading: 'A study plan that actually keeps you on track',
+      eyebrow: 'End the cycle of procrastination and cramming',
+      heading: 'A study plan that keeps you on track',
       body:
-        "Pick your notebooks and WiseGraph auto-builds a schedule that spaces lessons and weaves topics together. Instead of guessing what to review next, you see today's blocks laid out for you—calm, predictable, and aligned with how memory works.",
+        "Each time you upload your course notes, WiseGraph builds and updates your study plan by spacing lessons and weaving topics together. Your study plan will always be ready to use whenever you are ready to jump back in.",
       videoSrc: '/demo/calendar-scene-2-opt.mp4',
       stageBg: "url('/brand/scene-2-stage.png')",
       themeColor: '#e27312',
@@ -105,8 +105,8 @@ function WelcomeLandingPage(): JSX.Element {
       eyebrow: 'Built on real learning science',
       heading: 'Retention, Not Re-Learning',
       body:
-        ' Built-in spacing and interleaving lock concepts into long-term memory, so exams feel like reviews, not rescues.',
-      videoSrc: '/scene-3/scene-3-stage.mp4',
+        ' Wisegraph uses spacing and interleaving to lock concepts into long-term memory, so exams feel like reviews, not rescues.',
+      videoSrc:null,
       stageBg: 'linear-gradient(135deg, #ffefe5 0%, #fde7d8 100%)',
       themeColor: '#cf3520',
     },
@@ -208,100 +208,107 @@ function WelcomeLandingPage(): JSX.Element {
             3. SCROLLYTELLING SECTION
             ========================================= */}
         <div className="wg-scroll-section">
-          <div className="wg-scroll-container">
-            {/* Left column: Text + Inline Mobile Videos */}
-            <div className="wg-scenes-column">
-              {scenes.map((scene, idx) => (
-                <React.Fragment key={scene.id}>
-                  <div
-                    ref={(el) => { scenesRef.current[idx] = el; }}
-                    className="wg-scene-text-block"
-                    data-scene={scene.id}
-                    style={
-                      {
-                        '--scene-theme-color': scene.themeColor,
-                      } as React.CSSProperties
-                    }
-                  >
-                    <p className="wg-section-eyebrow">{scene.eyebrow}</p>
-                    <h2 className="wg-section-heading">{scene.heading}</h2>
-                    <p className="wg-section-body">{scene.body}</p>
+          <div className={`wg-scroll-container ${activeScene === 3 ? 'wg-scroll-container--scene3' : ''}`}>
+  {/* Left column: Text + Inline Mobile Videos */}
+  <div className="wg-scenes-column">
+    {scenes.map((scene, idx) => {
+      const isScene3 = scene.id === 3;
+      const isScene3Active = isScene3 && activeScene === 3;
 
-                    {/* Scene 3: show static illustration under the copy */}
-                    {scene.id === 3 && (
-                      <Image
-                        src="/scene-3/scene3.png"
-                        width={1920} 
-                        height={1080}
-                        alt="Illustration comparing cramming with spaced repetition over several days."
-                        className="wg-scene-illustration"
-                      />
-                    )}
-                  </div>
 
-                  {/* Inline video stage for mobile devices (hidden on desktop via CSS) */}
-                  <div className="wg-scene-inline-stage">
-                    <div
-                      className="wg-sticky-stage"
-                      style={{ backgroundImage: scene.stageBg }}
-                    >
-                      <div className="wg-stage-content">
-                        {scene.videoSrc ? (
-                          <div className="wg-scene-video-shell">
-                            <video
-                              className="wg-scene-video"
-                              src={scene.videoSrc}
-                              autoPlay
-                              muted
-                              loop
-                              playsInline
-                            />
-                          </div>
-                        ) : (
-                          <div className="wg-demo-placeholder">
-                            <span className="wg-demo-label">
-                              Scene {scene.id} Visual
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </React.Fragment>
-              ))}
-            </div>
+      return (
+        <React.Fragment key={scene.id}>
+          <div
+            ref={(el) => {
+              scenesRef.current[idx] = el;
+            }}
+            className={`wg-scene-text-block ${isScene3Active? 'wg-scene-text-block--retention' : ''}`}
+            data-scene={scene.id}
+            style={
+              {
+                '--scene-theme-color': scene.themeColor,
+              } as React.CSSProperties
+            }
+          >
+            <p className="wg-section-eyebrow">{scene.eyebrow}</p>
+            <h2 className="wg-section-heading">{scene.heading}</h2>
+            <p className="wg-section-body">{scene.body}</p>
 
-            {/* Right column: Desktop sticky video (hidden on mobile via CSS) */}
-            <div className="wg-sticky-column">
-              <div
-                ref={stickyRef}
-                className="wg-sticky-stage"
-                style={{ backgroundImage: currentScene.stageBg }}
-              >
+            {/* Scene 3: show a single centered planner graphic (no stacked visuals) */}
+            {isScene3Active && (
+              <div className="wg-retention-panel" role="group" aria-label="Spaced repetition planner cycle">
+                <div className="wg-retention-image-shell">
+                  <Image
+                    src="/brand/spaced-repetition-planner.webp"
+                    width={3585}
+                    height={1185}
+                    alt="A three-step study planner cycle: Day 1 new lesson, Day 2 active recall, and interleaved review every three days, with a calendar strip showing repetition."
+                    className="wg-retention-image"
+                    sizes="(max-width: 960px) 100vw, 1100px"
+                  />
+                </div>
+
+                <p className="wg-retention-quote">
+                  <span className="wg-retention-quote-mark">“</span>
+                  Spacing and interleaving boost long term memory retention 2-3x vs cramming .
+                  <span className="wg-retention-quote-mark">”</span>
+                  <span className="wg-retention-quote-cite"> — Rhodes, Cleary &amp; DeLosh (2020)</span>
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Inline video stage for mobile devices (hidden on desktop via CSS)
+              Scene 3 has NO inline stage because it already renders the centered image above */}
+          {!isScene3 && (
+            <div className="wg-scene-inline-stage">
+              <div className="wg-sticky-stage" style={{ backgroundImage: scene.stageBg }}>
                 <div className="wg-stage-content">
-                  {currentScene.videoSrc ? (
+                  {scene.videoSrc ? (
                     <div className="wg-scene-video-shell">
-                      <video
-                        key={currentScene.id}
-                        className="wg-scene-video"
-                        src={currentScene.videoSrc}
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                      />
+                      <video className="wg-scene-video" src={scene.videoSrc} autoPlay muted loop playsInline />
                     </div>
                   ) : (
                     <div className="wg-demo-placeholder">
-                      <span className="wg-demo-label">
-                        Scene {currentScene.id} Visual
-                      </span>
+                      <span className="wg-demo-label">Scene {scene.id} Visual</span>
                     </div>
                   )}
                 </div>
               </div>
             </div>
+          )}
+        </React.Fragment>
+      );
+    })}
+  </div>
+
+  {/* Right column: Desktop sticky video (hidden on mobile via CSS)
+      Scene 3 hides this column entirely so it becomes a single centered section */}
+  <div className="wg-sticky-column">
+    <div ref={stickyRef} className="wg-sticky-stage" style={{ backgroundImage: currentScene.stageBg }}>
+      <div className="wg-stage-content">
+        {currentScene.videoSrc ? (
+          <div className="wg-scene-video-shell">
+            <video
+              key={currentScene.id}
+              className="wg-scene-video"
+              src={currentScene.videoSrc}
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
           </div>
+        ) : (
+          <div className="wg-demo-placeholder">
+            <span className="wg-demo-label">Scene {currentScene.id} Visual</span>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+</div>
+
         </div>
 
         {/* Final CTA Section */}

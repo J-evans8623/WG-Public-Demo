@@ -105,7 +105,7 @@ function WelcomeLandingPage(): JSX.Element {
       videoSrc: '/scene-3/scene-3-stage.mp4',
       stageBg: 'linear-gradient(135deg, #ffefe5 0%, #fde7d8 100%)',
       themeColor: '#cf3520',
-    },
+    }, 
     {
       id: 4,
       eyebrow: "You don't have to study alone",
