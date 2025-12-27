@@ -75,6 +75,7 @@ interface AccountStatus {
     maxStorageGB: number;
   };
   billing: BillingSnapshot | null;
+  bootstrappedFiles?: UserFileMetadata[]
 }
 
 interface ApiContextType {
@@ -279,77 +280,7 @@ export const ApiProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
   }, []);
 
 
-  /**
-   * @function fetchAccountStatus
-   * @description
-   * Fetches current account status from the backend API and updates local state.
-   * Implements error handling with graceful fallbacks to scholar/freemium defaults
-   * to ensure UI functionality is maintained even during API failures. The function
-   * includes comprehensive logging for debugging and observability purposes.
-   */
-  const fetchAccountStatus = useCallback(async (): Promise<void> => {
 
-    setIsAccountLoading(true);
-    setError(null);
-    
-    try {
-      const endpoint = `/api/account/status?_t=${Date.now()}`;
-      
-      const response = await fetch(endpoint, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate', // HTTP 1.1
-          'Pragma': 'no-cache', // HTTP 1.0
-          'Expires': '0' // Proxies
-        },
-      });
-      if (!response.ok) {
-        //console.warn('[ApiContext.tsx][1002] Account status fetch failed:', response.status);
-        throw new Error(`Account status fetch failed: ${response.statusText}`);
-      }
-
-      const data: AccountStatus = await response.json();
-
-      if (mountedRef.current) {
-        setAccountStatus(data);
-      }
-
-      //console.log(' Debug : 8932 [ApiContext.tsx][1003] Account status received:', JSON.stringify(data));
-      
-    } catch (error) {
-
-      if(mountedRef.current) {
-      //console.error('[ApiContext.tsx][1005] Account status fetch error:', error);
-      
-      // Step 8: Graceful fallback to safe defaults
-      const fallbackStatus: AccountStatus = {
-        email: normalizedEmail || 'unknown',
-        accountType: 'scholar',
-        subscriptionTier: 'freemium',
-        features: {
-          canCreatePublicFiles: false,
-          canInviteEditors: false,
-          hasAdvancedFeatures: false,
-        },
-        limits: {
-          maxCollaborators: 3,
-          maxDocuments: 5,
-          maxStorageGB: 1,
-        },
-        billing:null,
-      };
-      
-      setAccountStatus(fallbackStatus);
-      //console.log('[ApiContext.tsx][1006] Applied fallback account status');
-    }
-    } finally {
-      if (mountedRef.current) {
-      setIsAccountLoading(false);
-      }
-    }
-  }, [normalizedEmail]);
 
 
   /**
@@ -752,7 +683,106 @@ const refreshFileList = async (): Promise<void> => {
       });
     },
     [applyAndSync, currentUserEmail]
+
   );
+
+
+    /**
+   * @function fetchAccountStatus
+   * @description
+   * Fetches current account status from the backend API and updates local state.
+   * Implements error handling with graceful fallbacks to scholar/freemium defaults
+   * to ensure UI functionality is maintained even during API failures. The function
+   * includes comprehensive logging for debugging and observability purposes.
+   */
+const fetchAccountStatus = useCallback(async (): Promise<void> => {
+
+    setIsAccountLoading(true);
+    setError(null);
+    
+    try {
+      const endpoint = `/api/account/status?_t=${Date.now()}`;
+      
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+      });
+      if (!response.ok) {
+        // console.warn('[ApiContext.tsx][1002] Account status fetch failed:', response.status);
+        throw new Error(`Account status fetch failed: ${response.statusText}`);
+      }
+
+      const data: AccountStatus = await response.json();
+
+      // ---------------------------------------------------------------------------
+      // [PHASE 2 IMPLEMENTATION] Zero-Latency Injection
+      // Detect if the backend handed us "Proof of Creation" files during this handshake
+      // and inject them directly into the cache to bypass query latency.
+      // ---------------------------------------------------------------------------
+      if (data.bootstrappedFiles && Array.isArray(data.bootstrappedFiles) && data.bootstrappedFiles.length > 0) {
+        console.log(`[ApiContext] Bootstrapped hydration: Injecting ${data.bootstrappedFiles.length} files directly.`);
+
+        // 1. Synchronous Injection: Upsert each file into the local sorted cache
+        data.bootstrappedFiles.forEach((file) => {
+          upsertFileMeta(file.fileId, file);
+        });
+
+        // 2. Immediate Unlock: Tell the UI we are ready to render tiles
+        setIsFileListHydrated(true);
+        setFileListUpdatedAt(Date.now());
+      }
+      
+      // ---------------------------------------------------------------------------
+      // [CLEANUP] Sanitation
+      // Separate the transient file payload from the persistent profile data
+      // so we don't bloat the accountStatus state object.
+      // ---------------------------------------------------------------------------
+      const { bootstrappedFiles, ...cleanStatus } = data;
+
+      if (mountedRef.current) {
+        setAccountStatus(cleanStatus);
+      }
+
+      // console.log(' Debug : 8932 [ApiContext.tsx][1003] Account status received:', JSON.stringify(cleanStatus));
+      
+    } catch (error) {
+
+      if(mountedRef.current) {
+      // console.error('[ApiContext.tsx][1005] Account status fetch error:', error);
+      
+      // Step 8: Graceful fallback to safe defaults
+      const fallbackStatus: AccountStatus = {
+        email: normalizedEmail || 'unknown',
+        accountType: 'scholar',
+        subscriptionTier: 'freemium',
+        features: {
+          canCreatePublicFiles: false,
+          canInviteEditors: false,
+          hasAdvancedFeatures: false,
+        },
+        limits: {
+          maxCollaborators: 3,
+          maxDocuments: 5,
+          maxStorageGB: 1,
+        },
+        billing:null,
+      };
+      
+      setAccountStatus(fallbackStatus);
+      // console.log('[ApiContext.tsx][1006] Applied fallback account status');
+    }
+    } finally {
+      if (mountedRef.current) {
+      setIsAccountLoading(false);
+      }
+    }
+  }, [normalizedEmail, upsertFileMeta]);
 
   /**
    * 

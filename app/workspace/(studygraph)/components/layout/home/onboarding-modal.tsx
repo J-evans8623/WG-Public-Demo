@@ -120,7 +120,7 @@ export const TUTORIAL_DATA: Record<string, TutorialContent> = {
       {
         stepNumber: 1,
         title: 'Open Calendar',
-        description: 'Click the calendar launcher on the homescreen or top menu bar and select the notebooks you want to create a study plan for.',
+        description: 'Use the sample lessons to get started. Click the calendar launcher on the homescreen or top menu bar and select the notebooks you want to create a study plan for. ',
         imagePath: '/get-started/calendar-planner-scene-1.png',
       },
       {

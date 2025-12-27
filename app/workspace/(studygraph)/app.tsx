@@ -81,7 +81,7 @@ import { CalendarProvider } from '@/app/Library/Context/CalendarContextv2';
 import { GlobalModalProvider, useGlobalModal } from '@/app/workspace/(studygraph)/components/modals/GlobalModalProvider';
 import { registerAutosaveHandlers } from '@/app/workspace/(studygraph)/services/autosave/autoSaveBridge';
 import { CollabProvider, useCollab } from '@/app/Library/Context/collab/CollabContext'; 
-
+import { MobileOptimizationModal } from '@/components/layout/MobileOptimizationModal';
 
 type PickerArg =
   | string
@@ -378,6 +378,7 @@ const AppLayoutContent: React.FC = () => {
           restart(); 
         }}
       />
+      <MobileOptimizationModal />
     </div>
   );
 };

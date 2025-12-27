@@ -1,34 +1,40 @@
 # -----------------------------------------------------------------------------
-# PRODUCTION DOCKERFILE FOR NEXT.JS
+# PRODUCTION DOCKERFILE FOR NEXT.JS (Stable SWC Build)
+# - Uses Debian (glibc) instead of Alpine (musl) to prevent SWC binary failures
+# - Multi-stage: deps -> builder -> runner
 # -----------------------------------------------------------------------------
 
-# 1. Base Image
-FROM node:18-alpine AS base
+# 1. Base Image (glibc)
+FROM node:18-bookworm-slim AS base
+WORKDIR /app
 
 # 2. Dependencies Stage
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
+
+# Minimal packages (safe defaults)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 # Copy package manifests
 COPY package.json package-lock.json* ./
 
-# Install dependencies (clean install)
+# Install dependencies
 RUN npm ci
 
 # 3. Builder Stage
 FROM base AS builder
 WORKDIR /app
 
-# Copy node_modules from the deps stage
+# Copy node_modules from deps
 COPY --from=deps /app/node_modules ./node_modules
 
-# COPY SOURCE CODE
+# Copy source
 COPY . .
 
 # Disable telemetry
-ENV NEXT_TELEMETRY_DISABLED 1
-
+ENV NEXT_TELEMETRY_DISABLED=1
 # --- [CRITICAL UPDATE] ---
 # Accept Build Arguments passed by Coolify
 # These are required for 'npm run build' to bake public vars into the JS bundles.
@@ -65,48 +71,45 @@ ENV NEXT_PUBLIC_YJS_WS_URL=$NEXT_PUBLIC_YJS_WS_URL
 # (npm_lifecycle_event=build is automatic, but we can set a flag just in case)
 ENV IS_DOCKER_BUILD=true
 
-# BUILD THE APPLICATION
+# Build Next.js
 RUN npm run build
 
 # Build the schema scripts
 RUN npm run build:scripts
 
-# 4. Runner Stage (Production)
-FROM base AS runner
+# 4. Runner Stage
+FROM node:18-bookworm-slim AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
 # Copy public folder
 COPY --from=builder /app/public ./public
 
-# Copy standalone build
+# Copy standalone output (requires next.config output: "standalone")
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 
 # Copy static assets
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy keys folder (Note: Volume mount will override this empty dir at runtime)
-# We create it here to ensure permissions are correct if the volume fails
-RUN mkdir -p ./keys && chown nextjs:nodejs ./keys
+# Copy your dist scripts
+COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
 
-# Set permissions
+# Create keys folder (volume can mount over it at runtime)
+RUN mkdir -p ./keys && chown -R nextjs:nodejs ./keys
+
 USER nextjs
 
 EXPOSE 3000
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
-COPY --from=builder /app/dist ./dist
-
-# This instruction is now baked into the image. Coolify will read this metadata
-# and automatically configure the health check logic without external config.
-# We use 'node -e' to run a fetch command, removing the need for wget/curl.
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then((r) => {if(!r.ok) throw new Error();}).catch(() => process.exit(1));"
-  
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then((r)=>{if(!r.ok) throw new Error();}).catch(()=>process.exit(1));"
+
 CMD ["sh", "-c", "node dist/setSchema.js && node server.js"]

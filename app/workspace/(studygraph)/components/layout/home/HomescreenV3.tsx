@@ -13,7 +13,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApiContext, useFileList } from '@/app/src/context/ApiContext';
 import { UserFileMetadata } from '@/app/src/types/fileTypes';
-import { Trash, Calendar, Users, Book, Sparkles, Check } from 'lucide-react';
+import { Trash, Calendar, Map, Book, Sparkles, Check } from 'lucide-react';
 import { Role } from '../../../types/access';
 import { deleteDocBytes } from '../../../services/localCacheStore';
 import ReactDOM from 'react-dom';
@@ -214,6 +214,22 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
     },
   ];
 
+
+  const FileTileSkeleton = () => (
+  <div className="file-tile skeleton">
+    <div className="file-header-row">
+      <div className="skeleton-icon skeleton-bg" />
+      <div style={{ flex: 1, paddingLeft: '10px' }}>
+        <div className="skeleton-text title skeleton-bg" />
+        <div className="skeleton-text skeleton-bg" style={{ width: '40%' }} />
+      </div>
+    </div>
+    <div className="file-footer">
+      <div className="skeleton-text meta skeleton-bg" />
+    </div>
+  </div>
+);
+
   return (
     <div className="home-screen-v3">
 
@@ -259,14 +275,14 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                   <div className="action-desc">AI-powered creation</div>
                 </div>
 
-                {/* Study Group - Opens Tutorial */}
+                {/* Study planner- Opens Tutorial */}
                 <div 
                   className="action-tile" 
-                  onClick={() => handleOpenTutorial('study_group')}
+                  onClick={() => handleOpenTutorial('study_planner', openCalendarModal)}
                 >
-                  <Users className="action-icon" />
-                  <div className="action-title">How to start a Study Group</div>
-                  <div className="action-desc">Collaborate</div>
+                  <Map className="action-icon" />
+                  <div className="action-title">Create your first study plan</div>
+                  <div className="action-desc">Tutorial</div>
                 </div>
               </div>
             </div>
@@ -310,8 +326,11 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
 
               <div className="files-content">
                 {!isHydrated ? (
-                  <div style={{ textAlign: 'center', padding: '2rem', color: '#6C757D' }}>
-                    Loading your files...
+                  <div className="files-grid">
+                    {/* Render 8 skeletons to fill the grid area */}
+                    {[...Array(8)].map((_, i) => (
+                      <FileTileSkeleton key={i} />
+                    ))}
                   </div>
                 ) : getFilteredFiles().length === 0 ? (
                   <div className="empty-state">
@@ -419,10 +438,10 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
               {/* Study Planner Hero Tutorial - Retains Tutorial + Action */}
               <div
                 className="learn-card-content"
-                onClick={() => handleOpenTutorial('study_planner', openCalendarModal)}
+                onClick={() => handleOpenTutorial('study_group')}
               >
-                <div className="learn-title">Create a Study Planner</div>
-                <div className="learn-desc">Learn how to organize and schedule your study sessions effectively</div>
+                <div className="learn-title">How to create a study group</div>
+                <div className="learn-desc">Share your notebook with your peers and study together</div>
               </div>
 
               {/* Dynamic Learn Topics */}

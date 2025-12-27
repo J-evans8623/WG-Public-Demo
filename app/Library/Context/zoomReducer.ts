@@ -3,6 +3,11 @@ import { ZoomAction, ZoomActionType } from '@/app/Library/Definitions/Definition
 
 const baseZoomLvl = 1;
 
+// Policy Constants
+const MIN_USER_ZOOM = 0.5; // 50%
+const MAX_USER_ZOOM = 2.0; // 200%
+const ZOOM_STEP = 0.1;
+
 export interface ZoomState {
   zoomLevel: number;
   baseZoomLevel: number;
@@ -20,7 +25,10 @@ export const initialZoomState: ZoomState = {
 export const zoomReducer = (state: ZoomState, action: ZoomAction): ZoomState => {
   switch (action.type) {
     case ZoomActionType.ZOOM_IN: {
-      const newZoom = Math.min(state.zoomLevel + 0.1 * baseZoomLvl, 2 * baseZoomLvl);
+      const rawNewZoom = state.zoomLevel + ZOOM_STEP * baseZoomLvl;
+      // Clamp to MAX
+      const newZoom = Math.min(rawNewZoom, MAX_USER_ZOOM * baseZoomLvl);
+      
       if (state.zoomLevel === newZoom) {
         return state;
       }
@@ -36,7 +44,10 @@ export const zoomReducer = (state: ZoomState, action: ZoomAction): ZoomState => 
     }
 
     case ZoomActionType.ZOOM_OUT: {
-      const newZoom = Math.max(state.zoomLevel - 0.1 * baseZoomLvl, 0.1 * baseZoomLvl);
+      const rawNewZoom = state.zoomLevel - ZOOM_STEP * baseZoomLvl;
+      // Clamp to MIN (User initiated range: 50%)
+      const newZoom = Math.max(rawNewZoom, MIN_USER_ZOOM * baseZoomLvl);
+
       if (state.zoomLevel === newZoom) {
         return state;
       }
@@ -52,7 +63,12 @@ export const zoomReducer = (state: ZoomState, action: ZoomAction): ZoomState => 
     }
 
     case ZoomActionType.SET_ZOOM_LEVEL: {
-      const newZoom = Math.max(0.1 * state.baseZoomLevel, Math.min(action.payload, 2 * state.baseZoomLevel));
+      // Enforce the 50% - 200% range even for direct sets
+      const newZoom = Math.max(
+        MIN_USER_ZOOM * state.baseZoomLevel,
+        Math.min(action.payload, MAX_USER_ZOOM * state.baseZoomLevel)
+      );
+
       if (state.zoomLevel === newZoom) {
         return state;
       }

@@ -528,7 +528,7 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
   const modalContent = (
     <div className="modal-overlay">
       <div className="modal-container">
-        <h2 className="modal-title">Create a Lesson</h2>
+        <h2 className="modal-title">Generating Lesson</h2>
         
         {isLoading ? (
           <div className="loading-section">

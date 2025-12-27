@@ -31,6 +31,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import type { BillingSnapshot } from '@/app/src/billing/types';
 import { UserService } from '@/app/src/services/userService';
+import { UserFileMetadata } from '@/app/src/types/fileTypes';
 
 interface AccountStatusResponse {
   email:string,
@@ -47,6 +48,7 @@ interface AccountStatusResponse {
     maxStorageGB: number;
   };
   billing: BillingSnapshot | null;
+  bootstrappedFiles? : UserFileMetadata[],
 }
 
 /**
@@ -88,11 +90,6 @@ export default async function handler(
       return res.status(500).json({ error: 'User profile not available' });
     }
 
-    console.log('[api/account/status.ts][2006] User profile retrieved:', {
-      accountType: userProfile.accountType,
-      subscriptionTier: userProfile.subscriptionTier
-    });
-
     // Step 4: Transform user profile data to API response format
     const accountStatus: AccountStatusResponse = {
       email: userProfile.email,
@@ -101,9 +98,10 @@ export default async function handler(
       features: userProfile.features,
       limits: userProfile.limits,
       billing: userProfile.billing ?? null,
+      bootstrappedFiles : userProfile._bootstrappedFiles,
     };
 
-    console.log('[api/account/status.ts][2007] Account status response prepared');
+
 
     // Step 5: Set caching headers for performance optimization
     // Cache for 5 minutes to balance freshness with performance
@@ -111,7 +109,7 @@ export default async function handler(
     
     // Step 6: Send successful response
     res.status(200).json(accountStatus);
-    console.log(`[api/account/status.ts][8000] Account status response sent successfully ${JSON.stringify(accountStatus)}`);
+
 
   } catch (error) {
     console.error('[api/account/status.ts][2009] Account status request failed:', error);

@@ -37,7 +37,7 @@ import Subtree from '../../Subtree';
 import '@/app/workspace/(studygraph)/components/layout/hiddenScrollbar.css';
 import GridBackground from './GridBackground';
 
-const MIN_ZOOM = 0.5;
+const SYSTEM_FIT_MIN_ZOOM = 0.6;
 const VIEWPORT_PADDING = 0.9;
 
 // update - 11: Tunable constants for content-aware bed sizing.
@@ -160,7 +160,7 @@ const MapRenderer: React.FC = () => {
 
     let targetZoom = zoomLevel;
     if (fitScale < 1) {
-      targetZoom = Math.max(MIN_ZOOM, zoomLevel * fitScale);
+      targetZoom = Math.max(SYSTEM_FIT_MIN_ZOOM, zoomLevel * fitScale);
       if (process.env.NODE_ENV !== 'production') {
         //console.log('MapRenderer.tsx 9721 › initial zoom fit', { targetZoom, vw, vh, mapWidth, mapHeight });
       }

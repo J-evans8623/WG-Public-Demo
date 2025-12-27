@@ -38,6 +38,10 @@ import {
 } from './redisCache/userCache';
 import { computeLessonLimitState } from './redisCache/rateLogic';
 import type { BillingSnapshot } from '@/app/src/billing/types';
+import * as fs from 'fs';
+import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { UserFileMetadata } from '../types/fileTypes';
 
 // Step 1: Core type definitions (preserved from original)
 export type AccountType = 'scholar' | 'educator';
@@ -52,6 +56,128 @@ const FREEMIUM_MONTHLY_LESSON_LIMIT = parseInt(
 // Add this near line ~110
 const DEFAULT_DEMO_CREDITS = FREEMIUM_MONTHLY_LESSON_LIMIT;
 
+
+/** * Hardcoded metadata for sample lessons to ensure immediate 
+ * availability in the Calendar without server-side binary parsing.
+ */
+/** * Hardcoded metadata for sample lessons to ensure immediate 
+ * availability in the Calendar without client-side parsing.
+ * Extracted accurately from yNodesMap and lessonModuleMap.
+ */
+const SAMPLE_METADATA_MAP: Record<string, any> = {
+  'Organic_Chemistry_seed.bin': {
+    totalUnits: 7,
+    unitsByMap: {
+      'map-df3c1f40-5a46-4c24-8a2a-641d5c8d0665': [
+        { 
+          conceptNodeTitle: "Why study organic chemistry and the special role of carbon", 
+          LessonOrder: 1, 
+          mapID: "map-df3c1f40-5a46-4c24-8a2a-641d5c8d0665", 
+          primaryConceptNodeID: "fe3b61a0-8f48-4251-bcc1-4a138d251ff2",
+          parentTitle: "Chapter 1 — Structure and Bonding"
+        },
+        { 
+          conceptNodeTitle: "Valence bond theory, bond types, bond energy and bond length", 
+          LessonOrder: 2, 
+          mapID: "map-df3c1f40-5a46-4c24-8a2a-641d5c8d0665", 
+          primaryConceptNodeID: "ceaf3e82-8bb4-4c05-abf1-3aa4ea9b2269",
+          parentTitle: "Chapter 1 — Structure and Bonding"
+        },
+        { 
+          conceptNodeTitle: "Atomic structure and orbitals", 
+          LessonOrder: 3, 
+          mapID: "map-df3c1f40-5a46-4c24-8a2a-641d5c8d0665", 
+          primaryConceptNodeID: "c2b6f23b-7260-41fc-b314-67d060b56d9b",
+          parentTitle: "Chapter 1 — Structure and Bonding"
+        },
+        { 
+          conceptNodeTitle: "Orbital hybridization: sp3, sp2, and sp descriptions and molecular geometry", 
+          LessonOrder: 4, 
+          mapID: "map-df3c1f40-5a46-4c24-8a2a-641d5c8d0665", 
+          primaryConceptNodeID: "814f4f6a-8c43-4c47-a3a0-be6447f30d3b",
+          parentTitle: "Chapter 1 — Structure and Bonding"
+        },
+        { 
+          conceptNodeTitle: "Electron configurations, periodic tendencies, and the historical development of bonding concepts", 
+          LessonOrder: 5, 
+          mapID: "map-df3c1f40-5a46-4c24-8a2a-641d5c8d0665", 
+          primaryConceptNodeID: "4aa58a6d-47f9-4148-b1b0-99a917c2ade2",
+          parentTitle: "Chapter 1 — Structure and Bonding"
+        },
+        { 
+          conceptNodeTitle: "Conventions for drawing molecules: Lewis, condensed, skeletal, and line-bond notation", 
+          LessonOrder: 6, 
+          mapID: "map-df3c1f40-5a46-4c24-8a2a-641d5c8d0665", 
+          primaryConceptNodeID: "a8077f94-c8ca-4d0f-84ca-26e1acbad4a6",
+          parentTitle: "Chapter 1 — Structure and Bonding"
+        },
+        { 
+          conceptNodeTitle: "Review", 
+          LessonOrder: 7, 
+          mapID: "map-df3c1f40-5a46-4c24-8a2a-641d5c8d0665", 
+          primaryConceptNodeID: "reviewNode",
+          parentTitle: "Chapter 1 — Structure and Bonding"
+        }
+      ]
+    }
+  },
+  'Psychology_seed.bin': {
+    totalUnits: 7,
+    unitsByMap: {
+      'map-ce101415-e969-4952-84c3-2a5469ecbff2': [
+        { 
+          conceptNodeTitle: "Memory: Definitions and Major Models", 
+          LessonOrder: 1, 
+          mapID: "map-ce101415-e969-4952-84c3-2a5469ecbff2", 
+          primaryConceptNodeID: "73fe11c5-8900-4acc-9c83-f3edbdc1be0f",
+          parentTitle: "Fundamentals of Human Memory" 
+        },
+        { 
+          conceptNodeTitle: "Retrieval: Cues, Priming, Context, and Emotion", 
+          LessonOrder: 2, 
+          mapID: "map-ce101415-e969-4952-84c3-2a5469ecbff2", 
+          primaryConceptNodeID: "a8f7d1d9-ca03-428e-b02a-ed2ac8ee6e5c",
+          parentTitle: "Fundamentals of Human Memory"
+        },
+        { 
+          conceptNodeTitle: "Encoding: Attention, Automatic and Effortful Processing", 
+          LessonOrder: 3, 
+          mapID: "map-ce101415-e969-4952-84c3-2a5469ecbff2", 
+          primaryConceptNodeID: "8f15a8d4-ec75-483b-b010-1ab513854b2f",
+          parentTitle: "Fundamentals of Human Memory"
+        },
+        { 
+          conceptNodeTitle: "Forgetting and Memory Distortions", 
+          LessonOrder: 4, 
+          mapID: "map-ce101415-e969-4952-84c3-2a5469ecbff2", 
+          primaryConceptNodeID: "addd8b08-6341-48d0-8a93-9fed051fcd0c",
+          parentTitle: "Fundamentals of Human Memory"
+        },
+        { 
+          conceptNodeTitle: "Storage: Working Memory Capacity and Long-Term Memory Types", 
+          LessonOrder: 5, 
+          mapID: "map-ce101415-e969-4952-84c3-2a5469ecbff2", 
+          primaryConceptNodeID: "60a1c606-b6e6-49ce-b718-694957797089",
+          parentTitle: "Fundamentals of Human Memory"
+        },
+        { 
+          conceptNodeTitle: "Neuroscience of Memory: Brain Structures and Networks", 
+          LessonOrder: 6, 
+          mapID: "map-ce101415-e969-4952-84c3-2a5469ecbff2", 
+          primaryConceptNodeID: "3a2eee7a-2bc2-45d9-bcc6-ad4f92a6a3a2",
+          parentTitle: "Fundamentals of Human Memory"
+        },
+        { 
+          conceptNodeTitle: "Review", 
+          LessonOrder: 7, 
+          mapID: "map-ce101415-e969-4952-84c3-2a5469ecbff2", 
+          primaryConceptNodeID: "reviewNode",
+          parentTitle: "Fundamentals of Human Memory"
+        }
+      ]
+    }
+  }
+};
 
 export interface UserProfile {
   userId: string;
@@ -82,6 +208,8 @@ export interface UserProfile {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   billing?: BillingSnapshot;
+  samplesProvisioned?: boolean;
+  _bootstrappedFiles?: UserFileMetadata[]
 }
 
 // Step 2: Enhanced UserUsage interface with secondary services support
@@ -218,6 +346,8 @@ export class UserService {
     const normalizedEmail = email.toLowerCase().trim();
     const userId = normalizedEmail;
     const now = admin.firestore.Timestamp.now();
+
+    
     
     // Step 4: Build user profile with subscription-based limits
     const limits = SUBSCRIPTION_LIMITS[subscriptionTier];
@@ -237,6 +367,7 @@ export class UserService {
       lastActiveAt: now,
       limits,
       features,
+      samplesProvisioned: true,
     };
     
     // Step 5: Initialize enhanced usage tracking with secondary services
@@ -285,11 +416,13 @@ export class UserService {
     
     batch.set(userRef, userProfile);
     batch.set(usageRef, userUsage);
+
+    const seededFiles = await this.provisionSampleLessons(userId, batch);
     
     await batch.commit();
     await bumpUserVersion(normalizedEmail);
     console.log('[userService.ts][2002] Enhanced user profile created with secondary services tracking', { userId });
-    return userProfile;
+    return { ...userProfile, _bootstrappedFiles: seededFiles }
   }
 
   
@@ -324,9 +457,26 @@ static async getUserProfile(email: string): Promise<UserProfile> {
       const userRef = firestore.collection('users').doc(normalizedEmail);
       const snapshot = await userRef.get();
       if (snapshot.exists) {
-        const profile = snapshot.data() ;
+        const profile = snapshot.data() as UserProfile;
         console.log(`8000 getUSerProfile profile response from firebase ${JSON.stringify({profile})}`);
-        return profile as UserProfile;
+
+        if (!profile.samplesProvisioned) {
+          console.log(`[userService] Migrating existing user x8x: ${normalizedEmail}`);
+          const migrationBatch = firestore.batch();
+          const seededFiles = await this.provisionSampleLessons(normalizedEmail, migrationBatch);
+          migrationBatch.update(firestore.collection('users').doc(normalizedEmail), { 
+            samplesProvisioned: true 
+          });
+          await migrationBatch.commit();
+          await bumpUserVersion(normalizedEmail);
+
+          return { 
+            ...profile, 
+            samplesProvisioned: true, 
+            _bootstrappedFiles: seededFiles 
+          }
+        }
+        return profile
       }
       console.log('[userService.ts][7005] Profile loader creating default', { email: normalizedEmail });
       const created = await this.createUserProfile(normalizedEmail); // creates usage too
@@ -1101,6 +1251,84 @@ static async getUserUsage(email: string): Promise<UserUsage> { // update - 9
       console.error('[userService.ts][7033] Error validating lesson generation permissions:', error);
       throw error;
     }
+  }
+
+
+
+  
+
+
+/**
+   * provisionSampleLessons
+   * @description
+   * Reads local .bin seeds and clones them... (existing description)
+   * UPDATED: Returns the list of UserFileMetadata objects created during provisioning.
+   */
+  private static async provisionSampleLessons(userId: string, batch: admin.firestore.WriteBatch): Promise<UserFileMetadata[]> {
+    const bucket = admin.storage().bucket();
+    const SEED_DIR = path.join(process.cwd(), 'app', 'src', 'services', 'sampleSeeds');
+    
+    const sampleConfigs = [
+      { file: 'Organic_Chemistry_seed.bin', name: 'Sample: Organic Chemistry lesson', color: '#FFB703' },
+      { file: 'Psychology_seed.bin', name: 'Sample: Psychology lesson', color: '#4F46E5' }
+    ];
+
+    const seededFiles: UserFileMetadata[] = []; // Array to collect metadata
+
+    for (const config of sampleConfigs) {
+      try {
+        const seedPath = path.join(SEED_DIR, config.file);
+        if (!fs.existsSync(seedPath)) {
+          console.warn(`[userService] Skipping seed: ${config.file} not found`);
+          continue;
+        }
+
+        const bytes = fs.readFileSync(seedPath);
+        const newDocId = uuidv4();
+        const destination = `documents/${newDocId}.bloomdocx`;
+
+        const hardcodedMeta = SAMPLE_METADATA_MAP[config.file];
+
+        // 1. Storage Upload
+        await bucket.file(destination).save(bytes, {
+          metadata: { contentType: 'application/octet-stream' }
+        });
+
+        // 2. Metadata Creation
+        const fileMeta: UserFileMetadata = {
+          fileId: newDocId,
+          ownerId: userId,
+          fileName: config.name,
+          fileStoragePath: destination,
+          timestamp: admin.firestore.Timestamp.now(),
+          fileSize: bytes.length,
+          contentType: 'application/octet-stream',
+          editors: [userId],
+          sharedWith: [userId],
+          version: 1,
+          colorCode: config.color,
+          role: 'Owner',
+          publicEdit: false,
+          publicView: false,
+          updatedAt: new Date().toISOString(), // Ensure string format for client compatibility
+          lessonUnitsMeta: {
+            units: hardcodedMeta.unitsByMap,
+            totalUnits: hardcodedMeta.totalUnits,
+            lastUpdated: admin.firestore.Timestamp.now().toDate()
+          }
+        };
+
+        batch.set(firestore.collection('userFiles').doc(newDocId), fileMeta);
+        
+        // Add to collection
+        seededFiles.push(fileMeta);
+
+      } catch (err) {
+        console.warn(`[userService] Provisioning failed for ${config.file}:`, err);
+      }
+    }
+
+    return seededFiles;
   }
 
 

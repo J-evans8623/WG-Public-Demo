@@ -317,7 +317,7 @@ function WelcomeLandingPage(): JSX.Element {
             Take Back Control of Your Semester
           </h2>
           <p className="wg-cta-body">
-            WiseGraph gives you a system that works with your brain, not against it. Start building lasting mastery today.
+            WiseGraph gives you a system that works with memory, not against it. Start building lasting mastery today.
           </p>
           <a
             href="/billing/offer"

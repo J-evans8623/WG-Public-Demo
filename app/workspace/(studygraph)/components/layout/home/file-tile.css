@@ -278,6 +278,61 @@
   }
 }
 
+
+/* -------------------------------------------------------------------------
+   UPDATE - 1: Skeleton Loader Styles
+   ------------------------------------------------------------------------- */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.file-tile.skeleton {
+  cursor: default;
+  pointer-events: none;
+  border-color: #E8E8E8;
+  box-shadow: none;
+}
+
+.file-tile.skeleton:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Remove accent bar for skeleton */
+.file-tile.skeleton::before {
+  display: none;
+}
+
+.skeleton-bg {
+  background: #f0f0f0;
+  background: linear-gradient(90deg, #f0f0f0 25%, #f8f8f8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 6px;
+}
+
+.skeleton-text.title {
+  width: 70%;
+  height: 16px;
+}
+
+.skeleton-text.meta {
+  width: 40%;
+  margin-top: auto;
+}
+
 @media (max-width: 480px) {
   .file-tile {
     padding: 10px 10px 10px 6px;
