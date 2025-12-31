@@ -1040,6 +1040,43 @@ useEffect(() => {
     void persistApi.clear();
   }, [persistApi]);
 
+
+
+
+  // update - 12: New Accessor for Weekly Sessions
+  /**
+   * @function getSessionsForWeek
+   * @description
+   * Returns a filtered list of StudySession items scheduled for the week surrounding the
+   * provided anchor date (Mon-Sun). This accessor allows the UI to calculate weekly loads
+   * without exposing the raw (and potentially complex) studyPlan object.
+   */
+  const getSessionsForWeek = useCallback((anchorDate: Date): StudySession[] => {
+    if (!studyPlan || !studyPlan.sessions) return [];
+
+    const d = new Date(anchorDate);
+    const day = d.getDay(); // 0 (Sun) to 6 (Sat)
+    // Adjust to make Monday index 0, Sunday index 6
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+    
+    // Start of week (Monday 00:00:00)
+    const startOfWeek = new Date(d);
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // End of week (Sunday 23:59:59)
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    // Filter sessions
+    return studyPlan.sessions.filter(s => {
+      if (!s.date) return false;
+      const sd = new Date(s.date);
+      return sd >= startOfWeek && sd <= endOfWeek;
+    });
+  }, [studyPlan]);
+
   const value: CalendarContextType = useMemo(() => ({
     // state
     selectedNotebooks,
@@ -1081,7 +1118,8 @@ useEffect(() => {
     isNotebookTracked, // update - 11
     integrateNotebook,
     queueNotebookIntegration,
-  }), [selectedNotebooks, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, listRefreshing, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, updateStudyPlan, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, completedSessions, notebookVersions, isNotebookTracked, integrateNotebook, queueNotebookIntegration]);
+    getSessionsForWeek,
+  }), [selectedNotebooks, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, listRefreshing, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, updateStudyPlan, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, completedSessions, notebookVersions, isNotebookTracked, integrateNotebook, queueNotebookIntegration, getSessionsForWeek]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };

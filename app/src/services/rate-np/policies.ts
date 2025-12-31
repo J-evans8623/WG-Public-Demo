@@ -30,6 +30,14 @@ const NP_WINDOWS = Object.freeze([
 ]);
 
 
+const NP_WINDOWS_WRITTERS_Strict = Object.freeze([
+  { windowSeconds: 60,     maxRequests: 10 },
+  { windowSeconds: 5 * 60,  maxRequests: 15 },
+  { windowSeconds: 15 * 60, maxRequests: 30 },
+  { windowSeconds: 30 * 60, maxRequests: 45 },
+  { windowSeconds: 60 * 60, maxRequests: 60 },
+]);
+
 const NP_WINDOWS_WRITTERS = Object.freeze([
   { windowSeconds: 60,     maxRequests: 15 },
   { windowSeconds: 5 * 60,  maxRequests: 25 },
@@ -66,6 +74,7 @@ export const NP_POLICIES: Readonly<Record<string, RatePolicy>> = Object.freeze({
   'np:vhList':                  { scope: 'np:vhList',                  identity: 'user', windows: NP_WINDOWS },
   'np:vhDownload':              { scope: 'np:vhDownload',              identity: 'user', windows: NP_WINDOWS },
   'np:vhSnapshotCreate':        { scope: 'np:vhSnapshotCreate',        identity: 'user', windows: NP_WINDOWS_WRITTERS },
+  'np:studyLogSync':            { scope: 'np:studyLogSync',            identity: 'user', windows: NP_WINDOWS_WRITTERS_Strict },
 });
 
 /**

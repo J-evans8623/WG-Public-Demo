@@ -208,6 +208,7 @@ export interface CalendarContextType {
   isNotebookTracked: (notebookId: string) => boolean;
   integrateNotebook: (notebookId: string) => Promise<void>;
  queueNotebookIntegration: (notebookId: string) => void;
+ getSessionsForWeek : (anchorDate: Date) => StudySession[];
 }
 
 // Add the PickerFileMeta type from AppLayout

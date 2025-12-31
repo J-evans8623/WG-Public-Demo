@@ -82,6 +82,7 @@ import { GlobalModalProvider, useGlobalModal } from '@/app/workspace/(studygraph
 import { registerAutosaveHandlers } from '@/app/workspace/(studygraph)/services/autosave/autoSaveBridge';
 import { CollabProvider, useCollab } from '@/app/Library/Context/collab/CollabContext'; 
 import { MobileOptimizationModal } from '@/components/layout/MobileOptimizationModal';
+import { StudyLogProvider } from '@/app/Library/Context/studylog/StudyLogContext';
 
 type PickerArg =
   | string
@@ -418,9 +419,13 @@ export const AppLayout: React.FC = () => {
                                               <SelectionAttachmentProvider>
                                                 <ChatHistoryProvider>
                                                   <SearchProvider>
+                                                    <StudyLogProvider>
                                                     <SlideShowProvider>
+                                                      
                                                       <AppLayoutContent />
+                                                     
                                                     </SlideShowProvider>
+                                                     </StudyLogProvider>
                                                     <SelectionAttachmentHandler />
                                                     <div id="modal-root" />
                                                     <SearchModal />

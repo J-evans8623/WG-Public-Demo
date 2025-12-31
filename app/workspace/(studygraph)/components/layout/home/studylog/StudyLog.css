@@ -1,0 +1,573 @@
+/***************************************************************************************
+ * @file StudyLog.css
+ * @description
+ *   Shared stylesheet for the Study Log summarized card and detailed modal view.
+ *   The styling is scoped, predictable, and aligned with HomescreenV3’s design language:
+ *   white card surfaces, subtle shadows, rounded corners, and warm tan borders/dividers.
+ *
+ *   Changes in this iteration:
+ *   - Added a tan vertical divider between the two card metrics.
+ *   - Simplified the card footer to a single action.
+ *   - Made the modal stats grid auto-fit (supports 2–3 metrics without awkward gaps).
+ *   - Removed chevron styling for the sessions list (chevron is no longer rendered).
+ ***************************************************************************************/
+
+/* =========================
+   Card (Summarized view)
+   ========================= */
+
+.studylog-card {
+  border: 1px solid #E8E8E8;
+  padding: 16px;
+}
+
+.studylog-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.studylog-card__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2C3E50;
+  margin: 0;
+}
+
+.studylog-card__badge {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #FAF8F5;
+  color: #2C3E50;
+}
+
+/* Card metrics now render as flex with a tan divider between columns. */
+.studylog-card__metrics {
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 14px;
+}
+
+.studylog-card__metric {
+  flex: 1;
+}
+
+.studylog-card__metricDivider {
+  width: 1px;
+  background: rgba(212, 196, 176, 0.85); /* light brown / tan divider */
+  margin: 0 12px;
+  border-radius: 1px;
+}
+
+.studylog-card__metricValue {
+  font-size: 26px;
+  font-weight: 650;
+  color: #2C3E50;
+  line-height: 1.05;
+  margin-bottom: 4px;
+}
+
+.studylog-card__metricLabel {
+  font-size: 11px;
+  color: #6C757D;
+}
+
+.studylog-card__progress {
+  margin-bottom: 10px;
+}
+
+.studylog-card__progressTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #6C757D;
+  margin-bottom: 6px;
+}
+
+.studylog-card__progressValue {
+  font-weight: 600;
+  color: #2C3E50;
+}
+
+.studylog-card__progressTrack {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(231, 222, 212, 0.45);
+  overflow: hidden;
+}
+
+.studylog-card__progressFill {
+  height: 100%;
+  border-radius: 999px;
+  background: #5B8C5A;
+  transition: width 180ms ease;
+}
+
+.studylog-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  border-top: 1px solid rgba(231, 222, 212, 0.6);
+  padding-top: 10px;
+}
+
+.studylog-card__linkBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6C8EBF;
+}
+
+.studylog-card__linkBtn:hover {
+  text-decoration: underline;
+  color: #5A7AA8;
+}
+
+.studylog-card__chev {
+  width: 14px;
+  height: 14px;
+}
+
+/* =========================
+   Modal (Detailed view)
+   ========================= */
+
+.studylog-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.studylog-modal {
+  width: min(920px, 96vw);
+  max-height: 85vh;
+  background: #FFFFFF;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(231, 222, 212, 0.75);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.studylog-modal__header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #F0F0F0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.studylog-modal__title {
+  font-family: 'Crimson Text', serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: #2C3E50;
+  margin: 0;
+}
+
+/* Subtitle styling retained (unused) to avoid surprises if reintroduced later. */
+.studylog-modal__subtitle {
+  font-size: 13px;
+  color: #6C757D;
+  margin: 0;
+}
+
+.studylog-modal__closeBtn {
+  border: none;
+  background: transparent;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #94A3B8;
+}
+
+.studylog-modal__closeBtn:hover {
+  background: #F1F5F9;
+  color: #2C3E50;
+}
+
+.studylog-modal__controls {
+  padding: 14px 24px 6px 24px;
+  border-bottom: 1px solid rgba(231, 222, 212, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.studylog-modal__segmented {
+  display: inline-flex;
+  background: #F3F4F6;
+  border-radius: 10px;
+  padding: 4px;
+  width: fit-content;
+}
+
+.studylog-modal__segBtn {
+  border: none;
+  background: transparent;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  color: #6C757D;
+}
+
+.studylog-modal__segBtn:hover {
+  color: #2C3E50;
+}
+
+.studylog-modal__segBtn.is-active {
+  background: rgba(91, 140, 90, 0.14);
+  color: #5B8C5A;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.studylog-modal__daterow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.studylog-modal__daterow.is-disabled {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.studylog-modal__date {
+  padding: 8px 10px;
+  border: 1px solid rgba(231, 222, 212, 0.95);
+  border-radius: 10px;
+  font-size: 13px;
+  color: #2C3E50;
+  background: #FFFFFF;
+  min-width: 140px;
+}
+
+.studylog-modal__date:focus {
+  outline: none;
+  border-color: rgba(91, 140, 90, 0.55);
+  box-shadow: 0 0 0 3px rgba(91, 140, 90, 0.18);
+}
+
+.studylog-modal__dateSep {
+  color: #9CA3AF;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.studylog-modal__applyBtn {
+  background: #5B8C5A;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.studylog-modal__applyBtn:hover {
+  background: #4A7549;
+}
+
+.studylog-modal__resetBtn {
+  background: transparent;
+  border: 1px solid rgba(108, 142, 191, 0.7);
+  color: #6C8EBF;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.studylog-modal__resetBtn:hover {
+  background: rgba(108, 142, 191, 0.06);
+}
+
+.studylog-modal__body {
+  padding: 18px 24px;
+  overflow-y: auto;
+}
+
+/* Custom scrollbar (scoped to the modal body) */
+.studylog-modal__body::-webkit-scrollbar {
+  width: 6px;
+}
+.studylog-modal__body::-webkit-scrollbar-track {
+  background: #F8F9FA;
+}
+.studylog-modal__body::-webkit-scrollbar-thumb {
+  background: #D4C4B0;
+  border-radius: 3px;
+}
+.studylog-modal__body::-webkit-scrollbar-thumb:hover {
+  background: #C4B4A0;
+}
+
+/* Auto-fit grid so the summary looks clean with 2–3 stats (no empty “ghost” tiles). */
+.studylog-modal__statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.studylog-stat {
+  background: #FFFFFF;
+  border: 1px solid rgba(231, 222, 212, 0.95);
+  border-radius: 14px;
+  padding: 12px 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.studylog-stat__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #5B8C5A;
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.studylog-stat__label.is-blue {
+  color: #6C8EBF;
+}
+
+.studylog-stat__value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2C3E50;
+}
+
+.studylog-panel {
+  background: #FFFFFF;
+  border: 1px solid rgba(231, 222, 212, 0.95);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  margin-bottom: 16px;
+}
+
+.studylog-panel__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.studylog-panel__title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2C3E50;
+  margin: 0;
+}
+
+.studylog-panel__toggle {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.studylog-panel__toggleBtn {
+  border: 1px solid rgba(231, 222, 212, 0.95);
+  background: #FFFFFF;
+  border-radius: 9px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #6C757D;
+}
+
+.studylog-panel__toggleBtn:hover {
+  background: #F8F9FA;
+  color: #2C3E50;
+}
+
+.studylog-panel__toggleBtn.is-active {
+  border-color: rgba(91, 140, 90, 0.55);
+  background: rgba(91, 140, 90, 0.14);
+  color: #5B8C5A;
+}
+
+/* Compact column chart */
+.studylog-chart {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  align-items: end;
+  height: 180px;
+}
+
+.studylog-chart__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.studylog-chart__val {
+  font-size: 11px;
+  color: #9CA3AF;
+  font-weight: 700;
+}
+
+.studylog-chart__barWrap {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.studylog-chart__bar {
+  width: 100%;
+  border-radius: 8px 8px 4px 4px;
+  background: #5B8C5A;
+  transition: background 150ms ease;
+}
+
+.studylog-chart__bar:hover {
+  background: #4A7549;
+}
+
+.studylog-chart__day {
+  font-size: 11px;
+  font-weight: 650;
+  color: #6C757D;
+}
+
+.studylog-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Chevron removed; row layout no longer needs right-side affordance. */
+.studylog-sessionRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.studylog-sessionRow:hover {
+  background: #F8F9FA;
+}
+
+.studylog-sessionRow__left {
+  display: grid;
+  grid-template-columns: 96px 70px 1fr;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+}
+
+.studylog-sessionRow__date {
+  font-size: 12px;
+  color: #6C757D;
+  white-space: nowrap;
+}
+
+.studylog-sessionRow__dur {
+  font-size: 12px;
+  font-weight: 750;
+  color: #2C3E50;
+  white-space: nowrap;
+}
+
+.studylog-sessionRow__nb {
+  font-size: 12px;
+  color: #2C3E50;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studylog-modal__footer {
+  padding: 14px 24px;
+  border-top: 1px solid #F0F0F0;
+  background: #FAFAFA;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.studylog-modal__doneBtn {
+  padding: 9px 14px;
+  border: 1px solid #D1D5DB;
+  background: #FFFFFF;
+  color: #374151;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.studylog-modal__doneBtn:hover {
+  background: #F8F9FA;
+}
+
+.studylog-modal__primaryBtn {
+  padding: 9px 14px;
+  border: none;
+  background: #5B8C5A;
+  color: #FFFFFF;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.studylog-modal__primaryBtn:hover {
+  background: #4A7549;
+}
+
+@media (max-width: 520px) {
+  .studylog-card__metrics {
+    flex-direction: column;
+  }
+
+  .studylog-card__metricDivider {
+    width: 100%;
+    height: 1px;
+    margin: 10px 0;
+  }
+
+  .studylog-sessionRow__left {
+    grid-template-columns: 88px 60px 1fr;
+  }
+}

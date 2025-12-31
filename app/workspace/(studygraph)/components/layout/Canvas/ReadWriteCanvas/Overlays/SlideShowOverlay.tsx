@@ -39,6 +39,10 @@ import { useYDoc } from '@/app/Library/Context/YDocContext';
 import SlideShowEditForm from '../../../CardDisplay/Cards/SlideShowEditForm';
 import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
 
+// update - 18: Imports for Study Log integration
+import { useStudyLog } from '@/app/Library/Context/studylog/StudyLogContext';
+import { calculateMaxStudyTime, isSignificantDuration } from '@/app/Library/Context/studylog/StudyLogHeuristic';
+
 /**
  * @function SlideShowOverlay
  * @description
@@ -59,7 +63,13 @@ const SlideShowOverlay: React.FC = () => {
     gotoPrev,
     open,
   } = useSlideShow();
-  const {isReadOnly} = useYDoc();
+  const {isReadOnly, docFileID} = useYDoc();
+
+
+  // update - 18: Consume Study Log Context
+  const { logTime } = useStudyLog();
+  // Ref to track the start time of the current slide interaction
+  const startTimeRef = useRef<number>(0);
 
   
    const {mode, status, editReady} = useAccessEditSnapshot();
@@ -122,6 +132,56 @@ const SlideShowOverlay: React.FC = () => {
   useEffect(() => {
     if (isEditingSlideNumber) focusInput(slideInputRef.current);
   }, [isEditingSlideNumber]);
+
+
+
+// update - 18: Time Tracking Heuristics
+  // Captures start time on mount/update. Calculates duration on unmount/update.
+  useEffect(() => {
+    if (!isOpen || !currentSlide) return;
+
+    // 1. Start the timer for this slide
+    startTimeRef.current = Date.now();
+
+    return () => {
+      // 2. On cleanup (slide changed or overlay closed), calculate duration
+      const endTime = Date.now();
+      const rawDurationSeconds = (endTime - startTimeRef.current) / 1000;
+
+      // 3. Filter noise (accidental clicks < 5s)
+      if (isSignificantDuration(rawDurationSeconds)) {
+        // 4. Resolve content payload for heuristics (handling diverse resource shapes)
+        let heuristicContent: any;
+        
+        if (currentSlide.type === 'quizAssessment') {
+          heuristicContent = currentSlide.binding.spec.quizContent;
+        } else {
+          // Note, CueCard, PracticeSheet have 'content'. 
+          // For Object-based PracticeSheet, extract the array to ensure heuristic counts questions correctly.
+          heuristicContent = currentSlide.content;
+          if (currentSlide.type === 'practiceSheet' && typeof heuristicContent === 'object') {
+             heuristicContent = heuristicContent.quizContent;
+          }
+        }
+
+        const maxAllowedSeconds = calculateMaxStudyTime(currentSlide.type, heuristicContent);
+
+        // 5. Apply the cap (Actual vs Max)
+        const validSeconds = Math.min(rawDurationSeconds, maxAllowedSeconds);
+
+        // 6. Log to context (buffered persistence)
+        const notebookId = docFileID!;
+        logTime(validSeconds, notebookId);
+        
+        console.log('[SlideShowOverlay.tsx][1801] Logged study time:', {
+            id: currentSlide.id,
+            raw: rawDurationSeconds.toFixed(1),
+            max: maxAllowedSeconds,
+            logged: validSeconds.toFixed(1)
+        });
+      }
+    };
+  }, [currentSlide, docFileID, isOpen, logTime]); // Re-runs when slide changes or visibility toggles
 
   // update - 6: Bookmark action (O(1))
   const handleToggleBookmark = () => {

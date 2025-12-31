@@ -81,8 +81,8 @@ async function callMainHead(
     { 
       stream: false, 
       tracker: usageTracker, 
-      model: "gpt-5-nano", 
-      modeleffort: "low"
+      model: "gpt-5-mini", 
+      modeleffort: "medium"
     }
   );
 }

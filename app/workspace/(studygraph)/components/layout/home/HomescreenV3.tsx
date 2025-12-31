@@ -10,7 +10,7 @@
  * - Sidebar "Learn" card still triggers the Study Planner Tutorial.
  ***************************************************************************************/
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApiContext, useFileList } from '@/app/src/context/ApiContext';
 import { UserFileMetadata } from '@/app/src/types/fileTypes';
 import { Trash, Calendar, Map, Book, Sparkles, Check } from 'lucide-react';
@@ -25,6 +25,12 @@ import OnboardingModal, { TUTORIAL_DATA, TutorialContent } from './onboarding-mo
 // Import Styles
 import './homeScreenV3.css';
 import './file-tile.css';
+
+import StudyLogCard from './studylog/StudyLogCard';
+import StudyLogModal from './studylog/StudyLogModal';
+
+import { useStudyLog } from '@/app/Library/Context/studylog/StudyLogContext';
+import { useCalendar } from '@/app/Library/Context/CalendarContextv2';
 
 import type { PickerFileMeta as CalendarPickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
 
@@ -69,6 +75,14 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
   // Step 3: Calendar modal state
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
 
+  // Step 4 (NEW): Study Log modal state
+  const [isStudyLogModalOpen, setIsStudyLogModalOpen] = useState(false);
+
+  const { summary: studyLogSummary } = useStudyLog();
+  
+  // update - 4: Consumed completedSessions to calculate progress
+  const { getSessionsForWeek, completedSessions } = useCalendar();
+
   const openCalendarModal = () => {
     setIsCalendarModalOpen(true);
   };
@@ -77,8 +91,17 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
     setIsCalendarModalOpen(false);
   };
 
+
+    const openStudyLogModal = () => {
+    setIsStudyLogModalOpen(true);
+  };
+
+  const closeStudyLogModal = () => {
+    setIsStudyLogModalOpen(false);
+  };
+
   useEffect(() => {
-    if (isCalendarModalOpen || isTutorialOpen) {
+    if (isCalendarModalOpen || isTutorialOpen || isStudyLogModalOpen)  {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -86,7 +109,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isCalendarModalOpen, isTutorialOpen]);
+  }, [isCalendarModalOpen, isStudyLogModalOpen, isTutorialOpen]);
 
   // Step 4: Initialize component on mount
   useEffect(() => {
@@ -229,6 +252,31 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
     </div>
   </div>
 );
+
+
+// --- Logic: Study Log Metrics ---
+
+  // update - 5: Calculate Weekly Sessions from Calendar Context (Scheduled vs Completed)
+  const { weeklySessionsCompleted, weeklyGoalSessions } = useMemo(() => {
+    const sessionsThisWeek = getSessionsForWeek(new Date());
+    
+    // Count how many of this week's session IDs are in the completed set
+    const completedCount = sessionsThisWeek.filter(s => completedSessions.includes(s.id)).length;
+    
+    return {
+      weeklySessionsCompleted: completedCount,
+      weeklyGoalSessions: sessionsThisWeek.length
+    };
+  }, [getSessionsForWeek, completedSessions]);
+
+  // update - 6: Calculate Weekly Hours from StudyLog Summary
+  const weeklyHours = studyLogSummary.weeklyStudySeconds / 3600;
+
+  // update - 7: Helper to resolve notebook names for the Modal's distribution list
+  const getNotebookName = useCallback((id: string) => {
+    const file = ownedFiles.find(f => f.fileId === id);
+    return file ? file.fileName : 'Unknown Notebook';
+  }, [ownedFiles]);
 
   return (
     <div className="home-screen-v3">
@@ -399,38 +447,13 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
 
           {/* Right Assistant Panel - Fixed Position */}
           <div className="assistant-panel">
-            <div className="assistant-card">
-              <h3 className="panel-title">Assistant & Tips</h3>
-              
-              <div className="checklist-item">
-                <div className="check-icon"><Check size={12} /></div>
-                <div>
-                  <div><strong>Get Started</strong></div>
-                  <div style={{ fontSize: '11px', color: '#6C757D' }}>Create a new document</div>
-                </div>
-              </div>
-
-              {/* Uploads Tutorial Trigger */}
-              <div 
-                className="checklist-item" 
-                style={{ cursor: 'pointer' }}
-                onClick={() => handleOpenTutorial('uploads')}
-              >
-                <div className="check-icon"><Check size={12} /></div>
-                <div>
-                  <div><strong>Upload files</strong></div>
-                  <div style={{ fontSize: '11px', color: '#6C757D' }}>Import your materials</div>
-                </div>
-              </div>
-
-              <div className="checklist-item">
-                <div className="check-icon">3</div>
-                <div>
-                  <div><strong>Learn with tutorials</strong></div>
-                  <div style={{ fontSize: '11px', color: '#6C757D' }}>Master the features</div>
-                </div>
-              </div>
-            </div>
+            <StudyLogCard
+              weeklyHours={Number(weeklyHours.toFixed(1))}
+              weeklySessions={weeklySessionsCompleted}
+              weeklyGoalHours={weeklyGoalSessions} // Interpreted as sessions count by the component
+              onOpenDetails={openStudyLogModal}
+              badgeLabel="This week"
+            />
 
             <div className="assistant-card">
               <h3 className="panel-title">Learn</h3>
@@ -467,6 +490,17 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
         content={activeTutorial}
         onClose={handleTutorialClose}
         onComplete={handleTutorialComplete}
+      />
+
+      {/* Study Log Modal (NEW) */}
+      <StudyLogModal
+        isOpen={isStudyLogModalOpen}
+        onClose={closeStudyLogModal}
+        totalHours={weeklyHours}
+        totalSessions={weeklySessionsCompleted}
+        notebookStats={studyLogSummary.notebookStats || {}} // update - 10: Fallback to empty if undefined
+        getNotebookName={getNotebookName}
+        initialTab="week"
       />
 
       {/* Calendar Modal Portal */}

@@ -7,12 +7,11 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.4); /* Dimmed background */
+  background-color: rgba(0, 0, 0, 0.8);
   z-index: 1000; /* Ensure it sits on top of everything */
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(2px); /* Subtle blur for focus */
 }
 
 /* 2. Modal Container: The "White Card" Aesthetic */
