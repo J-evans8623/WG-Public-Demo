@@ -110,4 +110,40 @@ z-index: 40;
   transform: scale(1.05);
 }
 
+/* Step 1: Mobile Layout Overrides */
+@media (max-width: 1024px) {
+  /* 1. Switch to single column layout */
+  .canvas-panels {
+    grid-template-columns: 1fr;
+  }
+
+  /* 2. COMPLETELY HIDE the Card Display (Resource Panel) 
+     This fulfills the requirement to prioritize screen space for the canvas */
+  .resource-cell {
+    display: none !important;
+  }
+
+  /* 3. Ensure the map cell takes full width */
+  .map-cell {
+    width: 100vw;
+    height: 100%;
+  }
+
+  /* 4. Force Scrollbars to be visible 
+     This overrides the 'hidden-scrollbar' utility used in MapRenderer.tsx */
+  .map-cell ::-webkit-scrollbar,
+  .hidden-scrollbar::-webkit-scrollbar {
+    display: block !important; 
+    width: 6px;
+    height: 6px;
+    background-color: rgba(0,0,0,0.05);
+  }
+
+  .map-cell ::-webkit-scrollbar-thumb,
+  .hidden-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(0,0,0,0.2);
+    border-radius: 4px;
+  }
+}
+
 

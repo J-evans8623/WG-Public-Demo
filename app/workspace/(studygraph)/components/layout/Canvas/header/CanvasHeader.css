@@ -257,6 +257,17 @@
   background: var(--accent-amber-500, #f59e0b);
 }
 
+.mobile-overflow-container {
+  display: none;
+  position: relative;
+}
+
+.desktop-only-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* update - 2: motion-friendly, respects user preference */
 @media (prefers-reduced-motion: no-preference) {
   .btn-badge {
@@ -272,4 +283,104 @@
     color: Canvas;
     background: CanvasText;
   }
+}
+
+
+/* Mobile Optimization: < 1024px */
+@media (max-width: 1024px) {
+  
+  /* 1. LAYOUT: Hide Desktop Actions, Show Mobile Overflow */
+  .desktop-only-actions {
+    display: none !important;
+  }
+  
+  .mobile-overflow-container {
+    display: block;
+  }
+
+  /* 2. TITLE: Aggressively truncate title to make room for the big buttons */
+  .canvas-header__titlewrap {
+    max-width: 80px; /* Very short title on mobile */
+  }
+
+  /* 3. BUTTONS: Mandate Text Visibility 
+     We override any default responsive shrinking here */
+  .btn-force-text {
+    padding: 0.5rem 0.75rem !important;
+    gap: 0.35rem !important;
+    font-size: 0.85rem !important; /* Ensure text is legible */
+    white-space: nowrap;
+    display: inline-flex !important;
+    align-items: center;
+  }
+  
+  .btn-force-text .btn-label {
+    display: inline-block !important;
+  }
+
+  /* 4. BUTTONS: Adjust icon size for tight fit */
+  .btn-force-text svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  /* 5. Hide the nav dropdown labels (Lessons/Uploads) to save space */
+  .canvas-header .ch-nav__trigger span {
+    display: none;
+  }
+  .canvas-header .ch-nav__trigger {
+    padding: 0.5rem;
+  }
+}
+
+/* Very Small Screens (iPhone SE etc) protection */
+@media (max-width: 380px) {
+  /* Hide the icon inside the primary buttons to save space, keeping only Text */
+  .btn-force-text svg {
+    display: none;
+  }
+  .canvas-header__titlewrap {
+    display: none; /* Hide title completely on tiny screens */
+  }
+}
+
+
+/* --- Mobile Dropdown Menu Styling --- */
+.mobile-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: white;
+  border: 1px solid #E8E4DE;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  width: 160px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+
+.mobile-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #2C3E50;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.mobile-menu-item:hover {
+  background-color: #F7F3EE;
+}
+
+.mobile-menu-item svg {
+  color: #6C757D;
 }

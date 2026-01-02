@@ -688,12 +688,87 @@ body {
   }
 }
 
-@media (max-width: 480px) {
-  .actions-grid {
-    grid-template-columns: 1fr;
+/* Step 19: Responsive design adjustments - MAJOR REFACTOR FOR MOBILE */
+@media (max-width: 1024px) {
+  /* Allow the main body to scroll naturally on mobile */
+  body, 
+  .home-screen-v3,
+  .main-container {
+    height: auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+  }
+
+  /* Stack the main content and assistant panel vertically */
+  .content-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
   }
   
+  /* Adjust main content to fit width and remove internal scrollbars */
+  .main-content {
+    width: 100%;
+    padding: 20px;
+    overflow: visible;
+    height: auto;
+  }
+
+  /* * STRATEGIC LAYOUT CHANGE: 
+   * Move Assistant Panel (Learning) to the bottom of the stack 
+   * and make it static (not fixed) 
+   */
+  .assistant-panel {
+    position: static;
+    width: 100%;
+    height: auto;
+    padding: 0 20px 40px 20px; /* Add bottom padding for scroll space */
+    border-left: none;
+    background: transparent;
+  }
+
+  /* Quick Actions Grid: 2 columns on tablet, 1 on mobile */
+  .actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  /* Files Card: Remove fixed height so it shows all files or a set amount */
+  .files-card {
+    height: auto; /* Let it grow with content */
+    max-height: 500px; /* Cap it so it doesn't push Learning section too far down */
+    overflow: hidden; /* Keep internal logic clean */
+  }
+
+  .files-content {
+    overflow-y: auto;
+    /* Optional: Limit height on mobile if user has 50+ files to ensure they see the Learn section */
+    max-height: 400px; 
+  }
+}
+
+@media (max-width: 480px) {
+  .main-container {
+    padding-left: 0; /* Remove sidebar offset on mobile */
+  }
+
+  .actions-grid {
+    grid-template-columns: 1fr; /* Stack actions fully */
+  }
+
+  .files-header-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
   .files-search-input {
-    width: 180px;
+    width: 100%; /* Full width search */
+  }
+
+  .nav-panel {
+    /* Ensure sidebar works as an overlay on mobile */
+    box-shadow: 2px 0 20px rgba(0,0,0,0.2);
   }
 }

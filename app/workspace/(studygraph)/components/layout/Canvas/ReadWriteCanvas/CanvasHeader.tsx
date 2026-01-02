@@ -23,7 +23,7 @@
  * 6) Provide targeted console logging at key checkpoints for reliable debugging.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Menu,
   ChevronsLeft,
@@ -36,6 +36,7 @@ import {
   Lock,
   Loader2,
   Calendar as CalendarIcon,
+  MoreVertical,
 } from 'lucide-react';
 
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
@@ -120,6 +121,21 @@ const discussAriaLabel = React.useMemo(() => {
   // 1.2 Title editing (enabled only in edit mode)
   const [isEditing, setIsEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState(currentTitle);
+
+  // NEW: State for Mobile Overflow Menu
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!isEditing) {
@@ -238,78 +254,44 @@ const discussAriaLabel = React.useMemo(() => {
         </nav>
       </div>
 
+      {/* RIGHT CLUSTER UPDATE: 
+         1. Mandatory Items (Lesson, Review, Planner) are always rendered.
+         2. Secondary Items (Discuss, Bookmark, Share) are hidden on mobile via CSS classes.
+         3. "More" Menu appears on mobile to house Secondary Items.
+      */}
+
       {/* Right cluster: action buttons */}
-      <div className="flex items-center gap-2">
-        <button
-  onClick={() => {
-    console.log('[CanvasHeader.tsx][7110] Discuss clicked');
-    onDiscuss();
-  }}
-  className="btn btn--border btn--has-badge"   // update - 9
-  title="Discuss"
-  aria-label={discussAriaLabel}                 // (optional a11y we added earlier)
->
-  <MessageCircle size={16} /> Discuss
-  {dirtyCount > 0 && (
-    <span className="btn-badge btn-badge--amber" aria-hidden="true">
-      {dirtyCount > 19 ? '19+' : dirtyCount}
-    </span>
-  )}
-</button>
-
-
+      <div className="flex items-center gap-2 right-cluster-actions">
+        
+        {/* --- MANDATORY 1: Start Lesson (Primary) --- */}
+        {/* Note: CSS will ensure text remains visible on mobile */}
         <button
           onClick={() => {
             console.log('[CanvasHeader.tsx][7111] Start Lesson clicked');
             onStartLesson();
           }}
-          className="btn btn--primary"
+          className="btn btn--primary btn-force-text" // Added custom class
         >
-          <Play size={16} /> Start Lesson
+          <Play size={16} /> 
+          <span className="btn-label">Start Lesson</span>
         </button>
 
+        {/* --- MANDATORY 2: Review (Success) --- */}
         <button
           onClick={() => {
             console.log('[CanvasHeader.tsx][7112] Start Review clicked');
             onStartReview();
           }}
-          className="btn btn--success"
+          className="btn btn--success btn-force-text" // Added custom class
         >
-          <CheckCircle2 size={16} /> Start Review
+          <CheckCircle2 size={16} /> 
+          <span className="btn-label">Start Review</span>
         </button>
 
+        {/* --- MANDATORY 3: Calendar (Icon) --- */}
         <button
           onClick={() => {
-            console.log('[CanvasHeader.tsx][7113] Bookmarks clicked');
-            onBookmark();
-          }}
-          className="btn btn--icon btn--border"
-          title="Bookmarks"
-          aria-label="Bookmarks"
-        >
-          <Bookmark size={16} />
-        </button>
-
-        <button
-          onClick={() => {
-            console.log('[CanvasHeader.tsx][7114] Share clicked');
-            onShare();
-          }}
-          className="btn btn--icon btn--border"
-          title="Share"
-          aria-label="Share"
-        >
-          <Share2 size={16} />
-        </button>
-
-        <button
-          onClick={() => {
-            if (onOpenCalendar) {
-              console.log('[CanvasHeader.tsx][7116] Calendar clicked → handler');
-              onOpenCalendar();
-            } else {
-              console.log('[CanvasHeader.tsx][7117] Calendar clicked → no handler configured');
-            }
+             if (onOpenCalendar) onOpenCalendar();
           }}
           className="btn btn--icon btn--border"
           title="Calendar"
@@ -317,6 +299,64 @@ const discussAriaLabel = React.useMemo(() => {
         >
           <CalendarIcon size={18} />
         </button>
+
+        {/* --- SECONDARY ACTIONS (Desktop Only) --- */}
+        <div className="desktop-only-actions flex items-center gap-2">
+           <button
+            onClick={onDiscuss}
+            className="btn btn--border btn--has-badge"
+            title="Discuss"
+            aria-label={discussAriaLabel}
+          >
+            <MessageCircle size={16} /> Discuss
+            {dirtyCount > 0 && (
+              <span className="btn-badge btn-badge--amber" aria-hidden="true">
+                {dirtyCount > 19 ? '19+' : dirtyCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={onBookmark}
+            className="btn btn--icon btn--border"
+            title="Bookmarks"
+          >
+            <Bookmark size={16} />
+          </button>
+
+          <button
+            onClick={onShare}
+            className="btn btn--icon btn--border"
+            title="Share"
+          >
+            <Share2 size={16} />
+          </button>
+        </div>
+
+        {/* --- MOBILE OVERFLOW MENU (Mobile Only) --- */}
+        <div className="mobile-overflow-container" ref={mobileMenuRef}>
+          <button 
+            className="btn btn--icon btn--border mobile-more-trigger"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            <MoreVertical size={18} />
+          </button>
+
+          {isMobileMenuOpen && (
+            <div className="mobile-dropdown-menu">
+               <button onClick={() => { onDiscuss(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
+                 <MessageCircle size={16} /> Discuss ({dirtyCount})
+               </button>
+               <button onClick={() => { onBookmark(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
+                 <Bookmark size={16} /> Bookmarks
+               </button>
+               <button onClick={() => { onShare(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
+                 <Share2 size={16} /> Share
+               </button>
+            </div>
+          )}
+        </div>
+
       </div>
     </header>
   );
