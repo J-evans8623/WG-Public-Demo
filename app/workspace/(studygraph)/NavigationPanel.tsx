@@ -81,7 +81,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
 
   const lessons = useMemo(() => getLessonModule().conceptMaps ?? [], [getLessonModule]);
 
-  const { getAllFiles, addFile, addGeneratedLessonFile } = useFileAsset();
+  const { getAllFiles, addFile, addGeneratedLessonFile, removeFile, canUserDeleteFile } = useFileAsset();
   const { clearSelection } = useNodeSelection();
 
   const { getFileName, updateFileName, docFileID } = useYDoc();
@@ -276,10 +276,40 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
    * Maintains existing lesson deletion capabilities with enhanced error tracking.
    */
   const handleDeleteLesson = useCallback((lessonId: string) => {
-    if (!canEdit) return; // guard
+    if (!canEdit) return; // 
+    
+    if (!window.confirm('Are you sure you want to delete this lesson? This action cannot be undone.')) {
+      return;
+    }
+
     deleteConceptMap(lessonId);
     // console.log('[NavigationPanel.tsx][7011] lesson deleted', { lessonId });
   }, [canEdit, deleteConceptMap]);
+
+
+  /**
+   * @function handleDeleteFile
+   * @description
+   * Handles the deletion of an uploaded file. Checks permissions and prompts for confirmation.
+   * [Updated] - Change 1 & 2a: New handler for file deletion
+   */
+  const handleDeleteFile = useCallback((file: any, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent opening the file when clicking delete
+    if (!canEdit) return;
+
+    if (!canUserDeleteFile(file)) {
+      console.warn('User does not have permission to delete this file');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete "${file.title}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    removeFile(file.id).catch((err) => {
+      console.error('[NavigationPanel.tsx] Failed to delete file', err);
+    });
+  }, [canEdit, canUserDeleteFile, removeFile]);
 
    /**
    * @function handleGenerateLessonSuccess
@@ -564,6 +594,17 @@ return (
                     >
                       <FileText className="nav-panel__list-icon nav-panel__list-icon--file" />
                       <span className="nav-panel__list-text">{file.title}</span>
+                      {canEdit && canUserDeleteFile(file) && (
+                        <div className="nav-panel__list-actions">
+                          <button
+                            onClick={(ev) => handleDeleteFile(file, ev)}
+                            className="nav-panel__action-btn"
+                            title="Delete file"
+                          >
+                            <Trash2 className="nav-panel__icon--xs" />
+                          </button>
+                          </div>
+                      )}
                     </div>
                   ))
                 )}

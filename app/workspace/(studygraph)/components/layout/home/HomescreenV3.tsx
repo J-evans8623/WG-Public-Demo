@@ -186,7 +186,12 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
 
     switch (activeTab) {
       case 'recent':
-        files = ownedFiles;
+        // Sort by updatedAt descending so newest files (owned or shared) appear first
+        files = [...ownedFiles, ...sharedFiles].sort((a, b) => {
+            const dateA = new Date(a.updatedAt || 0).getTime();
+            const dateB = new Date(b.updatedAt || 0).getTime();
+            return dateB - dateA;
+        });
         break;
       case 'shared':
         files = sharedFiles;
@@ -357,12 +362,12 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                   >
                     Recent
                   </div>
-                  <div
+                  {/**<div
                     className={`tab ${activeTab === 'favorites' ? 'active' : ''}`}
                     onClick={() => setActiveTab('favorites')}
                   >
                     Favorites
-                  </div>
+                  </div>**/}
                   <div
                     className={`tab ${activeTab === 'shared' ? 'active' : ''}`}
                     onClick={() => setActiveTab('shared')}

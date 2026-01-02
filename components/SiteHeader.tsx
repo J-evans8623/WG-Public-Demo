@@ -44,7 +44,7 @@ const SiteHeader = () => {
             Log in
           </Link>
           
-          <Link href="/billing/offer" className="wg-nav-cta">
+          <Link href="/workspace" className="wg-nav-cta">
             Start Today
           </Link>
         </nav>

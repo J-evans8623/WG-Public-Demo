@@ -143,7 +143,7 @@ const ForumModal: React.FC<ForumModalProps> = ({
   if (!isOpen) return null;
 
   return ReactDOM.createPortal(
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
+    <div className="modal-overlay" role="dialog" aria-modal="true">
       <div
         className="modal-container forum-shell"
         onClick={(e) => e.stopPropagation()}

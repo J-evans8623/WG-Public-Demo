@@ -100,7 +100,7 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
 const [overlayMode, setOverlayMode] = useState<OverlayMode>('assessment');
 
   // Section: Data sources (gradebook + yjs fallback) 
-  const { selectQuizAssessments } = useResourceContext();
+  const { selectAllQuizAssessmentsGlobal } = useResourceContext();
 
 
    const [overlayOpen, setOverlayOpen] = useState(false);
@@ -123,32 +123,52 @@ const [overlayMode, setOverlayMode] = useState<OverlayMode>('assessment');
 
  // Compute UI rows (gradebook first, Yjs fallback)
   const rows = useMemo(() => {
-    const headers = selectQuizAssessments().map((c) => ({
-          assignmentId: c.assignmentId,
-          title: c.title || 'Untitled',
-          startAt: c.window?.startAt ?? '',
-          endAt: c.window?.endAt ?? '',
-          attemptLimit:
-            Number.isFinite(c.attemptLimit) && (c.attemptLimit as number) > 0 ? (c.attemptLimit as number) : 1,
-        }));
-
+    // 1. Get Data
+    const globalQuizzes = selectAllQuizAssessmentsGlobal();
     const now = Date.now();
-    return headers.map((h) => {
-      const start = h.startAt ? new Date(h.startAt).getTime() : Number.NEGATIVE_INFINITY;
-      const end = h.endAt ? new Date(h.endAt).getTime() : Number.POSITIVE_INFINITY;
+
+    // 2. Map to UI shape AND calculate status immediately
+    const mappedRows = globalQuizzes.map((c) => {
+      // Parse dates safely
+      const startMs = c.window?.startAt ? new Date(c.window.startAt).getTime() : Number.NEGATIVE_INFINITY;
+      const endMs = c.window?.endAt ? new Date(c.window.endAt).getTime() : Number.POSITIVE_INFINITY;
+      
       let status: RowStatus = 'upcoming';
-      if (now >= start && now <= end) status = 'open';
-      if (now > end) status = 'closed';
+      if (now >= startMs && now <= endMs) status = 'open';
+      if (now > endMs) status = 'closed';
+
       return { 
-        id: h.assignmentId,
-        title: h.title, 
-        startAt: h.startAt, 
-        endAt: h.endAt, 
+        id: c.assignmentId,
+        title: c.title || 'Untitled', 
+        startAt: c.window?.startAt ?? '', 
+        endAt: c.window?.endAt ?? '', 
         status, 
-        attemptLimit: (h as any).attemptLimit ?? 1 
+        // Store raw timestamp for easier sorting below
+        _sortStart: startMs, 
+        attemptLimit: Number.isFinite(c.attemptLimit) && (c.attemptLimit as number) > 0 
+          ? (c.attemptLimit as number) 
+          : 1 
       };
     });
-  }, [selectQuizAssessments]);
+
+    // 3. Apply Intuitive Sorting
+    return mappedRows.sort((a, b) => {
+      const isClosedA = a.status === 'closed';
+      const isClosedB = b.status === 'closed';
+
+      // Priority 1: Separation. If one is closed and the other is active, Active wins.
+      if (isClosedA !== isClosedB) {
+        return isClosedA ? 1 : -1; // Closed items move to index 1 (bottom)
+      }
+
+      // Priority 2: Chronological. Oldest/Soonest Start Date first.
+      // This applies to both groups:
+      // - Active group: "Jan 3" comes before "Jan 5"
+      // - Closed group: "Jan 1 (closed)" comes before "Jan 2 (closed)" (History order)
+      return a._sortStart - b._sortStart;
+    });
+
+  }, [selectAllQuizAssessmentsGlobal]);
   
 
   /** 
@@ -179,7 +199,7 @@ const [overlayMode, setOverlayMode] = useState<OverlayMode>('assessment');
     (assignmentId: string):
       | { title: string; quizType: string; quizContent: any[] }
       | null => {
-      const card: QuizAssessmentResource | undefined = selectQuizAssessments().find(
+      const card: QuizAssessmentResource | undefined = selectAllQuizAssessmentsGlobal().find(
         (c) => c.assignmentId === assignmentId
       );
       if (!card) return null;
@@ -187,7 +207,7 @@ const [overlayMode, setOverlayMode] = useState<OverlayMode>('assessment');
       if (!binding || binding.mode !== 'inline' || !binding.spec) return null;
       return { title: card.title || 'Quiz', quizType: binding.spec.quizType as any, quizContent: binding.spec.quizContent as any[] };
     },
-    [selectQuizAssessments]
+    [selectAllQuizAssessmentsGlobal]
   );
 
 

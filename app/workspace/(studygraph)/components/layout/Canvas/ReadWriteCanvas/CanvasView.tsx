@@ -328,13 +328,14 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
           document.body
         )}
 
-      {activeView === 'conceptMap' && (
-        <ForumModal
-          initialSlideId={activeConcept!}
-          isOpen={isForumOpen}
-          onClose={closeForum}
-        />
-      )}
+      {isForumOpen && (
+  <ForumModal
+    // We pass activeConcept only if we are in map mode; otherwise pass null/undefined
+    initialSlideId={activeView === 'conceptMap' ? activeConcept : null}
+    isOpen={isForumOpen}
+    onClose={closeForum}
+  />
+)}
 
       {isReviewModalOpen &&
         ReactDOM.createPortal(

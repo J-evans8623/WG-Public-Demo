@@ -269,7 +269,15 @@ async function getComprehensiveUserStatus(email: string): Promise<ComprehensiveU
     totalCount: 0
   };
 
-  const windowStart = secondaryServicesUsage.windowStart.toDate();
+  const rawWindowStart = secondaryServicesUsage.windowStart as any;
+
+  const windowStart = 
+  rawWindowStart && typeof rawWindowStart.toDate === 'function'
+    ? rawWindowStart.toDate() // It is a Firestore Timestamp
+    : rawWindowStart instanceof Date
+    ? rawWindowStart          // It is already a JS Date
+    : new Date(rawWindowStart || Date.now());
+
   const windowElapsed = (now.getTime() - windowStart.getTime()) / (1000 * 60); // minutes
   const isWindowExpired = windowElapsed >= SECONDARY_SERVICES_RATE_LIMIT.WINDOW_DURATION_MINUTES;
 

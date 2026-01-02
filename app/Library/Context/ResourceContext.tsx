@@ -82,6 +82,7 @@ export interface ResourceContextType {
   undo(): void;
   redo(): void;
   updatedRivisonCard:boolean;
+  selectAllQuizAssessmentsGlobal: () => QuizAssessmentResource[];
   setupdatedRivisionCard: (flag:boolean) => void,
   getGlobalResourceCard: (
     mapId: string,
@@ -632,7 +633,7 @@ const selectResourcesFn = useCallback(
     const list = (resources.get(GLOBAL_ASSESSMENTS_NODE_ID) || []).filter(
       (r): r is QuizAssessmentResource => r.type === 'quizAssessment'
     );
-    // console.log('ResourceContext.tsx[3301] › selectQuizAssessments count=', list.length);
+     console.log('ResourceContext.tsx[3301] › selectQuizAssessments count=', list.length);
     return list;
   }, [resources]);
 
@@ -797,6 +798,47 @@ const selectResourcesFn = useCallback(
     return card;
   }, [ydoc, activeConceptMapId, isReadOnly]);
 
+
+  // Aggregates quizzes from ALL maps in the document, not just the active one.
+  const selectAllQuizAssessmentsGlobal = useCallback((): QuizAssessmentResource[] => {
+    const allQuizzes: QuizAssessmentResource[] = [];
+    
+    // 1. Iterate over the raw shared types in the YDoc
+    // ydoc.share is a Map<string, AbstractType<any>>
+    for (const [key, abstractType] of activeDoc.share.entries()) {
+      
+      // We only care about keys that start with "resources:"
+      if (key.startsWith('resources:')) {
+
+        // We first cast to 'unknown' to opt-out of the AbstractType check,
+        // then cast to the specific Y.Map structure we know we used.
+        const mapResources = abstractType as unknown as Y.Map<Y.Map<ResourceCard>>;
+        
+        // 2. Check for the sentinel node ID
+        // Because Y.Map methods are available on the object, this is now type-safe
+        if (mapResources.has(GLOBAL_ASSESSMENTS_NODE_ID)) {
+           const assessmentMap = mapResources.get(GLOBAL_ASSESSMENTS_NODE_ID);
+           
+           if (assessmentMap) {
+             // 3. Iterate the inner map to find quiz cards
+             // We can use forEach or Array.from(values())
+             assessmentMap.forEach((card) => {
+               if (card.type === 'quizAssessment') {
+                 allQuizzes.push(card as QuizAssessmentResource);
+               }
+             });
+           }
+        }
+      }
+    }
+    
+    // Sort by creation date (newest first usually, or oldest first)
+    // Here we sort oldest to newest based on createdAt string
+    return allQuizzes.sort((a, b) => 
+      (b.createdAt || '').localeCompare(a.createdAt || '')
+    );
+  }, [activeDoc]);
+
   const value = useMemo<ResourceContextType>(
     () => ({
       resources,
@@ -820,9 +862,10 @@ const selectResourcesFn = useCallback(
       setupdatedRivisionCard,
       selectQuizAssessments,
       getQuizAssessmentById,
-       createQuizAssignmentCard
+       createQuizAssignmentCard,
+       selectAllQuizAssessmentsGlobal
     }),
-    [resources, addResourcev1, removeResourcev1, editResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard, selectQuizAssessments, getQuizAssessmentById, createQuizAssignmentCard]
+    [resources, addResourcev1, selectAllQuizAssessmentsGlobal, removeResourcev1, editResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard, selectQuizAssessments, getQuizAssessmentById, createQuizAssignmentCard]
   );
 
   return (

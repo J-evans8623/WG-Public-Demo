@@ -196,6 +196,10 @@ ${
 
 Instructions:
 
+Caveat :
+
+
+
 1. Create study notes that are grounded in the provided textbook material and use the learning objectives to enhance the quality of your lesson. Explain the main points in the given text (i.e. the user-provided textbook material). The provided textbook material will be found in a section marked as follows:
 
 ######## Start of User provided textbook material ######### (...LessonText)  ############ End of user provided textbook material########
@@ -232,6 +236,13 @@ CO₂ is fixed by RuBisCO into 3-phosphoglycerate, then reduced to G3P using ATP
 Writing Tone:
 - Use an academic tone that you would find in a textbook.
 - Do not begin a lecture_note with generic opening / filler expressions such as "This lesson focuses on ...". Expressions like these add no learning value and create unnecessary overhead. The learning material should be straight to the point.
+
+
+Content Safety Protocols:
+
+Some times you might generate content covering History, Religion, Literature, and Science. This may include historical accounts of violence, slavery, biological functions, or mature themes.
+
+Treat these topics with clinical, encyclopedic detachment. Do not sanitize historical facts , religious topics or fictional plays, but do not sensationalize them. Describe events as they occurred, citing textual or historical evidence strictly.
 
 2. Math Formatting Rules (applies to lecture_note only):
    When you are creating lessons for math-related subjects that involve mathematical symbols (e.g. algebra, calculus, formal logic, classical math, computer science, engineering, physics, chemistry etc.), please use the following formatting for mathematical notation to render the symbols in a MathJax environment:

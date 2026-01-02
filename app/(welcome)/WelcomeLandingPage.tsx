@@ -141,7 +141,7 @@ function WelcomeLandingPage(): JSX.Element {
               </p>
               <div className="wg-hero-cta-row">
                 <a
-                  href="/billing/offer"
+                  href="/workspace"
                   className="wg-btn wg-btn-primary"
                 >
                   Start Free
@@ -280,7 +280,7 @@ function WelcomeLandingPage(): JSX.Element {
             WiseGraph gives you a system that works with your brain, not against it. Start building lasting mastery today.
           </p>
           <a
-            href="/billing/offer"
+            href="/workspace"
             className="wg-btn wg-btn-primary wg-btn-cta"
           >
             Start Today

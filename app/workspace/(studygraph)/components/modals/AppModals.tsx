@@ -13,6 +13,7 @@
  * @author System
  * @date Current
  */
+'use client';
 
 import React, { useState, useEffect, ChangeEvent, FormEvent, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
@@ -149,17 +150,18 @@ const PulsingDots: React.FC = () => (
  */
 export const SubscribeModal: React.FC<SubscribeModalProps> = ({
   onClose,
-  featureName = "this feature",
+  featureName = "This feature",
   serviceContext,
   onUpgrade,
   errorContext
 }) => {
 
+  //const router = useRouter();
 
   const handleUpgrade = () => {
-    //console.log('[AppModals.tsx][5002] Upgrade button clicked with context', { serviceContext });
     onUpgrade?.();
-    onClose();
+    onClose(); // Close modal first
+    window.location.href = '/billing/offer';
   };
 
   // Step 3: Determine contextual messaging based on service and error context
@@ -172,30 +174,65 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({
         lessonGeneration: 'Advanced Lesson Generation is a premium feature with unlimited access and enhanced capabilities.'
       };
       return serviceMessages[serviceContext as keyof typeof serviceMessages] || 
-             `${featureName} is a premium feature. Upgrade your subscription to unlock advanced functionality.`;
+             `${featureName} is a premium feature. Subscribe to unlock all features.`;
     }
-    return `${featureName} is a premium feature. Upgrade your subscription to unlock advanced functionality.`;
+    return `${featureName} is a premium feature. Subscribe to unlock all features.`;
   };
 
   const modalContent = (
-    <div className="modal-overlay">
-      <div className="modal-container">
+    <div className="modal-overlay" style={{ zIndex: 2000 }} >
+      <div className="modal-container" style={{ maxWidth: '550px', width: '95%' }} >
         <h2 className="modal-title">Upgrade to Premium</h2>
         <p className="modal-text">
           {getContextualMessage()}
         </p>
+
+        {/* Pricing Comparison Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+          
+          {/* Scholar Tier */}
+          <div style={{ 
+            background: '#FAF8F5', 
+            border: '1px solid #D4C4B0', 
+            borderRadius: '8px', 
+            padding: '16px',
+            textAlign: 'center'
+          }}>
+            <h4 style={{ margin: '0 0 8px 0', color: '#2C3E50', fontSize: '16px', fontWeight: 'bold' }}>Scholar</h4>
+            <div style={{ color: '#5B8C5A', fontSize: '20px', fontWeight: 'bold' }}>$2.50 <span style={{fontSize:'12px', color:'#666'}}>/ week</span></div>
+            <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 12px 0' }}>Billed $10.00 monthly</p>
+            
+            <div style={{ borderTop: '1px dashed #D4C4B0', paddingTop: '8px', marginTop: '8px' }}>
+              <span style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#d97706' }}>BEST VALUE (50% OFF)</span>
+              <div style={{ fontSize: '14px', fontWeight: '600', color:'#2C3E50' }}>$1.25 <span style={{fontSize:'10px', color:'#666'}}>/ week</span></div>
+              <p style={{ fontSize: '11px', color: '#666', margin: '2px 0 0 0' }}>Billed $59.99 annually</p>
+            </div>
+          </div>
+
+          {/* Educator Tier */}
+          <div style={{ 
+            background: '#FAF8F5', 
+            border: '1px solid #D4C4B0', 
+            borderRadius: '8px', 
+            padding: '16px',
+            textAlign: 'center'
+          }}>
+            <h4 style={{ margin: '0 0 8px 0', color: '#2C3E50', fontSize: '16px', fontWeight: 'bold' }}>Educator</h4>
+            <div style={{ color: '#5B8C5A', fontSize: '20px', fontWeight: 'bold' }}>$3.25 <span style={{fontSize:'12px', color:'#666'}}>/ week</span></div>
+            <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 12px 0' }}>Billed $12.99 monthly</p>
+            
+            <div style={{ borderTop: '1px dashed #D4C4B0', paddingTop: '8px', marginTop: '8px' }}>
+              <span style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#d97706' }}>BEST VALUE (50% OFF)</span>
+              <div style={{ fontSize: '14px', fontWeight: '600', color:'#2C3E50' }}>$1.63 <span style={{fontSize:'10px', color:'#666'}}>/ week</span></div>
+              <p style={{ fontSize: '11px', color: '#666', margin: '2px 0 0 0' }}>Billed $77.95 annually</p>
+            </div>
+          </div>
+
+        </div>
         <p className="modal-subtext">
           Premium includes unlimited access to all AI features, advanced collaboration tools, and priority support.
         </p>
-        
-        {errorContext && (
-          <div className="error-context-info">
-            <small className="text-gray-500">
-              Request ID: {errorContext.requestId}
-            </small>
-          </div>
-        )}
-        
+               
         <div className="button-section">
           <button
             onClick={onClose}

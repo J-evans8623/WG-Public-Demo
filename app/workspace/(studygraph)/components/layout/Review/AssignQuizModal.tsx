@@ -242,10 +242,6 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
 const handleCreate = async () => {
   // Step 1: Preconditions & validation ------------------------------------------------------------
   if (!canCreate) {
-    console.log('[AssignQuizModal.tsx][9320] create blocked - invalid state', {
-      isEducator, chosenLesson, quizTitle, quizType, startDateStr, startTime, endDateStr, endTime,
-      attempts, numQuestions, datesValid, attemptsValid, questionsValid, titleValid, submitting,
-    });
     return;
   }
 
@@ -261,7 +257,6 @@ const handleCreate = async () => {
     attempts,
     numQuestions,
   };
-  console.log('[AssignQuizModal.tsx][9321] submitting payload', payload);
 
   try {
     // Step 3: Generate quiz via API (shared generator) -------------------------------------------
@@ -275,8 +270,7 @@ const handleCreate = async () => {
       docId,
       payload.numQuestions
     );
-    console.log('[AssignQuizModal.tsx][9414] generateQuiz ok');
-
+  
     // Step 4: Parse response → create inline binding ---------------------------------------------
     const parsedResource = parseQuizResponse((quizResponse as any)?.data ?? quizResponse, payload.lessonId);
     if (!parsedResource) {

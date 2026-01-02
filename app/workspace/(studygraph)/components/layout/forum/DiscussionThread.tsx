@@ -1,24 +1,23 @@
+// DiscussionThread.tsx
+
 /**
  * DiscussionThread.tsx
  * @description
  * Thread view component implementing the Clean Divider Style prototype.
- * Follows the exact visual hierarchy:
- * 1. Back button
- * 2. Main comment head (small user info → LARGE title → normal body)
- * 3. Divider
- * 4. Reply box
- * 5. Divider
- * 6. Discussion section with compact replies
- * 
- * Uses ThreadView.css for all styling.
+ * Includes functionality for owners to edit their original post.
+ * * Updates:
+ * - Fixed layout causing badge to shift to center.
+ * - Standardized Edit Form styling using modalStyles.css and branded-forum.css.
  */
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Pencil, X, Check } from 'lucide-react';
 import { useComments } from '@/app/Library/Context/forum/CommentContext';
 import './ThreadView.css';
-import { Textarea } from '@headlessui/react';
+
+// We assume modalStyles.css and branded-forum.css are loaded globally 
+// or by the parent ForumModal, making classes like .text-input and .icon-btn available.
 
 const PINNED_ID = 'system_welcome';
 
@@ -28,11 +27,26 @@ interface DiscussionThreadProps {
 }
 
 const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) => {
-  const { posts, addComment, markThreadViewed, getPostItemCount } = useComments();
+  // 1. Context Hooks
+  const { 
+    posts, 
+    addComment, 
+    markThreadViewed, 
+    getPostItemCount, 
+    editPost, 
+    currentUserId 
+  } = useComments();
+
+  // 2. Local State
   const [replyText, setReplyText] = useState('');
   const [isComposing, setIsComposing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Edit Form State
+  const [editTitle, setEditTitle] = useState('');
+  const [editBody, setEditBody] = useState('');
 
-  // Resolve post; allow synthetic guidance thread
+  // 3. Resolve Post Data
   const post = useMemo(() => {
     if (postId !== PINNED_ID) return posts.get(postId);
     return {
@@ -46,11 +60,28 @@ const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) =
     } as any;
   }, [postId, posts]);
 
-  const { sortedReplies, replyCount } = useMemo(() => {
-    if (!post) return { sortedReplies: [], replyCount: 0 };
-    const sorted = [...post.replies].sort((a, b) => a.ts - b.ts);
-    return { sortedReplies: sorted, replyCount: post.replies.length };
-  }, [post]);
+  // 4. Ownership Check
+  const isOwner = post && post.authorUID === currentUserId && post.id !== PINNED_ID;
+
+  // 5. Handlers
+  const handleStartEdit = () => {
+    if (!post) return;
+    setEditTitle(post.postTitle);
+    setEditBody(post.body);
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditTitle('');
+    setEditBody('');
+  };
+
+  const handleSaveEdit = () => {
+    if (!editTitle.trim() || !editBody.trim()) return;
+    editPost(postId, editTitle.trim(), editBody.trim());
+    setIsEditing(false);
+  };
 
   const handleSubmitReply = useCallback(() => {
     const t = replyText.trim();
@@ -58,16 +89,33 @@ const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) =
     addComment(postId, t);
     setReplyText('');
     setIsComposing(false);
+    
+    // Update view counters
     const size = getPostItemCount(postId);
     markThreadViewed(postId);
     console.log('[DiscussionThread] reply posted; size', size);
   }, [replyText, postId, addComment, getPostItemCount, markThreadViewed]);
 
+  // 6. Effects
   useEffect(() => {
     const size = getPostItemCount(postId);
     if (size > 0) markThreadViewed(postId);
   }, [postId, getPostItemCount, markThreadViewed, post?.replies.length]);
 
+  // 7. Memoized Replies
+  const { sortedReplies, replyCount } = useMemo(() => {
+    if (!post) return { sortedReplies: [], replyCount: 0 };
+    const sorted = [...post.replies].sort((a, b) => a.ts - b.ts);
+    return { sortedReplies: sorted, replyCount: post.replies.length };
+  }, [post]);
+
+  // Helper
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(/\s+/);
+    return ((parts[0]?.[0] ?? '') + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase() || '?';
+  };
+
+  // Guard Clause
   if (!post) {
     return (
       <div className="thread-view__error">
@@ -81,16 +129,11 @@ const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) =
     );
   }
 
-  const getInitials = (name: string) => {
-    const parts = name.trim().split(/\s+/);
-    return ((parts[0]?.[0] ?? '') + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase() || '?';
-  };
-
   const isPinned = post.id === PINNED_ID;
 
   return (
     <div className="thread-view">
-      {/* Back Button */}
+      {/* 1. Navigation */}
       <div className="thread-view__back">
         <button onClick={onBack} className="thread-view__back-btn">
           <ArrowLeft size={16} />
@@ -98,13 +141,14 @@ const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) =
         </button>
       </div>
 
-      {/* MAIN COMMENT HEAD */}
+      {/* 2. Main Post Area */}
       <div className="thread-view__main-comment">
-        {/* User icon circle + user name in small font */}
+        {/* User Row Header */}
         <div className="thread-view__user-row">
           <div className="thread-view__user-avatar">
             {getInitials(post.authorUID)}
           </div>
+          
           <div className="thread-view__user-info">
             <div className="thread-view__user-name">{post.authorUID}</div>
             {!isPinned && (
@@ -113,22 +157,92 @@ const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) =
               </div>
             )}
           </div>
+          
+          {/* LAYOUT FIX: 
+             The Badge uses 'margin-left: auto' in CSS. 
+             Placing the Edit button AFTER the badge ensures both stay to the right,
+             and the badge doesn't get pushed to the center.
+          */}
           {!isPinned && (
             <span className="thread-view__badge">Question</span>
           )}
+
+          {isOwner && !isEditing && (
+            <button 
+              className="icon-btn" 
+              onClick={handleStartEdit}
+              title="Edit Post"
+              style={{ marginLeft: '8px' }}
+            >
+              <Pencil size={16} />
+            </button>
+          )}
         </div>
 
-        {/* Post title with dominant heading */}
-        <h1 className="thread-view__title">{post.postTitle}</h1>
+        {/* Content Area: Switches between Read Mode and Edit Mode */}
+        {isEditing ? (
+          <div className="form-section" style={{ marginTop: '16px' }}>
+            {/* Title Input - styled to look like a title */}
+            <input
+              className="text-input"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="Discussion Title"
+              autoFocus
+              style={{ 
+                fontSize: '24px', 
+                fontWeight: 600, 
+                marginBottom: '16px',
+                padding: '12px'
+              }}
+            />
+            
+            {/* Body Textarea */}
+            <textarea
+              className="text-input"
+              value={editBody}
+              onChange={(e) => setEditBody(e.target.value)}
+              placeholder="What's on your mind?"
+              rows={6}
+              style={{ 
+                resize: 'vertical', 
+                minHeight: '120px',
+                lineHeight: '1.6',
+                fontFamily: 'inherit'
+              }}
+            />
 
-        {/* Post body with normal text size */}
-        <div className="thread-view__body">{post.body}</div>
+            {/* Edit Actions Footer */}
+            <div className="button-section" style={{ marginTop: '16px' }}>
+              <button 
+                className="btn btn-cancel" 
+                onClick={handleCancelEdit}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <X size={14} /> Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleSaveEdit}
+                disabled={!editTitle.trim() || !editBody.trim()}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Check size={14} /> Save Changes
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h1 className="thread-view__title">{post.postTitle}</h1>
+            <div className="thread-view__body">{post.body}</div>
+          </>
+        )}
       </div>
 
-      {/* DIVIDER */}
+      {/* 3. Divider */}
       <div className="thread-view__divider" />
 
-      {/* SLEEK REPLY BOX */}
+      {/* 4. Reply Composer */}
       {!isPinned && (
         <div className="thread-view__reply-section">
           <textarea
@@ -169,7 +283,8 @@ const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) =
               onClick={() => {
                 setIsComposing(true);
                 setTimeout(() => {
-                  const textarea = document.querySelector('.thread-view__reply-textarea') as HTMLTextAreaElement;textarea?.focus();
+                  const textarea = document.querySelector('.thread-view__reply-textarea') as HTMLTextAreaElement;
+                  textarea?.focus();
                 }, 100);
               }}
             >
@@ -180,12 +295,12 @@ const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) =
         </div>
       )}
 
-      {/* DIVIDER (only if there are replies) */}
+      {/* 5. Reply List Divider */}
       {!isPinned && replyCount > 0 && (
         <div className="thread-view__divider" />
       )}
 
-      {/* COMMENT/REPLY THREAD SECTION */}
+      {/* 6. Discussion List */}
       {!isPinned && replyCount > 0 && (
         <div className="thread-view__discussion">
           <h2 className="thread-view__discussion-header">
@@ -223,7 +338,7 @@ const DiscussionThread: React.FC<DiscussionThreadProps> = ({ postId, onBack }) =
         </div>
       )}
 
-      {/* Pinned post nudge */}
+      {/* Pinned Nudge */}
       {isPinned && (
         <div className="thread-view__pinned-nudge">
           Use the <strong>+ New</strong> button in the top-right to start your

@@ -40,7 +40,7 @@ export default function OfferPage() {
         priceId: getPriceScholarMonthly(),
       },
       annual: {
-        price: '$89.99',
+        price: '$59.99',
         priceId: getPriceScholarAnnual(),
       },
     },
@@ -50,7 +50,7 @@ export default function OfferPage() {
         priceId: getPriceEducatorMonthly(),
       },
       annual: {
-        price: '$114.99',
+        price: '$79.95',
         priceId: getPriceEducatorAnnual(),
       },
     },

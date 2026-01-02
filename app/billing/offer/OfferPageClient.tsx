@@ -240,20 +240,10 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
                   className={`wg-toggle-btn ${billing === 'annual' ? 'active' : ''}`}
                   onClick={() => setBilling('annual')}
                 >
-                  Annual <small>(save 25%)</small>
+                  Annual <small>(save 50%)</small>
                 </button>
               </div>
             </div>
-
-            {/* (new update - holiday ribbon promo banner) */}
-<div className="wg-ribbon-banner">
-  <div className="wg-ribbon-content">
-    <span className="wg-ribbon-icon">🎁</span>
-<p className="wg-ribbon-text">
-  <strong>Holiday Offer:</strong> Annual plans are 25% off. Use code <span className="wg-ribbon-code">HOLIDAY25</span> to stack another 25% off.  (first 100 customers).
-</p>
-  </div>
-</div>
 
             <div className="wg-cards-grid">
               
@@ -299,10 +289,10 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
                       <>
                         <div className="wg-price-group">
                           <span className="wg-price-anchor">$9.99</span>
-                          <span className="wg-price-hero">$7.50</span>
+                          <span className="wg-price-hero">$5.00</span>
                           <span className="wg-price-period">USD/mo</span>
                         </div>
-                        <span className="wg-price-subtext">($89.99 USD/yr)</span>
+                        <span className="wg-price-subtext">($59.99 USD/yr)</span>
                       </>
                     ) : (
                       <div className="wg-price-group">
@@ -346,10 +336,10 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
                       <>
                           <div className="wg-price-group">
                           <span className="wg-price-anchor">$12.99</span>
-                          <span className="wg-price-hero">$9.58</span>
+                          <span className="wg-price-hero">$6.50</span>
                           <span className="wg-price-period">USD/mo</span>
                         </div>
-                        <span className="wg-price-subtext">($114.99 USD/yr)</span>
+                        <span className="wg-price-subtext">($77.95 USD/yr)</span>
                       </>
                     ) : (
                       <div className="wg-price-group">

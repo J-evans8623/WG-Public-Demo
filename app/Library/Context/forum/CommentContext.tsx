@@ -99,6 +99,8 @@ interface CommentsContextType {
   forumRoomConnected: boolean;
   forumStatus: { isSaving: boolean; lastError: string | null; lastSavedAt: number | null };
   forumConnectionPhase: ForumConnectionPhase;
+  currentUserId: string;
+  editPost(postId: string, newTitle: string, newBody: string): void;
 }
 
 const CommentsContext = createContext<CommentsContextType | undefined>(undefined);
@@ -122,10 +124,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
     lastSavedAt: null,
   });
   const currentDocIdRef = useRef<string | null>(null);
-  const saveTimerRef = useRef<NodeJS.Timeout | null>(null); // (debounce)
-  const periodicRef = useRef<NodeJS.Timeout | null>(null); // (interval)
-  const dirtySinceRef = useRef<number | null>(null); // (dirty tracking)
-  const docUpdateDetachRef = useRef<(() => void) | null>(null); // (observer cleanup)
+
 
   // Socket hook (connection-only) — proxy connection status up to context
   const { connect, disconnect, status } = useForumCollaboration();
@@ -147,6 +146,61 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [isComposerOpen] = useState(false);
   const [isForumOpen, setForumOpen] = useState(false);
   const [activeConcept, setActiveConcept] = useState<string | null>(null);
+
+
+  // 3. THE SIMPLIFIED SAVE FUNCTION (Transactional)
+  // We keep the 'keepalive' fix here to ensure saves survive page unloads
+  const saveForumNow = useCallback(async () => {
+    const docId = currentDocIdRef.current;
+    const y = forumDoc; // We can read state directly as we will call this from event handlers
+    
+    if (!docId || !y) return;
+
+    try {
+      setForumStatus((s) => ({ ...s, isSaving: true }));
+      const bytes = Y.encodeStateAsUpdateV2(y);
+      
+      // Using a unique key for the "SupersedingCaller" ensures we don't overlap saves
+      // if the user somehow manages to click 'Reply' twice instantly.
+      const key = `forum:save:${docId}`; 
+
+      const makeRequest = async (signal: AbortSignal) => {
+        // 1. Get Upload URL
+        const res = await fetch(`/api/forum/save?doc=${encodeURIComponent(docId)}`, {
+          method: 'POST',
+          credentials: 'include',
+          keepalive: true, // Vital for "Save on Submit" if they close tab immediately
+          signal,
+        });
+        if (!res.ok) return res;
+
+        const { uploadUrl, contentType } = (await res.json()) as { uploadUrl: string; path: string; contentType: string };
+
+        // 2. Upload Bytes
+        const put = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: new Uint8Array(bytes),
+          headers: { 'Content-Type': contentType || 'application/octet-stream' },
+          keepalive: true,
+          signal,
+        });
+        return put;
+      };
+
+      const resp = await supersedingCall(key, { reason: 'transaction' }, makeRequest);
+      
+      if (!resp || !resp.ok) {
+         const text = resp ? await resp.text().catch(() => '') : 'Rate limited';
+         throw new Error(`Save failed: ${text}`);
+      }
+
+      setForumStatus((s) => ({ ...s, isSaving: false, lastError: null, lastSavedAt: Date.now() }));
+      console.log('CommentsContext.tsx › Transactional save complete');
+    } catch (err: any) {
+      console.error('CommentsContext.tsx › save:error', err);
+      setForumStatus((s) => ({ ...s, isSaving: false, lastError: err?.message }));
+    }
+  }, [forumDoc]);
 
   /**
    * @function _observePostsIntoState
@@ -175,95 +229,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
   }, [_observePostsIntoState]);
 
-  /**
-   * @function _saveForumToStorage
-   * @description
-   *   Encodes forumDoc into bytes and uploads to a signed PUT URL from /api/forum/save. Debounce and
-   *   periodic loops both call here. If doc is clean (no dirtySinceRef), skip for interval caller.
-   *   On success, clears dirty marker and updates lastSavedAt. This call is orchestrated through a
-   *   SupersedingCaller to coalesce bursts and to respect Retry-After semantics on 429 responses.
-   */
-  const _saveForumToStorage = useCallback(
-    async (reason: 'debounce' | 'interval' | 'unload'): Promise<void> => {
-      const docId = currentDocIdRef.current;
-      const y = forumDoc;
-      if (!docId || !y) return;
 
-      // skip interval saves when not dirty, with explicit log
-      if (reason === 'interval' && !dirtySinceRef.current) {
-        // console.log('CommentsContext.tsx [7715] › save:skip interval (clean)', { docId });
-        return;
-      }
-
-      // skip unload save when clean (optional optimization)
-      if (reason === 'unload' && !dirtySinceRef.current) {
-        // console.log('CommentsContext.tsx [7716] › save:skip unload (clean)', { docId });
-        return;
-      }
-
-      try {
-        setForumStatus((s) => ({ ...s, isSaving: true }));
-        // console.log('CommentsContext.tsx [7704] › save:start', { docId, reason, dirtySince: dirtySinceRef.current });
-
-        const bytes = Y.encodeStateAsUpdateV2(y);
-
-        // update - 21: Wrap /api/forum/save in SupersedingCaller
-        const key = `forum:save:${docId}`; // update - 21
-        const makeRequest = async (signal: AbortSignal) => {
-          const res = await fetch(`/api/forum/save?doc=${encodeURIComponent(docId)}`, {
-            method: 'POST',
-            credentials: 'include',
-            signal,
-          });
-          if (!res.ok) return res;
-
-          const { uploadUrl, contentType } = (await res.json()) as { uploadUrl: string; path: string; contentType: string };
-
-          const put = await fetch(uploadUrl, {
-            method: 'PUT',
-            body: new Uint8Array(bytes),
-            headers: { 'Content-Type': contentType || 'application/octet-stream' },
-            signal,
-          });
-          return put;
-        };
-
-        const resp = await supersedingCall(key, { reason }, makeRequest); // update - 21
-        if (!resp) {
-          // console.log('CommentsContext.tsx [7718] › save deferred by Retry-After (scheduled)', { docId, reason }); // update - 21
-          setForumStatus((s) => ({ ...s, isSaving: false }));
-          return;
-        }
-
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => '');
-          throw new Error(`forum upload failed (${resp.status}) ${text}`);
-        }
-
-        setForumStatus((s) => ({ ...s, isSaving: false, lastError: null, lastSavedAt: Date.now() }));
-        dirtySinceRef.current = null;
-        // console.log('CommentsContext.tsx [7705] › save:ok', { bytes: bytes.byteLength, reason });
-      } catch (err: any) {
-        setForumStatus((s) => ({ ...s, isSaving: false, lastError: err?.message ?? 'save error' }));
-        console.error('CommentsContext.tsx [7791] › save:error', { error: err?.message, reason });
-      }
-    },
-    [forumDoc],
-  );
-
-  /**
-   * @function _stopAutosave
-   * @description
-   *   Clears timers and resets dirty tracking. Safe to call multiple times during shutdown and on
-   *   document switches. Complexity is O(1) and prevents stray timers from writing to a closed doc.
-   */
-  const _stopAutosave = useCallback(() => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    if (periodicRef.current) clearInterval(periodicRef.current);
-    saveTimerRef.current = null;
-    periodicRef.current = null;
-    // console.log('CommentsContext.tsx [7712] › autosave stopped');
-  }, []);
 
   /**
    * @function shutdownForum
@@ -274,80 +240,19 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
    */
   const shutdownForum = useCallback((): void => {
     try {
-      _stopAutosave();
-      // ensure we detach Yjs update observers for the previous forumDoc
-      if (docUpdateDetachRef.current) {
-        try { docUpdateDetachRef.current(); } catch { /* no-op */ }
-        docUpdateDetachRef.current = null;
-      }
+
       disconnectRef.current(); // update - 202: use stable ref indirection
       setForumDocReady(false);
       setForumDoc(null);
       setPosts(new Map());
       currentDocIdRef.current = null;
-      dirtySinceRef.current = null;
       // // console.log('CommentsContext.tsx [7794] › shutdown:ok');
     } catch (e: any) {
       console.warn('CommentsContext.tsx [7796] › shutdown:warn', { error: e?.message });
     }
-  }, [_stopAutosave]); // Keep only _stopAutosave in deps
+  }, []); // Keep only _stopAutosave in deps
 
-  /**
-   * @function _scheduleDebouncedSave
-   * @description
-   *   Debounce forum saves to reduce write amplification. Each local Y update marks the doc "dirty"
-   *   and schedules a save in a 5s window. Periodic autosave also runs independently every 60s.
-   */
-  const _scheduleDebouncedSave = useCallback(() => {
-    // Step 1 — mark dirty
-    dirtySinceRef.current = dirtySinceRef.current ?? Date.now();
 
-    // Step 2 — clear prior debounce
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-
-    // Step 3 — schedule
-    saveTimerRef.current = setTimeout(() => {
-      void _saveForumToStorage('debounce');
-    }, 5000);
-  }, [_saveForumToStorage]);
-
-  /**
-   * @function _attachDocUpdateObserver
-   * @description
-   *   Observe low-level Y updates to trigger the debounce saver. Only mark dirty for **local**
-   *   updates by checking the Yjs `origin`. Remote updates are ignored to avoid save thrash.
-   */
-  const _attachDocUpdateObserver = useCallback(() => {
-    if (!forumDoc) return () => {};
-    const onUpdate = (_u?: Uint8Array, origin?: unknown) => {
-      if (origin === LOCAL_ORIGIN) {
-        _scheduleDebouncedSave();
-      }
-    };
-    forumDoc.on('update', onUpdate);
-    // console.log('CommentsContext.tsx [7709] › forumDoc update observer attached');
-    return () => {
-      forumDoc.off('update', onUpdate);
-      // console.log('CommentsContext.tsx [7710] › forumDoc update observer detached');
-    };
-  }, [forumDoc, _scheduleDebouncedSave]);
-
-  /**
-   * @function _startPeriodicAutosave
-   * @description
-   *   Background autosave every 60s. Writes only if dirtySinceRef is set. Ensures that long-running
-   *   sessions eventually persist data even without further edits. Complexity O(1) per tick.
-   */
-  const _startPeriodicAutosave = useCallback(() => {
-    if (periodicRef.current) clearInterval(periodicRef.current);
-    periodicRef.current = setInterval(() => {
-      if (!dirtySinceRef.current) {
-        // console.log('CommentsContext.tsx [7714] › periodic check: clean, skipping');
-      }
-      void _saveForumToStorage('interval');
-    }, 60000);
-    // console.log('CommentsContext.tsx [7711] › periodic autosave started');
-  }, [_saveForumToStorage]);
 
   /**
    * @function _loadForumFromStorage
@@ -406,8 +311,6 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const connectRef = useRef(connect);
   const disconnectRef = useRef(disconnect);
   const loadRef = useRef(_loadForumFromStorage);
-  const attachObserverRef = useRef(_attachDocUpdateObserver);
-  const startAutosaveRef = useRef(_startPeriodicAutosave);
   const shutdownRef = useRef(shutdownForum);
   // update - 203: init ref to avoid depending on initializeForum in drivers
   const initializeRef = useRef<(id: string) => Promise<void>>(() => Promise.resolve()); // update - 203
@@ -416,8 +319,6 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
     connectRef.current = connect;
     disconnectRef.current = disconnect;
     loadRef.current = _loadForumFromStorage;
-    attachObserverRef.current = _attachDocUpdateObserver;
-    startAutosaveRef.current = _startPeriodicAutosave;
     shutdownRef.current = shutdownForum;
     // update - 204: keep initializer up to date
     initializeRef.current = initializeForum; // update - 204
@@ -458,15 +359,6 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       setForumDocReady(true);
       setForumStatus((s) => ({ ...s, lastError: null }));
 
-      // Attach Yjs update observer (stable ref) and remember detacher
-      if (docUpdateDetachRef.current) {
-        try { docUpdateDetachRef.current(); } catch { /* no-op */ }
-      }
-      docUpdateDetachRef.current = attachObserverRef.current();
-
-      // Start periodic autosave
-      startAutosaveRef.current();
-
       // Start realtime connection (socket-only) through stable ref
       await connectRef.current(docId, next);
       // // console.log('CommentsContext.tsx [7711] › connect:requested', { docId });
@@ -474,18 +366,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       console.error('CommentsContext.tsx [7793] › init:error', { docId, error: e?.message });
       setForumStatus((s) => ({ ...s, lastError: e?.message ?? 'init error' }));
     }
-  }, []); // stable identity
-
-  // Best-effort save on unload
-  useEffect(() => {
-    const onUnload = () => {
-      if (forumDoc && currentDocIdRef.current && dirtySinceRef.current) {
-        _saveForumToStorage('unload');
-      }
-    };
-    window.addEventListener('beforeunload', onUnload);
-    return () => window.removeEventListener('beforeunload', onUnload);
-  }, [forumDoc, _saveForumToStorage]);
+  }, [forumDoc]); // stable identity
 
   // ───────────────────────────────────────────────────────────────────────────────
   // CRUD — unchanged surface; now operates on forumDoc/postsRoot
@@ -523,10 +404,11 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       };
       forumDoc.transact(() => {
         postsRoot.set(id, newPost);
+        saveForumNow();
         // console.log('CommentsContext.tsx [7723] › addPost', { id, resourceId });
       }, LOCAL_ORIGIN);
     },
-    [forumDoc, postsRoot, authorUID],
+    [forumDoc, postsRoot, authorUID, saveForumNow],
   );
 
   const addComment = useCallback(
@@ -543,10 +425,11 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       const updated: Post = { ...post, replies: [...(post.replies ?? []), newComment] };
       forumDoc.transact(() => {
         postsRoot.set(postId, updated);
+        saveForumNow();
         // console.log('CommentsContext.tsx [7724] › addComment', { postId, commentId: newComment.id });
       }, LOCAL_ORIGIN);
     },
-    [forumDoc, postsRoot, authorUID],
+    [forumDoc, postsRoot, authorUID, saveForumNow],
   );
 
   const deletePost = useCallback(
@@ -555,11 +438,12 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       if (!postsRoot.has(postId)) return;
       forumDoc.transact(() => {
         postsRoot.delete(postId);
+        saveForumNow();
         // console.log('CommentsContext.tsx [7725] › deletePost', { postId });
       }, LOCAL_ORIGIN);
       clearSeenForDeleted(postId);
     },
-    [forumDoc, postsRoot, clearSeenForDeleted],
+    [forumDoc, postsRoot, clearSeenForDeleted, saveForumNow],
   );
 
   const getCommentCount = useCallback((postId: string) => posts.get(postId)?.replies.length ?? 0, [posts]);
@@ -605,6 +489,34 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
     setActiveConcept(null);
     // console.log('CommentsContext.tsx [7726] › closeForum');
   }, []);
+
+
+  const editPost = useCallback(
+    (postId: string, newTitle: string, newBody: string) => {
+      if (!forumDoc || !postsRoot) return;
+      
+      const post = postsRoot.get(postId);
+      if (!post) return;
+
+      // Create updated object maintaining other props
+      const updatedPost: Post = {
+        ...post,
+        postTitle: newTitle,
+        body: newBody,
+        // Ensure timestamp doesn't change if you want to keep original sort, 
+        // or update it if you want it to bump up. 
+        // Usually, edits don't change 'ts' but might add an 'editedAt' field.
+        // For now, we just update content.
+      };
+
+      forumDoc.transact(() => {
+        postsRoot.set(postId, updatedPost);
+        saveForumNow();
+
+      }, LOCAL_ORIGIN);
+    },
+    [forumDoc, postsRoot, saveForumNow]
+  );
 
   // ───────────────────────────────────────────────────────────────────────────────
   // Autonomous driver: start/stop forum based on YDocContext signals
@@ -704,6 +616,8 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
         forumRoomConnected,
         forumStatus,
         forumConnectionPhase,
+        currentUserId: authorUID,
+        editPost,
       }}
     >
       {children}

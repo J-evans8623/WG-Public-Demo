@@ -15,6 +15,7 @@ import '../scroll-sections.css';
 import Image from 'next/image';
 import SeeMoreArrow from '@/public/brand/doodle-arrow-pointer.svg'; 
 import { useSearchParams } from 'next/navigation';
+import TruthCards from './truth-card/TruthCards';
 
 type SceneConfig = {
   id: number;
@@ -143,7 +144,7 @@ function WelcomeLandingPage(): JSX.Element {
               </p>
               <div className="wg-hero-cta-row">
                 <a
-                  href="/billing/offer"
+                  href="/workspace"
                   className="wg-btn wg-btn-primary"
                 >
                   Start Free
@@ -309,6 +310,11 @@ function WelcomeLandingPage(): JSX.Element {
   </div>
 </div>
 
+       {/* =========================================
+      4. NEW TRUTH CARDS SECTION
+      ========================================= */}
+  <TruthCards />
+
         </div>
 
         {/* Final CTA Section */}
@@ -320,7 +326,7 @@ function WelcomeLandingPage(): JSX.Element {
             WiseGraph gives you a system that works with memory, not against it. Start building lasting mastery today.
           </p>
           <a
-            href="/billing/offer"
+            href="/workspace"
             className="wg-btn wg-btn-primary wg-btn-cta"
           >
             Start Today
