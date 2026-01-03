@@ -721,9 +721,21 @@ function handleFix() {
               <button
                 className={`btn ${canCreate ? 'btn-primary' : 'btn-disabled'}`}
                 onClick={handleCreate}
-                disabled={!canCreate}
+                disabled={(!canCreate && !submitting) || submitting}
               >
-                {submitting ? 'Creating…' : 'Create Quiz'}
+                {submitting ? (
+                  <>
+                    <span>Creating </span>
+                    {/* Reuse existing CSS from modalStyles.css, overriding margin/color for button context */}
+                    <div className="pulsing-dots" style={{ marginBottom: 0 }}>
+                      <div className="dot" style={{ backgroundColor: '#ffffff', width: '6px', height: '6px' }} />
+                      <div className="dot" style={{ backgroundColor: '#ffffff', width: '6px', height: '6px' }} />
+                      <div className="dot" style={{ backgroundColor: '#ffffff', width: '6px', height: '6px' }} />
+                    </div>
+                  </>
+                ) : (
+                  'Create Quiz'
+                )}
               </button>
             </div>
           </div>

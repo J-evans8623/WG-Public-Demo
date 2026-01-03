@@ -100,7 +100,7 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
 const [overlayMode, setOverlayMode] = useState<OverlayMode>('assessment');
 
   // Section: Data sources (gradebook + yjs fallback) 
-  const { selectAllQuizAssessmentsGlobal } = useResourceContext();
+  const { selectAllQuizAssessmentsGlobal, } = useResourceContext();
 
 
    const [overlayOpen, setOverlayOpen] = useState(false);

@@ -78,6 +78,8 @@ export interface ResourceContextType {
   getQuizAssessmentById: (assignmentId: string, mapId?: string) => QuizAssessmentResource | undefined;
   resetResources(): void;
   getResourceCard(id: string): ResourceCard | undefined;
+  assignQuizUpdateSignal: number;
+  triggerQuizUpdate: () => void;
   // global undo/redo
   undo(): void;
   redo(): void;
@@ -144,8 +146,12 @@ export const ResourceProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [resources, setResources] = useState<Map<string, ResourceCard[]>>(new Map());
   const { undo: globalUndo, redo: globalRedo } = useUndoRedo();
    const [updatedRivisonCard, setupdatedRivisionCard] = useState(false);
+   const [assignQuizUpdateSignal, setAssignQuizUpdateSignal] = useState(0);
 
 
+   const triggerQuizUpdate = useCallback(() => {
+    setAssignQuizUpdateSignal(prev => prev + 1);
+  }, []);
 
   // Load initial state & subscribe to remote Y.Doc changes
   useEffect(() => {
@@ -779,6 +785,7 @@ const selectResourcesFn = useCallback(
             localYResourcesMap.set(GLOBAL_ASSESSMENTS_NODE_ID, yMap);
           }
           yMap.set(card.id, card);
+          triggerQuizUpdate();
         },
         () => {
           setResources((prev) => {
@@ -796,7 +803,7 @@ const selectResourcesFn = useCallback(
 
     // console.log('ResourceContext.tsx[9202] › createQuizAssignmentCard ok', { assignmentId: id });
     return card;
-  }, [ydoc, activeConceptMapId, isReadOnly]);
+  }, [isReadOnly, activeConceptMapId, ydoc, triggerQuizUpdate]);
 
 
   // Aggregates quizzes from ALL maps in the document, not just the active one.
@@ -831,13 +838,14 @@ const selectResourcesFn = useCallback(
         }
       }
     }
+    const dep = assignQuizUpdateSignal; // needed dependency to update list when a new quiz is addedd to give responsive ux after quiz creation.
     
     // Sort by creation date (newest first usually, or oldest first)
     // Here we sort oldest to newest based on createdAt string
     return allQuizzes.sort((a, b) => 
       (b.createdAt || '').localeCompare(a.createdAt || '')
     );
-  }, [activeDoc]);
+  }, [activeDoc, assignQuizUpdateSignal]);
 
   const value = useMemo<ResourceContextType>(
     () => ({
@@ -863,9 +871,11 @@ const selectResourcesFn = useCallback(
       selectQuizAssessments,
       getQuizAssessmentById,
        createQuizAssignmentCard,
-       selectAllQuizAssessmentsGlobal
+       selectAllQuizAssessmentsGlobal,
+       assignQuizUpdateSignal,
+       triggerQuizUpdate
     }),
-    [resources, addResourcev1, selectAllQuizAssessmentsGlobal, removeResourcev1, editResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard, selectQuizAssessments, getQuizAssessmentById, createQuizAssignmentCard]
+    [resources, assignQuizUpdateSignal,addResourcev1,triggerQuizUpdate, selectAllQuizAssessmentsGlobal, removeResourcev1, editResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard, selectQuizAssessments, getQuizAssessmentById, createQuizAssignmentCard]
   );
 
   return (

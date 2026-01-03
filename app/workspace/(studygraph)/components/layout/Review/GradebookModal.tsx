@@ -163,7 +163,7 @@ const GradebookModal: React.FC<GradebookModalProps> = ({ isOpen, onClose, docId 
             )}
             {!isLoading && students.length === 0 && (
               <div className="modal-subtext" style={{ marginTop: 4, textAlign: 'left' }}>
-                No students found in this document’s ACL.
+                No students found.
               </div>
             )}
           </div>

@@ -24,10 +24,10 @@ export const NOTEBOOK_SPLIT_THRESHOLD = 3;
 export const INTERLEAVED_REVISION_MULTIPLIER = 4;
 
 /** Days after lesson completion when the first interleaved session begins. */
-export const INTERLEAVED_START_DELAY_DAYS = 2;
+export const INTERLEAVED_START_DELAY_DAYS = 3;
 
 /** Days between interleaved sessions (cadence). */
-export const INTERLEAVED_INTERVAL_DAYS = 2;
+export const INTERLEAVED_INTERVAL_DAYS = 3;
 
 /** Block revision must occur the day after its corresponding learning block. */
 export const BLOCK_REVISION_DELAY_DAYS = 1;
