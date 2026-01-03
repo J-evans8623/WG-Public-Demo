@@ -1,13 +1,15 @@
 // app/Library/components/ShareModal.tsx
 /**
- * (update - 50)
- * Header: add Settings icon next to Close in success scene
- * Success actions: bottom-right bar with Done only
+ * (update - 53)
+ * Header: Added Printer icon to imports
+ * Success actions: Added "Print QR Flyer" workflow
+ * Flyer Mode: Added state and UI for customizing and printing a QR flyer
+ * Print Logic: Client-side HTML generation for window.print()
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import '@/app/workspace/(studygraph)/components/modals/modalStyles.css';
 import './ShareModal.css';
-import { X, Copy, Check, Settings } from 'lucide-react';
+import { X, Copy, Check, Settings, Printer, ArrowLeft } from 'lucide-react';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { usePublicShare, ShareMode, PublicShareResult } from '../../hooks/sharing/usePublicShare';
 
@@ -24,12 +26,16 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
   const [result, setResult] = useState<PublicShareResult | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // 1. New state for Flyer feature
+  const [flyerMode, setFlyerMode] = useState(false);
+  const [courseTitle, setCourseTitle] = useState('');
+
   const helperText = useMemo(() => {
     switch (shareMode) {
       case 'public-view': return 'Anyone with the link can view this document. Edits are disabled.';
       case 'public-edit': return 'Anyone with the link can view and edit this document.';
-      case 'private':     return 'Only the editors you add here can edit. Others cannot access edits via the link.';
-      default:            return '';
+      case 'private':      return 'Only the editors you add here can edit. Others cannot access edits via the link.';
+      default:             return '';
     }
   }, [shareMode]);
 
@@ -50,6 +56,9 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
       setResult(null);
       setCopied(false);
       clearError();
+      // Reset flyer state
+      setFlyerMode(false);
+      setCourseTitle('');
     }
   }, [isOpen, clearError]);
 
@@ -91,24 +100,112 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
     }
   }, [result?.url]);
 
-  const handleOpenLink = useCallback(() => {
-    if (result?.url) window.open(result.url, '_blank', 'noopener,noreferrer');
-  }, [result?.url]);
+  // 2. Logic to generate and print the flyer via browser API
+  const handlePrintFlyer = useCallback(() => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow || !result?.qrDataUri) return;
+
+    // Construct the printable HTML document
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Study Group Flyer</title>
+          <style>
+            @page { margin: 0; size: auto; }
+            body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
+            .flyer-container {
+              position: relative;
+              width: 100%;
+              height: 100vh;
+              background-image: url('/brand/wg-flyer-larger-shell.jpeg');
+              background-size: cover;
+              background-position: center top;
+              background-repeat: no-repeat;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+              overflow: hidden;
+            }
+            .header-text {
+              position: absolute;
+              top: 0;
+              left: 0;
+              width: 100%;
+              height: 14%; /* Matches the crimson bar area */
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-family: 'Inter', sans-serif;
+              font-weight: 700;
+              font-size: 4vw;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              text-align: center;
+              padding: 0 20px;
+              box-sizing: border-box;
+              text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            }
+            .qr-wrapper {
+              position: absolute;
+              top: 28%; /* Vertically positioned in the white box area */
+              left: 50%;
+              transform: translateX(-50%);
+              width: 45%; /* Relative width to fit the box */
+              aspect-ratio: 1/1;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .qr-code {
+              width: 100%;
+              height: 100%;
+              object-fit: contain;
+              mix-blend-mode: multiply;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="flyer-container">
+            <div class="header-text">${courseTitle || 'Study Group'}</div>
+            <div class="qr-wrapper">
+              <img src="${result.qrDataUri}" class="qr-code" />
+            </div>
+          </div>
+          <script>
+            // Ensure image loads before printing
+            window.onload = function() {
+              setTimeout(() => {
+                window.print();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  }, [courseTitle, result?.qrDataUri]);
 
   if (!isOpen) return null;
 
   const isConfigureScene = !result && !isLoading;
+  const isSuccessScene = result && !isLoading && !flyerMode;
+  const isFlyerScene = result && !isLoading && flyerMode;
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Share modal">
       <div className="modal-container sm-shell" style={{ width: 560, maxWidth: '92vw' }}>
         {/* Header */}
         <div className="sm-header">
-          <h2 className="modal-title" style={{ margin: 0, textAlign: 'left' }}>Share Document</h2>
+          {/* 3. Conditional Title based on Scene */}
+          <h2 className="modal-title" style={{ margin: 0, textAlign: 'left' }}>
+            {isFlyerScene ? 'Print QR Flyer' : 'Share Document'}
+          </h2>
 
-          {/* (update - 51) When in success scene, show Settings icon to the left of X */}
           <div className="sm-header-actions">
-            {result && !isLoading && (
+            {isSuccessScene && (
               <button
                 type="button"
                 className="sm-icon-btn"
@@ -184,7 +281,7 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
           )}
 
           {/* Scene 2 — Success */}
-          {result && !isLoading && (
+          {isSuccessScene && (
             <div className="sm-stack">
               <div className="sm-success-head">
                 <div className="sm-success-avatar"><Check className="sm-success-check" /></div>
@@ -217,12 +314,78 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
                 </div>
               )}
 
-              {/* (update - 52) Bottom-right action bar with Done */}
+              {/* 4. Success Actions including "Print QR Flyer" */}
               <div className="sm-success-actions-bar">
+                 <button
+                   type="button"
+                   className="btn btn-secondary"
+                   onClick={() => setFlyerMode(true)}
+                   style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}
+                 >
+                   <Printer size={16} />
+                   Print QR Flyer
+                 </button>
                 <button type="button" className="btn btn-primary" onClick={onClose}>Done</button>
               </div>
             </div>
           )}
+
+          {/* Scene 3 — Flyer Configuration */}
+          {isFlyerScene && (
+            <div className="sm-stack">
+              <div className="form-section">
+                <label className="form-label">Course / Group Title</label>
+                <input
+                  type="text"
+                  className="text-input"
+                  placeholder="e.g. Biology 101 Study Group"
+                  value={courseTitle}
+                  onChange={(e) => setCourseTitle(e.target.value)}
+                  maxLength={40}
+                  autoFocus
+                />
+                <div className="modal-subtext">This text will appear at the top of your flyer.</div>
+              </div>
+
+              <div className="sm-flyer-preview-container">
+                <div className="sm-flyer-label">Live Preview</div>
+                <div className="sm-flyer-preview">
+                  {/* Background Image is set in CSS via class */}
+                  <div className="sm-flyer-bg-img" />
+                  
+                  {/* Overlays */}
+                  <div className="sm-flyer-overlay-title">
+                    {courseTitle || <span style={{ opacity: 0.5 }}>Your Title Here</span>}
+                  </div>
+                  <div className="sm-flyer-overlay-qr">
+                    {result?.qrDataUri && (
+                      <img src={result.qrDataUri} alt="QR Code" className="sm-flyer-qr-img" />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="sm-footer sm-footer--borderless" style={{ padding: '16px 0 0' }}>
+                <button
+                  type="button"
+                  className="btn btn-cancel"
+                  onClick={() => setFlyerMode(false)}
+                >
+                  <ArrowLeft size={16} style={{ marginRight: 4 }} />
+                  Back
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handlePrintFlyer}
+                >
+                  <Printer size={16} style={{ marginRight: 6 }} />
+                  Print Flyer
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Footer (Scene 1 only) */}

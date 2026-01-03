@@ -26,8 +26,7 @@ import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import { 
   setPublicEdit, 
   setPublicView, 
-  addEditor, 
-  removeEditor, 
+  addEditor,  
   resolveRole 
 } from '@/app/src/services/firebase';
 import { generateQrDataUri } from '@/app/src/share/generateQr';
