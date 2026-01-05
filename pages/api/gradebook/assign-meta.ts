@@ -5,7 +5,7 @@
  *   operations under a single default handler. Supported methods:
  *     (1) POST  → Create or overwrite assigned quiz metadata (title, window, attemptLimit)
  *     (2) PATCH → Apply narrow updates to an existing assignment (startAt, endAt, attemptLimit, title)
- *
+ *    (3) DELETE → Soft-delete an assignment (Owner/Educator only)
  *   This file replaces the former App Router route.ts. It preserves the exact URL
  *   (/api/gradebook/assign-meta) and response contracts expected by the existing client
  *   (gradebookClient.assignMetaUpsert / assignMetaPatch), including HTTP status mappings,
@@ -28,6 +28,7 @@ import { resolveRole } from '@/app/src/services/firebase';
 import {
   upsertAssignedQuizMeta,
   patchAssignedQuizMeta,
+  softDeleteAssignment,
 } from '@/app/src/services/gradebook/gradebookFB';
 import type {
   AssignMetaPatchReq,
@@ -109,8 +110,20 @@ function validatePatchInput(body: any): asserts body is AssignMetaPatchReq { // 
   if (errors.length) throw new Error(`VALIDATION_ERROR: ${errors.join(', ')}`);
 }
 
+
+/**
+ * validateDeleteInput
+ * Responsibility:
+ * Ensure docId and assignmentId are present for DELETE requests.
+ * This prevents malformed requests from reaching the ACL check or DB layer.
+ */
+function validateDeleteInput(body: any): asserts body is { docId: string; assignmentId: string } { // update - 3: New validation for DELETE
+  if (!body?.docId || typeof body.docId !== 'string') throw new Error('VALIDATION_ERROR: docId');
+  if (!body?.assignmentId || typeof body.assignmentId !== 'string') throw new Error('VALIDATION_ERROR: assignmentId');
+}
+
 /* ──────────────────────────────────────────────────────────────────────────────
- * [Default handler: POST | PATCH]
+ * [Default handler: POST | PATCH DELETE]
  * ──────────────────────────────────────────────────────────────────────────── */
 
 /**
@@ -125,7 +138,7 @@ function validatePatchInput(body: any): asserts body is AssignMetaPatchReq { // 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) { // update - 9
   try {
     // 1) Route guard by HTTP method (POST | PATCH).                                // update - 10
-    if (req.method !== 'POST' && req.method !== 'PATCH') {
+    if (req.method !== 'POST' && req.method !== 'PATCH' && req.method !== 'DELETE') {
       console.log('pages/api/gradebook/assign-meta.ts [7101] › methodNotAllowed', { method: req.method }); // update - 11
       return methodNotAllowed(res, ['POST', 'PATCH']);
     }
@@ -141,14 +154,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const body = req.body ?? {};
     if (req.method === 'POST') validateUpsertInput(body);
     if (req.method === 'PATCH') validatePatchInput(body);
+    if (req.method === 'DELETE') validateDeleteInput(body);
 
     // 4) Authorization: Owner role + Educator account type.                        // update - 15
     const role = await resolveRole(body.docId, session.user.email);
     const userProfile = await UserService.getUserProfile(session.user.email);
     const isEducator = userProfile.accountType === 'educator';
-    console.log('pages/api/gradebook/assign-meta.ts [7103] › ACL guard', { docId: body.docId, role, isEducator }); // update - 16
-    if (role !== 'Owner' || !isEducator) {
-      return sendJson(res, 403, { error: 'ACL_DENIED_OWNER_EDUCATOR_REQUIRED' });
+
+
+    console.log('pages/api/gradebook/assign-meta.ts [7103] › ACL guard', { docId: body.docId, role, isEducator }); 
+
+
+   // Strict Owner check for DELETE operations
+    if (req.method === 'DELETE') { // update - 6: Strict check for delete
+         if (role !== 'Owner' || !isEducator) {
+             console.warn('pages/api/gradebook/assign-meta.ts [7110] › DELETE denied', { role, isEducator });
+             return sendJson(res, 403, { error: 'ACL_DENIED_OWNER_REQUIRED' });
+         }
+    } else {
+        // Standard check for POST/PATCH
+        if (role !== 'Owner' || !isEducator) {
+             return sendJson(res, 403, { error: 'ACL_DENIED_OWNER_EDUCATOR_REQUIRED' });
+        }
     }
 
     // 5) Delegate to Firestore helper based on method and return JSON result.      // update - 17
@@ -168,8 +195,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return sendJson(res, 200, payload);
     }
 
+    if (req.method === 'DELETE') {
+        // 5c) Soft-delete assignment
+        await softDeleteAssignment(body.docId, body.assignmentId);
+        console.log('pages/api/gradebook/assign-meta.ts [7106] › DELETE ok', { docId: body.docId, assignmentId: body.assignmentId });
+        return sendJson(res, 200, { success: true, assignmentId: body.assignmentId });
+    }
+
     // Fallback: Should never reach here due to the earlier method guard.           // update - 20
-    return methodNotAllowed(res, ['POST', 'PATCH']);
+    return methodNotAllowed(res, ['POST', 'PATCH', 'DELETE']);
   } catch (err: any) {
     // 6) Error mapping mirrors original behavior to keep the client stable.        // update - 21
     const msg = String(err?.message ?? 'INTERNAL');

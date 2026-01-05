@@ -116,12 +116,22 @@ const GradebookModal: React.FC<GradebookModalProps> = ({ isOpen, onClose, docId 
                   <th className="gb-th gb-sticky-left gb-sticky-top" style={{ zIndex: 3 }}>
                     Name / Email
                   </th>
-                  {assignments.map((a) => (
-                    <th key={a.assignmentId} className="gb-th gb-sticky-top">
-                      <div className="gb-th-title">{a.title}</div>
-                      <div className="gb-th-sub">{formatWindow(a.startAt, a.endAt)}</div>
-                    </th>
-                  ))}
+                  {assignments.map((a) => {
+                    // update - 2009: Check status for visual styling
+                    const isDeleted = a.status === 'deleted';
+                    const bgStyle = isDeleted ? { backgroundColor: '#fee2e2' } : {}; // Light red header
+
+                    return (
+                        <th key={a.assignmentId} className="gb-th gb-sticky-top" style={bgStyle}>
+                          <div className="gb-th-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                             {a.title}
+                             {/* update - 2010: Add visual badge */}
+                             {isDeleted && <span title="This Assesment was deleted." style={{ fontSize: 10, background: '#ef4444', color: 'white', padding: '1px 4px', borderRadius: 4 }}>DEL</span>}
+                          </div>
+                          <div className="gb-th-sub">{formatWindow(a.startAt, a.endAt)}</div>
+                        </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>

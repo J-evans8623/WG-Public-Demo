@@ -58,6 +58,9 @@ export interface AssignmentMetaFS {
   createdBy: EmailString;          // normalized email
   createdAt: FirebaseFirestore.Timestamp;
   updatedAt: FirebaseFirestore.Timestamp;
+
+  //
+  status?:'active'|'deleted'
 }
 
 /**
@@ -85,6 +88,9 @@ export interface AssignmentMeta {
   createdBy: EmailString;          // normalized email
   createdAt: string;               // ISO-8601
   updatedAt: string;               // ISO-8601
+
+  // entry status
+  status?:'active'|'deleted'
 }
 
 /** Minimal assignment header used by gradebook columns (alias of AssignmentMeta fields) */

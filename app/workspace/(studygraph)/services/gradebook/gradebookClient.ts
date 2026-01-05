@@ -38,6 +38,7 @@ type DocId = string;
 type AssignmentId = string;
 type AttemptId = string;
 type EmailString = string;
+export type AssignmentStatus = 'active' | 'deleted';
 
 /** Inclusive time window (ISO-8601 strings) */
 export interface WindowISO {
@@ -52,6 +53,7 @@ export interface AssignmentHeader {
   startAt: string;    // ISO-8601
   endAt: string;      // ISO-8601
   attemptLimit: number;
+  status?: AssignmentStatus;
 }
 
 /** Gradebook cell: server currently reports latest/highest policy */
@@ -99,6 +101,17 @@ export interface AssignMetaPatchRes {
     createdAt: string;
     updatedAt: string;
   };
+}
+
+
+/** DELETE /api/gradebook/assign-meta */
+export interface AssignMetaDeleteReq {
+  docId: DocId;
+  assignmentId: AssignmentId;
+}
+export interface AssignMetaDeleteRes {
+  success: boolean;
+  assignmentId: string;
 }
 
 /** GET /api/gradebook?docId=... */
@@ -278,6 +291,31 @@ async function assignMetaPatch(req: AssignMetaPatchReq): Promise<AssignMetaPatch
   return data;
 }
 
+
+
+
+/**
+ * assignMetaDelete
+ * Responsibility:
+ * Request a soft-delete of an assignment. Requires Owner permissions on server.
+ */
+async function assignMetaDelete(req: AssignMetaDeleteReq): Promise<AssignMetaDeleteRes> {
+  if (!req?.docId || !req?.assignmentId) {
+    throw new Error('MISSING_FIELDS');
+  }
+
+  const data = await fetchJsonNoStore<AssignMetaDeleteRes>('/api/gradebook/assign-meta', {
+    method: 'DELETE',
+    body: JSON.stringify(req),
+  });
+  
+  console.log('gradebookClient.ts [6303] › assignMetaDelete ok', {
+    docId: req.docId,
+    assignmentId: req.assignmentId,
+  });
+  return data;
+}
+
 /**
  * getGradebook
  * Responsibility:
@@ -374,6 +412,7 @@ async function submitAttempt(req: AttemptSubmitReq): Promise<AttemptSubmitRes> {
 export const gradebookClient = {
   assignMetaUpsert,
   assignMetaPatch,
+  assignMetaDelete,
   getGradebook,
   startAttempt,
   submitAttempt,

@@ -155,6 +155,7 @@ function fsMetaToWire(id: string, fs: AssignmentMetaFS): AssignmentMeta {
     createdBy: normEmail(fs.createdBy),
     createdAt: toIso(fs.createdAt),
     updatedAt: toIso(fs.updatedAt),
+    status: fs.status || 'active',
   };
 }
 
@@ -212,6 +213,7 @@ export async function upsertAssignedQuizMeta(input: AssignMetaUpsertReq & { crea
         createdBy: normEmail(createdBy),
         createdAt: now,
         updatedAt: now,
+        status: 'active',
       } as AssignmentMetaFS);
     } else {
       // Merge/update (preserve createdBy/createdAt)
@@ -273,6 +275,32 @@ export async function patchAssignedQuizMeta(input: AssignMetaPatchReq): Promise<
   const saved = (await ref.get()).data() as AssignmentMetaFS;
   console.log('gradebookFB.ts [7224] › patchAssignedQuizMeta ok', { docId, assignmentId, attemptLimit: saved.attemptLimit });
   return fsMetaToWire(assignmentId, saved);
+}
+
+
+/**
+ * softDeleteAssignment
+ * Responsibility:
+ * Marks an assignment as 'deleted' in Firestore.
+ * Does NOT remove data, preserving recovery options and student history.
+ */
+export async function softDeleteAssignment(docId: string, assignmentId: string): Promise<boolean> { // update - 3: New soft delete function
+  const { assigned } = getPaths(docId);
+  const ref = assigned.doc(assignmentId);
+
+  const snap = await ref.get();
+  if (!snap.exists) {
+    console.log('gradebookFB.ts [7290] › delete: assignment not found', { docId, assignmentId });
+    throw new Error('ASSIGNMENT_NOT_FOUND');
+  }
+
+  await ref.update({
+    status: 'deleted',
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  console.log('gradebookFB.ts [7291] › softDeleteAssignment ok', { docId, assignmentId });
+  return true;
 }
 
 /**

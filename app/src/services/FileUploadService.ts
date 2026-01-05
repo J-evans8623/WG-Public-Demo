@@ -123,6 +123,9 @@ export class FileUploadService { // update - 3
           accessKeyId,
           secretAccessKey,
         },
+        // ADD THESE TWO LINES (to fix region mismatch error):
+        requestChecksumCalculation: 'WHEN_REQUIRED', 
+        responseChecksumValidation: 'WHEN_REQUIRED',
       });
 
       console.log('[FileUploadService.ts][3101] R2 client initialized successfully');

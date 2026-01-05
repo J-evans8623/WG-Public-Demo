@@ -180,6 +180,7 @@ function mergeServerSnapshot(docId: string, snap: GradebookQueryRes): void { // 
       startAt: a.startAt,
       endAt: a.endAt,
       attemptLimit: a.attemptLimit,
+      status: a.status,
     }));
 
     // 2) Students (normalized)

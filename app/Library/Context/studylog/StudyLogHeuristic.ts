@@ -15,7 +15,7 @@
  * - Absolute Maximum: 15 minutes (hard cap per slide)
  */
 
-const WORDS_PER_MINUTE = 150;
+const WORDS_PER_MINUTE = 80;
 const SECONDS_PER_QUESTION = 120; // 2 minutes
 const ABSOLUTE_MAX_SECONDS = 15 * 60; // 15 minutes
 const DEFAULT_BUFFER_SECONDS = 120; // 2 minutes fallback

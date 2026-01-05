@@ -49,7 +49,8 @@ export interface ResourceContextType {
     },
     mapID?: string
   ): Promise<void>;
-  removeResourcev1(nodeId: string, resourceId: string): void;
+  removeResourcev1(nodeId: string, resourceId: string): void; //  removeAssignedQuiz = useCallback((resourceId: string)
+  removeAssignedQuiz(resourceId:string): void;
   editResourcev1(resource: ResourceCard): Promise<void>;
   /**addPictureResourcev1(
     params: { nodeId: string; title: string; description?: any },
@@ -805,6 +806,11 @@ const selectResourcesFn = useCallback(
     return card;
   }, [isReadOnly, activeConceptMapId, ydoc, triggerQuizUpdate]);
 
+  const removeAssignedQuiz = useCallback((resourceId: string)=>{
+    removeResourcev1(GLOBAL_ASSESSMENTS_NODE_ID,  resourceId);
+    triggerQuizUpdate()
+  }, [removeResourcev1, triggerQuizUpdate])
+
 
   // Aggregates quizzes from ALL maps in the document, not just the active one.
   const selectAllQuizAssessmentsGlobal = useCallback((): QuizAssessmentResource[] => {
@@ -823,7 +829,7 @@ const selectResourcesFn = useCallback(
         
         // 2. Check for the sentinel node ID
         // Because Y.Map methods are available on the object, this is now type-safe
-        if (mapResources.has(GLOBAL_ASSESSMENTS_NODE_ID)) {
+        if ( typeof mapResources.has === 'function' && mapResources.has(GLOBAL_ASSESSMENTS_NODE_ID)) {
            const assessmentMap = mapResources.get(GLOBAL_ASSESSMENTS_NODE_ID);
            
            if (assessmentMap) {
@@ -857,7 +863,7 @@ const selectResourcesFn = useCallback(
       selectResources: selectResourcesFn,
       selectNoteCards,
       selectCueCards,
-
+      removeAssignedQuiz,
       selectPracticeSheets,
       setResources: setResourcesFn,
       resetResources,
@@ -875,7 +881,7 @@ const selectResourcesFn = useCallback(
        assignQuizUpdateSignal,
        triggerQuizUpdate
     }),
-    [resources, assignQuizUpdateSignal,addResourcev1,triggerQuizUpdate, selectAllQuizAssessmentsGlobal, removeResourcev1, editResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard, selectQuizAssessments, getQuizAssessmentById, createQuizAssignmentCard]
+    [resources, assignQuizUpdateSignal, removeAssignedQuiz, addResourcev1,triggerQuizUpdate, selectAllQuizAssessmentsGlobal, removeResourcev1, editResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard, selectQuizAssessments, getQuizAssessmentById, createQuizAssignmentCard]
   );
 
   return (

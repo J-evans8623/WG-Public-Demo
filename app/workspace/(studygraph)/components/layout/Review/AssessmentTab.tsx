@@ -19,12 +19,14 @@ import AssignQuizModal, {
   type CreateQuizPayload,
   type LessonLite,
 } from './AssignQuizModal';
+import { Trash2 } from 'lucide-react';
 import { useApiContext } from '@/app/src/context/ApiContext';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext'; 
 import QuizOverlay from '../Canvas/ReadWriteCanvas/Overlays/QuizOverlay';
 import type { QuizAssessmentResource, QuizBinding } from '@/app/Library/Definitions/Definitions'; 
 import GradebookModal from './GradebookModal';
 import './AssessmentLayout.css';
+import { gradebookClient } from '../../../services/gradebook/gradebookClient';
 
 export interface AssessmentTabProps {
   onCreateAssignedQuiz?: () => void;
@@ -100,7 +102,7 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
 const [overlayMode, setOverlayMode] = useState<OverlayMode>('assessment');
 
   // Section: Data sources (gradebook + yjs fallback) 
-  const { selectAllQuizAssessmentsGlobal, } = useResourceContext();
+  const { selectAllQuizAssessmentsGlobal, removeAssignedQuiz } = useResourceContext();
 
 
    const [overlayOpen, setOverlayOpen] = useState(false);
@@ -263,6 +265,46 @@ const [overlayMode, setOverlayMode] = useState<OverlayMode>('assessment');
     },
     [inFlightStartId, docId, startAttempt, getInlineSpecForAssignment]
   );
+
+
+  /**
+   * handleDeleteQuiz
+   * @description
+   * Handles the deletion of an assignment. (update - 1112)
+   * 1. Confirms intent via browser dialog.
+   * 2. Calls backend to soft-delete (API validates Owner/Educator permission).
+   * 3. If API succeeds, removes YJS card (GLOBAL_ASSESSMENTS_NODE_ID) to update list UI instantly.
+   * 4. If API fails, alerts user and keeps YJS card.
+   */
+  const handleDeleteQuiz = async (e: React.MouseEvent, assignmentId: string, title: string) => {
+      e.stopPropagation(); // Prevent row selection when clicking delete
+      
+      if (!confirm(`Are you sure you want to delete "${title}"? This will remove it from the list but keep grading data.`)) {
+          return;
+      }
+
+      try {
+          // 1. Backend Soft Delete
+          const res = await gradebookClient.assignMetaDelete({ docId, assignmentId });
+
+          if (res.success) {
+          
+          // 2. YJS Removal (UI update)
+          // The resourceId matches the assignmentId for global quizzes under the sentinel node.
+          removeAssignedQuiz(assignmentId);
+          
+          // Clear selection if we just deleted the selected one
+          if (selectedAssignmentId === assignmentId) {
+              setSelectedAssignmentId(null);
+          }
+        }
+          
+          console.log('[AssessmentTab.tsx] Deleted quiz successfully', assignmentId);
+      } catch (err: any) {
+          console.error('[AssessmentTab.tsx] Delete failed', err);
+          alert('Unable to delete. You must be the Document Owner to perform this action.');
+      }
+  };
 
 
   /**
@@ -461,6 +503,28 @@ useEffect(() => {                                      // (update - 1103)
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     {renderMaxAttemptsChip(q.attemptLimit)}
                     {statusChip(q.status)}
+                    {/* DELETE BUTTON - Educator Only (update - 1111) */}
+                    {isEducator && (
+                        <button 
+                            className="btn-icon-danger"
+                            onClick={(e) => handleDeleteQuiz(e, q.id, q.title)}
+                            title="Delete Assignment"
+                            style={{ 
+                                background: 'transparent', 
+                                border: 'none', 
+                                cursor: 'pointer', 
+                                padding: 4, 
+                                display: 'flex', 
+                                alignItems: 'center',
+                                color: '#9ca3af',
+                                transition: 'color 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    )}
                   </div>
                 </div>
                 <div
