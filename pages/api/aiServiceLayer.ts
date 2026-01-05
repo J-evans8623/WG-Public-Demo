@@ -211,7 +211,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // [C] Normalize/cap questionCount (shared generator, caps for Scholars)
       const requestedCountRaw = Number(body.questionCount);
       const requestedCount = Number.isFinite(requestedCountRaw) && requestedCountRaw > 0 ? Math.floor(requestedCountRaw) : 10;
-      const normalizedQuestionCount = Math.max(1, Math.min(requestedCount, 10));
+      const normalizedQuestionCount = Math.max(1, Math.min(requestedCount, 25));
 
       (req.body as any).questionCount = normalizedQuestionCount;
 

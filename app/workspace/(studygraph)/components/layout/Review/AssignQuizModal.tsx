@@ -5,7 +5,7 @@
  *   (update - 6, 14, 16, 20, 26, 27–44)
  *   Role-gated, production-ready quiz authoring modal that lets Educators select a lesson (mapId)
  *   within a document (docId), configure assignment metadata (title, availability window, attempts),
- *   pick a quiz type, and specify the number of questions (hard-capped at 10). On submit, the modal
+ *   pick a quiz type, and specify the number of questions (hard-capped at 25). On submit, the modal
  *   performs the complete back-end flow end-to-end:
  *     1) Calls the shared quiz generator with (docId, lessonId, quizType, questionCount), which
  *        uses the concept-map extraction to build `exportData` server-side. (O(1) locally.)
@@ -215,7 +215,7 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
   const datesFilled = Boolean(startDateObj && endDateObj);
   const datesValid = Boolean(datesFilled && startDateObj! < endDateObj!);
   const attemptsValid = Number.isFinite(attempts) && attempts >= 1;
-  const questionsValid = Number.isFinite(numQuestions) && numQuestions >= 1 && numQuestions <= 10;
+  const questionsValid = Number.isFinite(numQuestions) && numQuestions >= 1 && numQuestions <= 25;
   const titleValid = quizTitle.trim().length > 0;
   const canCreate = Boolean(isEducator && chosenLesson && titleValid && quizType && datesValid && attemptsValid && questionsValid && !submitting);
 
@@ -612,14 +612,14 @@ function handleFix() {
                     type="number"
                     className="quiz-questions-input"
                     min={1}
-                    max={10}
+                    max={25}
                     step={1}
                     value={numQuestions}
                     onChange={(e) =>
-                      setNumQuestions(Math.min(10, Math.max(1, Number(e.target.value) || 1)))
+                      setNumQuestions(Math.min(25, Math.max(1, Number(e.target.value) || 1)))
                     }
                   />
-                  <div className="quiz-questions-label">Total number of questions (max 10)</div>
+                  <div className="quiz-questions-label">Total number of questions (max 25)</div>
                 </div>
               </div>
 

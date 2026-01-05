@@ -85,6 +85,7 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
   // Local state management
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
   const [selectedQuizType, setSelectedQuizType] = useState<string>('');
+  const [questionCount, setQuestionCount] = useState<number>(5);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +97,7 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
     if (isOpen) {
       setSelectedTopicIds(preselectedTopicIds);
       setSelectedQuizType('');
+      setQuestionCount(5);
       setError(null);
       setIsLoading(false);
     }
@@ -191,7 +193,7 @@ const handleGenerateQuiz = async () => { // update - 2
       lessonId: mapId,                 // required server-side context key
       topicIds: usingPdf ? [] : selectedTopicIds,
       exportData: exportDataText,      // single source of context
-      questionCount: 5,
+      questionCount: questionCount,
     } 
 
     // Step 4: Call the centralized API
@@ -247,7 +249,7 @@ const handleGenerateQuiz = async () => { // update - 2
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center ">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black opacity-50"
@@ -255,7 +257,7 @@ const handleGenerateQuiz = async () => { // update - 2
       />
 
       {/* Modal */}
-      <div className="relative bg-white w-[500px] max-w-full rounded shadow-lg p-6 z-10 max-h-[85vh] overflow-y-auto">
+      <div className="relative bg-white w-[500px] max-w-full rounded shadow-lg p-6 z-10 max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-800">Generate Quiz</h2>
@@ -297,32 +299,23 @@ const handleGenerateQuiz = async () => { // update - 2
           )}
         </div>
 
-        {/* Quiz type radios */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Quiz type:
+        {/* Question Count Input - Row Layout */}
+        <div className="mb-4 flex items-center justify-between">
+          <label className="text-sm font-medium text-gray-700">
+            Number of Questions (5 - 25):
           </label>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            {['multipleChoice','matching','FIB','true-false'].map(type => (
-              <label key={type} className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  name="quizType"
-                  value={type}
-                  checked={selectedQuizType === type}
-                  onChange={handleQuizTypeChange}
-                  disabled={isLoading}
-                />
-                <span>
-                  {type === 'multipleChoice' ? 'Multiple Choice' :
-                   type === 'matching'        ? 'Matching' :
-                   type === 'FIB'             ? 'Fill in the Blank' :
-                                               'True/False'}
-                </span>
-              </label>
-            ))}
-          </div>
+          <input
+            type="number"
+            min={5}
+            max={25}
+            value={questionCount}
+            onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+            disabled={isLoading}
+            className="w-20 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-center"
+          />
         </div>
+
+
 
         {/* Error */}
         {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
