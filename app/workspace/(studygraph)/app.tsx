@@ -129,7 +129,7 @@ const AppLayoutContent: React.FC = () => {
   const { clearHistory } = useUndoRedo();
   const { clearSelection } = useNodeSelection();
   const { setDefaultMap, activeConceptMapId } = useLessonModule();
-  const { resetPdfState, setActiveView, isPanelManuallyOpen, isPanelExpanded, togglePanel, setPanelExpanded } =
+  const { resetPdfState, setActiveView, isPanelManuallyOpen, isPanelExpanded, togglePanel, setPanelExpanded, requestLessonplay } =
     useViewSwitch();
 
   const { showModal, hideModal } = useGlobalModal();
@@ -154,7 +154,7 @@ const AppLayoutContent: React.FC = () => {
     if (!doc || hasHandledLandingRef.current) return;
 
     hasHandledLandingRef.current = true;
-    console.log('app.tsx 7001 › landing with shared doc id', { doc });
+    //console.log('app.tsx 7001 › landing with shared doc id', { doc });
 
     // (1) Clear transient UI state for a clean open
     clearHistory();
@@ -175,8 +175,11 @@ const AppLayoutContent: React.FC = () => {
     requestSelectDocument(doc);
 
     // (4) Clean URL
-    router.replace('/workspace');
-  }, [searchParams, clearHistory, clearSelection, resetPdfState, requestSelectDocument, router, showModal]); // update - 5
+    //router.replace('/workspace');
+
+    // (5) request lesson play
+    requestLessonplay()
+  }, [searchParams, clearHistory, clearSelection, resetPdfState, requestSelectDocument, router, showModal, requestLessonplay]); // update - 5
 
   // update - 6: picker-driven select handler — intent-only
   const handleFileSelect = async (arg: PickerArg) => {

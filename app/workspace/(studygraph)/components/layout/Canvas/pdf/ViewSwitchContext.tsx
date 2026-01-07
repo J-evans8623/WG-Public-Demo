@@ -27,6 +27,7 @@ import React, {
 } from 'react';
 
 export type ViewType = 'conceptMap' | 'pdf';
+export type LandingEffect = "idle" | "playLesson";
 
 interface ViewSwitchContextProps {
   // Primary view control
@@ -42,6 +43,9 @@ interface ViewSwitchContextProps {
   togglePanel: () => void;
   setPanelExpanded: (expanded: boolean) => void;
   setPanelManuallyOpen: (open: boolean) => void;
+  requestLandingEffect: LandingEffect
+  requestLessonplay: () => void;
+  completeLandingEffect : () => void;
 }
 
 const ViewSwitchContext = createContext<ViewSwitchContextProps | undefined>(undefined);
@@ -57,6 +61,21 @@ export const ViewSwitchProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // -------- View state --------
   const [activeView, setActiveView] = useState<ViewType>('conceptMap');
   const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null);
+  const [requestLandingEffect, setRequestLandingEffect] = useState<LandingEffect>('idle');
+
+
+  // Trigger a specific effect upon landing on the canvasv view page (example Optimizes "time to value" for onboarding by opening lesson when visiting a shared notebook)
+  // starting off with one value, but might need to use an array if we need to queue multiple events
+  const requestLessonplay = useCallback(()=>{
+    setRequestLandingEffect('playLesson');
+  }, [])
+
+
+  // call after triggering desire behavior to reset back to idle
+  const completeLandingEffect = useCallback(()=>
+    {
+      setRequestLandingEffect('idle');
+    }, [])
 
   // -------- Navigation panel UI --------
   const [isPanelManuallyOpen, setIsPanelManuallyOpen] = useState(false);
@@ -96,6 +115,9 @@ export const ViewSwitchProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         togglePanel,
         setPanelExpanded,
         setPanelManuallyOpen,
+        requestLandingEffect,
+        requestLessonplay,
+        completeLandingEffect,
       }}
     >
       {children}

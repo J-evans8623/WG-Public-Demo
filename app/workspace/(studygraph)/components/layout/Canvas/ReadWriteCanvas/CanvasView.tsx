@@ -82,7 +82,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
   /* ───────────────────────────── Context hooks ──────────────────────────── */
   const { dispatch: zoomDispatch, zoomLevel } = useZoomContext();
   const { activeConceptMapId, getLessonModule, updateConceptMapTitle, generatingLessonStatus, generatedLessons, setGeneratingLessonStatus, setActiveConceptMapId, clearGeneratedLesson , setDefaultMap} = useLessonModule();
-  const { activeView, selectedPdfUrl } = useViewSwitch();
+  const { activeView, selectedPdfUrl, requestLandingEffect, completeLandingEffect } = useViewSwitch();
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
   const { openCustom } = useSlideShow();
   const preorder = usePreorderTraversal();
@@ -167,7 +167,10 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
 
   /* ────────────────────── Slideshow & flashcards ───────────────────────── */
-  const handleViewAllSlides = () => openCustom(UnitOrderSlides, "start");
+  const handleViewAllSlides = useCallback(() => {
+    openCustom(UnitOrderSlides, "start");
+  }, [UnitOrderSlides, openCustom]);
+
   const handleReviewUnit = () => {
     // Show cue cards and quizzes only
     const assessmentSlides = UnitOrderSlides.filter(card => card.type !== 'note');
@@ -230,6 +233,26 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
     }
 
   },[clearGeneratedLesson, generatedLessons, generatingLessonStatus, setActiveConceptMapId, setGeneratingLessonStatus])
+
+
+  // UPDATE 2: Robust Landing Effect
+  // We guard against UnitOrderSlides being empty. This effect will run on mount,
+  // but do nothing until the data (UnitOrderSlides) is actually populated.
+  
+ useEffect(() => {
+    if (requestLandingEffect === "playLesson") {
+      // Only proceed if we actually have slides to show. 
+      // This solves the race condition where the view loads before the lesson data.
+      if (UnitOrderSlides.length > 0) {
+        console.log('[CanvasView.tsx] Executing Landing Effect: Starting Lesson');
+        handleViewAllSlides();
+        completeLandingEffect();
+      } else {
+        console.log('[CanvasView.tsx] Landing Effect Pending: Waiting for slides to populate...');
+      }
+    }
+  }, [completeLandingEffect, requestLandingEffect, UnitOrderSlides, handleViewAllSlides]);
+
 
 
   return (

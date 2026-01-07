@@ -35,7 +35,7 @@ import { computeUnseen, isDirty } from '../../utils/notifications/NotificationUt
 import { LOCAL_ORIGIN } from '../../Definitions/Definitions';
 import { useForumCollaboration, ForumConnectionPhase } from './useForumCollaboration';
 import { supersedingCall } from '@/app/src/net/SupersedingCaller';
-import { useYDoc } from '@/app/Library/Context/YDocContext'; // update - 200
+import { useYDoc } from '@/app/Library/Context/YDocContext'; 
 
 ///////////////////////
 // Type Definitions //
@@ -57,6 +57,44 @@ export interface Post extends Comment {
   id: string;
   replies: Comment[];
 }
+
+
+
+/**
+ * update - 2
+ * Internal CRDT field keys for the new nested schema. We keep these as constants to avoid
+ * drift and to make migration/materialization deterministic and easy to audit.
+ */
+const CRDT_KEYS = {
+  replies: 'replies',
+  id: 'id',
+  authorUID: 'authorUID',
+  ts: 'ts',
+  lessonTitle: 'lessonTitle',
+  lessonTitleId: 'lessonTitleId',
+  subtopicTitle: 'subtopicTitle',
+  postTitle: 'postTitle',
+  body: 'body',
+  resourceId: 'resourceId',
+} as const;
+
+/**
+ * update - 3
+ * Minimal runtime type guard for Y.Map. We avoid importing internal Yjs classes and instead
+ * check against the public API shape.
+ */
+function isYMap(val: unknown): val is Y.Map<any> {
+  return !!val && typeof val === 'object' && typeof (val as any).get === 'function' && typeof (val as any).set === 'function';
+}
+
+/**
+ * update - 4
+ * Minimal runtime type guard for Y.Array.
+ */
+function isYArray(val: unknown): val is Y.Array<any> {
+  return !!val && typeof val === 'object' && typeof (val as any).toArray === 'function' && typeof (val as any).push === 'function';
+}
+
 
 //////////////////////////////
 // Context Value Interface //
@@ -134,7 +172,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
   // postsRoot is resolved from the forumDoc SSoT
   const postsRoot = useMemo(() => {
     if (!forumDoc) return null;
-    return forumDoc.getMap<Post>('posts');
+    return forumDoc.getMap<Y.Map<any>>('posts');
   }, [forumDoc]);
 
   const [posts, setPosts] = useState<Map<string, Post>>(new Map());
@@ -202,6 +240,156 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }, [forumDoc]);
 
+
+
+  /**
+   * @function _getOrCreateRepliesArray
+   * @description
+   *   Ensures a post map contains a Y.Array at key "replies". This is critical for CRDT-correct
+   *   reply creation: replies must be appended via yReplies.push([...]) rather than rewriting a
+   *   whole Post object. If a legacy or partially-created post is missing the array, we create
+   *   it within the caller's transaction. Returns a stable Y.Array reference for subsequent
+   *   operations. Time complexity is O(1), with no iteration.
+   */
+  const _getOrCreateRepliesArray = useCallback((yPost: Y.Map<any>): Y.Array<Y.Map<any>> => {
+    const existing = yPost.get(CRDT_KEYS.replies);
+    if (isYArray(existing)) return existing as Y.Array<Y.Map<any>>;
+
+    // update - 7: create replies array when missing
+    const next = new Y.Array<Y.Map<any>>(); // update - 7
+    yPost.set(CRDT_KEYS.replies, next); // update - 7
+    return next;
+  }, []);
+
+
+
+   /**
+   * @function _materializePostsFromCrdt
+   * @description
+   *   Converts the authoritative CRDT state into plain JS Post objects for UI consumption.
+   *   We read scalar fields from each yPost map and convert the replies Y.Array into a sorted
+   *   Comment[] array (stable for rendering). This function intentionally does not mutate CRDT
+   *   state; it is a pure projection used to keep the public useComments() API unchanged.
+   *   Time complexity is O(N + R) across all posts and replies, suitable for forum-scale data.
+   */
+  const _materializePostsFromCrdt = useCallback((): Map<string, Post> => {
+    const root = postsRoot;
+    if (!root) return new Map();
+
+    const next = new Map<string, Post>();
+
+    for (const [postId, rawVal] of root.entries()) {
+      const yPost = rawVal;
+
+      // Defensive: skip corrupted entries
+      if (!isYMap(yPost)) continue;
+
+      const yRepliesRaw = yPost.get(CRDT_KEYS.replies);
+      const yReplies = isYArray(yRepliesRaw) ? (yRepliesRaw as Y.Array<Y.Map<any>>) : null;
+
+      const replies: Comment[] = yReplies
+        ? yReplies
+            .toArray()
+            .filter((r) => isYMap(r))
+            .map((r) => {
+              const id = (r as Y.Map<any>).get(CRDT_KEYS.id) as string;
+              const author = ((r as Y.Map<any>).get(CRDT_KEYS.authorUID) as string) ?? 'unknown';
+              const body = ((r as Y.Map<any>).get(CRDT_KEYS.body) as string) ?? '';
+              const ts = Number((r as Y.Map<any>).get(CRDT_KEYS.ts) ?? 0);
+              return { id, authorUID: author, body, ts };
+            })
+        : [];
+
+      // Keep reply order stable for UI (ascending by ts)
+      replies.sort((a, b) => a.ts - b.ts);
+
+      const post: Post = {
+        id: (yPost.get(CRDT_KEYS.id) as string) ?? postId,
+        authorUID: (yPost.get(CRDT_KEYS.authorUID) as string) ?? 'unknown',
+        body: (yPost.get(CRDT_KEYS.body) as string) ?? '',
+        ts: Number(yPost.get(CRDT_KEYS.ts) ?? 0),
+        lessonTitle: (yPost.get(CRDT_KEYS.lessonTitle) as string) ?? '',
+        lessonTitleId: (yPost.get(CRDT_KEYS.lessonTitleId) as string) ?? '',
+        subtopicTitle: (yPost.get(CRDT_KEYS.subtopicTitle) as string) ?? '',
+        resourceId: (yPost.get(CRDT_KEYS.resourceId) as string) ?? '',
+        postTitle: (yPost.get(CRDT_KEYS.postTitle) as string) ?? '',
+        replies,
+      };
+
+      next.set(post.id, post);
+    }
+
+    return next;
+  }, [postsRoot]);
+
+
+
+
+  /**
+   * @function _migrateLegacyPostsIfNeeded
+   * @description
+   *   One-time in-place migration that upgrades legacy persisted schema (postsRoot values stored
+   *   as plain JS Post objects) into the new CRDT-first nested schema. The migration is executed
+   *   inside a single Yjs transaction immediately after loading bytes, ensuring no data loss and
+   *   producing deterministic CRDT structures for all future edits/replies. Returns the number of
+   *   posts migrated. Time complexity is O(N + R) over posts and replies only during load.
+   */
+  const _migrateLegacyPostsIfNeeded = useCallback(
+    (doc: Y.Doc): number => {
+      const root = doc.getMap<any>('posts'); // legacy could be any shape
+      let migrated = 0;
+
+      doc.transact(() => {
+        for (const [postId, rawVal] of root.entries()) {
+          // New schema: value is a Y.Map => no migration needed.
+          if (isYMap(rawVal)) continue;
+
+          // Legacy schema: value is a plain object (expected shape: Post)
+          if (!rawVal || typeof rawVal !== 'object') continue;
+
+          const legacy = rawVal as any;
+
+          const yPost = new Y.Map<any>(); // update - 8
+          yPost.set(CRDT_KEYS.id, String(legacy.id ?? postId)); // update - 8
+          yPost.set(CRDT_KEYS.authorUID, String(legacy.authorUID ?? 'unknown')); // update - 8
+          yPost.set(CRDT_KEYS.ts, Number(legacy.ts ?? Date.now())); // update - 8
+          yPost.set(CRDT_KEYS.lessonTitle, String(legacy.lessonTitle ?? '')); // update - 8
+          yPost.set(CRDT_KEYS.lessonTitleId, String(legacy.lessonTitleId ?? '')); // update - 8
+          yPost.set(CRDT_KEYS.subtopicTitle, String(legacy.subtopicTitle ?? '')); // update - 8
+          yPost.set(CRDT_KEYS.postTitle, String(legacy.postTitle ?? '')); // update - 8
+          yPost.set(CRDT_KEYS.body, String(legacy.body ?? '')); // update - 8
+          yPost.set(CRDT_KEYS.resourceId, String(legacy.resourceId ?? '')); // update - 8
+
+          const yReplies = new Y.Array<Y.Map<any>>(); // update - 8
+          const legacyReplies = Array.isArray(legacy.replies) ? legacy.replies : [];
+          for (const lr of legacyReplies) {
+            if (!lr || typeof lr !== 'object') continue;
+            const yReply = new Y.Map<any>();
+            yReply.set(CRDT_KEYS.id, String(lr.id ?? uuidv4()));
+            yReply.set(CRDT_KEYS.authorUID, String(lr.authorUID ?? 'unknown'));
+            yReply.set(CRDT_KEYS.body, String(lr.body ?? ''));
+            yReply.set(CRDT_KEYS.ts, Number(lr.ts ?? Date.now()));
+            yReplies.push([yReply]);
+          }
+          yPost.set(CRDT_KEYS.replies, yReplies); // update - 8
+
+          // Replace legacy plain object with yPost map under same postId key.
+          root.set(postId, yPost); // update - 8
+          migrated++;
+        }
+      }, LOCAL_ORIGIN);
+
+      if (migrated > 0) {
+        console.warn('[FORUM_CRDT] migrated posts from legacy schema', { migrated }); // update - 9 (proof hook)
+      }
+
+      return migrated;
+    },
+    [],
+  );
+
+
+
   /**
    * @function _observePostsIntoState
    * @description
@@ -211,7 +399,10 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
    */
   const _observePostsIntoState = useCallback(() => {
     if (!postsRoot) return;
-    const load = () => setPosts(new Map(postsRoot.entries()));
+    const load = () => {
+      const next = _materializePostsFromCrdt(); // update - 10
+      setPosts(next); // update - 10
+    };
     load();
     const onUpdate = (_: Y.YEvent<any>[]) => load();
     postsRoot.observeDeep(onUpdate);
@@ -220,7 +411,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       postsRoot.unobserveDeep(onUpdate);
       // console.log('CommentsContext.tsx [7708] › posts observer detached');
     };
-  }, [postsRoot]);
+  }, [_materializePostsFromCrdt, postsRoot]);
 
   useEffect(() => {
     const detach = _observePostsIntoState();
@@ -241,7 +432,7 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const shutdownForum = useCallback((): void => {
     try {
 
-      disconnectRef.current(); // update - 202: use stable ref indirection
+      disconnectRef.current(); 
       setForumDocReady(false);
       setForumDoc(null);
       setPosts(new Map());
@@ -312,8 +503,8 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const disconnectRef = useRef(disconnect);
   const loadRef = useRef(_loadForumFromStorage);
   const shutdownRef = useRef(shutdownForum);
-  // update - 203: init ref to avoid depending on initializeForum in drivers
-  const initializeRef = useRef<(id: string) => Promise<void>>(() => Promise.resolve()); // update - 203
+   // update - 12: initializeRef is assigned AFTER initializeForum declaration (fixes TDZ risk)
+  const initializeRef = useRef<(id: string) => Promise<void>>(async () => Promise.resolve());
 
   useEffect(() => {
     connectRef.current = connect;
@@ -353,6 +544,11 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       // Load forum bytes to a fresh Y.Doc via stable ref
       const next = await loadRef.current(docId);
 
+
+      
+        // update - 13: migrate legacy schema in-place before UI reads materialized state
+        _migrateLegacyPostsIfNeeded(next); 
+
       // Commit SSOT state
       setForumDoc(next);
       currentDocIdRef.current = docId;
@@ -366,7 +562,11 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
       console.error('CommentsContext.tsx [7793] › init:error', { docId, error: e?.message });
       setForumStatus((s) => ({ ...s, lastError: e?.message ?? 'init error' }));
     }
-  }, [forumDoc]); // stable identity
+  }, [_migrateLegacyPostsIfNeeded, forumDoc]); // stable identity
+
+  useEffect(() => {
+    initializeRef.current = initializeForum; // update - 14
+  }, [initializeForum]);
 
   // ───────────────────────────────────────────────────────────────────────────────
   // CRUD — unchanged surface; now operates on forumDoc/postsRoot
@@ -402,34 +602,66 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
         postTitle,
         replies: [],
       };
-      forumDoc.transact(() => {
-        postsRoot.set(id, newPost);
+forumDoc.transact(() => {
+        // update - 15: create nested CRDT yPost with field-level keys
+        const yPost = new Y.Map<any>(); // update - 15
+        yPost.set(CRDT_KEYS.id, id); // update - 15
+        yPost.set(CRDT_KEYS.authorUID, authorUID); // update - 15
+        yPost.set(CRDT_KEYS.body, body); // update - 15
+        yPost.set(CRDT_KEYS.ts, Date.now()); // update - 15
+        yPost.set(CRDT_KEYS.lessonTitle, lessonTitle); // update - 15
+        yPost.set(CRDT_KEYS.lessonTitleId, lessonTitleId); // update - 15
+        yPost.set(CRDT_KEYS.subtopicTitle, subtopicTitle); // update - 15
+        yPost.set(CRDT_KEYS.resourceId, resourceId); // update - 15
+        yPost.set(CRDT_KEYS.postTitle, postTitle); // update - 15
+
+        const yReplies = new Y.Array<Y.Map<any>>(); // update - 15
+        yPost.set(CRDT_KEYS.replies, yReplies); // update - 15
+
+        postsRoot.set(id, yPost); // update - 15
+
+        console.log('[FORUM_CRDT] addPost uses postsRoot.set(id, yPostMap)', { id, resourceId }); // update - 16 (proof hook)
         saveForumNow();
-        // console.log('CommentsContext.tsx [7723] › addPost', { id, resourceId });
       }, LOCAL_ORIGIN);
     },
     [forumDoc, postsRoot, authorUID, saveForumNow],
   );
 
-  const addComment = useCallback(
+   const addComment = useCallback(
     (postId: string, body: string) => {
       if (!forumDoc || !postsRoot) return;
-      const post = postsRoot.get(postId);
-      if (!post) return;
-      const newComment: Comment = {
-        id: uuidv4(),
-        authorUID,
-        body,
-        ts: Date.now(),
-      };
-      const updated: Post = { ...post, replies: [...(post.replies ?? []), newComment] };
+
+      const yPost = postsRoot.get(postId);
+      if (!yPost || !isYMap(yPost)) return;
+
+      const replyId = uuidv4();
+
       forumDoc.transact(() => {
-        postsRoot.set(postId, updated);
+        const yReplies = _getOrCreateRepliesArray(yPost); // update - 17
+
+        const prevLen = yReplies.length; // update - 17
+        const yReply = new Y.Map<any>(); // update - 17
+        yReply.set(CRDT_KEYS.id, replyId); // update - 17
+        yReply.set(CRDT_KEYS.authorUID, authorUID); // update - 17
+        yReply.set(CRDT_KEYS.body, body); // update - 17
+        yReply.set(CRDT_KEYS.ts, Date.now()); // update - 17
+
+        // update - 18: CRDT-correct append (no whole-post rewrite)
+        yReplies.push([yReply]); // update - 18
+
+        const nextLen = yReplies.length; // update - 18
+
+        console.warn('[FORUM_CRDT] addComment uses yReplies.push (no whole-post overwrite)', {
+          postId,
+          replyId,
+          prevLen,
+          nextLen,
+        }); // update - 19 (proof hook)
+
         saveForumNow();
-        // console.log('CommentsContext.tsx [7724] › addComment', { postId, commentId: newComment.id });
       }, LOCAL_ORIGIN);
     },
-    [forumDoc, postsRoot, authorUID, saveForumNow],
+    [forumDoc, postsRoot, authorUID, saveForumNow, _getOrCreateRepliesArray],
   );
 
   const deletePost = useCallback(
@@ -494,28 +726,30 @@ export const CommentsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const editPost = useCallback(
     (postId: string, newTitle: string, newBody: string) => {
       if (!forumDoc || !postsRoot) return;
-      
-      const post = postsRoot.get(postId);
-      if (!post) return;
 
-      // Create updated object maintaining other props
-      const updatedPost: Post = {
-        ...post,
-        postTitle: newTitle,
-        body: newBody,
-        // Ensure timestamp doesn't change if you want to keep original sort, 
-        // or update it if you want it to bump up. 
-        // Usually, edits don't change 'ts' but might add an 'editedAt' field.
-        // For now, we just update content.
-      };
+      const yPost = postsRoot.get(postId);
+      if (!yPost || !isYMap(yPost)) return;
 
       forumDoc.transact(() => {
-        postsRoot.set(postId, updatedPost);
-        saveForumNow();
+        // update - 20: field-level sets for CRDT-correct merging
+        const beforeTitle = yPost.get(CRDT_KEYS.postTitle); // update - 20
+        const beforeBody = yPost.get(CRDT_KEYS.body); // update - 20
 
+        yPost.set(CRDT_KEYS.postTitle, newTitle); // update - 20
+        yPost.set(CRDT_KEYS.body, newBody); // update - 20
+
+        console.warn('[FORUM_CRDT] editPost uses yPost.set(field) (no whole-post overwrite)', {
+          postId,
+          fields: [
+            { key: CRDT_KEYS.postTitle, before: beforeTitle, after: newTitle },
+            { key: CRDT_KEYS.body, before: beforeBody, after: newBody },
+          ],
+        }); // update - 21 (proof hook)
+
+        saveForumNow();
       }, LOCAL_ORIGIN);
     },
-    [forumDoc, postsRoot, saveForumNow]
+    [forumDoc, postsRoot, saveForumNow],
   );
 
   // ───────────────────────────────────────────────────────────────────────────────
