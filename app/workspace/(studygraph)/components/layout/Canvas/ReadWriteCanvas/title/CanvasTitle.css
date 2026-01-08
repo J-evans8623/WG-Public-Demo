@@ -1,0 +1,99 @@
+/* CanvasTitle.css */
+
+/* 1. Positioning Container (The only new logic) */
+.canvas-title-overlay {
+  position: absolute;
+  top: 20px; /* Space below the header inside the map container */
+  left: 20px;
+  z-index: 30; /* Z-index to sit above map but below modals */
+  pointer-events: none; /* Let clicks pass through the empty space around the title */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* 2. Title Wrapper - EXACT copy of original .canvas-header__titlewrap */
+.canvas-title__wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--surface, #FFFFFF);
+  border-radius: var(--radius-8, 8px);
+  min-width: 0;
+  max-width: 40ch;
+  color: var(--ink, #2C3E50);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  pointer-events: auto; /* Re-enable clicks for this specific element */
+  border: 1px solid transparent; /* Maintain box-model stability */
+}
+
+/* Hover state - EXACT copy */
+.canvas-title__wrapper:hover {
+  background: var(--bg-app, #F7F3EE);
+  border-color: var(--edge-2, #D4C4B0);
+}
+
+/* Text style - EXACT copy */
+.canvas-title__text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: inherit; /* Inherit global font like original */
+  font-size: inherit;   /* Inherit size like original */
+  font-weight: inherit;
+  color: inherit;
+}
+
+/* Lock Icon - EXACT copy */
+.canvas-title__lock {
+  color: var(--muted, #6C757D);
+}
+
+/* Saving Indicator - EXACT copy */
+.canvas-title__saving {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--brand-blue, #6C8EBF);
+  margin-left: 0.5rem;
+}
+
+/* 3. Edit Box - EXACT copy of .canvas-header__editbox */
+/* We place this absolute relative to the overlay container */
+.canvas-title__editpop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 60;
+  width: 320px;
+  pointer-events: auto;
+}
+
+.canvas-title__editbox {
+  width: 100%;
+  min-height: 80px; 
+  border: 2px solid var(--edge, #E8E4DE);
+  border-radius: var(--radius-8, 8px);
+  padding: 12px 16px;
+  background: var(--surface, #FFFFFF);
+  resize: vertical;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--ink, #2C3E50);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.canvas-title__editbox:focus {
+  outline: none;
+  border-color: var(--brand-blue, #6C8EBF);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15), 0 0 0 3px rgba(108, 142, 191, 0.2);
+}
+
+.canvas-title__editbox:hover:not(:focus) {
+  border-color: var(--edge-2, #D4C4B0);
+}

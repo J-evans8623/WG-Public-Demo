@@ -1,4 +1,4 @@
-/**
+/** bloom-maps\app\workspace\(studygraph)\components\layout\Canvas\header\CanvasHeader.css
  * @file CanvasHeader.css
  * @description
  * Dedicated, semantic stylesheet for the Canvas header. It replaces Tailwind color utilities and any ad-hoc
@@ -9,9 +9,10 @@
  * Tailwind’s layout utilities (flex/gap) remain in use where appropriate.
  *
  * Responsibilities:
- *   1) Style the .canvas-header container and bottom border via tokens.
- *   2) Style the title wrapper/editor affordances and lock/saving indicators.
- *   3) Keep interactions accessible (focus-visible) with tokenized rings.
+ * 1) Style the .canvas-header container and bottom border via tokens.
+ * 2) Style the title wrapper/editor affordances and lock/saving indicators.
+ * 3) Keep interactions accessible (focus-visible) with tokenized rings.
+ * 4) Manage responsive visibility of navigation and action buttons (Mobile Optimization).
  */
 
 .canvas-header {
@@ -268,6 +269,13 @@
   gap: 0.5rem;
 }
 
+/* Enforce shared dark text color */
+.btn-text-color {
+  color: #2C3E50 !important;
+}
+
+
+
 /* update - 2: motion-friendly, respects user preference */
 @media (prefers-reduced-motion: no-preference) {
   .btn-badge {
@@ -298,13 +306,35 @@
     display: block;
   }
 
+  /* update - 4: Fix Problem 2: White gap / Overflow 
+     Ensure the header uses border-box and doesn't exceed viewport width */
+  .canvas-header {
+    width: 100vw;
+    max-width: 100%;
+    padding: 0.5rem;
+    box-sizing: border-box;
+    gap: 0.5rem;
+  }
+
+  /* update - 5: Fix Problem 3: Remove Lessons/Uploads dropdowns 
+     New utility class to hide nav elements on mobile */
+  .desktop-only-nav {
+    display: none !important;
+  }
+
+  /* update - 6: Fix Problem 4: Hide specific buttons to move to overflow 
+     New utility class to hide secondary buttons (Upgrade, Review) on mobile */
+  .mobile-hidden-btn {
+    display: none !important;
+  }
+
   /* 2. TITLE: Aggressively truncate title to make room for the big buttons */
   .canvas-header__titlewrap {
     max-width: 80px; /* Very short title on mobile */
   }
 
   /* 3. BUTTONS: Mandate Text Visibility 
-     We override any default responsive shrinking here */
+     We override any default responsive shrinking here to Prioritize Time to Value */
   .btn-force-text {
     padding: 0.5rem 0.75rem !important;
     gap: 0.35rem !important;
@@ -325,13 +355,22 @@
   }
   
   /* 5. Hide the nav dropdown labels (Lessons/Uploads) to save space */
+  /* Note: The parent container will often be hidden by desktop-only-nav, but this persists for legacy fallback */
   .canvas-header .ch-nav__trigger span {
     display: none;
   }
   .canvas-header .ch-nav__trigger {
     padding: 0.5rem;
   }
+
+  /* update - 7: Adjust Discuss/Planner spacing to save horizontal space */
+  .canvas-header .btn--has-badge,
+  .canvas-header .btn-text-color {
+     padding: 0.4rem; 
+  }
 }
+
+
 
 /* Very Small Screens (iPhone SE etc) protection */
 @media (max-width: 380px) {

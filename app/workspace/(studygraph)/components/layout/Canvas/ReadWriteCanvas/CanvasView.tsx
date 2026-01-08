@@ -55,7 +55,7 @@ import CalendarModal from '../../Calendar/CalendarModal';
 import { PickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
 import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
 import { ResourceQuickActionsProvider} from '@/app/workspace/(studygraph)/components/layout/Canvas/ReadWriteCanvas/ResourceQuickActionsContext';
-
+import CanvasTitle from './title/CanvasTitle'; // Import the new component
 
 type PdfViewerRefType = {
   handlePrev: () => void;
@@ -139,7 +139,14 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
     
     console.log('[CanvasView.tsx][3005] › Opening BookmarkModal');
     setBookmarkModalOpen(true);
-  }, []);                                                
+  }, []);            
+  
+  
+  // Function to handle upgrade click
+  const handleUpgrade = useCallback(() => {
+     console.log('[CanvasView.tsx] Upgrade clicked - Redirecting to billing...');
+     window.location.href = '/billing/offer'; // Uncomment when route exists
+  }, []);
 
   /* ─── Interleaved Review Handler ───────────────────────────────────────── */
   const handleInterleavedReview = useCallback(() => {
@@ -271,9 +278,9 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
         onBookmark={openBookmarksGuarded}                                    
         onShare={() => setShareOpen(true)}
         onOpenCalendar={() => {
-          console.log('[CanvasView.tsx][3040] › Opening calendar modal');
           setCalendarModalOpen(true);
         }}
+        onUpgrade={handleUpgrade}
       />
 
        <ResourceQuickActionsProvider>
@@ -283,6 +290,13 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
         {/* Column 1: Viewport wrapper (overflow hidden) + BottomToolbar */}
         <div className="map-column flex flex-col relative">
           <div className="map-cell flex-1 relative overflow-hidden">
+
+
+            {/* NEW: Canvas Title Overlay - Placed here to float over map */}
+            <CanvasTitle 
+                mode={mode} 
+                isSaving={autosaveStatus === 'saving'} 
+            />
             {activeView === 'conceptMap' && (
               <div className={colorTheme}>
                 <MapRenderer />

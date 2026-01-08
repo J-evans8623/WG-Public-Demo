@@ -1,3 +1,5 @@
+// CanvasHeader.tsx
+
 /** bloom-maps\app\studygraph\(studygraph)\components\layout\Canvas\ReadWriteCanvas\CanvasHeader.tsx
  * @file CanvasHeader.tsx
  * @description
@@ -37,6 +39,7 @@ import {
   Loader2,
   Calendar as CalendarIcon,
   MoreVertical,
+  Zap,
 } from 'lucide-react';
 
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
@@ -68,6 +71,7 @@ export interface CanvasHeaderProps {
   onBookmark: () => void;
   onShare: () => void;
   onOpenCalendar?: () => void;
+  onUpgrade?: () => void;
 }
 
 /**
@@ -81,6 +85,7 @@ export interface CanvasHeaderProps {
  */
 const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   mode,
+  // isSaving is no longer used here visually, but kept in interface for compatibility if needed elsewhere
   isSaving = false,
   onMenuToggle,
   onDiscuss,
@@ -89,6 +94,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   onBookmark,
   onShare,
   onOpenCalendar,
+  onUpgrade,
 }) => {
   /* ──────────────────────────────────────────────────────────────────────
    * 1) Context access and derived state (O(1) reads and computations)
@@ -185,6 +191,9 @@ const discussAriaLabel = React.useMemo(() => {
     <header className="canvas-header brand-ui flex items-center justify-between" data-testid="unified-canvas-header">
       {/* Left cluster: Menu + Title + Mode-aware dropdown nav */}
       <div className="flex items-center">
+        {/* ─────────────────────────────────────────────────────────────
+          LEFT CLUSTER: Menu | Lessons | Uploads | Discuss |Study Planner | Upgrade
+         ───────────────────────────────────────────────────────────── */}
         {/* 3.1 Menu toggle button */}
         <button
           onClick={handleMenuClick}
@@ -195,127 +204,90 @@ const discussAriaLabel = React.useMemo(() => {
           {renderMenuIcon()}
         </button>
 
-        {/* 3.2 Title (editable only in edit mode) */}
-        <div
-          className="canvas-header__titlewrap"
-          onClick={() => {
-            if (mode === 'edit' && !isSaving) {
-              setIsEditing(true);
-              console.log('[CanvasHeader.tsx][7105] Start inline title edit');
-            } else {
-              console.log('[CanvasHeader.tsx][7106] Title click ignored (read-only or saving)');
-            }
-          }}
-          title={isSaving ? 'Saving…' : currentTitle}
-          aria-disabled={mode !== 'edit' || isSaving || isEditing}
-        >
-          <span className="canvas-header__title">{currentTitle}</span>
-          {isPrivate && <Lock size={16} className="canvas-header__lock" />}
-          {mode === 'edit' && isSaving && (
-            <span className="canvas-header__saving" aria-live="polite">
-              <Loader2 size={14} className="ch-spin" />
-              <span className="ch-saving-text">Saving…</span>
-            </span>
-          )}
-        </div>
-
-        {/* 3.3 Inline title editor overlay (edit mode only) */}
-        {mode === 'edit' && isEditing && !isSaving && (
-          <div className="canvas-header__editpop">
-            <textarea
-              value={titleDraft}
-              onChange={(e) => setTitleDraft(e.target.value)}
-              onBlur={() => {
-                console.log('[CanvasHeader.tsx][7107] Title blur → commit');
-                commitTitleEdit();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  console.log('[CanvasHeader.tsx][7108] Title enter → commit');
-                  commitTitleEdit();
-                } else if (e.key === 'Escape') {
-                  console.log('[CanvasHeader.tsx][7109] Title edit canceled via Escape');
-                  setIsEditing(false);
-                }
-              }}
-              className="canvas-header__editbox"
-              rows={2}
-              autoFocus
-            />
-          </div>
-        )}
-
-        {/* 3.4 Lessons / Uploads navigation (mode-aware) */}
-        <nav className="ch-nav" aria-label="Header navigation">
+        {/* 3.2 Lessons / Uploads navigation (mode-aware) */}
+        {/* update - 8: Added desktop-only-nav to hide dropdowns on mobile */}
+        <nav className="ch-nav desktop-only-nav" aria-label="Header navigation">
           {/* update - 3: Converged dropdowns with single source of truth */}
           <UnifiedLessonsDropdown mode={mode} /> {/* update - 4 */}
           <UnifiedUploadsDropdown mode={mode} /> {/* update - 5 */}
         </nav>
+        <div className="flex items-center gap-2 ml-2 border-l pl-2 border-gray-200">
+             {/* 3. Discuss (Moved to Left) */}
+            <button
+                onClick={onDiscuss}
+                className="btn btn--border btn--has-badge"
+                title="Discuss"
+                aria-label={discussAriaLabel}
+            >
+                <MessageCircle size={16} /> 
+                <span className="hidden lg:inline ml-1">Discuss</span>
+                {dirtyCount > 0 && (
+                <span className="btn-badge btn-badge--amber" aria-hidden="true">
+                    {dirtyCount > 19 ? '19+' : dirtyCount}
+                </span>
+                )}
+            </button>
+
+            {/* 4. Study Planner (Text + Icon + Custom Color) */}
+            <button
+                onClick={() => {
+                    if (onOpenCalendar) onOpenCalendar();
+                }}
+                className="btn btn-text-color"
+                title="Open Study Planner"
+            >
+                <CalendarIcon size={16} />
+                <span className="font-medium">Study Planner</span>
+            </button>
+
+            {/* 5. Upgrade Button */}
+            {/* update - 9: Added mobile-hidden-btn to move Upgrade to overflow on mobile */}
+            <button
+                onClick={onUpgrade}
+                className="btn btn--upgrade btn-text-color mobile-hidden-btn"
+                title="Upgrade Subscription"
+            >
+                <Zap size={16} fill="currentColor" />
+                <span className="font-bold">Upgrade</span>
+            </button>
+        </div>
+
       </div>
 
       {/* RIGHT CLUSTER UPDATE: 
-         1. Mandatory Items (Lesson, Review, Planner) are always rendered.
-         2. Secondary Items (Discuss, Bookmark, Share) are hidden on mobile via CSS classes.
-         3. "More" Menu appears on mobile to house Secondary Items.
+          1. Mandatory Items (Lesson, Review) are always rendered.
+          2. Secondary Items ( Bookmark, Share) are hidden on mobile via CSS classes.
+          3. "More" Menu appears on mobile to house Secondary Items.
       */}
+
+      {/* ─────────────────────────────────────────────────────────────
+          RIGHT CLUSTER: Start Lesson | Review | Bookmarks | Share
+         ───────────────────────────────────────────────────────────── */}
 
       {/* Right cluster: action buttons */}
       <div className="flex items-center gap-2 right-cluster-actions">
         
-        {/* --- MANDATORY 1: Start Lesson (Primary) --- */}
-        {/* Note: CSS will ensure text remains visible on mobile */}
+        {/* Start Lesson */}
         <button
-          onClick={() => {
-            console.log('[CanvasHeader.tsx][7111] Start Lesson clicked');
-            onStartLesson();
-          }}
-          className="btn btn--primary btn-force-text" // Added custom class
+          onClick={onStartLesson}
+          className="btn btn--primary btn-force-text"
         >
           <Play size={16} /> 
           <span className="btn-label">Start Lesson</span>
         </button>
 
-        {/* --- MANDATORY 2: Review (Success) --- */}
+        {/* Start Review */}
+        {/* update - 10: Removed btn-force-text and added mobile-hidden-btn to hide on mobile */}
         <button
-          onClick={() => {
-            console.log('[CanvasHeader.tsx][7112] Start Review clicked');
-            onStartReview();
-          }}
-          className="btn btn--success btn-force-text" // Added custom class
+          onClick={onStartReview}
+          className="btn btn--success mobile-hidden-btn"
         >
           <CheckCircle2 size={16} /> 
           <span className="btn-label">Start Review</span>
         </button>
 
-        {/* --- MANDATORY 3: Calendar (Icon) --- */}
-        <button
-          onClick={() => {
-             if (onOpenCalendar) onOpenCalendar();
-          }}
-          className="btn btn--icon btn--border"
-          title="Study Planner"
-          aria-label="Study Planner"
-        >
-          <CalendarIcon size={18} />
-        </button>
-
-        {/* --- SECONDARY ACTIONS (Desktop Only) --- */}
+        {/* Secondary Actions (Desktop) */}
         <div className="desktop-only-actions flex items-center gap-2">
-           <button
-            onClick={onDiscuss}
-            className="btn btn--border btn--has-badge"
-            title="Discuss"
-            aria-label={discussAriaLabel}
-          >
-            <MessageCircle size={16} /> Discuss
-            {dirtyCount > 0 && (
-              <span className="btn-badge btn-badge--amber" aria-hidden="true">
-                {dirtyCount > 19 ? '19+' : dirtyCount}
-              </span>
-            )}
-          </button>
-
           <button
             onClick={onBookmark}
             className="btn btn--icon btn--border"
@@ -333,7 +305,7 @@ const discussAriaLabel = React.useMemo(() => {
           </button>
         </div>
 
-        {/* --- MOBILE OVERFLOW MENU (Mobile Only) --- */}
+        {/* Mobile Overflow */}
         <div className="mobile-overflow-container" ref={mobileMenuRef}>
           <button 
             className="btn btn--icon btn--border mobile-more-trigger"
@@ -344,9 +316,18 @@ const discussAriaLabel = React.useMemo(() => {
 
           {isMobileMenuOpen && (
             <div className="mobile-dropdown-menu">
-               <button onClick={() => { onDiscuss(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
-                 <MessageCircle size={16} /> Discuss ({dirtyCount})
+               {/* update - 11: Added Start Review and Upgrade to mobile menu */}
+               <button onClick={() => { onStartReview(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
+                 <CheckCircle2 size={16} /> Start Review
                </button>
+
+               <button onClick={() => { onUpgrade && onUpgrade(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
+                 <Zap size={16} /> Upgrade
+               </button>
+
+               <div className="border-t border-gray-200 my-1"></div>
+
+               {/* Mobile duplicates of hidden items */}
                <button onClick={() => { onBookmark(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
                  <Bookmark size={16} /> Bookmarks
                </button>
