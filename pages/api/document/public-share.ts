@@ -11,6 +11,9 @@
  *   direct document URLs that work seamlessly with the existing Yjs collaboration system and
  *   access control infrastructure, eliminating the need for token redemption workflows.
  * 
+ * Added 'fetchOnly' support to allow read-only retrieval of sharing artifacts
+ * without mutating access control settings.
+ * 
  * Responsibilities:
  *   - Authenticate requests and verify document ownership/editor permissions
  *   - Toggle publicView and publicEdit flags based on sharing mode
@@ -33,9 +36,10 @@ import { generateQrDataUri } from '@/app/src/share/generateQr';
 
 interface PublicShareRequest {
   docId: string;
-  mode: 'private' | 'public-view' | 'public-edit';
+  mode?: 'private' | 'public-view' | 'public-edit';
   delivery?: 'link' | 'flyer';
   editors?: string[];
+  fetchOnly?: boolean;
 }
 
 interface PublicShareResponse {
@@ -76,30 +80,53 @@ export default async function handler(
 
   try {
     // Step 3: Parse and validate request body
-    const { docId, mode, delivery = 'link', editors = [] } = req.body as PublicShareRequest;
+    const { docId, mode, delivery = 'link', editors = [], fetchOnly } = req.body as PublicShareRequest;
+
+
     
-    if (!docId || !mode) {
+    if (!docId) {
       console.log('public-share.ts 3004 › Missing required fields', { docId, mode });
-      res.status(400).json({ error: 'Missing docId or mode' });
+      res.status(400).json({ error: 'Missing docId' });
       return;
     }
 
-    if (!['private', 'public-view', 'public-edit'].includes(mode)) {
-      console.log('public-share.ts 3005 › Invalid mode', { mode });
+    if (!fetchOnly && !mode) {
+       // console.log('public-share.ts 3004b › Missing mode for write operation');
+       res.status(400).json({ error: 'Missing mode' });
+       return;
+    }
+
+    if (!fetchOnly && mode && !['private', 'public-view', 'public-edit'].includes(mode)) {
+      // console.log('public-share.ts 3005 › Invalid mode', { mode });
       res.status(400).json({ error: 'Invalid mode' });
       return;
     }
 
     // Step 4: Check user permissions
     const userRole = await resolveRole(docId, userEmail);
-    if (userRole !== 'Owner' && userRole !== 'Editor') {
-      console.log('public-share.ts 3006 › Insufficient permissions', { userEmail, userRole, docId });
-      res.status(403).json({ error: 'Insufficient permissions to modify sharing settings' });
-      return;
+      
+
+    // update - 6: Bifurcated permission check
+    if (fetchOnly) {
+        // For fetchOnly, any resolved role (Owner, Editor, Viewer) is sufficient.
+        // resolveRole returns null/undefined if no access.
+        if (!userRole) {
+            // console.log('public-share.ts 3006a › Insufficient permissions for fetch', { userEmail, docId });
+            res.status(403).json({ error: 'Insufficient permissions to view sharing settings' });
+            return;
+        }
+    } else {
+        // For write operations, enforce strict Owner/Editor check
+        if (userRole !== 'Owner' && userRole !== 'Editor') {
+            // console.log('public-share.ts 3006b › Insufficient permissions for write', { userEmail, userRole, docId });
+            res.status(403).json({ error: 'Insufficient permissions to modify sharing settings' });
+            return;
+        }
     }
 
-    console.log('public-share.ts 3007 › User authorized', { userEmail, userRole, docId, mode });
 
+    console.log('public-share.ts 3007 › User authorized', { userEmail, userRole, docId, mode });
+    if (!fetchOnly && mode) {
     // Step 5: Apply sharing mode
     switch (mode) {
       case 'private':
@@ -136,6 +163,7 @@ export default async function handler(
         }
       }
     }
+  }
 
     // Step 7: Generate document URL
     const baseUrl = process.env.FRONTEND_BASE_URL || 
@@ -167,7 +195,7 @@ export default async function handler(
     const response: PublicShareResponse = {
       success: true,
       url: documentUrl,
-      mode,
+      mode: mode || 'current',
       qrDataUri,
       flyerUrl,
       editorsCount: editors.length

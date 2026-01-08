@@ -37,7 +37,7 @@ export interface PublicShareResult {
   url: string;
   qrDataUri?: string;
   flyerUrl?: string;
-  mode: ShareMode;
+  mode: ShareMode | "current";
   editorsCount?: number;
 }
 
@@ -45,6 +45,7 @@ interface UsePublicShareReturn {
   isLoading: boolean;
   error: string | null;
   configureSharing: (payload: PublicSharePayload) => Promise<PublicShareResult>;
+  fetchShareLink: (docId: string) => Promise<PublicShareResult>;
   downloadFlyer: (flyerUrl: string) => void;
   clearError: () => void;
 }
@@ -148,6 +149,55 @@ export function usePublicShare(): UsePublicShareReturn {
     []
   );
 
+
+  /**
+   * update - 3: New method implementation
+   * Fetches the current share link and QR code for a document without modifying its
+   * access control settings. This allows non-owners (Invitees) to share the document.
+   */
+  const fetchShareLink = useCallback(async (docId: string): Promise<PublicShareResult> => {
+    console.log('usePublicShare.ts 5001 › Fetch share link started', { docId });
+    
+    // Step 1: State setup
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      // Step 2: Validate input
+      if (!docId) throw new Error('Document ID is required');
+
+      // Step 3: Call API with fetchOnly flag
+      const response = await fetch('/api/document/public-share', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          docId, 
+          fetchOnly: true // Explicitly request read-only access
+        }),
+      });
+
+      // Step 4: Error handling
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: response.statusText }));
+        throw new Error(errorData.error || 'Failed to fetch share link');
+      }
+      
+      // Step 5: Return result
+      const result = await response.json() as PublicShareResult;
+      console.log('usePublicShare.ts 5002 › Share link fetched successfully', { url: result.url });
+      return result;
+
+    } catch (err: any) {
+      const msg = err.message || 'Failed to fetch link';
+      console.error('usePublicShare.ts 5003 › Fetch share link failed', err);
+      setError(msg);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   /**
    * Downloads a flyer PDF by opening it in a new browser tab with proper security attributes.
    * Used when users request print-ready promotional materials with embedded QR codes.
@@ -177,6 +227,7 @@ export function usePublicShare(): UsePublicShareReturn {
     error,
     configureSharing,
     downloadFlyer,
+    fetchShareLink,
     clearError,
   };
 }

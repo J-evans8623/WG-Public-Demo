@@ -12,19 +12,34 @@ import './ShareModal.css';
 import { X, Copy, Check, Settings, Printer, ArrowLeft } from 'lucide-react';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { usePublicShare, ShareMode, PublicShareResult } from '../../hooks/sharing/usePublicShare';
+import { useApiContext, useFileList } from '@/app/src/context/ApiContext';
 
 interface ShareModalProps { isOpen: boolean; onClose: () => void; }
 function isValidEmail(email: string) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()); }
 
 export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
   const { docFileID } = useYDoc();
-  const { isLoading, error, configureSharing, clearError } = usePublicShare();
+  const { isLoading, error, configureSharing, clearError, fetchShareLink } = usePublicShare();
 
   const [shareMode, setShareMode] = useState<ShareMode>('public-view');
   const [editors, setEditors] = useState<string[]>([]);
   const [emailInput, setEmailInput] = useState('');
   const [result, setResult] = useState<PublicShareResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const { userEmail } = useApiContext();
+  const { ownedFiles, sharedFiles } = useFileList();
+
+
+
+  // Determines if the signed-in user is the owner of the current document
+  const isOwner = useMemo(() => {
+    if (!docFileID || !userEmail) return false;
+    // Check both lists to find the metadata for the current document
+    const file = ownedFiles.find(f => f.fileId === docFileID)
+    
+    // Safety check: if file not found in lists, default to false (safe failure)
+    return file ? true:false;
+  }, [docFileID, userEmail, ownedFiles]);
 
   // 1. New state for Flyer feature
   const [flyerMode, setFlyerMode] = useState(false);
@@ -59,8 +74,14 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
       // Reset flyer state
       setFlyerMode(false);
       setCourseTitle('');
+      if (docFileID && !isOwner) {
+        // Automatically fetch the existing link without modifying permissions
+        fetchShareLink(docFileID)
+          .then(data => setResult(data))
+          .catch(err => console.error('[ShareModal] Auto-fetch failed', err));
+      }
     }
-  }, [isOpen, clearError]);
+  }, [isOpen, clearError, docFileID, isOwner, fetchShareLink]);
 
   const addEmail = useCallback((email: string) => {
     const clean = email.trim().toLowerCase();
@@ -190,9 +211,11 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
 
   if (!isOpen) return null;
 
-  const isConfigureScene = !result && !isLoading;
+  const isConfigureScene = !result && !isLoading && isOwner;
   const isSuccessScene = result && !isLoading && !flyerMode;
   const isFlyerScene = result && !isLoading && flyerMode;
+
+  const showLoading = isLoading || (!isOwner && !result);
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Share modal">

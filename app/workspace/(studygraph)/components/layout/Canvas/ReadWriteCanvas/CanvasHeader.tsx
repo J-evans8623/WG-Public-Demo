@@ -241,7 +241,7 @@ const isSubscribed = useMemo(() => {
                 onClick={() => {
                     if (onOpenCalendar) onOpenCalendar();
                 }}
-                className="btn btn-text-color"
+                className="btn btn--border"
                 title="Open Study Planner"
             >
                 <CalendarIcon size={16} />

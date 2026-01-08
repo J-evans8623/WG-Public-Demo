@@ -959,7 +959,7 @@ const fetchAccountStatus = useCallback(async (): Promise<void> => {
     updateRequestActivityState();
     
     try {
-      const response = await apiService.generateLesson(file, docId, options, config);
+      const response = await apiService.generateLesson(file, docId, options);
       return response;
     } finally {
       updateRequestActivityState();
