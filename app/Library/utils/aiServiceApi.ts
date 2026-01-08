@@ -10,6 +10,8 @@
  *   - generateAILesson now points to the new /api/GenerateLesson endpoint and accepts a File.
  */
 
+import { apiService } from "@/app/src/services/ApiService";
+
 export async function askQuestionAPI(
   question: string,
   textSelection: string,
@@ -46,81 +48,19 @@ export async function generateAILesson(
   docId: string, 
   options: { isPublic?: boolean } = {}
 ): Promise<any> {
-  // Step 4: Extract visibility preference with default to private for security
-  const { isPublic = false } = options;
-  
-  console.log('[aiServiceApi.ts][4005] generateAILesson initiated - File:', file.name, 'Size:', file.size, 'DocID:', docId, 'Public:', isPublic);
+  console.log('[aiServiceApi.ts] generateAILesson delegating to apiService', { docId, isPublic: options.isPublic });
 
-  try {
-    // Step 5: Construct FormData with enhanced parameter support
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('DocID', docId);
-    
-    // Step 6: Add visibility parameter for new account type system
-    formData.append('visibility', isPublic ? 'public' : 'private');
-    
-    console.log('[aiServiceApi.ts][4006] FormData constructed with visibility parameter');
+  const response = await apiService.generateLesson(file, docId, options);
 
-    // Step 7: Send request to updated GenerateLesson endpoint
-    const response = await fetch('/api/GenerateLesson', {
-      method: 'POST',
-      credentials: 'include', // Essential for session-based authentication
-      body: formData, // No Content-Type header needed for FormData
-    });
-
-    // Step 8: Enhanced error handling with account type awareness
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[aiServiceApi.ts][4007] generateAILesson failed - Status:', response.status, 'Error:', errorText);
-      
-      // Step 9: Parse error response for detailed user feedback
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch (parseError) {
-        errorData = { error: 'Unknown error', message: errorText };
-      }
-
-      // Step 10: Handle specific permission errors for visibility restrictions
-      if (response.status === 403) {
-        if (errorData.reason?.includes('cannot create public files')) {
-          throw new Error('Scholar accounts can only create private lessons. Please set visibility to private or upgrade to Educator account.');
-        } else if (errorData.reason?.includes('rate limit')) {
-          throw new Error(`Rate limit exceeded. ${errorData.reason}`);
-        } else if (errorData.code === 'UPLOAD_PERMISSION_DENIED') {
-          throw new Error(`Upload permission denied: ${errorData.reason}`);
-        }
-      }
-
-      throw new Error(errorData.message || errorData.error || 'Failed to generate AI lesson');
-    }
-
-    // Step 11: Process successful response with enhanced logging
-    const data = await response.json();
-    console.log('[aiServiceApi.ts][4008] generateAILesson completed successfully - Lesson modules:', data.lessonModules?.length || 0);
-    
-    // Step 12: Log usage information for analytics and debugging
-    if (data.usageInfo) {
-      console.log('[aiServiceApi.ts][4009] Usage tracking - Account:', data.usageInfo.accountType, 'Tier:', data.usageInfo.subscriptionTier);
-      
-      if (data.usageInfo.remainingDemoCredits !== undefined) {
-        console.log('[aiServiceApi.ts][4010] Demo credits remaining:', data.usageInfo.remainingDemoCredits);
-      }
-      
-      if (data.usageInfo.rateLimitInfo) {
-        console.log('[aiServiceApi.ts][4011] Rate limit status - Hourly:', data.usageInfo.rateLimitInfo.hourlyRemaining, 'Monthly:', data.usageInfo.rateLimitInfo.monthlyRemaining);
-      }
-    }
-
-    return data;
-
-  } catch (error) {
-    console.error('[aiServiceApi.ts][4012] generateAILesson error:', error);
-    throw error;
+  if (!response.success || !response.data) {
+    // apiService handled the 403 OWNER_ACCESS_RESTRICTED and emitted the event.
+    // The ModalEventManager will catch that event and show the Subscribe modal.
+    console.error('[aiServiceApi.ts] generateAILesson failed via apiService', response.error);
+    throw new Error(response.error?.message || 'Failed to generate AI lesson');
   }
-}
 
+  return response.data;
+}
 /**
  * generateQuiz
  * Sends a quiz generation request to the backend.

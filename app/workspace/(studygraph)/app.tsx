@@ -174,8 +174,8 @@ const AppLayoutContent: React.FC = () => {
     // (3) Express intent — state machine (Close→CacheCheck→AuthoritativeLoad)
     requestSelectDocument(doc);
 
-    // (4) Clean URL
-    //router.replace('/workspace');
+    // (4) Clean URL -> let first visits being prompted to bookmark homescreen instead of specific shared document ? 
+    router.replace('/workspace');
 
     // (5) request lesson play
     requestLessonplay()

@@ -42,7 +42,8 @@ import pdfParse from 'pdf-parse';
 import UsageTracker from '@/app/src/services/UsageTracker';
 
 /**
- * NextApiRequestWithFile
+ * 
+ *  NextApiRequestWithFile
  * Extends NextApiRequest to include a file property (added by Multer).
  */
 interface NextApiRequestWithFile extends NextApiRequest {
@@ -176,8 +177,26 @@ export default async function handler(
     
     const userEmail = sessionData.user.email;
 
+
+       // Step 6: Parse uploaded file using Multer (preserved from original)
+    await runMiddleware(req, res, upload.single('file'));
+
+    if (!req.file) {
+      return res.status(400).json({ 
+        error: 'FILE_REQUIRED',
+        message: 'No file uploaded',
+        service: 'lessonGeneration'
+      });
+    }
+    
+
+    // Step 6.1: Extract and validate forward-only identifiers
+    const docId =
+  (typeof req.body?.DocID === 'string' && req.body.DocID.trim()) ||
+  (typeof req.body?.docId === 'string' && req.body.docId.trim());
+
     // Step 4: Enhanced premium access validation using centralized system
-    const validation = await validatePremiumAccess(userEmail, 'lessonGeneration');
+    const validation = await validatePremiumAccess(userEmail, 'lessonGeneration', docId);
     
 
     //  Extract economyMode from validation result (defaults to false if undefined)
@@ -219,27 +238,7 @@ export default async function handler(
     
     console.log('[GenerateLesson.ts][4007] Lesson generation access granted, proceeding with processing');
 
-    // Step 6: Parse uploaded file using Multer (preserved from original)
-    await runMiddleware(req, res, upload.single('file'));
-
-    if (!req.file) {
-      return res.status(400).json({ 
-        error: 'FILE_REQUIRED',
-        message: 'No file uploaded',
-        service: 'lessonGeneration'
-      });
-    }
-    
-    console.log('[GenerateLesson.ts][4008] File uploaded successfully', { 
-      fileName: req.file.originalname, 
-      size: req.file.size 
-    });
-
-
-    // Step 6.1: Extract and validate forward-only identifiers
-    const docId =
-  (typeof req.body?.DocID === 'string' && req.body.DocID.trim()) ||
-  (typeof req.body?.docId === 'string' && req.body.docId.trim());
+   
 
   const fileId = uuidv4()
 

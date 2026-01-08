@@ -35,6 +35,7 @@ import {
 } from './redisCache/userCache';
 import { fixedWindowTry } from './redisCache/rateGate';
 import { computeLessonLimitState , toDate} from './redisCache/rateLogic';
+import { resolveRole } from './firebase'; 
 
 // Step 1: Define service types for validation routing
 export type ServiceType = 'lessonGeneration' | 'askAssistant' | 'exploreTopic' | 'createQuiz';
@@ -77,7 +78,7 @@ export interface ComprehensiveUserStatus {
 // Step 3: Define standardized validation result interface
 export interface ValidationResult {
   allowed: boolean;
-  errorCode?: 'SUBSCRIPTION_REQUIRED' | 'DEMO_CREDITS_EXHAUSTED' | 'RATE_LIMIT_EXCEEDED' | 'PERMISSION_DENIED';
+  errorCode?: 'SUBSCRIPTION_REQUIRED' | 'DEMO_CREDITS_EXHAUSTED' | 'RATE_LIMIT_EXCEEDED' | 'PERMISSION_DENIED' | 'OWNER_ACCESS_RESTRICTED';
   errorMessage?: string;
   retryAfter?: number;
   upgradeRequired?: boolean;
@@ -111,16 +112,24 @@ const PREMIUM_LESSON_RATE_LIMITS = {
  */
 export async function validatePremiumAccess(
   email: string,
-  serviceType: ServiceType
+  serviceType: ServiceType,
+  docId?: string
+
 ): Promise<ValidationResult> {
   console.log('[validatePremiumAccess.ts][1001] Start validation', { email, serviceType });
 
   // 1) Version & micro-cache fast path
   const ver = await getUserVersion(email); // update - 3
-  const cached = await readValidationResult(serviceType, email, ver); // update - 3
-  if (cached) {
-    console.log('[validatePremiumAccess.ts][1101] Micro-cache hit', { email, serviceType, ver }); // update - 3
-    return cached; // update - 3
+
+  let cached: ValidationResult | null = null;
+
+
+  if (!docId) {
+    cached = await readValidationResult(serviceType, email, ver); 
+    if (cached) {
+      console.log('[validatePremiumAccess.ts][1101] Micro-cache hit', { email, serviceType, ver });
+      return cached;
+    }
   }
 
   // 2) Optional pre-gate for secondary services (cheap)
@@ -136,6 +145,7 @@ export async function validatePremiumAccess(
         upgradeRequired: false,
         userStatus,
       };
+      if (!docId) await writeValidationResult(serviceType, email, ver, result);
       await writeValidationResult(serviceType, email, ver, result);
       console.log('[validatePremiumAccess.ts][1102] Blocked by rate-gate', { email, retryAfter: gate.retryAfterSec });
       return result;
@@ -153,14 +163,17 @@ export async function validatePremiumAccess(
     let result: ValidationResult;
 
     if (userStatus.profile.subscriptionTier === 'freemium') {
-      result = validateFreemiumAccess(userStatus, serviceType);
+      result = await validateFreemiumAccess(userStatus, serviceType, docId);
     } else {
       result = validatePremiumRateLimits(userStatus, serviceType);
     }
 
     // 3) Micro-cache the result for short duration keyed by current version
-    await writeValidationResult(serviceType, email, ver, result); // update - 5
-    console.log('[validatePremiumAccess.ts][1103] Micro-cache set', { email, ver, serviceType }); // update - 5
+    // update - 5: Do not write to cache if docId was used, as logic was resource-specific
+    if (!docId) {
+      await writeValidationResult(serviceType, email, ver, result); 
+      console.log('[validatePremiumAccess.ts][1103] Micro-cache set', { email, ver, serviceType }); 
+    }
 
     return result;
   } catch (error) {
@@ -324,10 +337,11 @@ async function getComprehensiveUserStatus(email: string): Promise<ComprehensiveU
  * @param serviceType - Type of service being requested for validation
  * @returns Validation result with appropriate access control and error messaging
  */
-function validateFreemiumAccess(
+async function validateFreemiumAccess(
   userStatus: ComprehensiveUserStatus,
-  serviceType: ServiceType
-): ValidationResult {
+  serviceType: ServiceType,
+  docId?: string
+): Promise<ValidationResult> {
   console.log('[validatePremiumAccess.ts][1006] Validating freemium access for service:', serviceType);
 
   // Step 11: Block all secondary services for freemium users
@@ -340,6 +354,23 @@ function validateFreemiumAccess(
       upgradeRequired: true,
       userStatus
     };
+  }
+
+  // update - 7: Enforce Owner-Only constraint for Freemium lesson generation
+  if (docId) {
+    // Resolve role efficiently (uses Redis cache internally)
+    const role = await resolveRole(docId, userStatus.profile.email);
+    console.log('[validatePremiumAccess.ts][1007b] Freemium ownership check', { docId, role });
+    
+    if (role !== 'Owner') {
+      return {
+        allowed: false,
+        errorCode: 'OWNER_ACCESS_RESTRICTED',
+        errorMessage: 'Freemium accounts can only use free credits on documents they own.',
+        upgradeRequired: true, // Prompt upgrade as alternative
+        userStatus
+      };
+    }
   }
 
   // Step 12: Check demo credits for lesson generation

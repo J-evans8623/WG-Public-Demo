@@ -109,13 +109,20 @@ export class ModalEventManager {
       modalType: 'subscribe',
       priority: ModalPriority.MEDIUM,
       props: { featureName: 'Lesson Generation' },
-      conditions: { subscriptionTier: 'freemium' }
     }],
     [ApiErrorType.RATE_LIMIT_EXCEEDED]: [{
       modalType: 'rateLimit',
       priority: ModalPriority.HIGH,
       props: {},
       conditions: { subscriptionTier: 'premium' }
+    }],
+    [ApiErrorType.OWNER_ACCESS_RESTRICTED]: [{
+      modalType: 'subscribe',
+      priority: ModalPriority.HIGH,
+      props: { 
+        featureName: 'You can only use free demo credits on documents you own.',
+      },
+      conditions: { upgradeRequired: true }
     }],
     [ApiErrorType.PERMISSION_DENIED]: [{
       modalType: 'subscribe',

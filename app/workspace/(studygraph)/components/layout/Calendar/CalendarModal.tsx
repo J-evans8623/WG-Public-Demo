@@ -200,7 +200,7 @@ const handleUpdateSchedule = async () => {
         <div className="calendar-modal-header">
           <div className="calendar-modal-title">
             <Calendar size={24} className="text-blue-600" />
-            <h2>Study Calendar Planner</h2>
+            <h2>Study Planner</h2>
           </div>
           <button
             onClick={onClose}

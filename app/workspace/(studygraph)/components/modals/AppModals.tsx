@@ -166,12 +166,18 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({
 
   // Step 3: Determine contextual messaging based on service and error context
   const getContextualMessage = () => {
+
+    if (featureName && featureName.includes('free demo credits')) {
+       // Result: "You can only use free demo credits on documents you own. Subscribe to unlock all features."
+       return `${featureName} Subscribe to unlock all features.`;
+    }
+
     if (serviceContext) {
       const serviceMessages = {
         askAssistant: 'AI Assistant features require a premium subscription for unlimited questions and advanced capabilities.',
         exploreTopic: 'Topic Exploration is a premium feature that provides in-depth analysis and learning recommendations.',
         createQuiz: 'Quiz Creation is a premium feature that generates customized assessments from your content.',
-        lessonGeneration: 'Advanced Lesson Generation is a premium feature with unlimited access and enhanced capabilities.'
+        lessonGeneration: 'Advanced Lesson Generation is a premium feature.'
       };
       return serviceMessages[serviceContext as keyof typeof serviceMessages] || 
              `${featureName} is a premium feature. Subscribe to unlock all features.`;

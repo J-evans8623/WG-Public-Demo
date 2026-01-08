@@ -294,8 +294,8 @@ const discussAriaLabel = React.useMemo(() => {
              if (onOpenCalendar) onOpenCalendar();
           }}
           className="btn btn--icon btn--border"
-          title="Calendar"
-          aria-label="Calendar"
+          title="Study Planner"
+          aria-label="Study Planner"
         >
           <CalendarIcon size={18} />
         </button>

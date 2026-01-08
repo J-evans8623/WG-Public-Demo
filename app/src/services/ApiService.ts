@@ -43,7 +43,8 @@ export enum ApiErrorType {
   VALIDATION_FAILED = 'VALIDATION_FAILED',
   PROCESSING_FAILED = 'PROCESSING_FAILED',
   NETWORK_ERROR = 'NETWORK_ERROR',
-  UNKNOWN_ERROR = 'UNKNOWN_ERROR'
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+  OWNER_ACCESS_RESTRICTED = 'OWNER_ACCESS_RESTRICTED'
 }
 
 // Step 3: Define comprehensive API error event interface
@@ -161,6 +162,7 @@ export class EnhancedApiService extends EventTarget {
       if (errorCode === 'PERMISSION_DENIED') return ApiErrorType.PERMISSION_DENIED;
       if (errorCode === 'AUTHENTICATION_FAILED') return ApiErrorType.AUTHENTICATION_FAILED;
       if (errorCode === 'VALIDATION_FAILED') return ApiErrorType.VALIDATION_FAILED;
+      if (errorCode === 'OWNER_ACCESS_RESTRICTED') return ApiErrorType.OWNER_ACCESS_RESTRICTED;
     }
 
     // Step 7: Handle HTTP status code based classification
@@ -264,7 +266,8 @@ export class EnhancedApiService extends EventTarget {
       [ApiErrorType.VALIDATION_FAILED]: 'Invalid request. Please check your input and try again.',
       [ApiErrorType.PROCESSING_FAILED]: 'Processing failed. Please try again.',
       [ApiErrorType.NETWORK_ERROR]: 'Network error. Please check your connection and try again.',
-      [ApiErrorType.UNKNOWN_ERROR]: 'An unexpected error occurred. Please try again.'
+      [ApiErrorType.UNKNOWN_ERROR]: 'An unexpected error occurred. Please try again.',
+      [ApiErrorType.OWNER_ACCESS_RESTRICTED]: 'Freemium demo credits can only be used on notebooks you own.',
     };
 
     return errorMessages[errorType] || errorMessages[ApiErrorType.UNKNOWN_ERROR];
@@ -479,25 +482,31 @@ export class EnhancedApiService extends EventTarget {
     file: File,
     docId: string,
     options: { isPublic?: boolean } = {},
-    config: ApiRequestConfig = {}
-  ): Promise<ApiResponse> {
+  ): Promise<any> {
+
+     const { isPublic = false } = options;
+
+
  
 
+        // Step 5: Construct FormData with enhanced parameter support
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('fileID', docId);
-    formData.append('visibility', options.isPublic ? 'public' : 'private');
+    formData.append('DocID', docId);
+    
+    // Step 6: Add visibility parameter for new account type system
+    formData.append('visibility', isPublic ? 'public' : 'private');
 
     return await this.makeApiRequest(
       '/api/GenerateLesson',
       {
-        method: 'POST',
+        method:'POST',
         body: formData,
       },
       'lessonGeneration',
-      config
     );
   }
+  
 
   /**
    * exploreTopic
