@@ -51,6 +51,7 @@ import { UnifiedLessonsDropdown, UnifiedUploadsDropdown } from './DropDownMenu';
 
 import '@/app/workspace/(studygraph)/components/layout/Canvas/header/CanvasHeader.css';
 import { useComments } from '@/app/Library/Context/forum/CommentContext';
+import { useAccountStatus } from '@/app/src/context/ApiContext';
 
 export type UnifiedHeaderMode = 'edit' | 'readonly';
 
@@ -103,6 +104,8 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   const { getVisibility } = useYDoc();
   const { isPanelExpanded, togglePanel } = useViewSwitch();
   const { getDirtyThreadTotal } = useComments();
+  // update - 13: Consume subscription status to gate the Upgrade button
+  const { subscriptionUi } = useAccountStatus();
   
 const dirtyCount = getDirtyThreadTotal();
 
@@ -114,6 +117,11 @@ const discussAriaLabel = React.useMemo(() => {
   // Step 2: Build a concise, screen-reader friendly label
   return dirtyCount > 0 ? `Discuss, ${labelCount} new` : 'Discuss';
 }, [dirtyCount]);
+
+
+const isSubscribed = useMemo(() => {
+    return subscriptionUi?.phase === 'ACTIVE' || subscriptionUi?.phase === 'CANCEL_AT_PERIOD_END';
+  }, [subscriptionUi]);
 
   // 1.1 Determine privacy state and current title
   const isPrivate = getVisibility() === 'private';
@@ -242,14 +250,16 @@ const discussAriaLabel = React.useMemo(() => {
 
             {/* 5. Upgrade Button */}
             {/* update - 9: Added mobile-hidden-btn to move Upgrade to overflow on mobile */}
-            <button
-                onClick={onUpgrade}
-                className="btn btn--upgrade btn-text-color mobile-hidden-btn"
-                title="Upgrade Subscription"
-            >
-                <Zap size={16} fill="currentColor" />
-                <span className="font-bold">Upgrade</span>
-            </button>
+            {!isSubscribed && (
+              <button
+                  onClick={onUpgrade}
+                  className="btn btn--upgrade btn-text-color mobile-hidden-btn" /* update - 9: mobile-hidden-btn */
+                  title="Upgrade Subscription"
+              >
+                  <Zap size={16} fill="currentColor" />
+                  <span className="font-bold">Upgrade</span>
+              </button>
+            )}
         </div>
 
       </div>

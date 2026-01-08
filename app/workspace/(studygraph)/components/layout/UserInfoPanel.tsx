@@ -84,23 +84,13 @@ export const UserInfoPanel: React.FC<UserInfoPanelProps> = ({ onClose }) => {
   }, [subscriptionUi]);
 
   // update - 5: Format renewal/end date once per render using Stripe-based epoch seconds.
-  const formattedRenewalDate = useMemo(() => {
+const formattedRenewalDate = useMemo(() => {
     if (!subscriptionUi?.renewalDate) return null;
-    try {
-      return subscriptionUi.renewalDate.toLocaleDateString("en-CA", {
+    return subscriptionUi.renewalDate.toLocaleDateString(undefined, {
         year: "numeric",
         month: "long",
         day: "numeric",
-        timeZone: "America/St_Johns",
-      });
-    } catch {
-      // Fallback without explicit time zone if environment lacks the IANA zone.
-      return subscriptionUi.renewalDate.toLocaleDateString("en-CA", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-    }
+    });
   }, [subscriptionUi]);
 
   /**
