@@ -18,14 +18,15 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import '@/app/workspace/(studygraph)/components/modals/modalStyles.css'
-import { useAccountStatus } from '@/app/src/context/ApiContext';
+import { useAccountStatus, useFileList } from '@/app/src/context/ApiContext';
 import { generateAILesson } from '@/app/Library/utils/aiServiceApi';
 import { modalEventManager } from '@/app/src/services/modalEventManager';
 import { getModal } from '@/app/workspace/(studygraph)/components/modals/ModalRegistry';
 
 
 // Modal types and props interfaces
-export type ModalType = 'subscribe' | 'rateLimit' | 'fileUpload' | 'lessonGeneration' |'loadingOverlay'  | 'blockingProgress';
+export type ModalType = 'subscribe' | 'rateLimit' | 'fileUpload' | 'lessonGeneration' |'loadingOverlay'  | 'blockingProgress' | 'docUnavailable';
+
 
 interface BaseModalProps {
   onClose: () => void;
@@ -58,6 +59,9 @@ interface LessonGenerationModalProps extends BaseModalProps {
   checkTrackedStatus?: (id: string) => boolean;
   // Renamed prop to match new capability (was onIntegrate)
   onQueueIntegration?: (id: string) => void;
+  isFreemium?: boolean;
+  planNotebookCount?: number;
+  onLimitReached?: () => void;
 }
 
 /** ─────────────────────────────────────────────────────────────────────────────
@@ -70,6 +74,61 @@ interface BlockingProgressModalProps extends BaseModalProps {
   message?: string;
   ariaLabel?: string;
 }
+
+
+/**
+ * DocUnavailableModal (fatal boot UX)
+ * @description
+ *   Done-only modal used to surface a notebook boot error (e.g. deleted/private).
+ *   This is intentionally simple and non-destructive: it explains what happened and
+ *   allows the user to acknowledge and continue without getting stuck.
+ */
+interface DocUnavailableModalProps extends BaseModalProps {
+  message?: string;
+  title?: string;
+  ariaLabel?: string;
+}
+
+
+
+export const DocUnavailableModal: React.FC<DocUnavailableModalProps> = ({
+  onClose,
+  message,
+  title = 'Notebook unavailable',
+  ariaLabel = 'Notebook unavailable',
+}) => {
+  // Proof: modal render
+  console.warn('[WG_DOC_UNAV_200] DocUnavailableModal rendered.', { hasMessage: !!message });
+
+  const resolvedMessage =
+    message ?? 'The owner of this notebook has either deleted it or made it private.';
+
+  const modalContent = (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label={ariaLabel}>
+      <div className="modal-container">
+        <h2 className="modal-title">{title}</h2>
+
+        <p className="modal-text" style={{ marginTop: 8 }}>
+          {resolvedMessage}
+        </p>
+
+        <div className="button-section" style={{ justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+            }}
+            className="btn btn-secondary"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return ReactDOM.createPortal(modalContent, document.getElementById('modal-root') as HTMLElement);
+};
 
 export const BlockingProgressModal: React.FC<BlockingProgressModalProps> = ({
   // onClose is required by the infra but we don't expose any way to close while running
@@ -166,6 +225,10 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({
 
   // Step 3: Determine contextual messaging based on service and error context
   const getContextualMessage = () => {
+
+    if (featureName === "Study Plan Limit") {
+        return "Freemium accounts are limited to two notebook study plans. Subscribe to track unlimited notebooks.";
+    }
 
     if (featureName && featureName.includes('free demo credits')) {
        // Result: "You can only use free demo credits on documents you own. Subscribe to unlock all features."
@@ -519,11 +582,17 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
   docFileId,
   errorContext,
   checkTrackedStatus, 
-  onQueueIntegration       
+  onQueueIntegration,
+  isFreemium = false,
+  planNotebookCount = 0,
+  onLimitReached      
 }) => {
   //console.log('[AppModals.tsx][5012] EnhancedLessonGenerationModal rendered', { docFileId });
 
   const { hasFeature } = useAccountStatus();
+
+  //  Get owned files to check for "New User" state
+  const { ownedFiles } = useFileList();
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isPublic, setIsPublic] = useState(false);
@@ -531,7 +600,13 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
   const [error, setError] = useState('');
   
   const isTracked = checkTrackedStatus ? checkTrackedStatus(docFileId) : false;
-  const [addToPlan, setAddToPlan] = useState<boolean>(isTracked);
+
+  //  Calculate Auto-Select Logic for "time to value" optimization for new users
+  // Condition: If not already tracked, AND Plan is empty, AND User has <= 2 files (Sample data only)
+  const isOnboardingScenario = !isTracked && planNotebookCount === 0 && ownedFiles.length <= 2;
+
+
+  const [addToPlan, setAddToPlan] = useState<boolean>(isTracked || isOnboardingScenario);
   const showCalendarOption = !!onQueueIntegration;
   
   const canCreatePublic = hasFeature('canCreatePublicFiles');
@@ -539,6 +614,22 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
   // ... (handlers for file/visibility unchanged) ...
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => { /*...*/ setSelectedFile(e.target.files?.[0] || null); setError(''); };
   const handleVisibilityChange = (isPublicOption: boolean) => { if (isPublicOption && !canCreatePublic) return; setIsPublic(isPublicOption); };
+
+
+  const handleAddToPlanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isChecking = e.target.checked;
+
+    // Logic: If user is checking the box (adding), AND it's not already tracked,
+    // AND they are freemium, AND they have 2 or more notebooks...
+    if (isChecking && !isTracked && isFreemium && planNotebookCount >= 2) {
+       // Trigger the subscription modal immediately
+       if (onLimitReached) onLimitReached();
+       // Prevent the checkbox from getting checked
+       return;
+    }
+
+    setAddToPlan(isChecking);
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -589,7 +680,7 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
 
             <div className="form-section">
                {/* ... Visibility UI ... */}
-               <label className="form-label">Lesson Visibility:</label>
+               <label className="form-label">Upload Visibility:</label>
                {/* ... Radio buttons ... */}
                <div className="radio-group">
                 <div className={`radio-option ${!isPublic ? 'selected' : ''}`} onClick={() => handleVisibilityChange(false)}>
@@ -611,7 +702,7 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
                      type="checkbox" 
                      id="addToPlan"
                      checked={addToPlan}
-                     onChange={(e) => setAddToPlan(e.target.checked)}
+                     onChange={handleAddToPlanChange}
                      className="radio-input"
                    />
                    <label htmlFor="addToPlan" className="radio-label" style={{cursor: 'pointer'}}>
@@ -671,6 +762,8 @@ export const createModal = (type: ModalType, props: any) => {
       return <EnhancedLessonGenerationModal {...props} />;
     case 'blockingProgress':                             
       return <BlockingProgressModal {...props} />;
+    case 'docUnavailable':
+      return <DocUnavailableModal {...props} />;
     default:
       //console.error('[AppModals.tsx][5021] Unknown modal type requested:', type);
       return null;

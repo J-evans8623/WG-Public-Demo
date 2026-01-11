@@ -46,8 +46,9 @@ import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useViewSwitch } from '@/app/workspace/(studygraph)/components/layout/Canvas/pdf/ViewSwitchContext';
 
-// update - 1: Replace split dropdown implementations with the converged, mode-aware menus
-import { UnifiedLessonsDropdown, UnifiedUploadsDropdown } from './DropDownMenu'; // update - 2
+// Replace split dropdown implementations with the converged, mode-aware menus
+import { UnifiedLessonsDropdown, UnifiedUploadsDropdown } from './DropDownMenu'; 
+import { useCalendar } from '@/app/Library/Context/CalendarContextv2';
 
 import '@/app/workspace/(studygraph)/components/layout/Canvas/header/CanvasHeader.css';
 import { useComments } from '@/app/Library/Context/forum/CommentContext';
@@ -104,19 +105,28 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   const { getVisibility } = useYDoc();
   const { isPanelExpanded, togglePanel } = useViewSwitch();
   const { getDirtyThreadTotal } = useComments();
-  // update - 13: Consume subscription status to gate the Upgrade button
+  // Consume subscription status to gate the Upgrade button
   const { subscriptionUi } = useAccountStatus();
+
+  // Consume calendar badge state
+  const { hasUnseenUpdates, resetUnseenCount } = useCalendar();
   
 const dirtyCount = getDirtyThreadTotal();
 
 
-// update - 7: Compute an accessible aria-label for the Discuss button
+//  Compute an accessible aria-label for the Discuss button
 const discussAriaLabel = React.useMemo(() => {
   // Step 1: Clamp large numbers to "99+"
   const labelCount = dirtyCount > 19 ? '19+' : String(dirtyCount);
   // Step 2: Build a concise, screen-reader friendly label
   return dirtyCount > 0 ? `Discuss, ${labelCount} new` : 'Discuss';
 }, [dirtyCount]);
+
+
+//  Compute an accessible aria-label for the Planner button
+const plannerAriaLabel = React.useMemo(() => {
+    return hasUnseenUpdates ? `Study Planner, new updates available` : 'Open Study Planner';
+  }, [hasUnseenUpdates]);
 
 
 const isSubscribed = useMemo(() => {
@@ -213,11 +223,11 @@ const isSubscribed = useMemo(() => {
         </button>
 
         {/* 3.2 Lessons / Uploads navigation (mode-aware) */}
-        {/* update - 8: Added desktop-only-nav to hide dropdowns on mobile */}
+        {/*  Added desktop-only-nav to hide dropdowns on mobile */}
         <nav className="ch-nav desktop-only-nav" aria-label="Header navigation">
-          {/* update - 3: Converged dropdowns with single source of truth */}
-          <UnifiedLessonsDropdown mode={mode} /> {/* update - 4 */}
-          <UnifiedUploadsDropdown mode={mode} /> {/* update - 5 */}
+          {/* Converged dropdowns with single source of truth */}
+          <UnifiedLessonsDropdown mode={mode} /> 
+          <UnifiedUploadsDropdown mode={mode} /> 
         </nav>
         <div className="flex items-center gap-2 ml-2 border-l pl-2 border-gray-200">
              {/* 3. Discuss (Moved to Left) */}
@@ -237,15 +247,24 @@ const isSubscribed = useMemo(() => {
             </button>
 
             {/* 4. Study Planner (Text + Icon + Custom Color) */}
+            {/* Study Planner Button with Boolean Badge */}
             <button
                 onClick={() => {
+                    // Reset Boolean Flag on Click
+                    resetUnseenCount();
                     if (onOpenCalendar) onOpenCalendar();
                 }}
-                className="btn btn--border"
+                className="btn btn--border btn--has-badge"
                 title="Open Study Planner"
+                aria-label={plannerAriaLabel}
             >
                 <CalendarIcon size={16} />
                 <span className="font-medium">Study Planner</span>
+                 {hasUnseenUpdates && (
+                    <span className="btn-badge btn-badge--amber" aria-hidden="true">
+                        1+
+                    </span>
+                )}
             </button>
 
             {/* 5. Upgrade Button */}

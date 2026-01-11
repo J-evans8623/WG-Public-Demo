@@ -140,4 +140,109 @@ export class StudyPlanService {
       throw new Error(`StudyPlanService.extendStudyPlan failed: ${(err as Error).message}`);
     }
   }
+
+
+
+/**
+   * @function removeNotebook
+   * @description
+   * Removes a specific notebook from the study plan state and filters out all associated sessions.
+   * This is a pure operation that returns a new StudyPlanOutput object.
+   * * Strategy:
+   * 1. Remove from `state.notebookProgress` (Map).
+   * 2. Filter `state.learningSets` to remove the notebook from groupings.
+   * 3. Filter `state.sessionsByDate` (Map) to remove sessions linked to this fileId.
+   * 4. Filter the flat `sessions` array.
+   * 5. Recalculate `planMetadata` totals AND date boundaries (startDate/endDate).
+   */
+  public removeNotebook(
+    currentPlan: StudyPlanOutput,
+    notebookId: string
+  ): StudyPlanOutput {
+    if (!currentPlan || !currentPlan.state) {
+      throw new Error('Invalid study plan provided for removal.');
+    }
+
+    // 1. Deep Clone / Setup new containers to ensure immutability
+    const newNotebookProgress = new Map(currentPlan.state.notebookProgress);
+    const newSessionsByDate = new Map<string, any[]>();
+    
+    // 2. Remove from Progress Map
+    newNotebookProgress.delete(notebookId);
+
+    // 3. Filter Learning Sets
+    // Iterate through learning sets and filter the 'notebooks' array within them.
+    // If a learning set becomes empty, it is removed entirely.
+    const newLearningSets = currentPlan.state.learningSets
+      .map(ls => ({
+        ...ls,
+        notebooks: ls.notebooks.filter(nb => nb.fileId !== notebookId)
+      }))
+      .filter(ls => ls.notebooks.length > 0);
+
+    // 4. Filter Sessions (Flat Array)
+    const newSessions = currentPlan.sessions.filter(
+      s => s.notebookMeta.fileId !== notebookId
+    );
+
+    // 5. Filter Sessions (Date Map)
+    // Reconstruct the map, filtering out sessions for the target notebook.
+    // Clean up empty days to keep the map sparse.
+    for (const [dateKey, sessions] of currentPlan.state.sessionsByDate.entries()) {
+      const filteredDaySessions = sessions.filter(
+        s => s.notebookMeta.fileId !== notebookId
+      );
+      if (filteredDaySessions.length > 0) {
+        newSessionsByDate.set(dateKey, filteredDaySessions);
+      }
+    }
+
+    // 6. Recalculate Metadata (Totals + Breakdown + Boundaries)
+    const sessionBreakdown = {
+      blockLearning: 0,
+      blockRevision: 0,
+      interleavedRevision: 0
+    };
+
+    let minDate = newSessions.length > 0 ? newSessions[0].date.getTime() : 0;
+    let maxDate = newSessions.length > 0 ? newSessions[0].date.getTime() : 0;
+
+    newSessions.forEach(s => {
+      // Breakdown Stats
+      if (s.type === 'block') sessionBreakdown.blockLearning++;
+      else if (s.type === 'revision-block') sessionBreakdown.blockRevision++;
+      else if (s.type === 'revision-interleaved') sessionBreakdown.interleavedRevision++;
+
+      // Date Boundaries
+      const t = s.date.getTime();
+      if (t < minDate) minDate = t;
+      if (t > maxDate) maxDate = t;
+    });
+
+    const newPlanMetadata = {
+      ...currentPlan.planMetadata,
+      totalSessions: newSessions.length,
+      learningSetCount: newLearningSets.length,
+      sessionBreakdown,
+      // If no sessions remain, default to current dates or new Date() to avoid NaN
+      startDate: newSessions.length > 0 ? new Date(minDate) : new Date(),
+      endDate: newSessions.length > 0 ? new Date(maxDate) : new Date()
+    };
+
+    // 7. Return new Output
+    return {
+      ...currentPlan,
+      sessions: newSessions,
+      planMetadata: newPlanMetadata,
+      state: {
+        ...currentPlan.state,
+        learningSets: newLearningSets,
+        notebookProgress: newNotebookProgress,
+        sessionsByDate: newSessionsByDate,
+        // Preserve nextAvailableDate from old state as calculating a new one requires
+        // the Orchestrator's full availability logic. 
+        nextAvailableDate: currentPlan.state.nextAvailableDate
+      }
+    };
+  }
 }

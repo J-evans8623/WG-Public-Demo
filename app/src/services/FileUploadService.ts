@@ -328,10 +328,14 @@ export class FileUploadService { // update - 3
       const uniqueFileId = sourceFileId || `${timestamp}_${safeFileName}`;
       const objectKey = `documents/${documentId}/files/${uniqueFileId}`;
 
+      // SANITIZATION HELPER: 
+// Remove non-ASCII characters and replace spaces with underscores for the header
+const safeHeaderName = fileName.replace(/[^\x00-\x7F]/g, '').replace(/\s+/g, '_');
+
       // Step 9: Prepare flat metadata map for S3/R2
       const now = new Date(); // update - 12
       const metadata: Record<string, string> = { // update - 13
-        originalname: fileName,
+        originalname: safeHeaderName,
         type: 'pdf',
         size: String(fileSize),
         owner: userProfile.email, // Retained for permission checks

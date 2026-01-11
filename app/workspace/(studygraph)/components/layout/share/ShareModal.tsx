@@ -63,7 +63,7 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
     return { text: `Anyone with this link can ${action}.`, variant: 'public' as const };
   }, [result]);
 
-  useEffect(() => {
+useEffect(() => {
     if (isOpen) {
       setShareMode('public-view');
       setEditors([]);
@@ -71,17 +71,24 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
       setResult(null);
       setCopied(false);
       clearError();
-      // Reset flyer state
       setFlyerMode(false);
       setCourseTitle('');
-      if (docFileID && !isOwner) {
-        // Automatically fetch the existing link without modifying permissions
-        fetchShareLink(docFileID)
-          .then(data => setResult(data))
-          .catch(err => console.error('[ShareModal] Auto-fetch failed', err));
-      }
     }
-  }, [isOpen, clearError, docFileID, isOwner, fetchShareLink]);
+  }, [isOpen]);
+
+
+  // update - 4: New Effect specifically for data fetching. 
+  // This can run safely without resetting your UI state.
+  useEffect(() => {
+    if (isOpen && docFileID && !isOwner) {
+       fetchShareLink(docFileID)
+         .then(data => setResult(data))
+         .catch(err => console.error('[ShareModal] Auto-fetch failed', err));
+    }
+  }, [isOpen, docFileID, isOwner, fetchShareLink]);
+
+
+  
 
   const addEmail = useCallback((email: string) => {
     const clean = email.trim().toLowerCase();
@@ -132,6 +139,9 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
       <html>
         <head>
           <title>Study Group Flyer</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&display=swap" rel="stylesheet">
           <style>
             @page { margin: 0; size: auto; }
             body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
@@ -139,7 +149,7 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
               position: relative;
               width: 100%;
               height: 100vh;
-              background-image: url('/brand/wg-flyer-larger-shell.jpeg');
+              background-image: url('/brand/qr-flyer-study-group-wg.webp');
               background-size: cover;
               background-position: center top;
               background-repeat: no-repeat;
@@ -157,15 +167,14 @@ export default function ShareModal({ isOpen, onClose }: ShareModalProps) {
               align-items: center;
               justify-content: center;
               color: white;
-              font-family: 'Inter', sans-serif;
-              font-weight: 700;
-              font-size: 4vw;
+              font-family: 'Alfa Slab One', cursive; 
+              font-weight: 400;
+              font-size: 6vw;
               text-transform: uppercase;
-              letter-spacing: 1px;
+              letter-spacing: 2px;
               text-align: center;
               padding: 0 20px;
               box-sizing: border-box;
-              text-shadow: 0 2px 4px rgba(0,0,0,0.2);
             }
             .qr-wrapper {
               position: absolute;

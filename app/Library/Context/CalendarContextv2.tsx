@@ -12,6 +12,7 @@
 
 import React, {
   createContext, useContext, useEffect, useMemo, useState, useCallback, ReactNode,
+  useRef,
 } from 'react';
 
 import type {
@@ -30,8 +31,9 @@ import { CalendarPersistApi } from '@/app/src/services/calendar/CalendarPersistA
 import { StudyPlanService, type PlanUpdateType } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/tentative/StudyPlanService';
 import type { StudyPlanOutput} from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/StudyPlanOutput.ts'
 import { useYDoc } from '@/app/Library/Context/YDocContext';
-import { useFileList, useApiContext  } from '@/app/src/context/ApiContext'; 
+import { useFileList, useApiContext, useAccountStatus  } from '@/app/src/context/ApiContext'; 
 import type { UserFileMetadata } from '@/app/src/types/fileTypes';
+import { useGlobalModal } from '@/app/workspace/(studygraph)/components/modals/GlobalModalProvider';
 
 const Ctx = createContext<CalendarContextType | undefined>(undefined);
 
@@ -392,11 +394,19 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [saveNeeded, setSaveNeeded] =useState(false);
   const { userEmail } = useApiContext();
 
+  // update - 2: New Freemium & Sync State
+  const { accountStatus } = useAccountStatus();
+  const { showModal } = useGlobalModal();
+  
+  const [hasUnseenUpdates, setHasUnseenUpdates] = useState(false);
+
   const [pendingIntegrations, setPendingIntegrations] =useState<Map<string, number>>(new Map());
 
   // Version tracking (unchanged conceptually)
   const [notebookVersions, setNotebookVersions] = useState<Map<string, NotebookVersionState>>(new Map());
   const [extensionInProgress, setExtensionInProgress] = useState(false);
+
+  const autosyncHistory = useRef<Set<string>>(new Set());
 
   // Local-only config (not persisted)
  const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>({
@@ -414,9 +424,9 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
   const { docFileID, version: currentDocVersion } = useYDoc();
 
     // ── File list (canonical) from ApiContext
-   const { ownedFiles, isRefreshing: listRefreshing, lastError: listError, refresh: refreshFileList } = useFileList(); 
+   const { ownedFiles, sharedFiles, isRefreshing: listRefreshing, lastError: listError, refresh: refreshFileList } = useFileList(); 
 
-   const availableNotebooks: NotebookSummary[] = useMemo(() => { // update - 7
+   const availableNotebooks: NotebookSummary[] = useMemo(() => { 
     // Step 1: calc totalUnits from lessonUnitsMeta or unitsByMap
     const calcUnits = (meta: any): number => {
       if (!meta) return 0;
@@ -431,8 +441,12 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
       if (Array.isArray(meta.units)) return meta.units.length;
       return 0;
     };
+
+    // Combine sources
+    const allFiles = [...ownedFiles, ...sharedFiles];
+
     // Step 2: map to NotebookSummary and filter empty notebooks
-    const mapped = (ownedFiles || []).map((f: any) => ({
+    const mapped = (allFiles || []).map((f: any) => ({
       fileId: f.fileId,
       fileName: f.fileName,
       totalUnits: calcUnits((f as any).lessonUnitsMeta),
@@ -493,6 +507,9 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
       setCompletedSessions(data.completedSessions ?? []);
       const revived = reviveStudyPlan(data.studyPlan);
       setStudyPlan(revived);
+
+      setHasUnseenUpdates(false);
+
     } catch (e) {
       console.warn('[CalendarContext][H001] hydrate failed', e);
     } finally {
@@ -535,7 +552,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
    * @steps
    *  1) Call `refreshFileList()` from `useFileList()`.
    */
-  const refreshNotebooks = useCallback(async () => { // update - 8
+  const refreshNotebooks = useCallback(async () => { 
     await refreshFileList();
   }, [refreshFileList]);
 
@@ -556,6 +573,22 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
    * 
    */
   const selectNotebook = useCallback((id: string) => {
+    // Check Freemium Constraints
+
+    console.log(`888 The id that was selected is ${id} and the selected notebooks include ${JSON.stringify(selectNotebook)}`)
+
+    if (accountStatus?.subscriptionTier === 'freemium' && selectedNotebooks.length >= 2 && !selectedNotebooks.includes(id)) {
+
+      const booleans = {
+        subscriptionTier:accountStatus?.subscriptionTier,
+        notebookLength: selectedNotebooks.length,
+        includesTest: selectedNotebooks.includes(id)
+      }
+      console.log(`Here are the values that triggered the subscription modal ${JSON.stringify(booleans)}`)
+      showModal('subscribe', { featureName: "Study Plan Limit" }); // update - 5
+      return;
+    }
+
     setSelectedNotebooks(prev => {
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
@@ -577,7 +610,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
       setSaveNeeded(true);
       return next;
     });
-  }, [currentDocVersion, docFileID]);
+  }, [currentDocVersion, docFileID, accountStatus, selectedNotebooks, showModal]);
 
   /**
    * @function deselectNotebook
@@ -594,6 +627,46 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
       return next;
     });
   }, []);
+
+
+  /**
+   * @function removeNotebook
+   * @description
+   * Calls the service layer to surgically remove a notebook from the plan state,
+   * then updates local state and persists changes.
+   */
+  const removeNotebook = useCallback(async (notebookId: string) => {
+    if (!studyPlan) return;
+
+    try {
+      // 1. Call Service (Pure Function)
+      const newPlan = service.removeNotebook(studyPlan, notebookId);
+
+      // 2. Update Local State
+      setStudyPlan(newPlan);
+      // Also remove from selection UI state if present
+      setSelectedNotebooks(prev => prev.filter(id => id !== notebookId));
+      
+      // 3. Persist
+      const wirePlan = serializeStudyPlan(newPlan);
+      await persistApi.store({
+        studyPlan: wirePlan,
+        selectedNotebooks: selectedNotebooks.filter(id => id !== notebookId),
+        completedSessions
+      });
+
+      // 4. Clean up version tracking
+      setNotebookVersions(prev => {
+        const next = new Map(prev);
+        next.delete(notebookId);
+        return next;
+      });
+
+    } catch (e: any) {
+      console.error('[CalendarContext] removeNotebook failed', e);
+      setError(e?.message ?? 'Failed to remove notebook');
+    }
+  }, [studyPlan, service, persistApi, selectedNotebooks, completedSessions]);
 
 /**
    * @function updateScheduleConfig
@@ -622,14 +695,19 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
    * @steps
    *  1) Load NotebookMeta[] for selectedNotebooks.
    *  2) Call service.generateStudyPlan(notebooks, config, startDate).
-   *  3) Set studyPlan; POST envelope to server.
-   * // update - 3
+   * 
    */
   const generateSchedule = useCallback(async () => {
     if (selectedNotebooks.length === 0) {
       setError('Please select at least one notebook.');
       return;
     }
+
+    if (accountStatus?.subscriptionTier === 'freemium' && selectedNotebooks.length > 2) {
+       showModal('subscribe', { featureName: "Study Plan Limit" });
+       return;
+    }
+
     setIsLoading(true); setError(null);
     try {
       const metas = await notebooksApi.details(selectedNotebooks);
@@ -654,12 +732,17 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
       setNotebookVersions(map);
       const wirePlan = serializeStudyPlan(nextPlan);
       await persistApi.store({ studyPlan: wirePlan, selectedNotebooks, completedSessions });
+    
+      // ── STRATEGY: FLAG TRUE ──
+      setHasUnseenUpdates(true);
+      // ───────────────────────
+
     } catch (e: any) {
       setError(e?.message ?? 'Failed to generate plan');
     } finally {
       setIsLoading(false);
     }
-  }, [selectedNotebooks, notebooksApi, service, scheduleConfig, planStartDate, persistApi, completedSessions]);
+  }, [selectedNotebooks, notebooksApi, service, scheduleConfig, planStartDate, persistApi, completedSessions, accountStatus]);
 
   /**
    * @function regenerateMonth
@@ -746,14 +829,9 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
    *  3) Call service.extendStudyPlan(studyPlan, metas) to get a unified plan.
    *  4) setStudyPlan(merged) and POST envelope optimistically.
    *  5) Refresh version tracking snapshot.
-   */
-/**
-   * @function updateStudyPlan
-   * @description
-   * Extend the existing plan using updated NotebookMeta (from selection).
    * (new update - detects structural changes vs content updates)
    */
-  const updateStudyPlan = useCallback(async () => { 
+  const updateStudyPlan = useCallback(async (isAutoSync = false) => { 
     if (!studyPlan) {
       setError('No existing plan to update. Generate a plan first.');
       return;
@@ -809,6 +887,11 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
         });
         return m;
       });
+
+      if (!isAutoSync) {
+        setHasUnseenUpdates(true);
+      }
+
     } catch (e: any) {
       setError(e?.message ?? 'Failed to update plan');
     } finally {
@@ -817,7 +900,7 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
   }, [studyPlan, selectedNotebooks, notebooksApi, service, persistApi, completedSessions]);
 
 
-  // update - 10: New automation helpers
+
   /**
    * @function isNotebookTracked
    * @description Checks if a specific notebook ID is part of the active schedule.
@@ -876,6 +959,11 @@ const queueNotebookIntegration = useCallback((notebookId: string) => {
  *  - integrateNotebook: trusts that data is fresh and extends/generates the plan.
  */
 const integrateNotebook = useCallback(async (notebookId: string) => {
+
+  if (accountStatus?.subscriptionTier === 'freemium' && selectedNotebooks.length >= 2 && !selectedNotebooks.includes(notebookId)) {
+     showModal('subscribe', { featureName: "Study Plan Limit" });
+     return;
+  }
   // Snapshot previous selection for rollback on failure
   const previousSelection = selectedNotebooks;
 
@@ -938,6 +1026,13 @@ const integrateNotebook = useCallback(async (notebookId: string) => {
       });
       return m;
     });
+
+
+    // Increment Badge on Successful Integration (New Addition)
+    // ── STRATEGY: FLAG TRUE ──
+      setHasUnseenUpdates(true);
+      // ───────────────────────
+
   } catch (e: any) {
     console.error('[CalendarContext] integrateNotebook failed', e);
     setError(e?.message ?? 'Failed to integrate notebook');
@@ -947,7 +1042,7 @@ const integrateNotebook = useCallback(async (notebookId: string) => {
   } finally {
     setIsLoading(false);
   }
-}, [studyPlan, selectedNotebooks, notebooksApi, service, persistApi, completedSessions, userEmail]);
+}, [studyPlan, selectedNotebooks, notebooksApi, service, persistApi, completedSessions, userEmail, accountStatus, showModal]);
 
 
 /**
@@ -1023,6 +1118,65 @@ useEffect(() => {
     }
   },[persistOptimistic, saveNeeded])
 
+
+
+  
+  /**
+   * @effect Autosync / Self-Healing
+   * @description
+   * Comparison Strategy: Unit Counts.
+   * Checks if the *quantity* of lesson units in the live file differs from the plan.
+   * If they differ, it triggers `updateStudyPlan` ONCE per session per notebook.
+   */
+  useEffect(() => {
+    // Only run if we have a plan, live data, and aren't already working
+    if (!studyPlan || availableNotebooks.length === 0 || isLoading) return;
+
+    let needsSync = false;
+
+    // Iterate over tracked notebooks in the plan
+    for (const [notebookId, progress] of studyPlan.state.notebookProgress) {
+        // Skip if we have already attempted to sync this specific notebook in this session
+        // This satisfies the "update once per session" requirement and prevents error loops
+        console.log(` Autosync history 44: ${JSON.stringify(autosyncHistory.current)}`)
+        if (autosyncHistory.current.has(notebookId)) continue;
+
+        const liveFile = availableNotebooks.find(n => n.fileId === notebookId);
+        console.log(` Autosync availableNotebooks 44: ${JSON.stringify(liveFile)}`)
+        if (!liveFile) continue; 
+
+        // 1. Calculate Plan Units (Sum of all lessons in the existing progress)
+        const planUnits = progress.lessonProgress.reduce((acc, lp) => acc + lp.totalUnits, 0);
+        console.log(` Autosync planUnits 44: ${JSON.stringify(planUnits)}`)
+
+        // 2. Get Live Units
+        const liveUnits = liveFile.totalUnits;
+        console.log(` Autosync Live Units 44: ${JSON.stringify(liveUnits)}`)
+
+        // 3. Content-Based Comparison (Ignore timestamps/color codes)
+        if (liveUnits !== planUnits) {
+             console.log(`[Autosync] 44 Detected unit mismatch for ${liveFile.fileName}. Plan: ${planUnits}, Live: ${liveUnits}`);
+             
+             // Mark as attempted immediately to prevent re-entry/loops during the async update
+             autosyncHistory.current.add(notebookId);
+             needsSync = true;
+             
+             // We found a discrepancy. Break loop to trigger the single update.
+             // updateStudyPlan processes ALL selected notebooks, so one trigger handles everything.
+             break; 
+        }
+    }
+
+    if (needsSync) {
+        // Trigger update silently (suppressed UI errors inside updateStudyPlan via internal try/catch)
+        // Pass true to indicate this is an auto-sync (suppresses 'Unseen Updates' badge if desired)
+        void updateStudyPlan(true); 
+    }
+  }, [availableNotebooks, studyPlan, isLoading, updateStudyPlan]);
+
+
+
+
   /**
    * @function clearSchedule
    * @description Clear local + remote envelope.
@@ -1041,9 +1195,6 @@ useEffect(() => {
   }, [persistApi]);
 
 
-
-
-  // update - 12: New Accessor for Weekly Sessions
   /**
    * @function getSessionsForWeek
    * @description
@@ -1077,6 +1228,12 @@ useEffect(() => {
     });
   }, [studyPlan]);
 
+  const resetUnseenCount = useCallback(() => {
+    // ── STRATEGY: FLAG TRUE ──
+      setHasUnseenUpdates(false);
+      // ───────────────────────
+}, []);
+
   const value: CalendarContextType = useMemo(() => ({
     // state
     selectedNotebooks,
@@ -1097,6 +1254,8 @@ useEffect(() => {
     selectNotebook,
     deselectNotebook,
     refreshNotebooks,
+    removeNotebook,
+    resetUnseenCount,
 
     // config
     updateScheduleConfig,
@@ -1115,11 +1274,12 @@ useEffect(() => {
 
     // utilities
     notebookVersions,
-    isNotebookTracked, // update - 11
+    isNotebookTracked,
     integrateNotebook,
     queueNotebookIntegration,
     getSessionsForWeek,
-  }), [selectedNotebooks, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, listRefreshing, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, updateStudyPlan, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, completedSessions, notebookVersions, isNotebookTracked, integrateNotebook, queueNotebookIntegration, getSessionsForWeek]);
+    hasUnseenUpdates,
+  }), [selectedNotebooks, removeNotebook, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, listRefreshing, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, updateStudyPlan, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, completedSessions, notebookVersions, isNotebookTracked, integrateNotebook, queueNotebookIntegration, getSessionsForWeek, hasUnseenUpdates, resetUnseenCount]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };

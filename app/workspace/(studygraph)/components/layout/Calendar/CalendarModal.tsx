@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Calendar, BookOpen, AlertCircle, RefreshCw } from 'lucide-react';
+import { X, Calendar, BookOpen, AlertCircle, Settings } from 'lucide-react';
 import { useCalendar } from '@/app/Library/Context/CalendarContextv2';
 import { PickerFileMeta, StudySession } from '@/app/Library/Definitions/CalendarDefinitions';
 import NotebookSelector from './NotebookSelector';
@@ -15,12 +15,16 @@ import CalendarMonthView from './draft/CalendarMonthView';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import './calendar-theme.css';
 import { ALL_DAYS } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/Configuration';
+import CalendarRemovalView from './CalendarRemovalView';
 
 interface CalendarModalProps {
   isOpen: boolean;
   onClose: () => void;
   onFileSelect: (meta: PickerFileMeta) => void;
 }
+
+// Extended View Type
+type CalendarTab = 'select' | 'calendar' | 'removal';
 
 /**
  * Main calendar modal component: notebook selection (+ day availability), calendar display,
@@ -46,13 +50,14 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
     // use today as start when generating
     setPlanStartDate,
     updateStudyPlan,
+    resetUnseenCount,
   } = useCalendar();
 
   const extensionInProgress = isLoading;
   const { requestSessionLaunch } = useSlideShow();
 
   // Two tabs now: select (with availability) and calendar
-  const [activeTab, setActiveTab] = useState<'select' | 'calendar'>('select');
+  const [activeTab, setActiveTab] = useState<CalendarTab>('select');
 
    /**
    * @effect Auto-tab to "Calendar View" when modal opens and there is data
@@ -65,12 +70,15 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
    */
   useEffect(() => {
     if (!isOpen) return;
+
+    resetUnseenCount(); 
+
     const hasCalendar =
       !!currentMonth && Array.isArray(currentMonth.dailyPlans) && currentMonth.dailyPlans.length > 0;
     if (hasCalendar) {
       setActiveTab('calendar');
     }
-  }, [isOpen, currentMonth]);
+  }, [isOpen, currentMonth, resetUnseenCount]);
 
   /**
    * Manual extension trigger for outdated notebooks (unchanged)
@@ -293,7 +301,7 @@ const handleUpdateSchedule = async () => {
                   Day Availability
                 </h4>
                 <p className="calendar-text-secondary text-sm">
-                  Select the days of the week you’re available to study. We’ll use today as your start date.
+                  Select the days of the week you’re available to study. 
                 </p>
                 <div className="grid grid-cols-7 gap-1">
                   {ALL_DAYS.map((day) => {
@@ -332,65 +340,82 @@ const handleUpdateSchedule = async () => {
               />
             </div>
           )}
-        </div>
 
-        {/* Footer */}
-        <div className="calendar-modal-footer">
-          {/* Error */}
-          {error && (
-            <div className="flex-1 text-red-600 text-sm">
-              {error}
-            </div>
+          {/* update - 5: Render Removal View */}
+          {activeTab === 'removal' && (
+             <CalendarRemovalView onBack={() => setActiveTab('calendar')} />
           )}
-
-          {/* Actions */}
-          <div className="flex gap-3 ml-auto">
-{activeTab === 'select' && (
-              /* update - 4: Dynamic button text and action based on plan existence */
-              hasExistingPlan ? (
-                <button
-                  onClick={handleUpdateSchedule}
-                  disabled={selectedNotebooks.length === 0 || extensionInProgressState}
-                  className="calendar-btn calendar-btn-secondary"
-                >
-                  {extensionInProgressState ? 'Updating...' : 'Update Schedule'}
-                </button>
-              ) : (
-                <button
-                  onClick={handleGenerateSchedule}
-                  disabled={selectedNotebooks.length === 0 || extensionInProgressState}
-                  className="calendar-btn calendar-btn-primary"
-                >
-                  {extensionInProgressState ? 'Creating...' : 'Generate Schedule'}
-                </button>
-              )
-            )}
-
-            {activeTab === 'calendar' && (
-              <>
-                <button
-                  onClick={clearSchedule}
-                  className="calendar-btn calendar-btn-outline"
-                >
-                  Clear Schedule
-                </button>
-                <button
-                  onClick={handleUpdateSchedule}
-                  disabled={selectedNotebooks.length === 0 || extensionInProgressState}
-                  className="calendar-btn calendar-btn-secondary"
-                >
-                  {extensionInProgressState ? 'Updating...' : 'Update Schedule'}
-                </button>
-                <button
-                  onClick={() => setActiveTab('select')}
-                  className="calendar-btn calendar-btn-primary"
-                >
-                  Add More Notebooks
-                </button>
-              </>
-            )}
-          </div>
         </div>
+
+        {/* Footer: Hidden in removal mode (view has its own nav) or customized */}
+        {activeTab !== 'removal' && (
+          <div className="calendar-modal-footer">
+            {/* Error */}
+            {error && (
+              <div className="flex-1 text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 ml-auto">
+              {activeTab === 'select' && (
+                hasExistingPlan ? (
+                  <button
+                    onClick={handleUpdateSchedule}
+                    disabled={selectedNotebooks.length === 0 || extensionInProgressState}
+                    className="calendar-btn calendar-btn-secondary"
+                  >
+                    {extensionInProgressState ? 'Updating...' : 'Update Schedule'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleGenerateSchedule}
+                    disabled={selectedNotebooks.length === 0 || extensionInProgressState}
+                    className="calendar-btn calendar-btn-primary"
+                  >
+                    {extensionInProgressState ? 'Creating...' : 'Generate Schedule'}
+                  </button>
+                )
+              )}
+
+              {activeTab === 'calendar' && (
+                <>
+                  <button
+                    onClick={clearSchedule}
+                    className="calendar-btn calendar-btn-outline"
+                  >
+                    Clear Schedule
+                  </button>
+                  
+                  {/* update - 6: Add Manage Subjects button */}
+                  <button
+                     onClick={() => setActiveTab('removal')}
+                     className="calendar-btn calendar-btn-outline flex items-center gap-2"
+                     title="Manage Notebooks"
+                  >
+                     <Settings size={14} />
+                     Manage Subjects
+                  </button>
+
+                  <button
+                    onClick={handleUpdateSchedule}
+                    disabled={selectedNotebooks.length === 0 || extensionInProgressState}
+                    className="calendar-btn calendar-btn-secondary"
+                  >
+                    {extensionInProgressState ? 'Updating...' : 'Update Schedule'}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('select')}
+                    className="calendar-btn calendar-btn-primary"
+                  >
+                    Add More Notebooks
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

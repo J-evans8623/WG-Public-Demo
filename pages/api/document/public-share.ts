@@ -30,8 +30,10 @@ import {
   setPublicEdit, 
   setPublicView, 
   addEditor,  
-  resolveRole 
+  resolveRole,
+  firestore
 } from '@/app/src/services/firebase';
+import * as admin from 'firebase-admin';
 import { generateQrDataUri } from '@/app/src/share/generateQr';
 
 interface PublicShareRequest {
@@ -106,7 +108,7 @@ export default async function handler(
     const userRole = await resolveRole(docId, userEmail);
       
 
-    // update - 6: Bifurcated permission check
+    // Bifurcated permission check
     if (fetchOnly) {
         // For fetchOnly, any resolved role (Owner, Editor, Viewer) is sufficient.
         // resolveRole returns null/undefined if no access.
@@ -189,6 +191,26 @@ export default async function handler(
     if (delivery === 'flyer') {
       flyerUrl = `${baseUrl}/api/flyer/${docId}.pdf`;
       console.log('public-share.ts 3016 › Flyer URL generated', { flyerUrl });
+    }
+
+
+    // We log if the user is explicitly requesting share assets (QR/Link).
+    // This catches 'fetchOnly' (Viewers) and Write operations (Owners).
+    // This allows us to track 'Dark Social' sharing where users copy the link without changing ACLs.
+    const isShareAction = fetchOnly || mode === 'public-view' || mode === 'public-edit';
+    
+    if (isShareAction && userEmail) {
+       // Fire-and-forget: we do not await this promise to ensure the UI response remains fast.
+       // We catch errors to prevent unhandled promise rejections in server logs.
+       firestore.collection('analytics_events').add({
+          eventType: 'share_link_retrieved',
+          userId: userEmail,
+          docId: docId,
+          role: userRole, // 'Viewer', 'Editor', 'Owner'
+          delivery: delivery, // 'link' or 'flyer'
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          source: 'public_share_api'
+       }).catch(err => console.warn('public-share.ts [Analytics] Share intent log failed', err));
     }
 
     // Step 10: Prepare response

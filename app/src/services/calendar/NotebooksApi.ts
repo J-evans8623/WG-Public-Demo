@@ -23,7 +23,7 @@ import { getFileListCache } from '@/app/workspace/(studygraph)/services/fileList
 
 const NOTEBOOKS_LIST_LANE = 'files:list:notebooks';
 
-type OwnedFile = {
+type FileWire = {
   fileId: string;
   fileName: string;
   updatedAt: string;
@@ -90,10 +90,12 @@ public async list(): Promise<NotebookSummary[]> {
   }
 
   const body = await resp.json();
-  const ownedFiles: OwnedFile[] = Array.isArray(body?.ownedFiles) ? body.ownedFiles : [];
-  console.log(`[${loc}] list() fetched files=${ownedFiles.length}`);
+  // update - 2: Extract and combine both owned and shared files into a single processing stream.
+    const ownedFiles: FileWire[] = Array.isArray(body?.ownedFiles) ? body.ownedFiles : [];
+    const sharedFiles: FileWire[] = Array.isArray(body?.sharedFiles) ? body.sharedFiles : [];
+    const allFiles = [...ownedFiles, ...sharedFiles];
 
-  const calcUnits = (meta?: OwnedFile['lessonUnitsMeta']): number => {
+  const calcUnits = (meta?: FileWire['lessonUnitsMeta']): number => {
     if (!meta) return 0;
     if (typeof meta.totalUnits === 'number') return meta.totalUnits;
     if (meta.unitsByMap && typeof meta.unitsByMap === 'object') {
@@ -106,7 +108,7 @@ public async list(): Promise<NotebookSummary[]> {
     return 0;
   };
 
-  const summaries: NotebookSummary[] = ownedFiles
+  const summaries: NotebookSummary[] = allFiles
     .map((f) => ({
       fileId: f.fileId,
       fileName: f.fileName,
@@ -132,7 +134,7 @@ public async list(): Promise<NotebookSummary[]> {
    * 3. Only fetch IDs that are missing from cache or missing lesson data.
    * 4. Merge results and return.
    */
-  public async details(fileIds: string[], userEmail?: string): Promise<NotebookMeta[]> { // update - 2
+  public async details(fileIds: string[], userEmail?: string): Promise<NotebookMeta[]> {
     const loc = 'NotebooksApi.ts[7002]';
     if (!Array.isArray(fileIds) || fileIds.length === 0) {
       return [];

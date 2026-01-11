@@ -128,6 +128,17 @@ export interface YDocContextType {
   docFileID: string | null;
   isInitialized: boolean;
 
+  // Boot error surfaced to UI (authoritative open failures, etc.)
+  bootError: {
+    docId: string | null;
+    code: number | null;
+    reason: string | null;
+    message: string;
+    at: string;
+  } | null;
+
+  clearBootError: () => void;
+
   // Document lifecycle
   createNewDocument: () => Promise<{ docId: string; ydoc: Y.Doc }>;
   loadData: (
@@ -214,6 +225,18 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   const [saveReady, setSaveReady] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [bootError, setBootError] = useState<{
+    docId: string | null;
+    code: number | null;
+    reason: string | null;
+    message: string;
+    at: string;
+  } | null>(null);
+
+  const clearBootError = useCallback(() => {
+    setBootError(null);
+  }, []);
+
   /**
  * 
  * @ref createLocalRef
@@ -249,6 +272,7 @@ const createLocalRef = useRef<{ docId: string; bytes: Uint8Array } | null>(null)
    *   immediately; asynchronous work and readiness signals happen inside the machine.
    */
   const selectDoc = useCallback((docId: string) => {
+    setBootError(null); // NEW: clear prior boot errors on new intent
     lastIntentRef.current = { kind: 'select', docId };
     setMachine({ type: 'REQUEST_SELECT', docId });
     // console.log('YDocContextv2.tsx 4001 › [update - 110] request select', { docId });
@@ -263,6 +287,7 @@ const createLocalRef = useRef<{ docId: string; bytes: Uint8Array } | null>(null)
    *   `renderReady` immediately after doc materialization. This call is O(1) and returns instantly.
    */
   const createDocReq = useCallback(() => {
+    setBootError(null); // NEW: clear prior boot errors on new intent
     lastIntentRef.current = { kind: 'create' };
     setMachine({ type: 'REQUEST_CREATE' });
     // console.log('YDocContextv2.tsx 4002 › [update - 111] request create');
@@ -1443,12 +1468,52 @@ case 'BOOTSTRAP_NEW': {
             return;
           }
         }
-      } catch (e: any) {
+            } catch (e: any) {
         if (isStale()) return;
-        setError(e?.message || 'Initialization failed');
+
+        // Derive docId from machine when possible (select flow), else current docFileID (create/other)
+        const impliedDocId =
+          (machine as any)?.docId ??
+          ((machine as any)?.prevId ?? null) ??
+          docFileID ??
+          null;
+
+        const code =
+          typeof e?.code === 'number' && Number.isFinite(e.code) ? e.code : null;
+
+        const reason =
+          typeof e?.reason === 'string' && e.reason.trim()
+            ? e.reason
+            : (typeof e?.message === 'string' && e.message.trim() ? e.message : null);
+
+        // Standardize the user-facing message for "unavailable" cases.
+        // We intentionally do not distinguish (deleted vs private) for safety/clarity.
+        const userMessage =
+          'The owner of this notebook has either deleted it or made it private.';
+
+        // Make sure we never leave UI gates "half-open"
+        setRenderReady(false);
+        setSaveReady(false);
+        setTriggerViewSwitch(false);
+
+        setError(userMessage);
+        setBootError({
+          docId: impliedDocId,
+          code,
+          reason,
+          message: userMessage,
+          at: new Date().toISOString(),
+        });
+
         setBootPhase('ERROR');
-        setMachine({ type: 'ERROR', message: e?.message || 'Initialization failed' });
-        console.error('YDocContextv2.tsx 8099 › machine error', e);
+        setMachine({ type: 'ERROR', message: userMessage });
+
+        console.warn('YDocContextv2.tsx 8099 › machine ERROR (bootError stored)', {
+          impliedDocId,
+          code,
+          reason,
+          raw: e,
+        });
       }
     })();
 
@@ -1504,8 +1569,10 @@ case 'BOOTSTRAP_NEW': {
     renderReady,
     saveReady,
     triggerViewSwitch,
-    setTriggerViewSwitch
-  }), [ydoc, snapshotYDoc, isReadOnly, fileName, docFileID, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, loadData, persistDoc, getLessonModuleJSON, getFileName, saveToFirebase, loadFromFirebase, getVisibility, updateVisibility, getPersistableBytes, isSnapshotActive, incrementVersion, version, addChatReadyListener, removeChatReadyListener, createDocReq, selectDoc, bootPhase, renderReady, saveReady, triggerViewSwitch]);
+    setTriggerViewSwitch,
+    bootError,
+    clearBootError,
+  }), [ydoc, bootError, clearBootError, snapshotYDoc, isReadOnly, fileName, docFileID, isInitialized, createNewDocument, applyUpdate, getState, updateFileName, loadData, persistDoc, getLessonModuleJSON, getFileName, saveToFirebase, loadFromFirebase, getVisibility, updateVisibility, getPersistableBytes, isSnapshotActive, incrementVersion, version, addChatReadyListener, removeChatReadyListener, createDocReq, selectDoc, bootPhase, renderReady, saveReady, triggerViewSwitch]);
 
   return (
     <YDocContext.Provider value={value}>

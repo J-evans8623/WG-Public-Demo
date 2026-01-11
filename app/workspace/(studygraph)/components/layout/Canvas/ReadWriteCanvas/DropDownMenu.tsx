@@ -82,7 +82,7 @@ export const UnifiedLessonsDropdown: React.FC<UnifiedLessonsDropdownProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const { isNotebookTracked, queueNotebookIntegration} = useCalendar();
+  const { isNotebookTracked, queueNotebookIntegration, selectedNotebooks} = useCalendar();
   useClickOutside(ref, () => setOpen(false));
 
   const {
@@ -187,6 +187,9 @@ const handleGenerate = useCallback(() => {
       },
       checkTrackedStatus: isNotebookTracked,
       onQueueIntegration: queueNotebookIntegration,
+      isFreemium: accountStatus?.subscriptionTier === 'freemium',
+      planNotebookCount: selectedNotebooks.length,
+      onLimitReached: () => showModal('subscribe', { featureName: "Study Plan Limit" }),
     });
   }, [mode, showModal, docFileID, isNotebookTracked, queueNotebookIntegration, handleGenerateLessonSuccess, onLessonGenerated]);
 

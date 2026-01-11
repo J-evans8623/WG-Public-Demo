@@ -135,7 +135,16 @@ export async function getDownloadUrl(
   const res = await supersedingCall(lane, { docFileID, type }, makeRequest);
 
   if (!res) throw deferredError('DOWNLOAD_URL');
-  if (!res.ok) throw new Error(`Download URL error: ${res.status} ${res.statusText}`);
+  if (!res.ok) {
+  const body = await res.json().catch(() => ({}));
+  const err: any = new Error(body?.error || `DOWNLOAD_URL_${res.status}`);
+  err.code = res.status;
+  err.reason = body?.error || null;
+  err.access = body?.access || null;
+  err.body = body;
+  throw err;
+}
+
 
   const raw = (await res.json()) as DownloadOk;
   if (!isNonEmptyString(raw.downloadUrl) || !isNonEmptyString(raw.fileStoragePath)) {

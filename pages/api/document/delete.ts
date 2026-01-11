@@ -74,7 +74,7 @@ export default async function handler(
     // Non-owner: remove own access
     if (userEmail !== ownerId) {
       console.log('delete.ts 1009 › non-owner removal requested by=', userEmail);
-      await removeEditor(docId, userEmail);
+      await removeEditor(docId, userEmail, { revoke: true });
       console.log('delete.ts 1010 › access removed for=', userEmail);
       return res
         .status(200)

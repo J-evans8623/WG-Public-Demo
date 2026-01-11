@@ -204,11 +204,14 @@ export interface CalendarContextType {
   //getSessionsForDay: (date: Date) => StudySession[];
   //getTodaysPlan: () => DailyStudyPlan | null;
   notebookVersions: Map<string, NotebookVersionState>
-  updateStudyPlan: () => Promise<void>;
+  updateStudyPlan: (isAutoSync?: boolean) => Promise<void>;
   isNotebookTracked: (notebookId: string) => boolean;
   integrateNotebook: (notebookId: string) => Promise<void>;
  queueNotebookIntegration: (notebookId: string) => void;
  getSessionsForWeek : (anchorDate: Date) => StudySession[];
+ removeNotebook: (notebookId: string) => void;
+ hasUnseenUpdates: boolean;
+ resetUnseenCount: () => void;
 }
 
 // Add the PickerFileMeta type from AppLayout

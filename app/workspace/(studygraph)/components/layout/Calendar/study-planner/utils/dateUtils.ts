@@ -26,7 +26,6 @@ export function addDays(date: Date, days: number): Date {
   const d = new Date(date.getTime());
   d.setDate(d.getDate() + days);
   // eslint-disable-next-line no-console
-  console.log(`[${loc}] addDays -> base=${date.toISOString()} days=${days} out=${d.toISOString()}`);
   return d;
 }
 
@@ -42,8 +41,6 @@ export function formatDateKey(date: Date): string {
   const m = `${date.getMonth() + 1}`.padStart(2, '0');
   const d = `${date.getDate()}`.padStart(2, '0');
   const key = `${y}-${m}-${d}`;
-  // eslint-disable-next-line no-console
-  console.log(`[${loc}] formatDateKey -> ${key}`);
   return key;
 }
 
@@ -71,7 +68,6 @@ export function isDateAvailable(date: Date, config: ScheduleConfig): boolean {
   const token = getDayToken(date);
   const ok = allowed.has(token);
   // eslint-disable-next-line no-console
-  console.log(`[${loc}] isDateAvailable -> token=${token} allowed=${ok}`);
   return ok;
 }
 
@@ -92,14 +88,12 @@ export function getNextAvailableDate(
   let probe = addDays(base, initialOffsetDays);
   for (let i = 0; i < 14; i++) {
     if (isDateAvailable(probe, config)) {
-      // eslint-disable-next-line no-console
-      console.log(`[${loc}] getNextAvailableDate -> found=${probe.toISOString()} after=${i} scans`);
+
       return probe;
     }
     probe = addDays(probe, 1);
   }
-  // eslint-disable-next-line no-console
-  console.log(`[${loc}] getNextAvailableDate -> fallback=${probe.toISOString()} (unexpected long scan)`);
+
   return probe;
 }
 
@@ -114,7 +108,5 @@ export function getDaysBetween(start: Date, end: Date): number {
   const startKey = new Date(formatDateKey(start));
   const endKey = new Date(formatDateKey(end));
   const diff = Math.round((endKey.getTime() - startKey.getTime()) / (1000 * 60 * 60 * 24));
-  // eslint-disable-next-line no-console
-  console.log(`[${loc}] getDaysBetween -> start=${formatDateKey(start)} end=${formatDateKey(end)} diff=${diff}`);
   return diff;
 }

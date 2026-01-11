@@ -123,6 +123,8 @@ const AppLayoutContent: React.FC = () => {
     saveReady,
     triggerViewSwitch,
     setTriggerViewSwitch,
+    bootError,
+    clearBootError,
   } = useYDoc();
 
   const { messages, chatDirty, resetDirty } = useChatHistory();
@@ -166,6 +168,23 @@ const AppLayoutContent: React.FC = () => {
       title: 'Opening Notebook…',
       subtitle: 'Checking cache and loading content',
       size: 'large',
+    });
+
+
+    // update - 1: Trigger Analytics "Catch" (Conversion)
+    // We fire this network request immediately but do NOT await it.
+    // This ensures the UI feels instant while we log the event in the background.
+    // We hardcode the source as 'campus_flyer_qr' for this campaign context.
+    fetch('/api/analytics/track-conversion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        docId: doc, 
+        source: 'campus_flyer_qr' 
+      })
+    }).catch(err => {
+      // Non-fatal error logging. Analytics failure should never break the app.
+      console.warn('[Analytics] Failed to track conversion:', err);
     });
     
 
@@ -231,6 +250,7 @@ const AppLayoutContent: React.FC = () => {
 
   // update - 8: react to readiness flags uniformly for every open/create flow
   useEffect(() => {
+    
     // (A) flip to map on first renderable signal
     if (renderReady && triggerViewSwitch) {
       //setDefaultMap();
@@ -242,6 +262,38 @@ const AppLayoutContent: React.FC = () => {
     }
 
   }, [renderReady, saveReady, docFileID, setActiveView, hideModal, triggerViewSwitch, setTriggerViewSwitch]); // update - 8
+
+
+
+  useEffect(() => {
+    if (!bootError) return;
+
+    // Ensure we never leave the user stuck behind a loading overlay
+    hideModal();
+
+    console.warn('app.tsx 4701 › bootError observed → docUnavailable modal', {
+      docId: bootError.docId,
+      code: bootError.code,
+      reason: bootError.reason,
+      at: bootError.at,
+    });
+
+    showModal('docUnavailable', {
+      title: 'Notebook unavailable',
+      message: bootError.message,
+      onClose: () => {
+        try {
+          clearBootError();
+        } catch (e) {
+          console.warn('app.tsx 4702 › clearBootError failed (non-fatal)', e);
+        }
+
+        // Return to a safe UX state
+        setCurrentView('home');
+        router.replace('/workspace');
+      },
+    });
+  }, [bootError, hideModal, showModal, clearBootError, router]);
 
 
 
@@ -402,8 +454,9 @@ export const AppLayout: React.FC = () => {
           <AccessLayerProvider>
             <YDocProvider>
               <CollabProvider>
-              <CalendarProvider>
+              
                 <GlobalModalProvider>
+                  <CalendarProvider>
                 <ViewSwitchProvider>
                   <LessonModuleProvider>
                     <FileAssetProvider>
@@ -450,8 +503,8 @@ export const AppLayout: React.FC = () => {
                     </FileAssetProvider>
                   </LessonModuleProvider>
                 </ViewSwitchProvider>
+                </CalendarProvider>
                 </GlobalModalProvider>
-              </CalendarProvider>
               </CollabProvider>
             </YDocProvider>
           </AccessLayerProvider>

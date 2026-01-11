@@ -27,6 +27,7 @@ import {
   hasPendingLearning,
   findNextEligibleLearningSetDay,
   makeSyntheticSetForNotebooks,
+  hasBlockOnDate,
 } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/core/NotebookAnchorPlanner';
 
 // --- Dependency Contracts -------------------------
@@ -382,23 +383,23 @@ export class StudyPlanOrchestrator {
       };
     }
 
-  /**
+/**
    * @function extendPlan_UpdateStrategy
    * @description
-   * STRATEGY B: UPDATE (The "Original" Logic)
+   * STRATEGY B: UPDATE (Corrected)
    * Used when updating EXISTING notebooks.
-   * * (new update - separate strategy to restore active anchoring)
-   * * Logic:
-   * Uses "Anchor Date Planning" (Active Scheduling).
-   * It pre-calculates the `NextEligibleDay` for every updated notebook.
-   * This forces the scheduler to create sessions on specific dates, ensuring
-   * updates are not missed even if the current day belongs to a different Learning Set.
+   * Logic:
+   * Uses "Collision-Aware Dynamic Scheduling".
+   * It iterates through days and identifies notebooks in the active set that need work.
+   * Crucially, it checks if a session already exists for that notebook on that day 
+   * (to preserve history) before scheduling a new one. This allows it to fill 
+   * all necessary future slots, not just the first one.
    */
   public extendPlan_UpdateStrategy(
     existing: StudyPlanState,
     updatedNotebooks: NotebookMeta[]
   ): StudyPlanOutput {
-    const loc = 'core/StudyPlanOrchestrator.ts#UPDATE';
+    const loc = 'core/StudyPlanOrchestrator.ts#UPDATE-FIX';
 
     // 1. Parse Updated Lessons
     const lessonsByNotebook: Map<string, Lesson[]> = new Map();
@@ -408,8 +409,9 @@ export class StudyPlanOrchestrator {
     }
 
     // 2. Setup Context
-    const { learningSets, notebookProgress: progressMap, sessionsByDate } = existing;
+    const { learningSets, notebookProgress: progressMap } = existing;
     const config = existing.config;
+    // Anchor extension window at today's local midnight
     const startDate = todayMidnightLocal();
 
     // 3. Build Pattern
@@ -424,54 +426,11 @@ export class StudyPlanOrchestrator {
     // 4. Reconcile Progress
     this.reconcileProgressWithLessons(progressMap, lessonsByNotebook, schedulePattern);
 
-    // --- ANCHOR DATE PLANNING (Restored Logic) ---
-    
-    // (new update - pre-calculate anchors to force scheduling)
-    
-    // 4a. Map notebookId -> learningSetId
-    const setByNotebook = new Map<string, LearningSet>();
-    for (const ls of learningSets) {
-      for (const nb of ls.notebooks) setByNotebook.set(nb.fileId, ls);
-    }
-
-    // 4b. Identify notebooks with pending learning and compute explicit anchor dates
-    type AnchorRec = { notebookId: string; anchor: Date | null; set: LearningSet };
-    const anchors: AnchorRec[] = [];
-    
-    for (const [nbId, nbProg] of progressMap.entries()) {
-      if (!hasPendingLearning(nbProg)) continue;
-      const set = setByNotebook.get(nbId);
-      if (!set) continue;
-
-      // ACTIVE ANCHORING: Find the specific next date this notebook is allowed to learn
-      const anchor = findNextEligibleLearningSetDay(
-        nbId,
-        nbProg.learningSetId,
-        startDate,
-        totalDays,
-        schedulePattern,
-        sessionsByDate,
-        config
-      );
-      anchors.push({ notebookId: nbId, anchor, set });
-    }
-
-    // 4c. Invert anchors: dateKey -> list of notebookIds
-    const byDate = new Map<string, { set: LearningSet; notebookIds: string[] }>();
-    for (const a of anchors) {
-      if (!a.anchor) continue;
-      const key = formatDateKey(a.anchor);
-      const existingEntry = byDate.get(key);
-      if (existingEntry) {
-        existingEntry.notebookIds.push(a.notebookId);
-      } else {
-        byDate.set(key, { set: a.set, notebookIds: [a.notebookId] });
-      }
-    }
-
-    // 5. Execution Loop (Active Anchors)
+    // 5. Execution Loop (Dynamic & Collision-Aware)
     const outSessions: StudySession[] = [];
+    // We clone the existing map so we can verify collisions against history AND new sessions
     const mergedSessionsByDate = new Map<string, StudySession[]>(existing.sessionsByDate);
+    
     let prevDaySessions: StudySession[] = [];
     let prevActiveSet: LearningSet | undefined;
 
@@ -481,21 +440,34 @@ export class StudyPlanOrchestrator {
 
       const key = formatDateKey(currentDate);
       const scheduledSet = schedulePattern.get(key) || undefined;
-
-      // Check for Explicit Anchors for today
-      let blockLearning: StudySession[] = [];
-      const dateAnchors = byDate.get(key);
       
-      // If we have an anchor for today, we MUST schedule it
-      if (scheduledSet && dateAnchors && dateAnchors.notebookIds.length > 0) {
-        const synthetic = makeSyntheticSetForNotebooks(scheduledSet, dateAnchors.notebookIds);
-        blockLearning = this.blockFns.scheduleBlockLearning(
-          currentDate,
-          synthetic,
-          progressMap,
-          lessonsByNotebook
+      let blockLearning: StudySession[] = [];
+
+      // --- DYNAMIC CHECK START ---
+      if (scheduledSet) {
+        // A. Find all notebooks in this set that still need work
+        const candidates = scheduledSet.notebooks.filter(nb => 
+            hasPendingLearning(progressMap.get(nb.fileId))
         );
+
+        // B. Filter out notebooks that ALREADY have a block on this day
+        //    (This prevents double-booking a day that was already scheduled in the past)
+        const validNotebookIds = candidates
+            .map(nb => nb.fileId)
+            .filter(nbId => !hasBlockOnDate(mergedSessionsByDate, key, nbId));
+
+        // C. Schedule if we have valid candidates
+        if (validNotebookIds.length > 0) {
+           const synthetic = makeSyntheticSetForNotebooks(scheduledSet, validNotebookIds);
+           blockLearning = this.blockFns.scheduleBlockLearning(
+             currentDate,
+             synthetic,
+             progressMap,
+             lessonsByNotebook
+           );
+        }
       }
+      // --- DYNAMIC CHECK END ---
 
       const blockRevision = this.blockFns.scheduleBlockRevision(
         currentDate,
@@ -539,7 +511,6 @@ export class StudyPlanOrchestrator {
       nextAvailableDate: addDays(startDate, totalDays),
       config,
     };
-
 
     return { sessions: outSessions, planMetadata, state: newState };
   }

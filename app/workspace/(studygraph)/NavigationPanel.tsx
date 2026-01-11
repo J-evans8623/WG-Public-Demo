@@ -101,7 +101,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lesson: any } | null>(null);
-  const { isNotebookTracked, queueNotebookIntegration } = useCalendar();
+  const { isNotebookTracked, queueNotebookIntegration, selectedNotebooks } = useCalendar();
   // ---------------------------
   // [4] Notify parent on expand
   // ---------------------------
@@ -369,6 +369,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
       onSuccess: handleGenerateLessonSuccess,
       checkTrackedStatus: isNotebookTracked,
       onQueueIntegration: queueNotebookIntegration,
+      isFreemium: accountStatus?.subscriptionTier === 'freemium',
+      planNotebookCount: selectedNotebooks.length,
+      onLimitReached: () => showModal('subscribe', { featureName: "Study Plan Limit" }),
     });
   }, [canEdit, showModal, docFileID, handleGenerateLessonSuccess, isNotebookTracked, queueNotebookIntegration]);
 
