@@ -30,6 +30,15 @@ import {
   hasBlockOnDate,
 } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/core/NotebookAnchorPlanner';
 
+
+import {
+  determineResumePoint,
+  truncateFutureSchedule,
+  identifyNewContent,
+  appendLearningPhase,
+  appendMaintenancePhase
+} from './UpdateStrategy';
+
 // --- Dependency Contracts -------------------------
 
 interface ILearningSetFns {
@@ -386,135 +395,193 @@ export class StudyPlanOrchestrator {
 /**
    * @function extendPlan_UpdateStrategy
    * @description
-   * STRATEGY B: UPDATE (Corrected)
-   * Used when updating EXISTING notebooks.
-   * Logic:
-   * Uses "Collision-Aware Dynamic Scheduling".
-   * It iterates through days and identifies notebooks in the active set that need work.
-   * Crucially, it checks if a session already exists for that notebook on that day 
-   * (to preserve history) before scheduling a new one. This allows it to fill 
-   * all necessary future slots, not just the first one.
+   * STRATEGY B: UPDATE (Append-Only / Non-Destructive)
+   * Used when adding NEW content to EXISTING notebooks.
+   * * Architecture:
+   * It uses a linear pipeline of 5 abstractions to:
+   * 1. Find a safe resume point (Anchor).
+   * 2. Clear the conflicting future.
+   * 3. Identify and chunk new content.
+   * 4. Append learning blocks sequentially.
+   * 5. Append maintenance (interleaved) tail.
    */
   public extendPlan_UpdateStrategy(
-    existing: StudyPlanState,
+    existingPlan: StudyPlanOutput, 
     updatedNotebooks: NotebookMeta[]
   ): StudyPlanOutput {
-    const loc = 'core/StudyPlanOrchestrator.ts#UPDATE-FIX';
+    const loc = 'core/StudyPlanOrchestrator.ts#UPDATE-APPEND';
 
-    // 1. Parse Updated Lessons
+    // 1. Setup Context (Prep for Abstractions)
+    const { learningSets, notebookProgress: progressMap, sessionsByDate } = existingPlan.state;
+    const config = existingPlan.state.config;
+    const today = todayMidnightLocal();
+    
+    // Clone map to allow mutation (Truncation)
+    const mergedSessionsByDate = new Map<string, StudySession[]>(sessionsByDate);
+
+    // 2. Parse Lessons & Build Pattern (Prep for Abstractions)
+    // We need a schedule pattern that extends into the future to find slots.
     const lessonsByNotebook: Map<string, Lesson[]> = new Map();
     for (const nb of updatedNotebooks) {
-      const lessons = this.lessonFns.parseLessons(nb);
-      lessonsByNotebook.set(nb.fileId, lessons);
+      lessonsByNotebook.set(nb.fileId, this.lessonFns.parseLessons(nb));
     }
-
-    // 2. Setup Context
-    const { learningSets, notebookProgress: progressMap } = existing;
-    const config = existing.config;
-    // Anchor extension window at today's local midnight
-    const startDate = todayMidnightLocal();
-
-    // 3. Build Pattern
-    const totalDays = this.calculateTotalDays(updatedNotebooks, learningSets, lessonsByNotebook);
+    
     const schedulePattern = this.learningSetFns.buildSchedulePattern(
-      startDate,
+      today,
       learningSets,
       config,
-      totalDays
+      365 // Horizon
     );
 
-    // 4. Reconcile Progress
-    this.reconcileProgressWithLessons(progressMap, lessonsByNotebook, schedulePattern);
+    // REMOVED OLD ARTIFACT: reconcileProgressWithLessons was here.
+    // It has been moved to the end to prevent "Zero Delta" bug.
 
-    // 5. Execution Loop (Dynamic & Collision-Aware)
-    const outSessions: StudySession[] = [];
-    // We clone the existing map so we can verify collisions against history AND new sessions
-    const mergedSessionsByDate = new Map<string, StudySession[]>(existing.sessionsByDate);
-    
-    let prevDaySessions: StudySession[] = [];
-    let prevActiveSet: LearningSet | undefined;
+    // 4. Execution Loop: Process Each Updated Notebook
+    const allNewSessions: StudySession[] = [];
 
-    for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
-      const currentDate = addDays(startDate, dayOffset);
-      if (!isDateAvailable(currentDate, config)) continue;
-
-      const key = formatDateKey(currentDate);
-      const scheduledSet = schedulePattern.get(key) || undefined;
+    for (const notebook of updatedNotebooks) {
+      const nbId = notebook.fileId;
       
-      let blockLearning: StudySession[] = [];
-
-      // --- DYNAMIC CHECK START ---
-      if (scheduledSet) {
-        // A. Find all notebooks in this set that still need work
-        const candidates = scheduledSet.notebooks.filter(nb => 
-            hasPendingLearning(progressMap.get(nb.fileId))
-        );
-
-        // B. Filter out notebooks that ALREADY have a block on this day
-        //    (This prevents double-booking a day that was already scheduled in the past)
-        const validNotebookIds = candidates
-            .map(nb => nb.fileId)
-            .filter(nbId => !hasBlockOnDate(mergedSessionsByDate, key, nbId));
-
-        // C. Schedule if we have valid candidates
-        if (validNotebookIds.length > 0) {
-           const synthetic = makeSyntheticSetForNotebooks(scheduledSet, validNotebookIds);
-           blockLearning = this.blockFns.scheduleBlockLearning(
-             currentDate,
-             synthetic,
-             progressMap,
-             lessonsByNotebook
-           );
-        }
+      // Get the existing progress snapshot for COMPARISON (before mutation)
+      // If it's a new book, we create a temporary snapshot so logic works.
+      let progressSnapshot = progressMap.get(nbId);
+      
+      if (!progressSnapshot) {
+          // This creates a detached progress object just for comparison
+          // It effectively says "I have zero history".
+          progressSnapshot = {
+              notebookId: nbId,
+              learningSetId: '', // placeholder, will be fixed by reconcile
+              lessonProgress: [],
+              interleavedRevisionProgress: { totalRequired: 0, sessionsScheduled: 0, sessionsCompleted: 0, scheduledDates: [], firstSessionDate: undefined }
+          };
       }
-      // --- DYNAMIC CHECK END ---
 
-      const blockRevision = this.blockFns.scheduleBlockRevision(
-        currentDate,
-        prevDaySessions,
-        progressMap,
-        scheduledSet,
-        prevActiveSet
+      // --- ABSTRACTION C: Identify Content ---
+      // We identify content FIRST using the OLD snapshot.
+      const newChunks = identifyNewContent(
+        notebook,
+        progressSnapshot, // Old state
+        lessonsByNotebook, // New State (from file)
+        this.lessonFns.chunkLesson
+      );
+      
+      // Safeguard: Zero Delta
+      if (newChunks.length === 0) {
+         continue; // Nothing to add for this notebook
+      }
+
+      // --- ABSTRACTION A: Resume Point ---
+      // We need the Target Set ID. If it's a new book, we might need to look it up 
+      // from 'learningSets' directly since 'progressSnapshot' might be empty.
+      const targetSetId = progressSnapshot.learningSetId || learningSets.find(ls => ls.notebooks.some(n => n.fileId === nbId))?.id || '';
+
+      const resumePoint = determineResumePoint(
+        mergedSessionsByDate,
+        nbId,
+        learningSets,
+        config,
+        schedulePattern,
+        today
       );
 
-      const completed = this.completionFns.detectCompletions(progressMap, currentDate);
-      const interleaved = this.completionFns.scheduleInterleavedRevisions(
-        completed,
-        progressMap,
-        currentDate,
+      // --- ABSTRACTION B: Truncate ---
+      truncateFutureSchedule(mergedSessionsByDate, nbId, resumePoint);
+
+      // --- ABSTRACTION D: Append Learning ---
+      const { newSessions, lastBlockDate } = appendLearningPhase(
+        newChunks,
+        resumePoint,
+        nbId,
+        targetSetId,
+        config,
         schedulePattern,
+        this.blockFns,
+        progressMap, // We pass the map, but we use snapshots for metadata
         lessonsByNotebook
       );
 
-      const daySessions = this.aggregationFns.aggregateSessions(
-        currentDate,
-        blockLearning,
-        blockRevision,
-        interleaved
+      allNewSessions.push(...newSessions);
+      
+      // Push new sessions to map for completeness before maintenance phase
+      newSessions.forEach(s => {
+        const k = formatDateKey(s.date);
+        const arr = mergedSessionsByDate.get(k) || [];
+        arr.push(s);
+        mergedSessionsByDate.set(k, arr);
+      });
+
+      // --- ABSTRACTION E: Append Maintenance ---
+      const totalLessons = lessonsByNotebook.get(nbId)?.length || 0;
+      
+      const maintenanceSessions = appendMaintenancePhase(
+        nbId,
+        progressSnapshot, // Use snapshot for metadata
+        totalLessons,
+        lastBlockDate, // Start after the learning we just added
+        mergedSessionsByDate,
+        config,
+        schedulePattern,
+        targetSetId
       );
 
-      if (daySessions.length > 0) {
-        const prev = mergedSessionsByDate.get(key) ?? [];
-        mergedSessionsByDate.set(key, [...prev, ...daySessions]);
-        outSessions.push(...daySessions);
-      }
-
-      prevDaySessions = daySessions;
-      prevActiveSet = scheduledSet;
+      allNewSessions.push(...maintenanceSessions);
+      
+      // Push maintenance sessions to map as well
+      maintenanceSessions.forEach(s => {
+        const k = formatDateKey(s.date);
+        const arr = mergedSessionsByDate.get(k) || [];
+        arr.push(s);
+        mergedSessionsByDate.set(k, arr);
+      });
     }
 
-    const planMetadata = this.buildPlanMetadata(outSessions, startDate, learningSets.length);
+    // --- RECONCILE STEP (MOVED) ---
+    // Now that we have scheduled everything based on the delta, we update the
+    // progress map to include the new lessons. This ensures the "Save State"
+    // is correct for the next time the user loads the app.
+    this.reconcileProgressWithLessons(progressMap, lessonsByNotebook, schedulePattern);
+
+    // 5. Final Assembly
+    const outSessions: StudySession[] = [];
+    
+    // Track earliest date during flattening (O(N) operation we are doing anyway)
+    let earliestSessionDate: Date | null = null;
+
+    for (const sessions of mergedSessionsByDate.values()) {
+      outSessions.push(...sessions);
+      
+      // Contingency Scan: Find the true start of the schedule
+      if (sessions.length > 0) {
+        // Assuming sessions in bucket are sorted or same-day; checking first is sufficient per-bucket
+        const bucketDate = sessions[0].date;
+        if (!earliestSessionDate || bucketDate < earliestSessionDate) {
+          earliestSessionDate = bucketDate;
+        }
+      }
+    }
+
+    // --- CONTINGENCY LOGIC ---
+    const effectiveStartDate = existingPlan.planMetadata?.startDate 
+      ?? earliestSessionDate 
+      ?? today;
+
+    const planMetadata = this.buildPlanMetadata(
+        outSessions, 
+        effectiveStartDate, 
+        learningSets.length
+    );
+    
     const newState: StudyPlanState = {
       learningSets,
       notebookProgress: progressMap,
       sessionsByDate: mergedSessionsByDate,
-      nextAvailableDate: addDays(startDate, totalDays),
+      nextAvailableDate: addDays(today, 30),
       config,
     };
 
     return { sessions: outSessions, planMetadata, state: newState };
   }
-
   // --- Internal Helpers (Common to both) ---------------------------------------
 
   /**

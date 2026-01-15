@@ -93,6 +93,45 @@ export class StudyPlanService {
     updateType: PlanUpdateType
   ): StudyPlanOutput {
     const loc = 'StudyPlanService.ts#4102';
+
+    // --- DEBUG LOGGING START ---
+
+    // console.warn(`[UpdateStudy bug Tracking 00] extendStudyPlan CALLED. Strategy: ${updateType}`);
+    // console.warn(`[UpdateStudy bug Tracking 00] Updated Notebooks Count: ${updatedNotebooks.length}`);
+    
+   // updatedNotebooks.forEach((nb, idx) => {
+        // console.warn(`[UpdateStudy bug Tracking 00-A] Input Notebook [${idx}]: ${nb.fileName} (ID: ${nb.fileId})`);
+        // We log the raw array length to prove if the context passed 3 or 6 or 14 units.
+        // console.warn(`[UpdateStudy bug Tracking 00-B] RAW LessonUnits Length: ${nb.lessonUnits?.length ?? 'UNDEFINED'}`);
+        
+        // Log the first unit to verify structure/shape isn't malformed
+        //if (nb.lessonUnits?.length > 0) {
+             // console.warn(`[UpdateStudy bug Tracking 00-C] Sample Unit[0]: ${JSON.stringify(nb.lessonUnits[0])}`);
+      //  }
+   // });
+    // 2. Log Existing Plan State (The Old Input)
+    //if (existing && existing.state && existing.state.notebookProgress) {
+        // console.warn(`[UpdateStudy bug Tracking 00-D] Existing Plan State Inspection:`);
+        // console.warn(`[UpdateStudy bug Tracking 00-D] Progress Map Size: ${existing.state.notebookProgress.size}`);
+        
+        // Iterate through the existing progress map to see what the system *thinks* is already done
+        //existing.state.notebookProgress.forEach((prog, nbId) => {
+            // console.warn(`[UpdateStudy bug Tracking 00-E] History for Notebook ${nbId}:`);
+            // console.warn(`[UpdateStudy bug Tracking 00-E]   - Tracked Lessons Count: ${prog.lessonProgress.length}`);
+            
+            // Log total units tracked to compare against Input Notebook's 28 units
+            //const totalTrackedUnits = prog.lessonProgress.reduce((sum, lp) => sum + lp.totalUnits, 0);
+            // console.warn(`[UpdateStudy bug Tracking 00-E]   - Total Tracked Units: ${totalTrackedUnits}`);
+            
+            // Optional: dump lesson IDs to check for duplicates/mismatches
+          //  const lessonIds = prog.lessonProgress.map(lp => lp.lessonId).join(', ');
+            // console.warn(`[UpdateStudy bug Tracking 00-E]   - Tracked Lesson IDs: ${lessonIds}`);
+        //});
+    //} else {
+        // console.warn(`[UpdateStudy bug Tracking 00-D] Existing Plan State is MISSING or MALFORMED.`);
+    //}
+    // --- DEBUG LOGGING END ---
+
     try {
       validateNotebooks(updatedNotebooks);
 
@@ -124,16 +163,13 @@ export class StudyPlanService {
 
         
         // 1. Preserve sessions: The merge utility will handle deduplication using semantic signatures
-        baseSessions = existing.sessions;
+        baseSessions = existing.sessions; // does absolutely nothing ...
 
         // 2. Execute Update Strategy: Uses "Active Anchoring" to ensure sparse updates are scheduled
-        tail = this.orchestrator.extendPlan_UpdateStrategy(existing.state, updatedNotebooks);
+        tail = this.orchestrator.extendPlan_UpdateStrategy(existing, updatedNotebooks);
       }
 
-       // Merge results
-      const merged = mergeStudyPlans(existing, tail);
-
-      return merged;
+      return tail;
 
     } catch (err) {
 

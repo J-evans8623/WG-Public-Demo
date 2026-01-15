@@ -642,6 +642,15 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
     setIsLoading(true);
     setError('');
 
+    // Testing freezed pixel bug : Force browser to paint loading UI before starting upload
+  await new Promise(resolve => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(resolve); // Double RAF ensures paint completes
+    });
+  });
+
+
+
     try {
       const responseData = await generateAILesson(selectedFile, docFileId, { isPublic });
       //console.log('[AppModals.tsx][5018] Lesson generation completed successfully');

@@ -18,11 +18,11 @@ export const unitSyllabusArrayOpenAI = {
     properties: {
       LessonTitle: {
         type: "string",
-        description: "The generated title of the lesson module. "
+        description: "The generated title of the lesson. Use a natural sounding title that convey what the lesson is about. Do not use the word syllabus or module. If you find a title for a chapter in the uploaded document, and this title conveys what the uploaded material is about then try reusing that title or using something similar to it."
       },
       Introduction: {
         type: "string",
-        description: "The generated introduction for the lesson module."
+        description: "The generated introduction for the lesson."
       },
       CourseTitle: {
         type: "string",

@@ -127,13 +127,6 @@ const DiscussionFormInput: React.FC<DiscussionFormInputProps> = ({
     <div className="discussion-form">
       <header className="discussion-form__header">
         <h2 className="discussion-form__title">Start New Discussion</h2>
-        <button
-          className="discussion-form__close-btn"
-          onClick={onCancel}
-          aria-label="Close form"
-        >
-          <X size={20} />
-        </button>
       </header>
 
       {/* update - 2: The form acts as the scrollable BODY only */}

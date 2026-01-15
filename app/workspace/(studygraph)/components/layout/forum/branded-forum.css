@@ -704,55 +704,33 @@
   color: #6B7280;
   margin: 0 0 20px 0;
 }
-
 /* ============================================
-   RESPONSIVE DESIGN
+   UNIFIED RESPONSIVE DESIGN
    ============================================ */
 
 @media (max-width: 768px) {
   .forum-shell {
-    width: 95vw;
-    height: 90vh;
-  }
-
-  .forum-header,
-  .forum-sticky-subheader,
-  .forum-post,
-  .discussion-thread__header,
-  .discussion-thread__original-post,
-  .discussion-thread__replies,
-  .discussion-thread__compose {
-    padding-left: 20px;
-    padding-right: 20px;
-  }
-
-  .forum-tabs {
-    gap: 6px;
-  }
-
-  .forum-tab {
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-
-  .discussion-thread__post-title {
-    font-size: 24px;
-  }
-
-  .discussion-thread__post-title-row {
-    flex-direction: column;
-    align-items: flex-start;
+    width: 90vw;
+    height: 85vh;
   }
 }
 
 @media (max-width: 480px) {
   .forum-shell {
-    width: 100vw;
-    height: 100vh;
-    max-height: 100vh;
-    border-radius: 0;
+    /* FIX: Force margins to show the background overlay */
+    width: calc(100vw - 32px) !important; 
+    height: calc(100vh - 64px) !important;
+    max-height: calc(100vh - 64px) !important;
+    
+    /* FIX: Ensure rounded corners are visible */
+    border-radius: 12px !important; 
+    
+    /* Centering logic */
+    margin: auto;
+    position: relative;
   }
 
+  /* Compact padding for small screens */
   .forum-header,
   .forum-sticky-subheader,
   .forum-post,
@@ -765,20 +743,22 @@
   }
 
   .forum-title {
-    font-size: 20px;
+    font-size: 18px;
   }
 
+  /* Prevent tabs from breaking layout */
   .forum-tabs {
+    display: flex;
     overflow-x: auto;
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    padding-bottom: 8px;
   }
 
   .forum-tab {
     flex-shrink: 0;
-  }
-
-  .discussion-thread__post-title {
-    font-size: 22px;
+    white-space: nowrap;
+    padding: 6px 12px;
   }
 }

@@ -20,7 +20,7 @@
  *   - Effects are narrowly gated; no redundant subscriptions
  ***************************************************************************************/
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Pencil, Trash2, FolderOpen, FileText, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useLessonData } from '@/app/Library/Context/LessonDataContext';
@@ -54,6 +54,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   onExpandedChange,
 }) => {
   // console.log('[NavigationPanel.tsx][7001] unified panel render', { currentView, isManuallyOpen });
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // ---------------------------
   // [1] Capability snapshot
@@ -68,7 +69,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
   const { accountStatus } = useAccountStatus();
   const { showModal } = useGlobalModal();
 
-  const { setActiveView, setSelectedPdfUrl } = useViewSwitch();
+  const { setActiveView, setSelectedPdfUrl, togglePanel } = useViewSwitch();
   const {
     getLessonModule,
     addConceptMap,
@@ -133,6 +134,42 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({
     window.addEventListener('click', close);
     return () => window.removeEventListener('click', close);
   }, [contextMenu]);
+
+
+
+  // 2. Global Click Listener Strategy
+  useEffect(() => {
+    // Only attach the listener if the panel is actually expanded
+    if (!isExpanded) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      // Check if the click target is NOT inside the panelRef element
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        
+        // Mechanism 1: Reset local hover state
+        setIsHoveredOpen(false);
+
+        // Mechanism 2: If manually opened (via menu icon), we must tell 
+        // the ViewSwitchProvider to flip the manual state to false.
+        if (isManuallyOpen) {
+          togglePanel(); 
+        }
+
+        // Reset context menus if they were open
+        setContextMenu(null);
+      }
+    };
+
+    // Use capture phase to ensure we catch the event before other components stop propagation
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => {
+      document.removeEventListener('pointerdown', handleClickOutside);
+    };
+  }, [isExpanded, isManuallyOpen, togglePanel]);
+
+
+
+
 
 
     /**
@@ -383,8 +420,10 @@ return (
       {/* Hover trigger */}
       <div className="nav-panel-trigger" onMouseEnter={handleMouseEnter} />
 
+    
       {/* Main panel with three-region layout */}
       <div
+        ref={panelRef}
         className={`nav-panel ${isExpanded ? 'nav-panel--expanded' : ''}`}
         onMouseLeave={handleMouseLeave}
       >

@@ -757,3 +757,122 @@
 .calendar-context-menu-item:hover { background: var(--calendar-gray-50); }
 .calendar-context-menu-checkbox { width: 14px; height: 14px; }
 .calendar-context-menu-label { font-size: var(--calendar-text-sm); }
+
+
+
+/* Mobile-Specific Refinements */
+
+.calendar-mobile-agenda {
+  background-color: var(--calendar-bg-primary);
+  min-height: 100%;
+}
+
+/* FIX 1: Opaque Sticky Header */
+.calendar-mobile-header {
+  position: sticky;
+  top: -24px; /* Pull it up to sit flush against the tab bar */
+  z-index: 30;
+  background-color: #FFFFFF;
+  padding: 12px 16px; /* Slightly tighter padding for mobile */
+  border-bottom: 1px solid var(--calendar-gray-200);
+  margin-top: -24px; /* Remove the internal body padding gap */
+  margin-left: -24px; /* Negate parent body padding */
+  margin-right: -24px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+.calendar-mobile-month-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--calendar-text-primary);
+  margin: 0;
+}
+
+.calendar-mobile-list {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* FIX 2: Inconsistent Sizing - Standardized Card */
+.calendar-mobile-card {
+  display: flex;
+  background: #FFFFFF;
+  border: 1px solid var(--calendar-gray-200);
+  border-radius: 16px;
+  overflow: hidden;
+  min-height: 90px; /* Forces uniform height for the date column area */
+  box-shadow: var(--calendar-shadow-sm);
+  margin-top: 12px;
+}
+
+.calendar-mobile-card.current-day {
+  border-color: var(--calendar-accent-primary);
+  box-shadow: 0 0 0 1px var(--calendar-accent-primary);
+}
+
+/* Standardized Left Column */
+.calendar-mobile-date-col {
+  width: 70px;
+  background-color: #FAF8F5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--calendar-gray-100);
+  flex-shrink: 0;
+}
+
+.calendar-mobile-date-col .weekday {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--calendar-text-secondary);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.calendar-mobile-date-col .day-number {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--calendar-text-primary);
+  line-height: 1;
+}
+
+/* Standardized Right Column */
+.calendar-mobile-sessions-col {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.session-chip-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px; /* Consistent gap between chips */
+}
+
+/* FIX 2: Ellipsis for long titles in chips */
+.calendar-mobile-agenda .calendar-session-label {
+  height: 32px; /* Increased slightly for better touch target */
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  overflow: hidden; /* Contain the text */
+}
+
+.no-sessions {
+  font-size: 13px;
+  color: var(--calendar-text-muted);
+  font-style: italic;
+}
+
+.more-sessions-hint {
+  font-size: 11px;
+  color: var(--calendar-text-secondary);
+  padding-left: 4px;
+}

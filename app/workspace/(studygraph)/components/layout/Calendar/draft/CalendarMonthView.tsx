@@ -1,12 +1,27 @@
 // CalendarMonthView.tsx
-
-/**
+/***************************************************************************************************
  * @file CalendarMonthView.tsx
- * @description 
- * Displays the study schedule in a standard Monthly Grid view.
- * (new update - Implemented internal state in tooltip to expand/collapse details text)
- * Handles expansion of day cells, session tooltips, and context menus.
- */
+ * @description
+ *   This component renders the user’s study schedule inside the Study Planner modal. It is
+ *   responsible for presenting the current month’s plan, supporting month navigation, and
+ *   providing interactive session affordances (launch session, hover tooltips, and a context
+ *   menu for completion toggles). The file now supports two presentation modes:
+ *
+ *   (1) Desktop / large screens:
+ *       - A standard 7x6 monthly grid with expandable day cells.
+ *       - Hover-intent tooltips for sessions and a right-click context menu for completion.
+ *
+ *   (2) Mobile / small screens:
+ *       - A clean agenda-style list (Prompt A) that reduces visual clutter and matches the
+ *         approved mobile mock. It shows a sticky month header with chevrons, then a vertical
+ *         list of day cards where the left column displays weekday + day number and the right
+ *         column stacks session chips. Days with no sessions render a calm empty-state row.
+ *
+ *   The mobile mode is intentionally “render-only” (no hover expectations) while preserving
+ *   desktop interactions exactly as-is. This keeps UX consistent across devices without
+ *   refactoring upstream calendar data structures or CSS foundations.
+ ***************************************************************************************************/
+
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
@@ -37,6 +52,42 @@ interface CalendarMonthViewProps {
   onSessionLaunch: (sessionId: string) => void;
 }
 
+
+
+/**
+ * @function useIsMobile
+ * @description
+ *   A small, production-safe viewport hook that returns true when the window width is at or
+ *   below the provided breakpoint. This is used to switch the calendar rendering from a
+ *   desktop monthly grid to a mobile agenda list without changing upstream data contracts.
+ *   The hook listens for media query changes and cleans up its listeners to avoid leaks.
+ */
+function useIsMobile(breakpointPx: number = 768): boolean {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mq = window.matchMedia(`(max-width: ${breakpointPx}px)`);
+
+    const apply = () => setIsMobile(!!mq.matches);
+    apply();
+
+    // Support both modern + legacy listener APIs
+    const onChange = () => apply();
+    if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onChange);
+    else mq.addListener(onChange);
+
+    return () => {
+      if (typeof mq.removeEventListener === 'function') mq.removeEventListener('change', onChange);
+      else mq.removeListener(onChange);
+    };
+  }, [breakpointPx]);
+
+  return isMobile;
+}
+
+
 const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({ 
   onFileSelect, 
   onSessionLaunch 
@@ -51,6 +102,9 @@ const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
     markSessionIncomplete,
     completedSessions,
   } = useCalendar();
+
+
+  const isMobile = useIsMobile(768);
 
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
   const HOVER_INTENT_DELAY = 500; // Time (ms) mouse must stay still to show tooltip
@@ -145,7 +199,35 @@ const HIDE_DELAY = 300;         // Time (ms) before tooltip disappears on leave
       calendarDays.push(mk(year, month + 1, day));
     }
     return calendarDays;
-  }, [currentMonth, currentDate]);
+  }, [currentMonth]);
+
+
+
+  
+   /**
+   * @function buildAgendaDaysForMonth
+   * @description
+   *   Creates a stable list of every day in the currently-viewed month so the mobile agenda
+   *   can render both scheduled and unscheduled days. This is important to match the approved
+   *   mock where empty days still appear as cards with “No sessions scheduled,” preventing
+   *   confusing gaps and preserving a planner-like rhythm for scanning.
+   */
+  const buildAgendaDaysForMonth = useCallback((): Date[] => {
+
+    if (!currentMonth) return [];
+
+    const year = currentMonth.year;
+    const month = currentMonth.month;
+    const last = new Date(year, month + 1, 0).getDate();
+    const days: Date[] = [];
+    for (let d = 1; d <= last; d++) {
+      const dt = new Date(year, month, d);
+      dt.setHours(0, 0, 0, 0);
+      days.push(dt);
+    }
+    return days;
+  }, [currentMonth]);
+
 
 const handleSessionHover = useCallback((session: StudySession, event: React.MouseEvent, isEntering: boolean) => {
     if (isEntering) {
@@ -222,6 +304,96 @@ const handleSessionHover = useCallback((session: StudySession, event: React.Mous
 
   const gridDays = generateGrid();
   const today = new Date();
+
+
+  // Mobile agenda path (Prompt A)
+  // Find the "Mobile agenda path" inside CalendarMonthView.tsx and replace with this:
+
+  if (isMobile) {
+    const agendaDays = buildAgendaDaysForMonth();
+
+    return (
+      <div className="calendar-mobile-agenda">
+        {/* Fixed Header with Opaque Background */}
+        <div className="calendar-mobile-header">
+          <div className="flex items-center justify-between w-full max-w-md mx-auto">
+            <button
+              onClick={() => handleNavigation('prev')}
+              className="calendar-btn-icon"
+              aria-label="Previous Month"
+            >
+              <ChevronLeft size={20} />
+            </button>
+
+            <h2 className="calendar-mobile-month-title">
+              {formatHeaderTitle(currentDate)}
+            </h2>
+
+            <button
+              onClick={() => handleNavigation('next')}
+              className="calendar-btn-icon"
+              aria-label="Next Month"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Agenda day cards with standardized spacing */}
+        <div className="calendar-mobile-list">
+          {agendaDays.map((date) => {
+            const dailyPlan = getDailyPlanFromMap(date);
+            const sessions: StudySession[] = dailyPlan?.sessions || [];
+            const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
+            const dayNum = date.getDate();
+            const isCurrentDay = date.toDateString() === today.toDateString();
+
+            return (
+              <div
+                key={getDateKey(date)}
+                className={`calendar-mobile-card ${isCurrentDay ? 'current-day' : ''}`}
+              >
+                {/* Standardized Date Column */}
+                <div className="calendar-mobile-date-col">
+                  <span className="weekday">{weekday}</span>
+                  <span className="day-number">{dayNum}</span>
+                </div>
+
+                {/* Standardized Sessions Column */}
+                <div className="calendar-mobile-sessions-col">
+                  {sessions.length === 0 ? (
+                    <div className="no-sessions">No sessions scheduled</div>
+                  ) : (
+                    <div className="session-chip-stack">
+                      {sessions.slice(0, 3).map((session) => (
+                        <SessionChip
+                          key={session.id}
+                          session={session}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSessionLaunch(session.id);
+                          }}
+                          onMouseEnter={() => {}}
+                          onMouseLeave={() => {}}
+                          onContextMenu={(e) => openContextMenu(session, e)}
+                          completed={completedSet.has(session.id)}
+                        />
+                      ))}
+                      {sessions.length > 3 && (
+                        <div className="more-sessions-hint">
+                          + {sessions.length - 3} more
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="calendar-month-view calendar-container relative">

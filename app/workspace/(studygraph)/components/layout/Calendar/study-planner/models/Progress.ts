@@ -53,7 +53,10 @@ export interface InterleavedRevisionProgress {
 }
 
 /**
- * Tracks progress through a single lesson from block learning to block revision completion.
+ * Tracks progress through a single lesson from block learning to block revision completion. Peak ai slop, I am sorry to who ever has to clean this up in the future.
+ * 
+ * On a more serious note... This is used to determine when interleaved sessions can start being scheduled. When it's "completed", this means all of the learning blocks and revisions blocks
+ * were added to the schedule already, and thus the algorithm can start scheduling interleaved sessions.
  */
 export interface LessonProgress {
   /** Stable lesson identifier (hash of parentTitle + mapID or equivalent). */
