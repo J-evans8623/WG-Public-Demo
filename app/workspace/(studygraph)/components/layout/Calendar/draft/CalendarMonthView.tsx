@@ -53,6 +53,35 @@ interface CalendarMonthViewProps {
 }
 
 
+/**
+ *  Mobile device UX to let users mark session complete.
+ * @param callback 
+ * 
+ * @param ms 
+ * @returns 
+ */
+function useLongPress(callback: (e: any) => void, ms = 500) {
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const start = useCallback((e: any) => {
+    e.persist();
+    timerRef.current = setTimeout(() => callback(e), ms);
+  }, [callback, ms]);
+
+  const stop = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  return {
+    onMouseDown: start,
+    onMouseUp: stop,
+    onMouseLeave: stop,
+    onTouchStart: start,
+    onTouchEnd: stop,
+  };
+}
+
+
 
 /**
  * @function useIsMobile
@@ -369,10 +398,15 @@ const handleSessionHover = useCallback((session: StudySession, event: React.Mous
                         <SessionChip
                           key={session.id}
                           session={session}
+                          isMobile={true}
                           onClick={(e) => {
                             e.stopPropagation();
                             onSessionLaunch(session.id);
                           }}
+                          onMobileToggle={() => {
+    if (completedSet.has(session.id)) markSessionIncomplete(session.id);
+    else markSessionCompleted(session.id);
+  }}
                           onMouseEnter={() => {}}
                           onMouseLeave={() => {}}
                           onContextMenu={(e) => openContextMenu(session, e)}
@@ -566,7 +600,23 @@ const SessionChip: React.FC<{
   onMouseLeave: (e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
   completed?: boolean;
-}> = ({ session, onClick, onMouseEnter, onMouseLeave, onContextMenu, completed }) => {
+  isMobile?: boolean; // Mark session complete on mobile
+  onMobileToggle?: () => void; // Mark session complete on mobile
+}> = ({ session, onClick, onMouseEnter, onMouseLeave, onContextMenu, completed, isMobile, onMobileToggle}) => {
+ 
+ // Use the long press hook for mobile context menu fallback
+  const longPressProps = useLongPress((e) => {
+    const touch = e.touches ? e.touches[0] : e;
+    // Create a synthetic event-like object for openContextMenu
+    onContextMenu({
+      preventDefault: () => {},
+      stopPropagation: () => {},
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+    } as any);
+  });
+ 
+ 
   const getSessionIcon = (type: string) => {
     switch (type) {
       case 'block': return '📖';
@@ -589,9 +639,25 @@ const SessionChip: React.FC<{
       style={{ backgroundColor }}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
       onContextMenu={onContextMenu}
+      {...longPressProps} // Spread first
+  onMouseLeave={(e) => {
+    onMouseLeave(e); // Call your original hover logic
+    longPressProps.onMouseLeave(); // Call the long-press cleanup
+  }}
     >
+      {/* On Mobile, show a clickable checkbox area for instant completion */}
+      {isMobile && (
+        <div 
+          className="mobile-complete-trigger"
+          onClick={(e) => {
+            e.stopPropagation();
+            onMobileToggle?.();
+          }}
+        >
+          <div className={`mobile-checkbox ${completed ? 'checked' : ''}`} />
+        </div>
+      )}
       <span className="calendar-session-icon">{sessionIcon}</span>
       <span className="calendar-session-subject">{subjectName}</span>
     </div>

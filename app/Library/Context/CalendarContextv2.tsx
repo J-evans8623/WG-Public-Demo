@@ -711,7 +711,8 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
     setIsLoading(true); setError(null);
     try {
       const metas = await notebooksApi.details(selectedNotebooks);
-      const nextPlan = service.generateStudyPlan(metas, scheduleConfig, planStartDate);
+      const freshStartDate = new Date();
+      const nextPlan = service.generateStudyPlan(metas, scheduleConfig, freshStartDate);
 
       if (!nextPlan || !nextPlan.sessions) {
          throw new Error("Service generated an invalid plan.");

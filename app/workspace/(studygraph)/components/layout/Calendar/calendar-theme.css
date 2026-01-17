@@ -865,6 +865,45 @@
   overflow: hidden; /* Contain the text */
 }
 
+/* Mobile Checkbox Styles */
+.mobile-complete-trigger {
+  padding-right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 4px;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.mobile-checkbox.checked {
+  background-color: white;
+}
+
+.mobile-checkbox.checked::after {
+  content: '✓';
+  position: absolute;
+  color: var(--calendar-accent-primary);
+  font-size: 14px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: bold;
+}
+
+/* Ensure mobile chips have enough height for thumb taps */
+@media (max-width: 768px) {
+  .calendar-mobile-agenda .calendar-session-label {
+    height: 44px; /* Apple/Google recommended touch target height */
+    margin-bottom: 4px;
+  }
+}
 .no-sessions {
   font-size: 13px;
   color: var(--calendar-text-muted);
