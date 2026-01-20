@@ -244,3 +244,34 @@ export async function getReferralCount(userId: string): Promise<number> {
     
   return snap.size;
 }
+
+
+
+
+/**
+ * incrementActiveParticipants
+ * @description
+ * Atomically increments the global 'activeParticipantCount' by 1. 
+ * This uses FieldValue.increment to ensure that concurrent administrative 
+ * verifications do not overwrite each other or cause race conditions.
+ */
+export async function incrementActiveParticipants(): Promise<void> {
+  const settingsRef = firestore.collection('campaign_settings').doc('v1');
+  await settingsRef.update({
+    activeParticipantCount: admin.firestore.FieldValue.increment(1)
+  });
+}
+
+/**
+ * decrementActiveParticipants
+ * @description
+ * Atomically decrements the global 'activeParticipantCount' by 1. 
+ * This is used specifically by the reset script to "return" a seat to 
+ * the campaign pool when a test or verified user is purged.
+ */
+export async function decrementActiveParticipants(): Promise<void> {
+  const settingsRef = firestore.collection('campaign_settings').doc('v1');
+  await settingsRef.update({
+    activeParticipantCount: admin.firestore.FieldValue.increment(-1)
+  });
+}
