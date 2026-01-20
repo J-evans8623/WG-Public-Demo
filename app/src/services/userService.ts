@@ -42,11 +42,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { UserFileMetadata } from '../types/fileTypes';
+import { getCampaignConfig, getApplicationStatus } from './FlyerCampaigns/FlyerCampaignFB';
 
 // Step 1: Core type definitions (preserved from original)
 export type AccountType = 'scholar' | 'educator';
 export type SubscriptionTier = 'freemium' | 'premium';
-
+export type CampaignStatus = 'ELIGIBLE' | 'INELIGIBLE' | 'PENDING' | 'APPROVED' | 'VERIFIED' | 'REWARDED' | 'SUBMITTED';
 
 const FREEMIUM_MONTHLY_LESSON_LIMIT = parseInt(
   process.env.FREEMIUM_MONTHLY_LESSON_LIMIT || '5',
@@ -203,12 +204,17 @@ export interface UserProfile {
     canInviteEditors: boolean;
     hasAdvancedFeatures: boolean;
   };
+
+  // update - 1: Added the missing entitlement field to resolve ts(2339)
+  // This field tracks when the campaign-granted premium trial expires.
+  premiumUntil?: admin.firestore.Timestamp | number | any;
   
   // Stripe integration (future)
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   billing?: BillingSnapshot;
   samplesProvisioned?: boolean;
+  campaignStatus?: CampaignStatus; // update - 3
   _bootstrappedFiles?: UserFileMetadata[]
 }
 
@@ -449,15 +455,19 @@ export class UserService {
    *   the safe-default principle by creating scholar/freemium profiles for new users. The method
    *   includes comprehensive error handling and logging for debugging and observability.
    * @param email User email for profile lookup
-   * @returns Promise resolving to the user profile (existing or newly created)
+   * @returns Promise resolving to the user profile (existing or newly created), also injects active campaign status
    */
 static async getUserProfile(email: string): Promise<UserProfile> { 
     const normalizedEmail = email.toLowerCase().trim(); 
     const loader = async (): Promise<UserProfile | null> => {
       const userRef = firestore.collection('users').doc(normalizedEmail);
       const snapshot = await userRef.get();
+
+      let profile: UserProfile;
+
+
       if (snapshot.exists) {
-        const profile = snapshot.data() as UserProfile;
+        profile = snapshot.data() as UserProfile;
         console.log(`8000 getUSerProfile profile response from firebase ${JSON.stringify({profile})}`);
 
         if (!profile.samplesProvisioned) {
@@ -476,13 +486,30 @@ static async getUserProfile(email: string): Promise<UserProfile> {
             _bootstrappedFiles: seededFiles 
           }
         }
+
+        // 2. Inject Campaign Status (Phase 1 Sprint Objective)
+      // Check if user has an existing application record (PENDING, APPROVED, etc.)
+      const existingAppStatus = await getApplicationStatus(normalizedEmail); // update - 5
+
+      if (existingAppStatus) {
+        profile.campaignStatus = existingAppStatus as CampaignStatus; // update - 6
+      } else {
+        // Fallback to eligibility check for fresh leads
+        profile.campaignStatus = await this.resolveCampaignEligibility(normalizedEmail); // update - 7
+      }
+
+
         return profile
       }
+
+
       console.log('[userService.ts][7005] Profile loader creating default', { email: normalizedEmail });
       const created = await this.createUserProfile(normalizedEmail); // creates usage too
       // createUserProfile already bumps version
       return created;
     };
+
+    
 
     const hit = await cacheReadUserProfile(normalizedEmail, loader); 
     if (!hit) {
@@ -1254,6 +1281,50 @@ static async getUserUsage(email: string): Promise<UserUsage> { // update - 9
   }
 
 
+  /**
+   * grantBonusLessonCredits
+   * @description
+   * Atomically adds a specific number of lesson generation credits to a user's 
+   * monthly pool. This is used to remove friction during the Study Group 
+   * promotion. It performs a Firestore transaction and triggers a Redis 
+   * version bump to ensure zero-latency cache invalidation.
+   * 1. Fetches current usage doc.
+   * 2. Increments total and remaining demo credits.
+   * 3. Bumps user version in Redis.
+   */
+  static async grantBonusLessonCredits(email: string, amount: number): Promise<void> {
+    const normalizedEmail = email.toLowerCase().trim();
+    const usageRef = firestore.collection('userUsage').doc(normalizedEmail);
+
+    console.log(`[UserService] Granting ${amount} bonus credits to ${normalizedEmail}`);
+
+    await firestore.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(usageRef);
+      if (!snapshot.exists) {
+        throw new Error('User usage data not found for credit grant');
+      }
+
+      const usage = snapshot.data() as UserUsage;
+      const currentDemo = usage.demoCredits || { total: 0, remaining: 0, used: 0 };
+
+      // Increment both total (allowance) and remaining (current pool)
+      const updatedDemo = {
+        ...currentDemo,
+        total: (currentDemo.total || 0) + amount,
+        remaining: (currentDemo.remaining || 0) + amount,
+        lastRenewal: currentDemo.lastRenewal || admin.firestore.Timestamp.now()
+      };
+
+      transaction.update(usageRef, {
+        demoCredits: updatedDemo,
+        updatedAt: admin.firestore.Timestamp.now()
+      });
+    });
+
+    // Invalidate the cache version so validation logic sees the new credits immediately
+    await bumpUserVersion(normalizedEmail);
+    console.log(`[UserService] Successfully granted bonus credits and bumped version for ${normalizedEmail}`);
+  }
 
   
 
@@ -1329,6 +1400,36 @@ static async getUserUsage(email: string): Promise<UserUsage> { // update - 9
     }
 
     return seededFiles;
+  }
+
+
+  /**
+   * resolveCampaignEligibility
+   * @description
+   * Internal helper to determine if a user qualifies for the flyer campaign.
+   * It checks three criteria: the campaign must be live, the participant cap 
+   * must not be reached, and the user's email domain must not be denylisted.
+   * Time Complexity: O(D) where D is the number of denylisted domains.
+   * @param email - User's normalized email address.
+   * @returns Promise resolving to 'ELIGIBLE' or 'INELIGIBLE'.
+   */
+  private static async resolveCampaignEligibility(email: string): Promise<'ELIGIBLE' | 'INELIGIBLE'> { // update - 4
+    // 1. Fetch the master configuration document
+    const config = await getCampaignConfig();
+
+    // 2. Immediate fail-fast if campaign is toggled off or cap is hit
+    if (!config.isLive || config.activeParticipantCount >= config.maxCap) {
+      return 'INELIGIBLE';
+    }
+
+    // 3. Extract domain and check against denylist (e.g., highschool.edu)
+    const domain = email.split('@')[1]?.toLowerCase();
+    if (!domain || config.denylistDomains.includes(domain)) {
+      console.log(`[userService] User ${email} rejected: Domain ${domain} is denylisted.`);
+      return 'INELIGIBLE';
+    }
+
+    return 'ELIGIBLE';
   }
 
 

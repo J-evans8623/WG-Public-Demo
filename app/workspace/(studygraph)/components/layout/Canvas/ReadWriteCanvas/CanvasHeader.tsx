@@ -106,7 +106,7 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   const { isPanelExpanded, togglePanel } = useViewSwitch();
   const { getDirtyThreadTotal } = useComments();
   // Consume subscription status to gate the Upgrade button
-  const { subscriptionUi } = useAccountStatus();
+  const { subscriptionUi, remainingDemoCredits } = useAccountStatus();
 
   // Consume calendar badge state
   const { hasUnseenUpdates, resetUnseenCount } = useCalendar();
@@ -128,6 +128,8 @@ const plannerAriaLabel = React.useMemo(() => {
     return hasUnseenUpdates ? `Study Planner, new updates available` : 'Open Study Planner';
   }, [hasUnseenUpdates]);
 
+
+const isFreemium = subscriptionUi?.effectiveTier === 'freemium';
 
 const isSubscribed = useMemo(() => {
     return subscriptionUi?.phase === 'ACTIVE' || subscriptionUi?.phase === 'CANCEL_AT_PERIOD_END';
@@ -279,6 +281,15 @@ const isSubscribed = useMemo(() => {
                   <span className="font-bold">Upgrade</span>
               </button>
             )}
+
+            {isFreemium && (
+          <div 
+            className="flex items-center gap-1.5 ml-4 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-xs font-semibold text-gray-600"
+            title="Remaining lesson generation credits"
+          >
+            <span>Demo credits: {remainingDemoCredits}</span>
+          </div>
+        )}
         </div>
 
       </div>

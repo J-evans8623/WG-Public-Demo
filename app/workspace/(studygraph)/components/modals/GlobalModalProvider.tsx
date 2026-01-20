@@ -27,6 +27,7 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import '@/app/workspace/(studygraph)/components/modals/registerLoadingOverlay';
 import { useModalManager } from '@/app/workspace/(studygraph)/components/modals/AppModals';
+import '@/app/workspace/(studygraph)/components/FlyerCampaigns/registerFlyerModal';
 
 type GlobalModalContextValue = {
   showModal: ReturnType<typeof useModalManager>['showModal'];

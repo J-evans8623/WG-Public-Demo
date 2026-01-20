@@ -58,12 +58,16 @@ import { deriveSubscriptionUiSnapshot } from '@/app/src/billing/types';
  * boolean will not re-render when `mode` or `status` changes but `editReady` remains the same.
  */
 //const EditReadyContext = React.createContext<boolean | undefined>(undefined);
-
+type CampaignStatus = 'ELIGIBLE' | 'INELIGIBLE' | 'PENDING' | 'APPROVED' | 'VERIFIED' | 'REWARDED' | 'SUBMITTED';
 
 interface AccountStatus {
   email:string,
   accountType: 'scholar' | 'educator';
   subscriptionTier: 'freemium' | 'premium';
+  campaignStatus?: CampaignStatus;
+  remainingDemoCredits?: number;
+  reachedMilestones?: string[]; // Milestone checkmark support
+  premiumUntil?: number | null;            // Countdown calculation support
   features: {
     canCreatePublicFiles: boolean;
     canInviteEditors: boolean;
@@ -152,9 +156,17 @@ export const useAccountStatus = () => {
     });
   }, [context.accountStatus]);
 
+  // Derive Trial-specific flags for the Guerilla Marketing campaign // update - 3
+  const isTrialUser = React.useMemo(() => {
+    return context.accountStatus?.campaignStatus === 'REWARDED';
+  }, [context.accountStatus?.campaignStatus]);
+
 
   return {
     accountStatus: context.accountStatus,
+    campaignStatus: context.accountStatus?.campaignStatus || 'INELIGIBLE', // update - 4
+    isTrialUser,
+    remainingDemoCredits: context.accountStatus?.remainingDemoCredits ?? 0,
     isLoading: context.isAccountLoading,
     refresh: context.refreshAccountStatus,
     hasFeature: context.hasFeature,
@@ -163,6 +175,51 @@ export const useAccountStatus = () => {
   };
 };
 
+
+
+/**
+ * @function useCampaignTrial
+ * @description
+ * NEW sidecar hook for the Flyer Campaign.
+ * Encapsulates trial-specific data to prevent tampering with useAccountStatus.
+ * Provides the real-time countdown and milestone checkmark data.
+ */
+export const useCampaignTrial = () => {
+  const context = useContext(ApiContext);
+  if (!context) {
+    throw new Error('useCampaignTrial must be used within ApiProvider');
+  }
+
+  const status = context.accountStatus;
+
+  const daysRemaining = useMemo(() => {
+    if (!status?.premiumUntil) return 0;
+    
+    // update - 1: Patched ts(2339) using explicit casting
+    // This safely handles both the Number from the API and the potential raw object
+    const rawVal = status.premiumUntil as any;
+    
+    const expiryDate = new Date(
+      typeof rawVal === 'number' 
+        ? rawVal 
+        : (rawVal.seconds * 1000) || 0
+    );
+    
+    const diff = expiryDate.getTime() - new Date().getTime();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return days > 0 ? days : 0;
+  }, [status?.premiumUntil]);
+
+  console.log(`status check ${JSON.stringify(status?.campaignStatus)}`)
+  console.log(`trial check ${JSON.stringify(status?.premiumUntil)}`)
+
+  return {
+    milestones: status?.reachedMilestones || [],
+    daysRemaining,
+    isActiveTrial: status?.subscriptionTier === 'premium' && !!status?.premiumUntil,
+    campaignStatus: status?.campaignStatus || 'INELIGIBLE',
+  };
+};
 
 /**
  * @function useFileList

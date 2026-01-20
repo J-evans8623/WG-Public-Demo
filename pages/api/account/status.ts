@@ -30,13 +30,16 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import type { BillingSnapshot } from '@/app/src/billing/types';
-import { UserService } from '@/app/src/services/userService';
+import { UserService, CampaignStatus } from '@/app/src/services/userService';
 import { UserFileMetadata } from '@/app/src/types/fileTypes';
+import { firestore } from '@/app/src/services/firebase';
 
 interface AccountStatusResponse {
   email:string,
   accountType: 'scholar' | 'educator';
   subscriptionTier: 'freemium' | 'premium';
+  remainingDemoCredits?: number;
+  campaignStatus?: CampaignStatus;
   features: {
     canCreatePublicFiles: boolean;
     canInviteEditors: boolean;
@@ -49,7 +52,10 @@ interface AccountStatusResponse {
   };
   billing: BillingSnapshot | null;
   bootstrappedFiles? : UserFileMetadata[],
+  reachedMilestones?: string[]; // Wire for Milestone Checkmarks
+  premiumUntil?: any;            // Wire for Countdown Logic
 }
+
 
 /**
  * @function handler
@@ -83,8 +89,17 @@ export default async function handler(
 
     console.log('[api/account/status.ts][2004] Authentication successful for user:', session.user.email);
 
+    const userEmail = session.user.email;
 
-    const userProfile = await UserService.getUserProfile(session.user.email);
+    const [userProfile, userUsage] = await Promise.all([
+      UserService.getUserProfile(userEmail),
+      UserService.getUserUsage(userEmail)
+    ]);
+
+    // update - 3: Fetch progress from the application collection (The Source of Truth)
+    const appDoc = await firestore.collection('referral_applications').doc(userEmail).get();
+    const appData = appDoc.exists ? appDoc.data() : null;
+
     if (!userProfile) {
       console.error('[api/account/status.ts][2005] User profile not found in session');
       return res.status(500).json({ error: 'User profile not available' });
@@ -95,10 +110,16 @@ export default async function handler(
       email: userProfile.email,
       accountType: userProfile.accountType,
       subscriptionTier: userProfile.subscriptionTier,
+      remainingDemoCredits: userUsage.demoCredits?.remaining ?? 0,
+      campaignStatus: userProfile.campaignStatus,
       features: userProfile.features,
       limits: userProfile.limits,
       billing: userProfile.billing ?? null,
       bootstrappedFiles : userProfile._bootstrappedFiles,
+      reachedMilestones: appData?.reachedMilestones || [],
+      premiumUntil:userProfile.premiumUntil && typeof userProfile.premiumUntil.toMillis === 'function' 
+        ? userProfile.premiumUntil.toMillis() 
+        : userProfile.premiumUntil || null,
     };
 
 

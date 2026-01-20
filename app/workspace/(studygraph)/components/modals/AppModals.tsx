@@ -25,7 +25,7 @@ import { getModal } from '@/app/workspace/(studygraph)/components/modals/ModalRe
 
 
 // Modal types and props interfaces
-export type ModalType = 'subscribe' | 'rateLimit' | 'fileUpload' | 'lessonGeneration' |'loadingOverlay'  | 'blockingProgress' | 'docUnavailable';
+export type ModalType = 'subscribe' | 'rateLimit' | 'fileUpload' | 'lessonGeneration' |'loadingOverlay'  | 'blockingProgress' | 'docUnavailable' | 'flyerCampaignModal';
 
 
 interface BaseModalProps {
@@ -589,7 +589,7 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
 }) => {
   //console.log('[AppModals.tsx][5012] EnhancedLessonGenerationModal rendered', { docFileId });
 
-  const { hasFeature } = useAccountStatus();
+  const { hasFeature, refresh } = useAccountStatus();
 
   //  Get owned files to check for "New User" state
   const { ownedFiles } = useFileList();
@@ -655,6 +655,12 @@ export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps>
       const responseData = await generateAILesson(selectedFile, docFileId, { isPublic });
       //console.log('[AppModals.tsx][5018] Lesson generation completed successfully');
       
+      // if freemium user refresh show demo credits are  updated, premium users do not need demo credits , they are by pass to avoid additional latency
+      if (isFreemium){
+      // Bypasses the stale cache because the backend bumped the version during generation.
+      await refresh();
+      }
+
       // update - 3: Pass the choice back to the parent.
       // We do NOT await integration here anymore. We let the parent handle the sequence.
       onSuccess(responseData, addToPlan);

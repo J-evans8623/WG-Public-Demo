@@ -22,6 +22,9 @@ import ReactDOM from 'react-dom';
 import CalendarModal from '@/app/workspace/(studygraph)/components/layout/Calendar/CalendarModal';
 import OnboardingModal, { TUTORIAL_DATA, TutorialContent } from './onboarding-modal';
 
+// update - 1: Import the Campaign Orchestrator
+import { CampaignUIOrchestrator } from '@/app/workspace/(studygraph)/components/FlyerCampaigns/CampaignUIOrchestrator';
+// 
 // Import Styles
 import './homeScreenV3.css';
 import './file-tile.css';
@@ -297,6 +300,9 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
               <h1 className="welcome-title">{greeting}</h1>
               <p className="welcome-subtitle">Recent documents you have worked on</p>
             </div>
+            {/* update - 2: Injected the Campaign Banner Orchestrator */}
+            {/* This component handles its own visibility based on campaignStatus */}
+            <CampaignUIOrchestrator />
 
             {/* Quick Actions Card */}
             <div className="actions-card">
