@@ -38,6 +38,7 @@ import {
   appendLearningPhase,
   appendMaintenancePhase
 } from './UpdateStrategy';
+import { BalanceStructuralLoad, EvolveLearningSets, IdentifyMasteryAnchor, IdentifyTemporalAnchor, InferLearningSetPattern, MapAdditiveSessions, MaterializeDelta, MaterializeInterleavedSessions, ReconcileFinalState, SeedMaintenanceProgram, SyncGlobalContext } from './InsertStrategy';
 
 // --- Dependency Contracts -------------------------
 
@@ -234,9 +235,88 @@ export class StudyPlanOrchestrator {
     return { sessions: allSessions, planMetadata, state };
   }
 
+
+/**
+   * @function extendPlan_InsertStrategy
+   * @description
+   * Coordinates the non-destructive insertion pipeline to integrate new notebooks. 
+   * * [update - 1004]
+   * Integrated the IdentifyMasteryAnchor abstraction to fix the review cadence bug. 
+   * Each notebook now receives a unique mastery anchor based on its own first 
+   * mastered unit, allowing interleaved review to overlap with learning.
+   */
+public extendPlan_InsertStrategy(
+    existing: StudyPlanState,
+    newNotebooks: NotebookMeta[]
+  ): StudyPlanOutput {
+    const loc = 'core/StudyPlanOrchestrator.ts#extendPlan_InsertStrategy';
+    const today = todayMidnightLocal();
+
+    const verifiedNewMetas = new SyncGlobalContext().sync(newNotebooks, existing.notebookProgress);
+    if (verifiedNewMetas.length === 0) return { sessions: Array.from(existing.sessionsByDate.values()).flat(), planMetadata: {} as any, state: existing };
+
+    // update - 1305: Structural Evolution Step
+    // Rationale: We must unlock LS-B if total notebooks > 3 before projecting the rhythm.
+    const evolution = new EvolveLearningSets();
+    const evolvedSets = evolution.evolve(existing.learningSets, verifiedNewMetas);
+
+    // update - 1306: Pass evolvedSets to ensure pattern sees Set B
+    const futurePattern = new InferLearningSetPattern(this.learningSetFns.buildSchedulePattern).infer(today, evolvedSets, existing.config);
+    
+    // update - 1307: Pass evolvedSets to ensure balancer can assign to Set B
+    const assignments = new BalanceStructuralLoad().balance(verifiedNewMetas, evolvedSets);
+
+    const materializer = new MaterializeDelta(this.lessonFns.parseLessons, this.lessonFns.chunkLesson);
+    const mapper = new MapAdditiveSessions();
+    const anchorIdentifier = new IdentifyMasteryAnchor();
+    const seeder = new SeedMaintenanceProgram();
+    const interleavedMaterializer = new MaterializeInterleavedSessions();
+    const reconciler = new ReconcileFinalState();
+
+    const allNewSessions: StudySession[] = [];
+    const newProgressEntries = new Map<string, NotebookProgress>();
+
+    verifiedNewMetas.forEach(meta => {
+      const setId = assignments.get(meta.fileId)!;
+      const anchorDate = new IdentifyTemporalAnchor().findAnchor(setId, existing.config, futurePattern, today);
+      const contentQueue = materializer.materialize(meta);
+
+      const { newSessions } = mapper.mapSessions(contentQueue, anchorDate, meta, existing.config, futurePattern);
+      allNewSessions.push(...newSessions);
+
+      const masteryDate = anchorIdentifier.findMasteryDate(newSessions, meta.fileId);
+
+      const interleavedProgress = seeder.seed(meta.fileId, this.lessonFns.parseLessons(meta).length, masteryDate, setId, futurePattern);
+      const interleavedSessions = interleavedMaterializer.materialize(meta.fileId, interleavedProgress, meta);
+      allNewSessions.push(...interleavedSessions);
+      
+      newProgressEntries.set(meta.fileId, {
+        notebookId: meta.fileId,
+        learningSetId: setId,
+        lessonProgress: this.lessonFns.parseLessons(meta).map(l => ({
+          lessonId: l.id,
+          lessonUnits: l.units,
+          totalUnits: l.units.length,
+          unitsCoveredInBlockLearning: l.units.length,
+          blockLearningSessions: [], 
+          blockRevisionSessions: [],
+          status: 'completed'
+        })),
+        interleavedRevisionProgress: interleavedProgress,
+        notebookMetaSnapshot: { fileId: meta.fileId, fileName: meta.fileName, colorCode: meta.colorCode }
+      });
+    });
+
+    // update - 1308: Use evolvedSets in the reconciled state
+    const result = reconciler.reconcile({ sessions: [], planMetadata: {} as any, state: { ...existing, learningSets: evolvedSets } } as any, allNewSessions, newProgressEntries);
+    return result;
+  }
+
   /**
    * @function extendPlan_InsertionStrategy
    * @description
+   * 
+   * depracated (dont use)
    * STRATEGY A: INSERTION (The "Current" Logic)
    * Used when adding NEW untracked notebooks.
    * * (new update - separate strategy for inserting new books)
@@ -244,7 +324,7 @@ export class StudyPlanOrchestrator {
    * Uses "Dynamic Per-Day Pending Filter" (Passive Scheduling).
    * It iterates days and checks "Does the active set have pending work?" dynamically.
    * This works best when the state has been reconfigured/reset.
-   */
+
   public extendPlan_InsertionStrategy(
       existing: StudyPlanState,
       updatedNotebooks: NotebookMeta[]
@@ -391,6 +471,8 @@ export class StudyPlanOrchestrator {
         state: newState,
       };
     }
+
+    */
 
 /**
    * @function extendPlan_UpdateStrategy

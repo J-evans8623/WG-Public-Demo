@@ -46,6 +46,10 @@ interface ViewSwitchContextProps {
   requestLandingEffect: LandingEffect
   requestLessonplay: () => void;
   completeLandingEffect : () => void;
+  // New properties for Calendar transition orchestration
+  pendingCalendarRequest: boolean;
+  requestCalendarSelector: () => void;
+  consumeCalendarRequest: () => void;
 }
 
 const ViewSwitchContext = createContext<ViewSwitchContextProps | undefined>(undefined);
@@ -63,12 +67,40 @@ export const ViewSwitchProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null);
   const [requestLandingEffect, setRequestLandingEffect] = useState<LandingEffect>('idle');
 
-
+  //  Initialize the pending calendar request state
+  const [pendingCalendarRequest, setPendingCalendarRequest] = useState<boolean>(false);
   // Trigger a specific effect upon landing on the canvasv view page (example Optimizes "time to value" for onboarding by opening lesson when visiting a shared notebook)
   // starting off with one value, but might need to use an array if we need to queue multiple events
   const requestLessonplay = useCallback(()=>{
     setRequestLandingEffect('playLesson');
   }, [])
+
+
+
+  /**
+   * @function requestCalendarSelector
+   * @description
+   * Sets the global flag to signal that the Study Planner modal should be opened.
+   * This is typically called from the Slideshow when a user wants to add an
+   * untracked notebook to their plan.
+   */
+  // Implement request hook
+  const requestCalendarSelector = useCallback(() => {
+    setPendingCalendarRequest(true);
+  }, []);
+
+
+  /**
+   * @function consumeCalendarRequest
+   * @description
+   * Resets the calendar request flag back to false. This should be called by
+   * the component that actually performs the modal opening (e.g., CanvasView)
+   * to ensure the intent is only processed once.
+   */
+  //  Implement consumption hook
+  const consumeCalendarRequest = useCallback(() => {
+    setPendingCalendarRequest(false);
+  }, []);
 
 
   // call after triggering desire behavior to reset back to idle
@@ -118,6 +150,9 @@ export const ViewSwitchProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         requestLandingEffect,
         requestLessonplay,
         completeLandingEffect,
+        pendingCalendarRequest,
+        requestCalendarSelector,
+        consumeCalendarRequest,
       }}
     >
       {children}

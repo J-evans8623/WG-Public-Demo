@@ -43,6 +43,10 @@ import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selecto
 import { useStudyLog } from '@/app/Library/Context/studylog/StudyLogContext';
 import { calculateMaxStudyTime, isSignificantDuration } from '@/app/Library/Context/studylog/StudyLogHeuristic';
 
+import { useCalendar } from '@/app/Library/Context/CalendarContextv2';
+import { useViewSwitch } from '@/app/workspace/(studygraph)/components/layout/Canvas/pdf/ViewSwitchContext';
+import StudyPlanButton from '../../../Calendar/StudyPlanButton';
+
 /**
  * @function SlideShowOverlay
  * @description
@@ -72,7 +76,12 @@ const SlideShowOverlay: React.FC = () => {
   const startTimeRef = useRef<number>(0);
 
   
-   const {mode, status, editReady} = useAccessEditSnapshot();
+  const {mode, status, editReady} = useAccessEditSnapshot();
+
+  // Consume Calendar and ViewSwitch contexts
+  const { isNotebookTracked, selectNotebook } = useCalendar();
+  const { requestCalendarSelector } = useViewSwitch();
+
   const caps = useMemo(() => {
     const canEdit = editReady && !isReadOnly
     // We keep Ask enabled in RW and disabled in RO, but only Edit is *hidden* in RO (per requirement)
@@ -195,6 +204,37 @@ const SlideShowOverlay: React.FC = () => {
       type: currentSlide.type,
       timestamp: Date.now(),
     });
+  };
+
+
+  //Check if current subject is already in a study plan
+  const isTracked = useMemo(() => {
+    return docFileID ? isNotebookTracked(docFileID) : true;
+  }, [docFileID, isNotebookTracked]);
+
+
+  /**
+   * @function handleAddToPlan
+   * @description
+   * Orchestrates the transition from reading to planning.
+   * 1) Identifies the active notebook via docFileID.
+   * 2) Primes the CalendarContext by selecting the notebook.
+   * 3) Signals the ViewSwitchContext to open the calendar selector after exit.
+   * 4) Closes the slideshow to trigger the jump-gate in CanvasView.
+   */
+  //  New handler for the Add to Plan intent
+  const handleAddToPlan = () => {
+    if (!docFileID) return;
+    console.log('[SlideShowOverlay.tsx][2001] Add to plan requested for:', docFileID);
+    
+    // 1. Prime the data layer immediately
+    selectNotebook(docFileID);
+    
+    // 2. Set the global intent for the calendar selector
+    requestCalendarSelector();
+    
+    // 3. Gracefully exit the slideshow
+    close();
   };
 
   // update - 7: Ask AI respects caps.canAsk (disabled in RO); Edit is *hidden* in RO per new requirement.
@@ -380,6 +420,14 @@ const SlideShowOverlay: React.FC = () => {
               <MessageSquare size={14} />
               Discuss
             </button>
+
+            {/* Conditionally render the StudyPlanButton for untracked content */}
+            {!isTracked && (
+              <StudyPlanButton 
+                onClick={handleAddToPlan}
+                className="ml-auto" 
+              />
+            )}
           </div>
 
           <div className="slideshow-slide-nav"> {/* update - 14 */}

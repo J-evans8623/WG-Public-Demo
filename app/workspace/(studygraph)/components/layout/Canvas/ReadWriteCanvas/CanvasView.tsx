@@ -82,7 +82,8 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
   /* ───────────────────────────── Context hooks ──────────────────────────── */
   const { dispatch: zoomDispatch, zoomLevel } = useZoomContext();
   const { activeConceptMapId, getLessonModule, updateConceptMapTitle, generatingLessonStatus, generatedLessons, setGeneratingLessonStatus, setActiveConceptMapId, clearGeneratedLesson , setDefaultMap} = useLessonModule();
-  const { activeView, selectedPdfUrl, requestLandingEffect, completeLandingEffect } = useViewSwitch();
+  const { activeView, selectedPdfUrl, requestLandingEffect, completeLandingEffect, pendingCalendarRequest,
+    consumeCalendarRequest} = useViewSwitch();
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
   const { openCustom } = useSlideShow();
   const preorder = usePreorderTraversal();
@@ -110,6 +111,30 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
       setFirstView(false);
     }
   },[firstView, setDefaultMap])
+
+
+
+  /**
+   * @effect Jump-Gate Orchestrator
+   * @description
+   * Listens for the global 'pendingCalendarRequest' intent from ViewSwitchContext.
+   * This handles the specific scenario where a user studying a lesson clicks 
+   * '+ Study Plan'. The slideshow context closes the overlay and sets this flag. 
+   * This effect bridges that gap by opening the modal locally.
+   */
+  // update - 3: Implement the intent bridge effect
+  useEffect(() => {
+    // 1. Step 1: Detect if a global request to open the planner is active
+    if (pendingCalendarRequest) {
+      console.log('[CanvasView.tsx][3080] Post-Exit intent detected: Opening Study Planner');
+      
+      // 2. Step 2: Trigger the local modal visibility state
+      setCalendarModalOpen(true);
+      
+      // 3. Step 3: Immediately consume the request to prevent modal persistence
+      consumeCalendarRequest();
+    }
+  }, [pendingCalendarRequest, consumeCalendarRequest]);
 
   /* ───────────────────── DAM-driven mode + readiness  ──────────── */
   const {mode, status, editReady} = useAccessEditSnapshot();                             // update - 2

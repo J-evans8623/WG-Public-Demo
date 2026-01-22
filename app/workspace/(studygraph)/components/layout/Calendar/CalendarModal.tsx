@@ -16,6 +16,7 @@ import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import './calendar-theme.css';
 import { ALL_DAYS } from '@/app/workspace/(studygraph)/components/layout/Calendar/study-planner/models/Configuration';
 import CalendarRemovalView from './CalendarRemovalView';
+import { useViewSwitch } from '@/app/workspace/(studygraph)/components/layout/Canvas/pdf/ViewSwitchContext';
 
 interface CalendarModalProps {
   isOpen: boolean;
@@ -53,6 +54,9 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
     resetUnseenCount,
   } = useCalendar();
 
+  // Consume the global intent state from ViewSwitchContext
+  const { pendingCalendarRequest } = useViewSwitch();
+
   const extensionInProgress = isLoading;
   const { requestSessionLaunch } = useSlideShow();
 
@@ -73,12 +77,21 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
 
     resetUnseenCount(); 
 
+    // 1. Step 1: Check if this is an orchestrated transition from the Slideshow
+    if (pendingCalendarRequest) {
+      console.log('[CalendarModal.tsx][1050] Deep routing triggered: Forcing Selector Tab');
+      setActiveTab('select');
+      return; // 2. Step 2: Exit early to avoid schedule-driven auto-tabbing
+    }
+
     const hasCalendar =
       !!currentMonth && Array.isArray(currentMonth.dailyPlans) && currentMonth.dailyPlans.length > 0;
     if (hasCalendar) {
       setActiveTab('calendar');
+    } else {
+      setActiveTab('select');
     }
-  }, [isOpen, currentMonth, resetUnseenCount]);
+  }, [isOpen, currentMonth, resetUnseenCount, pendingCalendarRequest]);
 
   /**
    * Manual extension trigger for outdated notebooks (unchanged)
@@ -374,7 +387,7 @@ const handleUpdateSchedule = async () => {
                     disabled={selectedNotebooks.length === 0 || extensionInProgressState}
                     className="calendar-btn calendar-btn-primary"
                   >
-                    {extensionInProgressState ? 'Creating...' : 'Generate Schedule'}
+                    {extensionInProgressState ? 'Creating...' : 'Create Study Plan'}
                   </button>
                 )
               )}

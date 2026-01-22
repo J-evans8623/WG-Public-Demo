@@ -93,6 +93,12 @@ export class StudyPlanService {
     updateType: PlanUpdateType
   ): StudyPlanOutput {
     const loc = 'StudyPlanService.ts#4102';
+    // update - 302: Entry Point Telemetry
+    console.warn(`[StudyPlanService][Entry] extendStudyPlan called with Strategy: ${updateType}`, {
+        existingSessionCount: existing.sessions.length,
+        incomingNotebookCount: updatedNotebooks.length,
+        incomingNotebookIds: updatedNotebooks.map(nb => nb.fileId)
+    });
 
     // --- DEBUG LOGGING START ---
 
@@ -144,19 +150,12 @@ export class StudyPlanService {
         // --- PATH A: INSERTION (Structure Change) ---
 
         
-        // 1. Anchor Date: Use current date (midnight) to start the new schedule immediately
-        const anchorDate = new Date();
-        anchorDate.setHours(0, 0, 0, 0);
+        const currentIds = new Set(existing.state.notebookProgress.keys());
+        const strictlyNewNotebooks = updatedNotebooks.filter(nb => !currentIds.has(nb.fileId));
 
-        // 2. Reconfigure State: Rebalance sets and clear future maps in state
-        stateToExtend = reconfigureStateForUpdate(existing.state, updatedNotebooks, anchorDate);
-
-        // 3. Truncate Base Sessions: Remove future sessions that will be replaced
-        const anchorTime = anchorDate.getTime();
-        baseSessions = existing.sessions.filter((s) => s.date.getTime() < anchorTime);
-
-        // 4. Execute Insertion Strategy
-        tail = this.orchestrator.extendPlan_InsertionStrategy(stateToExtend, updatedNotebooks);
+        // Step 2: Delegate to the orchestrator's new non-destructive insertion pipeline
+        // This replaces the old destructive reconfiguration and truncation logic.
+        return this.orchestrator.extendPlan_InsertStrategy(existing.state, strictlyNewNotebooks);
 
       } else {
         // --- PATH B: UPDATE (Content Only) ---
