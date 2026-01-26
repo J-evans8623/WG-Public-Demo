@@ -130,9 +130,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
       
       // 2. Step 2: Trigger the local modal visibility state
       setCalendarModalOpen(true);
-      
-      // 3. Step 3: Immediately consume the request to prevent modal persistence
-      consumeCalendarRequest();
+    
     }
   }, [pendingCalendarRequest, consumeCalendarRequest]);
 

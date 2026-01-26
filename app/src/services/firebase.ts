@@ -288,6 +288,10 @@ export async function updateFileMetadata(params: {
     totalUnits: number;
   };
   version:number;
+  //  New count fields added to the params interface
+  lessonCount?: number;
+  cardCount?: number;
+  quizCount?: number;
 }): Promise<void> {
   console.log('firebase.ts 0009 › updateFileMetadata', params);
   
@@ -309,6 +313,11 @@ export async function updateFileMetadata(params: {
     updates.version = params.version;
     console.log('firebase.ts › Including version update:', params.version);
   }
+
+  // update - 22: Map new count fields to the Firestore updates object
+  if (typeof params.lessonCount === 'number') updates.lessonCount = params.lessonCount;
+  if (typeof params.cardCount === 'number')   updates.cardCount   = params.cardCount;
+  if (typeof params.quizCount === 'number')   updates.quizCount   = params.quizCount;
   
 
   await firestore

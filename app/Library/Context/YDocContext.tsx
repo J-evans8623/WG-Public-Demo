@@ -56,7 +56,7 @@ import type { UserFileMetadata } from '@/app/src/types/fileTypes';
 // Pure ops: perform I/O + computation only; driver commits outputs.
 import { opHydrateFromBytes, opLoadAuth, opCreateLocal, opBootstrapNewDoc } from './ops/pureOps';
 import { supersedingCall } from '@/app/src/net/SupersedingCaller';
-
+import { scanDocumentStats } from './ops/DocumentScan'
 
 interface ChatMessage {
   id: number;
@@ -877,7 +877,10 @@ const loadData = useCallback(async (
     async (chatData?: ChatMessage[]): Promise<SaveOpResult> => {                // update - 117
       if (!docFileID) throw new Error('No docFileID');
         console.log(`Debug: 3245 Inconsistent Ids: doc id when saving ${docFileID}`)
-      // 1) Robust current version read for payload; NO state mutation here.
+      
+      const stats = scanDocumentStats(ydoc);
+        // 1) Robust current version read for payload; NO state mutation here.
+      
       const currentVersion = readVersionFromMetadata(ydoc);                      // update - 117
       setVersion(currentVersion);
 
@@ -973,6 +976,10 @@ const loadData = useCallback(async (
         chatPath,
         fileSize,
         version: currentVersion,
+        // : Mapping the scanned stats to the API payload
+        lessonCount: stats.lessonCount,
+        cardCount: stats.cardCount,
+        quizCount: stats.quizCount,
       };
       if (lessonUnitsMeta) savePayload.lessonUnitsMeta = lessonUnitsMeta;
 

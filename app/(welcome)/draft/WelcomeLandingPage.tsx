@@ -60,20 +60,26 @@ function WelcomeLandingPage(): JSX.Element {
       const observer = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
-            if (entry.isIntersecting && entry.intersectionRatio > 0.4) {
+            if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
               setActiveScene(index + 1);
             }
           });
         },
         {
-          threshold: [0, 0.4, 0.6, 1],
-          rootMargin: '-20% 0px -20% 0px',
+          threshold: [0, 0.3, 0.6, 1],
+          rootMargin: '-10% 0px -10% 0px',
         }
       );
 
       observer.observe(sceneEl);
       return observer;
     });
+   
+    // PATCH: Manually check if we are at the top of the page on load
+  // to ensure Scene 1 is active immediately.
+  if (window.scrollY < 100) {
+    setActiveScene(1);
+  }
 
     return () => {
       observers.forEach((obs) => obs?.disconnect());

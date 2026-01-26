@@ -44,6 +44,10 @@ interface SaveDocumentRequest {
     totalUnits: number;
   };
   version: number;
+  // Added asset counts for social metadata aggregation
+  lessonCount?: number;
+  cardCount?: number;
+  quizCount?: number;
 }
 
 /**
@@ -73,7 +77,7 @@ interface SaveDocumentRequest {
 
   try {
     // Step 3: Parse and validate body
-    const { fileName, docFileID, fileStoragePath, fileSize, lessonUnitsMeta, version, colorCode } =
+    const { fileName, docFileID, fileStoragePath, fileSize, lessonUnitsMeta, version, colorCode, lessonCount, cardCount, quizCount } =
       req.body as SaveDocumentRequest;
 
     if (
@@ -117,6 +121,10 @@ interface SaveDocumentRequest {
         editors: [session.user.email!],
         sharedWith: [],
         version: Number.isFinite(version) ? version : 1,
+        // update - 4: Provision counts on first save
+        lessonCount: lessonCount || 0,
+        cardCount: cardCount || 0,
+        quizCount: quizCount || 0,
       };
 
       if (lessonUnitsMeta) {
@@ -193,6 +201,9 @@ interface SaveDocumentRequest {
       colorCode,
       contentType: 'application/octet-stream',
       version: Number.isFinite(version) ? version : undefined,
+      lessonCount: typeof lessonCount === 'number' ? lessonCount : undefined,
+      cardCount: typeof cardCount === 'number' ? cardCount : undefined,
+      quizCount: typeof quizCount === 'number' ? quizCount : undefined,
     };
 
     if (lessonUnitsMeta) {

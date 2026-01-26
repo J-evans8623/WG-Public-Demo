@@ -13,11 +13,11 @@ export const metadata: Metadata = {
   title: 'WiseGraph | Spaced Repetition App & AI Study Planner',
   
   description:
-    'Stop cramming and start remembering. WiseGraph is an AI study planner that turns your notes into active recall quizzes and schedules them perfectly to prevent burnout.',
+    'Turn your study material into a schedule with lessons, flash cards and quizzes proven to sink what you learn into long term memory.',
     
   // SOCIAL SHARING (Discord/TikTok/Slack)
   openGraph: {
-    title: 'WiseGraph | Stop Cramming, Start Remembering',
+    title: 'WiseGraph | Spaced Repetition App & AI Study Planner',
     // UPDATE: Changed "The free AI tool" to "Try the AI tool"
     description: 'Try the AI tool that plans your studying so you don\'t burn out.',
     images: ['/brand/hero-shot-highest-res.png'],

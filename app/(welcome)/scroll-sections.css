@@ -55,6 +55,9 @@
 
 /* Right-hand column: sticky visual stage */
 .wg-sticky-column {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 160ms ease;
   position: relative;
   height: 100%;
 }

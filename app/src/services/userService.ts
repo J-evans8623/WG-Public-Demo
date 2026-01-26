@@ -49,6 +49,11 @@ export type AccountType = 'scholar' | 'educator';
 export type SubscriptionTier = 'freemium' | 'premium';
 export type CampaignStatus = 'ELIGIBLE' | 'INELIGIBLE' | 'PENDING' | 'APPROVED' | 'VERIFIED' | 'REWARDED' | 'SUBMITTED';
 
+// Step 1: Standardize Window Constants update - 1
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MONTH_30_MS = 30 * 24 * 60 * 60 * 1000;
+
 const FREEMIUM_MONTHLY_LESSON_LIMIT = parseInt(
   process.env.FREEMIUM_MONTHLY_LESSON_LIMIT || '5',
   10
@@ -737,91 +742,69 @@ static async updateSubscriptionTier(
     return remaining;
   }
   
-  /**
+/**
    * checkRateLimit
    * @description
-   *   Validates whether a user can perform specified operations based on their current rate limits
-   *   and subscription tier. This method handles both file upload rate limiting and lesson generation
-   *   rate limiting with different logic for each action type. The check is performed atomically
-   *   to prevent race conditions and includes automatic period resets.
-   * @param email User email
-   * @param action Type of action to check ('upload' or 'lessonGeneration')
-   * @returns Promise resolving to boolean indicating if action is allowed
+   * Authoritatively validates rate limits and HEALS stale records.
+   * Logic: If a window is expired, we do not just return true; we WRITE the reset
+   * to Firestore immediately so the Middleware stops seeing stale data.
    */
   static async checkRateLimit(email: string, action: 'upload' | 'lessonGeneration'): Promise<boolean> {
-    console.log('[userService.ts][7013] Checking rate limit - Email:', email, 'Action:', action);
-    
     const normalizedEmail = email.toLowerCase().trim();
     const [userProfile, userUsage] = await Promise.all([
       this.getUserProfile(normalizedEmail),
       this.getUserUsage(normalizedEmail)
     ]);
     
-     const nowTs = admin.firestore.Timestamp.now();
-  const nowMs = nowTs.toMillis();
-  const nowDate = new Date(nowMs);
+    const now = admin.firestore.Timestamp.now();
+    const nowMs = now.toMillis();
 
     if (action === 'upload') {
-      // Step 12: File upload rate limiting (existing logic)
-      const limits = RATE_LIMITS[userProfile.subscriptionTier];
-      const periodStart = this.ensureTimestamp(userUsage.rateLimits.currentPeriodStart);
-      const daysSincePeriodStart = (nowMs - periodStart.toMillis()) / (1000 * 60 * 60 * 24);
-      
-      if (daysSincePeriodStart >= 1) {
-        // Reset daily limits
+      const periodStart = this.ensureTimestamp(userUsage.rateLimits.currentPeriodStart).toMillis();
+      if (nowMs - periodStart >= DAY_MS) { // update - 2
         await this.resetRateLimits(normalizedEmail, 'upload');
-        return true; // Allow action after reset
+        return true; 
       }
-      
-      const allowed = userUsage.rateLimits.dailyUploads < limits.dailyUploads;
-      console.log('[userService.ts][7014] Upload rate limit check - Allowed:', allowed, 'Current:', userUsage.rateLimits.dailyUploads, 'Limit:', limits.dailyUploads);
-      return allowed;
-      
-    } if (action === 'lessonGeneration') {
-    // (1) Freemium: governed by demo credits (unchanged behavior)
-    if (userProfile.subscriptionTier === 'freemium') {
-      return userUsage.demoCredits.remaining > 0;
-    }
+      return userUsage.rateLimits.dailyUploads < RATE_LIMITS[userProfile.subscriptionTier].dailyUploads;
+    } 
+    
+    if (action === 'lessonGeneration') {
+      if (userProfile.subscriptionTier === 'freemium') return userUsage.demoCredits.remaining > 0;
 
-    // (2) Compute state using canonical math
-    const tracking = {
-      hourlyCount: userUsage.rateLimits.lessonGeneration.hourlyCount,
-      monthlyCount: userUsage.rateLimits.lessonGeneration.monthlyCount,
-      hourlyPeriodStart: userUsage.rateLimits.lessonGeneration.hourlyPeriodStart,
-      monthlyPeriodStart: userUsage.rateLimits.lessonGeneration.monthlyPeriodStart,
-    };
-    let state = computeLessonLimitState(nowDate, userProfile.accountType, userProfile.subscriptionTier, tracking);
+      const lg = userUsage.rateLimits.lessonGeneration;
+      const hStart = this.ensureTimestamp(lg.hourlyPeriodStart).toMillis();
+      const mStart = this.ensureTimestamp(lg.monthlyPeriodStart).toMillis();
 
-    // (3) If windows have actually elapsed, perform authoritative resets to “heal” storage
-    //     Note: computeLessonLimitState already treats expired windows as 0 effective,
-    //     but we update Firestore starts so future writes/reads align.
-    if (nowDate >= state.hourlyResetAt) {
-      await this.resetRateLimits(normalizedEmail, 'lessonGenerationHourly');
-    }
-    if (nowDate >= state.monthlyResetAt) {
-      await this.resetRateLimits(normalizedEmail, 'lessonGenerationMonthly');
-    }
+      // Step 2: Authoritative Force-Heal update - 3
+      // If either window is stale, we MUST reset them before checking logic.
+      let healed = false;
+      if (nowMs - hStart >= HOUR_MS) {
+        await this.resetRateLimits(normalizedEmail, 'lessonGenerationHourly');
+        healed = true;
+      }
+      if (nowMs - mStart >= MONTH_30_MS) {
+        await this.resetRateLimits(normalizedEmail, 'lessonGenerationMonthly');
+        healed = true;
+      }
 
-    // (4) Recompute once after potential resets to decide final allow/deny
-    if (nowDate >= state.hourlyResetAt || nowDate >= state.monthlyResetAt) {
-      const freshUsage = await this.getUserUsage(normalizedEmail);
-      const tracking2 = {
-        hourlyCount: freshUsage.rateLimits.lessonGeneration.hourlyCount,
-        monthlyCount: freshUsage.rateLimits.lessonGeneration.monthlyCount,
-        hourlyPeriodStart: freshUsage.rateLimits.lessonGeneration.hourlyPeriodStart,
-        monthlyPeriodStart: freshUsage.rateLimits.lessonGeneration.monthlyPeriodStart,
+      // Step 3: Re-fetch if state was modified update - 4
+      let effectiveUsage = userUsage;
+      if (healed) {
+        effectiveUsage = await this.getUserUsage(normalizedEmail);
+      }
+
+      const tracking = {
+        hourlyCount: effectiveUsage.rateLimits.lessonGeneration.hourlyCount,
+        monthlyCount: effectiveUsage.rateLimits.lessonGeneration.monthlyCount,
+        hourlyPeriodStart: effectiveUsage.rateLimits.lessonGeneration.hourlyPeriodStart,
+        monthlyPeriodStart: effectiveUsage.rateLimits.lessonGeneration.monthlyPeriodStart,
       };
-      state = computeLessonLimitState(nowDate, userProfile.accountType, userProfile.subscriptionTier, tracking2);
+
+      const state = computeLessonLimitState(new Date(nowMs), userProfile.accountType, userProfile.subscriptionTier, tracking);
+      return !(state.isHourlyExceeded || state.isMonthlyExceeded);
     }
-
-    // (5) Eligible now if retryAfterSec==0 and not exceeded
-    const allowed = !(state.isHourlyExceeded || state.isMonthlyExceeded);
-    console.log('[userService.ts][7016] Lesson generation allow?', { allowed, hourlyRemaining: state.hourlyRemaining, monthlyRemaining: state.monthlyRemaining });
-    return allowed;
+    return false;
   }
-
-  throw new Error(`Unsupported action type: ${action}`);
-}
   
 /**
    * incrementUsageCounter (Enhanced with secondary services support)
@@ -851,56 +834,83 @@ static async updateSubscriptionTier(
       }
       
       const usage = snapshot.data() as UserUsage;
-      const now = admin.firestore.Timestamp.now();
+      const nowTs = admin.firestore.Timestamp.now();
+      const nowMs = nowTs.toMillis();
       const updates: any = {
-        updatedAt: now,
+        updatedAt: nowTs,
       };
+
+      // 1. Resolve Time Constants
+      const FIVE_MIN_MS = 5 * 60 * 1000;
+      const HOUR_MS = 60 * 60 * 1000;
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
       
-      // Step 10: Handle different action types with enhanced tracking
+      // Step 2: Handle different action types with enhanced tracking
+      // 2. Handle Upload (Heal-on-Write for Daily Window) update - 1
       if (action === 'upload') {
-        updates['rateLimits.dailyUploads'] = admin.firestore.FieldValue.increment(1);
+        const currentStart = this.ensureTimestamp(usage.rateLimits.currentPeriodStart).toMillis();
+        if (nowMs - currentStart >= DAY_MS) {
+          updates['rateLimits.dailyUploads'] = 1;
+          updates['rateLimits.currentPeriodStart'] = nowTs;
+        } else {
+          updates['rateLimits.dailyUploads'] = admin.firestore.FieldValue.increment(1);
+        }
         updates['metrics.totalUploads'] = admin.firestore.FieldValue.increment(1);
-      } else if (action === 'documentCreation') {
+      } // 3. Handle Document Creation (Lifetime Metric Only)
+      else if (action === 'documentCreation') {
         updates['metrics.totalDocumentsCreated'] = admin.firestore.FieldValue.increment(1);
-      } else if (action === 'lessonGeneration') {
+      }
+      // 4. Handle Lesson Generation (Heal-on-Write for Hourly/Monthly)
+      // 4. Handle Lesson Generation (Heal-on-Write for Hourly/Monthly) update - 2
+      else if (action === 'lessonGeneration') {
         const userProfile = await this.getUserProfile(normalizedEmail);
         if (userProfile.subscriptionTier === 'premium') {
-          updates['rateLimits.lessonGeneration.hourlyCount'] = admin.firestore.FieldValue.increment(1);
-          updates['rateLimits.lessonGeneration.monthlyCount'] = admin.firestore.FieldValue.increment(1);
+          const lg = usage.rateLimits.lessonGeneration;
+          
+          // Heal Hourly Window update - 3
+          const hStart = this.ensureTimestamp(lg.hourlyPeriodStart).toMillis();
+          if (nowMs - hStart >= HOUR_MS) {
+            updates['rateLimits.lessonGeneration.hourlyCount'] = 1;
+            updates['rateLimits.lessonGeneration.hourlyPeriodStart'] = nowTs;
+          } else {
+            updates['rateLimits.lessonGeneration.hourlyCount'] = admin.firestore.FieldValue.increment(1);
+          }
+
+          // Heal Monthly Window update - 4
+          const mStart = this.ensureTimestamp(lg.monthlyPeriodStart).toMillis();
+          if (nowMs - mStart >= MONTH_MS) {
+            updates['rateLimits.lessonGeneration.monthlyCount'] = 1;
+            updates['rateLimits.lessonGeneration.monthlyPeriodStart'] = nowTs;
+          } else {
+            updates['rateLimits.lessonGeneration.monthlyCount'] = admin.firestore.FieldValue.increment(1);
+          }
         }
         updates['metrics.totalLessonsGenerated'] = admin.firestore.FieldValue.increment(1);
-      } else if (['askAssistant', 'exploreTopic', 'createQuiz'].includes(action)) {
-        // Step 11: Handle secondary services with window-based rate limiting
-        const windowStart = usage.rateLimits.secondaryServices?.windowStart || now;
-        const windowElapsed = (now.toMillis() - windowStart.toMillis()) / (1000 * 60); // minutes
-        const isWindowExpired = windowElapsed >= RATE_LIMITS.premium.secondaryServices.windowDurationMinutes;
+      } // 5. Handle Secondary Services (Heal-on-Write for 5-minute Window) update - 5
+      else if (['askAssistant', 'exploreTopic', 'createQuiz'].includes(action)) {
+        const ss = usage.rateLimits.secondaryServices;
+        const windowStart = this.ensureTimestamp(ss?.windowStart).toMillis();
         
-        if (isWindowExpired) {
-          // Reset window
+        if (nowMs - windowStart >= FIVE_MIN_MS) {
           updates['rateLimits.secondaryServices.windowCount'] = 1;
-          updates['rateLimits.secondaryServices.windowStart'] = now;
+          updates['rateLimits.secondaryServices.windowStart'] = nowTs;
         } else {
-          // Increment within current window
           updates['rateLimits.secondaryServices.windowCount'] = admin.firestore.FieldValue.increment(1);
         }
-        
+
         updates['rateLimits.secondaryServices.dailyCount'] = admin.firestore.FieldValue.increment(1);
         updates['rateLimits.secondaryServices.totalCount'] = admin.firestore.FieldValue.increment(1);
-        
-        // Update specific metrics
-        if (action === 'askAssistant') {
-          updates['metrics.totalQuestionsAsked'] = admin.firestore.FieldValue.increment(1);
-        } else if (action === 'exploreTopic') {
-          updates['metrics.totalTopicsExplored'] = admin.firestore.FieldValue.increment(1);
-        } else if (action === 'createQuiz') {
-          updates['metrics.totalQuizzesCreated'] = admin.firestore.FieldValue.increment(1);
-        }
+
+        if (action === 'askAssistant') updates['metrics.totalQuestionsAsked'] = admin.firestore.FieldValue.increment(1);
+        if (action === 'exploreTopic') updates['metrics.totalTopicsExplored'] = admin.firestore.FieldValue.increment(1);
+        if (action === 'createQuiz') updates['metrics.totalQuizzesCreated'] = admin.firestore.FieldValue.increment(1);
       }
-      
+
       transaction.update(usageRef, updates);
-       await bumpUserVersion(normalizedEmail);
-      console.log('[userService.ts][2013] Enhanced usage counter incremented successfully');
     });
+    
+    await bumpUserVersion(normalizedEmail);
   }
   
 /**

@@ -55,7 +55,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
   } = useCalendar();
 
   // Consume the global intent state from ViewSwitchContext
-  const { pendingCalendarRequest } = useViewSwitch();
+  const { pendingCalendarRequest, consumeCalendarRequest } = useViewSwitch();
 
   const extensionInProgress = isLoading;
   const { requestSessionLaunch } = useSlideShow();
@@ -81,6 +81,8 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
     if (pendingCalendarRequest) {
       console.log('[CalendarModal.tsx][1050] Deep routing triggered: Forcing Selector Tab');
       setActiveTab('select');
+      // 3. Step 3: Immediately consume the request to prevent modal persistence
+      consumeCalendarRequest();
       return; // 2. Step 2: Exit early to avoid schedule-driven auto-tabbing
     }
 
@@ -91,7 +93,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({ isOpen, onClose, onFileSe
     } else {
       setActiveTab('select');
     }
-  }, [isOpen, currentMonth, resetUnseenCount, pendingCalendarRequest]);
+  }, [isOpen, currentMonth, resetUnseenCount, pendingCalendarRequest, consumeCalendarRequest]);
 
   /**
    * Manual extension trigger for outdated notebooks (unchanged)
