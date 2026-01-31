@@ -53,7 +53,10 @@ interface AccountStatusResponse {
   billing: BillingSnapshot | null;
   bootstrappedFiles? : UserFileMetadata[],
   reachedMilestones?: string[]; // Wire for Milestone Checkmarks
-  premiumUntil?: any;            // Wire for Countdown Logic
+  // update - 1.1: Decoupled Trial Sandbox Fields (milliseconds)
+  // These drive the useCampaignTrial sidecar hook logic.
+  trialStartDate?: number | null;
+  trialEndDate?: number | null;       // Wire for Countdown Logic
 }
 
 
@@ -96,7 +99,7 @@ export default async function handler(
       UserService.getUserUsage(userEmail)
     ]);
 
-    // update - 3: Fetch progress from the application collection (The Source of Truth)
+    //  Fetch progress from the application collection (The Source of Truth)
     const appDoc = await firestore.collection('referral_applications').doc(userEmail).get();
     const appData = appDoc.exists ? appDoc.data() : null;
 
@@ -104,6 +107,17 @@ export default async function handler(
       console.error('[api/account/status.ts][2005] User profile not found in session');
       return res.status(500).json({ error: 'User profile not available' });
     }
+
+    // update - 1.2: Serialize Decoupled Trial Timestamps
+    // We convert Firestore Timestamps to Milliseconds for JSON compatibility 
+    // and ease of math in the React Sidecar hook.
+    const trialStartDateMs = userProfile.trialStartDate && typeof userProfile.trialStartDate.toMillis === 'function'
+      ? userProfile.trialStartDate.toMillis()
+      : null;
+
+    const trialEndDateMs = userProfile.trialEndDate && typeof userProfile.trialEndDate.toMillis === 'function'
+      ? userProfile.trialEndDate.toMillis()
+      : null;
 
     // Step 4: Transform user profile data to API response format
     const accountStatus: AccountStatusResponse = {
@@ -117,9 +131,9 @@ export default async function handler(
       billing: userProfile.billing ?? null,
       bootstrappedFiles : userProfile._bootstrappedFiles,
       reachedMilestones: appData?.reachedMilestones || [],
-      premiumUntil:userProfile.premiumUntil && typeof userProfile.premiumUntil.toMillis === 'function' 
-        ? userProfile.premiumUntil.toMillis() 
-        : userProfile.premiumUntil || null,
+      // update - 1.3: Inject the decoupled trial trackers
+      trialStartDate: trialStartDateMs,
+      trialEndDate: trialEndDateMs,
     };
 
 

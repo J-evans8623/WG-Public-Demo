@@ -69,9 +69,6 @@ export const metadata: Metadata = {
     description: 'Stop cramming. Use spaced repitition to build lasting mastery.',
     creator: '@wisegraphapp',
   },
-  alternates: {
-    canonical: '/',
-  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

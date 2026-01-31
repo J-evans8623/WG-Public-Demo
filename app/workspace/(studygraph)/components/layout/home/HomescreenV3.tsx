@@ -23,7 +23,7 @@ import CalendarModal from '@/app/workspace/(studygraph)/components/layout/Calend
 import OnboardingModal, { TUTORIAL_DATA, TutorialContent } from './onboarding-modal';
 
 // update - 1: Import the Campaign Orchestrator
-import { CampaignUIOrchestrator } from '@/app/workspace/(studygraph)/components/FlyerCampaigns/CampaignUIOrchestrator';
+import { CampaignUIOrchestrator } from '@/app/workspace/(studygraph)/components/FlyerCampaigns/CampaignUIOrchestratorB';
 // 
 // Import Styles
 import './homeScreenV3.css';

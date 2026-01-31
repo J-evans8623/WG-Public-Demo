@@ -11,6 +11,8 @@
 
 import { firestore } from "../firebase";
 import * as admin from 'firebase-admin';
+import { UserService } from '../userService';
+import { bumpUserVersion } from '../redisCache/userCache';
 
 /** Data structure for the global campaign configuration */
 export interface CampaignConfig {
@@ -28,6 +30,7 @@ export interface ReferralApplication {
   status: 'PENDING' | 'APPROVED' | 'VERIFIED' | 'REWARDED' | 'REJECTED';
   appliedAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
+  totalUniquePeers?: number;
 }
 
 /**
@@ -86,9 +89,17 @@ export async function submitApplication(
  * @param userId - The normalized email/ID of the user.
  * @returns Promise resolving to status string or null if no application exists.
  */
-export async function getApplicationStatus(userId: string): Promise<string | null> {
+export async function getApplicationStatus(userId: string): Promise<Partial<ReferralApplication> | null> {
   const doc = await firestore.collection('referral_applications').doc(userId).get();
-  return doc.exists ? (doc.data()?.status as string) : null;
+  if (!doc.exists) return null;
+
+  const data = doc.data();
+  // update - 1.2: Returning only the simplified digital fields
+  return {
+    status: data?.status as ReferralApplication['status'],
+    totalUniquePeers: data?.totalUniquePeers || 0,
+    universityName: data?.universityName
+  };
 }
 
 
@@ -103,41 +114,15 @@ export async function getApplicationStatus(userId: string): Promise<string | nul
  * @param daysToGrant - Number of days to add to the premium trial.
  */
 export async function rewardUserTier(userId: string, daysToGrant: number): Promise<void> {
-  const userRef = firestore.collection('users').doc(userId);
-  const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-  await firestore.runTransaction(async (tx) => {
-    const snap = await tx.get(userRef);
-    if (!snap.exists) throw new Error("User not found for reward");
-
-    const data = snap.data() || {};
-    const nowMs = Date.now();
-    
-    // update - 1: Determine the baseline for extension
-    // If premiumUntil exists and is in the future, we append. Otherwise, we start from Now.
-    const currentExpiry = data.premiumUntil instanceof admin.firestore.Timestamp 
-      ? data.premiumUntil.toMillis() 
-      : 0;
-    
-    const baseMs = Math.max(nowMs, currentExpiry);
-    const newExpiryMs = baseMs + (daysToGrant * MS_PER_DAY);
-
-    // update - 2: Persist the new tier and timestamp
-    tx.update(userRef, {
-      subscriptionTier: 'premium',
-      premiumUntil: admin.firestore.Timestamp.fromMillis(newExpiryMs),
-      updatedAt: admin.firestore.Timestamp.now()
-    });
-
-    // update - 3: Mark the application status as REWARDED
-    const appRef = firestore.collection('referral_applications').doc(userId);
-    tx.update(appRef, {
-      status: 'REWARDED',
-      lastRewardGrant: admin.firestore.Timestamp.now()
-    });
-  });
-
-  console.log(`[FlyerCampaignFB] Granted ${daysToGrant} days to ${userId}`);
+  // update - 1.2: Delegate to the authoritative UserService
+  // This call handles the TrialSandbox calculation and the Redis version bump.
+  try {
+    await UserService.rewardUserTrial(userId, daysToGrant);
+    console.log(`[FlyerCampaignFB] Successfully delegated reward grant for ${userId}`);
+  } catch (error) {
+    console.error(`[FlyerCampaignFB] Failed to delegate reward for ${userId}:`, error);
+    throw error;
+  }
 }
 
 
@@ -167,65 +152,88 @@ export async function getUniqueReferralCount(referrerId: string): Promise<number
   return uniquePeers.size;
 }
 
+/**
+ * IncrementNewUniqueUserReferalCount
+ * @description
+ * Atomically increments the persistent counter of valid new users referred.
+ * This is the definitive "Writer" function called upon a successful handshake.
+ * Time Complexity: O(1) - Single document update.
+ * @param referrerId - The normalized ID of the student who shared the link.
+ */
+export async function IncrementNewUniqueUserReferalCount(referrerId: string): Promise<void> {
+  const appRef = firestore.collection('referral_applications').doc(referrerId);
+  
+  // update - 2.1: Atomic increment to ensure data integrity during burst sign-ups
+  await appRef.update({
+    totalUniquePeers: admin.firestore.FieldValue.increment(1),
+    updatedAt: admin.firestore.Timestamp.now()
+  });
+  
+  console.log(`[FlyerCampaignFB] Incremented referral count for ${referrerId}`);
+}
 
 
 /**
- * cleanupExpiredTrials
+ * GetNewUniqueUserReferalCount
  * @description
- * Administrative janitor task that identifies users whose promo trial has lapsed.
- * * SAFETY LOGIC:
- * To avoid affecting traditional premium users, this query specifically targets
- * users where subscriptionTier is 'premium' AND premiumUntil is expired,
- * but crucially filters out anyone with an 'active' or 'trialing' Stripe status.
+ * Reads the authoritatively stored count of unique new users.
+ * This function satisfies the requirement for a high-performance, non-scan reader.
+ * Time Complexity: O(1) - Single document read.
+ * @param referrerId - Normalized ID of the referrer.
+ * @returns Promise resolving to the current peer count.
  */
-export async function cleanupExpiredTrials(): Promise<number> {
-  const now = admin.firestore.Timestamp.now();
-  const batch = firestore.batch();
-  
-  // update - 1: Targeted Query with Billing Safety Gate
-  // We query for premium users with expired trial dates.
-  const potentialExpired = await firestore.collection('users')
-    .where('subscriptionTier', '==', 'premium')
-    .where('premiumUntil', '<', now)
-    .limit(500) 
-    .get();
-
-  if (potentialExpired.empty) {
-    return 0;
-  }
-
-  let processedCount = 0;
-
-  // update - 2: Secondary Validation Loop
-  potentialExpired.docs.forEach((doc) => {
-    const userData = doc.data();
-    const billing = userData.billing;
-
-    // update - 3: The "Traditional User" Shield
-    // We ONLY downgrade if the user has NO active Stripe subscription.
-    // If billing.status is 'active' or 'trialing' (Stripe side), we skip them entirely.
-    const isPayingCustomer = billing && (billing.status === 'active' || billing.status === 'trialing');
-    
-    if (!isPayingCustomer) {
-      const userRef = firestore.collection('users').doc(doc.id);
-      batch.update(userRef, {
-        subscriptionTier: 'freemium',
-        updatedAt: now,
-      });
-      processedCount++;
-    } else {
-      console.log(`[FlyerCampaignFB] Safety Triggered: Skipped downgrade for paying customer ${doc.id}`);
-    }
-  });
-
-  // 3. Commit only if we found actual ambassador trials to clean up
-  if (processedCount > 0) {
-    await batch.commit();
-  }
-  
-  console.log(`[FlyerCampaignFB] Cleaned up ${processedCount} expired promo trials.`);
-  return processedCount;
+export async function GetNewUniqueUserReferalCount(referrerId: string): Promise<number> {
+  const appStatus = await getApplicationStatus(referrerId);
+  // update - 2.2: Simply reading the last stored value to avoid collection scans
+  return appStatus?.totalUniquePeers || 0;
 }
+
+/**
+ * checkAndAutoRewardUser
+ * @description
+ * Automatically checks if an APPROVED user has met the 5-referral threshold.
+ * If met, it bypasses the manual 'VERIFIED' step and grants the trial.
+ */
+/**
+ * checkAndAutoRewardUser
+ * @description
+ * Authoritative milestone processor that gates the single-tier campaign reward.
+ * This refactored version checks the O(1) peer count and triggers the 7-day 
+ * grant only if the 5-user threshold is met for the first time.
+ * @param userId - Normalized ID of the referrer.
+ * @returns Promise resolving to boolean: true if reward was granted in this call.
+ */
+export async function checkAndAutoRewardUser(userId: string): Promise<boolean> {
+  const currentApp = await getApplicationStatus(userId);
+  
+  // 1. Guard: Only process if the user is in the active sharing phase.
+  // This prevents redundant trial grants once the status is 'REWARDED'.
+  if (currentApp?.status !== 'APPROVED') return false;
+
+  // 2. Progression Check: Call the simplified O(1) reader.
+  const currentCount = await GetNewUniqueUserReferalCount(userId);
+
+  // update - 3.1: Simplified Gating logic for the one-time 5-user milestone.
+  if (currentCount >= 5) {
+    const appRef = firestore.collection('referral_applications').doc(userId);
+    
+    // Atomic state flip to finalize the journey
+    await appRef.update({
+      status: 'REWARDED',
+      updatedAt: admin.firestore.Timestamp.now()
+    });
+
+    // Provision the single 7-day trial sandbox
+    await UserService.rewardUserTrial(userId, 7);
+    await incrementActiveParticipants();
+    
+    console.log(`[FlyerCampaignFB] Milestone reached! Rewarded ${userId}`);
+    return true;
+  }
+
+  return false;
+}
+
 
 /**
  * getReferralCount

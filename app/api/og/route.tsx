@@ -8,15 +8,19 @@
  */
 
 import { ImageResponse } from 'next/og';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs'; // Use nodejs runtime for fs access
 
-async function loadFonts(origin: string) {
-  const [crimson, inter] = await Promise.all([
-    // Fetches binary data from your local public/fonts folder
-    fetch(`${origin}/fonts/CrimsonPro-Black.ttf`).then(res => res.arrayBuffer()),
-    fetch(`${origin}/fonts/Inter_18pt-SemiBold.ttf`).then(res => res.arrayBuffer()),
-  ]);
+async function loadFontsFromDisk() {
+  // Use join and process.cwd() to find the public folder inside the container
+  const crimsonPath = join(process.cwd(), 'public', 'fonts', 'CrimsonPro-Black.ttf');
+  const interPath = join(process.cwd(), 'public', 'fonts', 'Inter_18pt-SemiBold.ttf');
+  
+  const crimson = readFileSync(crimsonPath);
+  const inter = readFileSync(interPath);
+  
   return { crimson, inter };
 }
 
@@ -30,7 +34,7 @@ export async function GET(request: Request) {
     const quizzes = searchParams.get('q') || '0';
 
 
-    const { crimson, inter } = await loadFonts(origin);
+    const { crimson, inter } = await loadFontsFromDisk();
 
     // Scales title from 84px down to 48px based on character length
     const titleLength = title.length;

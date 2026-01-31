@@ -19,7 +19,7 @@ import { extractMath, restoreMath } from './mathPlaceholder';
 const md = new MarkdownIt({
   html: true,
   linkify: true,
-  breaks: true,
+  breaks: false,
 });
 
 export function renderMarkdownWithMath(raw: string): string {

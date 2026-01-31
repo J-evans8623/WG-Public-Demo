@@ -67,7 +67,8 @@ interface AccountStatus {
   campaignStatus?: CampaignStatus;
   remainingDemoCredits?: number;
   reachedMilestones?: string[]; // Milestone checkmark support
-  premiumUntil?: number | null;            // Countdown calculation support
+  trialStartDate?: number | null;
+  trialEndDate?: number | null;         // Countdown calculation support
   features: {
     canCreatePublicFiles: boolean;
     canInviteEditors: boolean;
@@ -180,9 +181,9 @@ export const useAccountStatus = () => {
 /**
  * @function useCampaignTrial
  * @description
- * NEW sidecar hook for the Flyer Campaign.
- * Encapsulates trial-specific data to prevent tampering with useAccountStatus.
- * Provides the real-time countdown and milestone checkmark data.
+ * Sidecar hook refactored to independently hydrate campaign metrics.
+ * update - 1.1: Implemented local state and useEffect to fetch 'totalUniquePeers' 
+ * from the specialized campaign collection without bloating the core user model.
  */
 export const useCampaignTrial = () => {
   const context = useContext(ApiContext);
@@ -191,33 +192,61 @@ export const useCampaignTrial = () => {
   }
 
   const status = context.accountStatus;
+  
+  // update - 1.2: Local state for campaign-only metrics
+  const [campaignData, setCampaignData] = useState<{
+    totalUniquePeers: number;
+    status: CampaignStatus;
+  } | null>(null);
+
+  /**
+   * fetchCampaignMetrics
+   * @description
+   * Performs an O(1) document fetch for the current user's referral application.
+   * Logic satisfies the requirement to keep campaign data outside the user model.
+   */
+  const fetchCampaignMetrics = useCallback(async () => {
+    try {
+      const resp = await fetch('/api/flyerCampaign/status'); // Specialized endpoint
+      if (resp.ok) {
+        const data = await resp.json();
+        setCampaignData({
+          totalUniquePeers: data.totalUniquePeers || 0,
+          status: data.status as CampaignStatus
+        });
+      }
+    } catch (err) {
+      console.error('[useCampaignTrial] Failed to hydrate metrics', err);
+    }
+  }, []);
+
+  // update - 1.3: Trigger hydration on mount if the user is authenticated
+  useEffect(() => {
+    if (context.accountStatus?.email) {
+      fetchCampaignMetrics();
+    }
+  }, [context.accountStatus?.email, fetchCampaignMetrics]);
 
   const daysRemaining = useMemo(() => {
-    if (!status?.premiumUntil) return 0;
-    
-    // update - 1: Patched ts(2339) using explicit casting
-    // This safely handles both the Number from the API and the potential raw object
-    const rawVal = status.premiumUntil as any;
-    
-    const expiryDate = new Date(
-      typeof rawVal === 'number' 
-        ? rawVal 
-        : (rawVal.seconds * 1000) || 0
-    );
-    
-    const diff = expiryDate.getTime() - new Date().getTime();
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    return days > 0 ? days : 0;
-  }, [status?.premiumUntil]);
+    if (!status?.trialEndDate) return 0;
+    const now = Date.now();
+    const diff = status.trialEndDate - now;
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  }, [status?.trialEndDate]);
 
-  console.log(`status check ${JSON.stringify(status?.campaignStatus)}`)
-  console.log(`trial check ${JSON.stringify(status?.premiumUntil)}`)
+  const isActiveTrial = useMemo(() => {
+    if (!status?.trialStartDate || !status?.trialEndDate) return false;
+    const now = Date.now();
+    return now >= status.trialStartDate && now <= status.trialEndDate;
+  }, [status?.trialStartDate, status?.trialEndDate]);
 
   return {
-    milestones: status?.reachedMilestones || [],
     daysRemaining,
-    isActiveTrial: status?.subscriptionTier === 'premium' && !!status?.premiumUntil,
-    campaignStatus: status?.campaignStatus || 'INELIGIBLE',
+    isActiveTrial,
+    // update - 1.4: Returning locally hydrated metrics
+    totalUniquePeers: campaignData?.totalUniquePeers || 0,
+    campaignStatus: campaignData?.status || status?.campaignStatus || 'INELIGIBLE',
+    refreshCampaign: fetchCampaignMetrics
   };
 };
 

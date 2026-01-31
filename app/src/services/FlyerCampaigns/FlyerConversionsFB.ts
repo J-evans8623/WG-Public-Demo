@@ -9,6 +9,7 @@
 
 import { firestore } from "../firebase";
 import * as admin from 'firebase-admin';
+import { checkAndAutoRewardUser } from "./FlyerCampaignFB";
 
 /** Data structure for a conversion event log */
 export interface ConversionEvent {
@@ -21,6 +22,7 @@ export interface ConversionEvent {
   entryLessonCount: number;
   campaignSource: string;
   convertedAt: admin.firestore.Timestamp;
+  isNewUserInvite: boolean;
 }
 
 /**
@@ -43,6 +45,10 @@ export async function recordConversionEvent(event: ConversionEvent): Promise<boo
     if (snap.exists) {
       return false; // Already tracked for this specific document
     }
+
+    // NEW: Automatically check if the referrer has reached the milestone
+    // This removes all manual administrative overhead for the 5-referral reward.
+    await checkAndAutoRewardUser(event.referrerId);
 
     // 3. Persist the record for analytics and future reward derivation
     await conversionRef.set(event);

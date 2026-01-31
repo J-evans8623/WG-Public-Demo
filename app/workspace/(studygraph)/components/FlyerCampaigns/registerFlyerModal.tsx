@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { registerModal } from '@/app/workspace/(studygraph)/components/modals/ModalRegistry';
-import { FlyerModal } from './FlyerModal';
+import { FlyerModal } from './FlyerModalB';
 
 /**
  * Step 1: Register the modal factory.

@@ -34,10 +34,11 @@ type PageProps = {
 export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
   const params = await searchParams;
   const docId = params.doc as string;
+  const baseUrl = process.env.FRONTEND_BASE_URL || 'https://wisegraph.app';
 
   // Base fallback metadata
   const defaultMeta: Metadata = {
-    title: 'WiseGraph | AI Study Planner',
+    title: 'WiseGraph.app',
     openGraph: {
       title: 'WiseGraph | Spaced Repetition App',
       description: 'The AI tool that plans your studying so you don\'t burn out.',
@@ -49,7 +50,6 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
 
   try {
     // 1. Fetch sanitized metadata from our public BFF endpoint
-    const baseUrl = process.env.FRONTEND_BASE_URL || 'https://wisegraph.app';
     const infoResp = await fetch(`${baseUrl}/api/document/share-info?docId=${docId}`, {
       next: { revalidate: 600 } // Cache the metadata fetch for 10 minutes
     });
@@ -65,11 +65,18 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     ogUrl.searchParams.set('c', stats.cards.toString());
     ogUrl.searchParams.set('q', stats.quizzes.toString());
 
+    const uniqueUrl = `${baseUrl}/workspace?doc=${docId}`;
+
     // 3. Return the dynamic tags to the crawler
     return {
       title: `${stats.title} | WiseGraph`,
+      alternates: {
+        canonical: uniqueUrl,
+      },
       openGraph: {
+        url: uniqueUrl,
         title: stats.title,
+        type: 'article',
         description: `View ${stats.lessons} lessons and ${stats.cards} flashcards on WiseGraph.`,
         images: [{
           url: ogUrl.toString(),
@@ -99,6 +106,9 @@ export default async function StudygraphPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const session = await getServerSession(authOptions);
 
+  // update - 52: BOT-FRIENDLY REDIRECT
+  // If no session exists, we do NOT return redirect() (which sends a 307).
+  // Instead, we render a shell that allows the Head (and Metadata) to be read.
   if (!session) {
     const qs = new URLSearchParams();
     for (const [key, val] of Object.entries(params)) {
@@ -111,7 +121,17 @@ export default async function StudygraphPage({ searchParams }: PageProps) {
     const query = qs.toString();
     const returnTo = `/workspace${query ? `?${query}` : ''}`;
 
-    return redirect(`/signin?returnTo=${encodeURIComponent(returnTo)}`);
+    return (
+      <html lang="en">
+        <head>
+          {/* update - 53: Forces browser redirect for humans only */}
+          <meta httpEquiv="refresh" content={`0; url=/signin?returnTo=${encodeURIComponent(returnTo)}`} />
+        </head>
+        <body style={{ background: '#FAF8F5' }}>
+          {/* Empty body: Bots only care about the head; Humans will redirect instantly */}
+        </body>
+      </html>
+    );
   }
 
   return <AppLayout />;

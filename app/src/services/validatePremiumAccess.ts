@@ -119,7 +119,7 @@ export async function validatePremiumAccess(
   console.log('[validatePremiumAccess.ts][1001] Start validation', { email, serviceType });
 
   // 1) Version & micro-cache fast path
-  const ver = await getUserVersion(email); // update - 3
+  const ver = await getUserVersion(email); 
 
   let cached: ValidationResult | null = null;
 
@@ -163,7 +163,15 @@ export async function validatePremiumAccess(
     let result: ValidationResult;
 
     if (userStatus.profile.subscriptionTier === 'freemium') {
-      result = await validateFreemiumAccess(userStatus, serviceType, docId);
+      const trialResult = validateTrialAccess(userStatus, serviceType);
+
+
+      if (trialResult.allowed) {
+        result = trialResult;
+      } else {
+        // update - 1.3: Fallback to the authoritative standard freemium restricted logic.
+        result = await validateFreemiumAccess(userStatus, serviceType, docId);
+      }
     } else {
       result = validatePremiumRateLimits(userStatus, serviceType);
     }
@@ -529,4 +537,45 @@ export function mapActionToServiceType(action: string): ServiceType {
   };
 
   return actionMap[action] || 'askAssistant';
+}
+
+
+
+
+/**
+ * validateTrialAccess
+ * @description
+ * Authoritatively determines if a user has a valid promotional trial. 
+ * This function encapsulates the range-check logic, verifying the trialStartDate 
+ * and trialEndDate against the current system time. If the trial is valid, 
+ * it immediately proceeds to validate the request against premium rate-limiting 
+ * rules. If invalid, it returns a 'disallowed' status, signalling the parent 
+ * handler to proceed with standard freemium validation.
+ * @param userStatus - Comprehensive user status containing profile and usage data.
+ * @param serviceType - Type of service being requested.
+ * @returns ValidationResult permitting access if trial is active, or denying if not.
+ */
+function validateTrialAccess(
+  userStatus: ComprehensiveUserStatus,
+  serviceType: ServiceType
+): ValidationResult {
+  // update - 2.1: Authoritative Range Validation
+  const nowMs = Date.now();
+  const trialStartMs = userStatus.profile.trialStartDate ? toDate(userStatus.profile.trialStartDate).getTime() : 0;
+  const trialEndMs = userStatus.profile.trialEndDate ? toDate(userStatus.profile.trialEndDate).getTime() : 0;
+  
+  const isTrialActive = nowMs >= trialStartMs && nowMs <= trialEndMs;
+
+  // update - 2.2: Decision Gate
+  // If active, we return the results of premium rate limit checks.
+  if (isTrialActive) {
+    console.log('[validatePremiumAccess.ts][2001] Active trial sandbox detected; granting premium permissions');
+    return validatePremiumRateLimits(userStatus, serviceType);
+  }
+
+  // update - 2.3: Deny access for the trial track (allows fallback in main handler)
+  return { 
+    allowed: false, 
+    userStatus 
+  };
 }

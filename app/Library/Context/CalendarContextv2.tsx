@@ -900,6 +900,88 @@ const navigateMonth = useCallback((dir: 'prev' | 'next') => {
     }
   }, [studyPlan, selectedNotebooks, notebooksApi, service, persistApi, completedSessions]);
 
+  
+
+
+  /**
+   * @function ManualUpdate
+   * @description
+   * update - 1.2: High-level background orchestrator for study plan updates.
+   * Directly handles branching between Pathway A (new plan) and Pathway B (extension).
+   * Steps:
+   * 1) Perform authoritative metadata fetch for the target notebook.
+   * 2) If no plan exists (Path A): Call service.generateStudyPlan with defaults.
+   * 3) If plan exists (Path B): Determine if it's a content refresh or notebook insertion and extend.
+   * 4) Commit state, refresh version snapshots, and persist immediately.
+   */
+  const ManualUpdate = useCallback(async (notebookId: string) => {
+    // 1. Guard against subscription limits
+    if (accountStatus?.subscriptionTier === 'freemium' && selectedNotebooks.length >= 2 && !selectedNotebooks.includes(notebookId)) {
+      showModal('subscribe', { featureName: "Study Plan Limit" });
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // 2. Fetch authoritative metadata
+      // For Path B, we need the full list to ensure extendStudyPlan has context
+      const targetIds = Array.from(new Set([...selectedNotebooks, notebookId]));
+      const metas: NotebookMeta[] = await notebooksApi.details(targetIds, userEmail);
+      const targetMeta = metas.find(m => m.fileId === notebookId);
+
+      if (!targetMeta) throw new Error("Metadata not found for notebook integration.");
+
+      let nextPlan: StudyPlanOutput;
+
+      // 3. Branch Logic (Pathway A vs Pathway B)
+      if (!studyPlan) {
+        // Path A: Fresh Generation
+        console.log('[CalendarContext][1.2] Path A: Generating fresh study plan');
+        const config: ScheduleConfig = { DayAvailability: ALL_DAYS };
+        nextPlan = service.generateStudyPlan(metas, config, new Date());
+      } else {
+        // Path B: Plan Extension
+        console.log('[CalendarContext][1.2] Path B: Extending existing study plan');
+        const isAlreadyTracked = studyPlan.state.notebookProgress.has(notebookId);
+        const updateType: PlanUpdateType = isAlreadyTracked ? 'UpdateNotebook' : 'InsertNotebook';
+        nextPlan = service.extendStudyPlan(studyPlan, metas, updateType);
+      }
+
+      // 4. Commit results
+      setStudyPlan(nextPlan);
+      setSelectedNotebooks(targetIds);
+
+      // 5. Update Version Tracking
+      setNotebookVersions(prev => {
+        const m = new Map(prev);
+        metas.forEach(nb => {
+          m.set(nb.fileId, {
+            notebookId: nb.fileId, trackedVersion: nb.version ?? 'unknown', currentVersion: nb.version ?? 'unknown',
+            needsUpdate: false, lastChecked: new Date(),
+          });
+        });
+        return m;
+      });
+
+      // 6. Persistence & UI Signaling
+      const wirePlan = serializeStudyPlan(nextPlan);
+      await persistApi.store({
+        studyPlan: wirePlan,
+        selectedNotebooks: targetIds,
+        completedSessions,
+      });
+
+      setHasUnseenUpdates(true);
+
+    } catch (e: any) {
+      console.error('[CalendarContext][1.2] ManualUpdate failed', e);
+      setError(e?.message ?? 'Failed to update study plan background.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [studyPlan, selectedNotebooks, notebooksApi, service, persistApi, completedSessions, userEmail, accountStatus, showModal]);
 
 
   /**
@@ -1280,7 +1362,8 @@ useEffect(() => {
     queueNotebookIntegration,
     getSessionsForWeek,
     hasUnseenUpdates,
-  }), [selectedNotebooks, removeNotebook, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, listRefreshing, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, updateStudyPlan, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, completedSessions, notebookVersions, isNotebookTracked, integrateNotebook, queueNotebookIntegration, getSessionsForWeek, hasUnseenUpdates, resetUnseenCount]);
+    ManualUpdate,
+  }), [ManualUpdate, selectedNotebooks, removeNotebook, currentMonth, scheduleConfig, planStartDate, isLoading, extensionInProgress, listRefreshing, error, availableNotebooks, currentDate, navigateMonth, selectNotebook, deselectNotebook, refreshNotebooks, updateScheduleConfig, generateSchedule, updateStudyPlan, regenerateMonth, clearSchedule, createSessionLauncher, markSessionCompleted, markSessionIncomplete, completedSessions, notebookVersions, isNotebookTracked, integrateNotebook, queueNotebookIntegration, getSessionsForWeek, hasUnseenUpdates, resetUnseenCount]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };

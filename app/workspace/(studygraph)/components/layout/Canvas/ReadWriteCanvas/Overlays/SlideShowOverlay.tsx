@@ -79,7 +79,7 @@ const SlideShowOverlay: React.FC = () => {
   const {mode, status, editReady} = useAccessEditSnapshot();
 
   // Consume Calendar and ViewSwitch contexts
-  const { isNotebookTracked, selectNotebook } = useCalendar();
+  const { isNotebookTracked, selectNotebook, ManualUpdate } = useCalendar();
   const { requestCalendarSelector } = useViewSwitch();
 
   const caps = useMemo(() => {
@@ -228,7 +228,12 @@ const SlideShowOverlay: React.FC = () => {
     console.log('[SlideShowOverlay.tsx][2001] Add to plan requested for:', docFileID);
     
     // 1. Prime the data layer immediately
-    selectNotebook(docFileID);
+    //selectNotebook(docFileID); // legacy
+    // We do not await this because we want the UI transition to start immediately, 
+    // letting the context finish the data work during the modal's mount cycle.
+    ManualUpdate(docFileID);
+
+    //queueNotebookIntegration(docFileID);
     
     // 2. Set the global intent for the calendar selector
     requestCalendarSelector();

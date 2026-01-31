@@ -47,7 +47,7 @@ import { getCampaignConfig, getApplicationStatus } from './FlyerCampaigns/FlyerC
 // Step 1: Core type definitions (preserved from original)
 export type AccountType = 'scholar' | 'educator';
 export type SubscriptionTier = 'freemium' | 'premium';
-export type CampaignStatus = 'ELIGIBLE' | 'INELIGIBLE' | 'PENDING' | 'APPROVED' | 'VERIFIED' | 'REWARDED' | 'SUBMITTED';
+export type CampaignStatus = 'ELIGIBLE' | 'INELIGIBLE' | 'PENDING' | 'APPROVED' | 'VERIFIED' | 'REWARDED' |'REJECTED';
 
 // Step 1: Standardize Window Constants update - 1
 const HOUR_MS = 60 * 60 * 1000;
@@ -210,17 +210,21 @@ export interface UserProfile {
     hasAdvancedFeatures: boolean;
   };
 
-  // update - 1: Added the missing entitlement field to resolve ts(2339)
-  // This field tracks when the campaign-granted premium trial expires.
-  premiumUntil?: admin.firestore.Timestamp | number | any;
+  // update - 1.2: Decoupled Trial Entitlement Fields
+  // These fields represent the "Trial Sandbox". trialStartDate marks the initial reward
+  // grant, and trialEndDate acts as the authoritative expiration for promotional access.
+  trialStartDate?: admin.firestore.Timestamp;
+  trialEndDate?: admin.firestore.Timestamp;
   
   // Stripe integration (future)
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   billing?: BillingSnapshot;
   samplesProvisioned?: boolean;
-  campaignStatus?: CampaignStatus; // update - 3
-  _bootstrappedFiles?: UserFileMetadata[]
+  campaignStatus?: CampaignStatus; 
+  _bootstrappedFiles?: UserFileMetadata[];
+  // Add the persistent first-session tracking flag to the interface
+  isFirstSessionFlyerTracking?: boolean;
 }
 
 // Step 2: Enhanced UserUsage interface with secondary services support
@@ -379,6 +383,7 @@ export class UserService {
       limits,
       features,
       samplesProvisioned: true,
+      isFirstSessionFlyerTracking: true,
     };
     
     // Step 5: Initialize enhanced usage tracking with secondary services
@@ -494,10 +499,10 @@ static async getUserProfile(email: string): Promise<UserProfile> {
 
         // 2. Inject Campaign Status (Phase 1 Sprint Objective)
       // Check if user has an existing application record (PENDING, APPROVED, etc.)
-      const existingAppStatus = await getApplicationStatus(normalizedEmail); // update - 5
+      const appRecord = await getApplicationStatus(normalizedEmail); // update - 5
 
-      if (existingAppStatus) {
-        profile.campaignStatus = existingAppStatus as CampaignStatus; // update - 6
+      if (appRecord) {
+        profile.campaignStatus = appRecord.status as CampaignStatus; // update - 6
       } else {
         // Fallback to eligibility check for fresh leads
         profile.campaignStatus = await this.resolveCampaignEligibility(normalizedEmail); // update - 7
@@ -1548,5 +1553,62 @@ static async getUserUsage(email: string): Promise<UserUsage> { // update - 9
 
     await bumpUserVersion(normalizedEmail);
     return result;
+  }
+
+
+
+  /**
+   * rewardUserTier
+   * @description
+   * Authoritative method to grant or extend a promotional trial period within the decoupled sandbox. 
+   * This function calculates the new trial range using trialStartDate and trialEndDate, ensuring 
+   * promotional access never overwrites the subscriptionTier. Crucially, this method executes 
+   * a Redis version bump post-transaction to invalidate stale caches across the BFF layer, 
+   * ensuring the user gains immediate access to premium features upon reward.
+   * @param userId - The normalized ID (email) of the user receiving the trial reward.
+   * @param daysToGrant - The number of 24-hour periods to add to the trial sandbox.
+   * @returns Promise resolving when the transaction and cache invalidation are complete.
+   */
+  static async rewardUserTrial(userId: string, daysToGrant: number): Promise<void> {
+    const userRef = firestore.collection('users').doc(userId);
+    const appRef = firestore.collection('referral_applications').doc(userId);
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+    // update - 1.1: Execute atomic write for the trial sandbox
+    await firestore.runTransaction(async (tx) => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists) throw new Error("User profile not found for reward");
+
+      const data = snap.data() as UserProfile;
+      const nowMs = Date.now();
+      
+      // update - 1.2: Establish trial range anchors
+      const trialStart = data.trialStartDate || admin.firestore.Timestamp.now();
+      const currentTrialExpiry = data.trialEndDate instanceof admin.firestore.Timestamp 
+        ? data.trialEndDate.toMillis() 
+        : 0;
+      
+      // update - 1.3: Calculate extension based on 'Now' vs 'Current Expiry'
+      const baseMs = Math.max(nowMs, currentTrialExpiry);
+      const newExpiryMs = baseMs + (daysToGrant * MS_PER_DAY);
+
+      // update - 1.4: Persist decoupled data to 'users' collection
+      tx.update(userRef, {
+        trialStartDate: trialStart,
+        trialEndDate: admin.firestore.Timestamp.fromMillis(newExpiryMs),
+        updatedAt: admin.firestore.Timestamp.now()
+      });
+
+      // update - 1.5: Synchronize application status
+      tx.update(appRef, {
+        status: 'REWARDED',
+        lastRewardGrant: admin.firestore.Timestamp.now()
+      });
+    });
+
+    // update - 1.6: Immediate Cache Invalidation
+    // This is the critical "Bump" that prevents stale cache from blocking trial access.
+    await bumpUserVersion(userId);
+    console.log(`[UserService] Decoupled reward granted and version bumped for: ${userId}`);
   }
 }

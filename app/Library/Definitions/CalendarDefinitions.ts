@@ -173,7 +173,7 @@ export interface CalendarContextType {
   isLoading: boolean;
   error: string | null;
   availableNotebooks: NotebookSummary[];
-  
+  ManualUpdate: (notebookId: string) => Promise<void>;
   // Calendar Navigation
   planStartDate: Date;
    setPlanStartDate: (date: Date) => void;
