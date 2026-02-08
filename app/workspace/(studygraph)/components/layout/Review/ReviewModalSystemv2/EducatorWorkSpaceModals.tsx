@@ -79,12 +79,16 @@ const EducatorWorkSpaceModals: React.FC<EducatorWorkSpaceModalsProps> = ({
         </div>
       )}
 
-      {/* 5. Standalone Gradebook Modal */}
-      <GradebookModal 
-        isOpen={isGradebookOpen}
-        onClose={() => setGradebookOpen(false)}
-        docId={docFileID}
-      />
+      {/* 5. Standalone Gradebook Modal 
+          UPDATE - 2.2: RBAC Gating. The Gradebook is strictly an Educator tool. 
+          We ensure it only mounts if the user is an Educator, regardless of the 'isGradebookOpen' flag. */}
+      {isGradebookOpen && isEducator && (
+        <GradebookModal 
+          isOpen={isGradebookOpen}
+          onClose={() => setGradebookOpen(false)}
+          docId={docFileID}
+        />
+      )}
     </>
   );
 };

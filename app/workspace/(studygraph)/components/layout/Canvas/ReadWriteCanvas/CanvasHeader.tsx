@@ -251,13 +251,18 @@ const isSubscribed = useMemo(() => {
                 <span>Assessments</span>
               </button>
 
-              <button
+              {
+                isEducator && (
+                  <button
                 onClick={onOpenGrades}
                 className="ch-nav__trigger"
                 title="View Grades"
               >
                 <span>Grades</span>
               </button>
+                )
+              }
+              
             </>
           )}
         </nav>
@@ -375,9 +380,12 @@ const isSubscribed = useMemo(() => {
                      <span/> Assessments
                    </button>
 
-                   <button onClick={() => { onOpenGrades(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
-                     <span/> Grades
-                   </button>
+                   {/* UPDATE - 1.3: Apply the same Educator-only gate to the mobile menu item. */}
+                   {isEducator && (
+                     <button onClick={() => { onOpenGrades(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
+                       <span/> Grades
+                     </button>
+                   )}
                  </>
                )}
 
