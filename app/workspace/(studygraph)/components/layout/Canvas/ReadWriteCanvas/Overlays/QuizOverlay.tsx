@@ -68,7 +68,7 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
   attemptsRemaining = 0,
   resourceId,
 }) => {
-  const { updateQuizContent } = useResourceContext(); 
+  const { updateQuizContent, getResourceCard,} = useResourceContext(); 
   
   const { isReadOnly, docFileID } = useYDoc();
   const [isEditing, setIsEditing] = useState(false);
@@ -77,6 +77,10 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [detailedResults, setDetailedResults] = useState<any[]>([]);
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+
+
+
+
 
   // 1. Invoke the specialized privilege gate for editing (UPDATE - 6.3)
   // This hook evaluates if the user is an Educator and the Owner of the docFileID
@@ -91,6 +95,46 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
 
   // update - 3: child progress handle (single child mounted at a time)
   const childRef = useRef<ProgressHandle | null>(null);
+
+
+
+  /**
+   * liveQuizData
+   * @description
+   * Resolves the "Stale UI" issue by deriving the question set from the authoritative ResourceContext 
+   * while respecting the initial question selection (sample/order) provided by the caller. 
+   * 1. It looks up the live card in the Yjs registry via resourceId.
+   * 2. It iterates through the existing 'quizData' prop (the current visible items).
+   * 3. For each item, it pulls the latest content from the context if it exists.
+   * This ensures that if an Educator saves an edit, the text updates in the open overlay automatically.
+   * UPDATE - 11.2
+   */
+  const liveQuizData = useMemo(() => {
+    // 1. Logic Gate: If no resourceId or not open, stick to props.
+    if (!resourceId || !isOpen) return quizData;
+
+    // 2. Fetch the live card from the context. 'resources' dependency ensures reactivity.
+    const liveCard = getResourceCard(resourceId);
+    if (!liveCard) return quizData;
+
+    // 3. Extract the latest question array based on card type.
+    let authoritativeQuestions: IQuizQuestion[] = [];
+    if (liveCard.type === 'practiceSheet') {
+      authoritativeQuestions = liveCard.content.quizContent;
+    } else if (liveCard.type === 'quizAssessment') {
+      authoritativeQuestions = liveCard.binding.spec.quizContent;
+    } else {
+      return quizData;
+    }
+
+    // 4. Reconciliation: Map current props to authoritative content to keep order/sample stable.
+    // Complexity: O(N * M) where N is current view count and M is authoritative count. 
+    // Given N is typically <= 10 for samples, this is extremely efficient.
+    return quizData.map((current) => {
+      const fresh = authoritativeQuestions.find((freshItem) => freshItem.id === current.id);
+      return fresh ? fresh : current;
+    });
+  }, [resourceId, isOpen, quizData, getResourceCard]); // resources is key for Yjs reactivity
 
   // ===== Mount / ensure both portal roots exist =====
   useEffect(() => {
@@ -370,14 +414,14 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
     if (isEditing && resourceId) {
       return (
         <QuizEditorView 
-          initialQuestions={quizData} 
+          initialQuestions={liveQuizData} 
           onSave={handleSaveEditedQuiz} 
           onCancel={() => setIsEditing(false)} 
         />
       );
     }
 
-    if (!quizData || quizData.length === 0) {
+    if (!liveQuizData || liveQuizData.length === 0) {
       return <div>No quiz questions available</div>;
     }
 
@@ -387,7 +431,7 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
           // update - 8
           <MultipleChoiceQuiz
             ref={childRef}
-            quizData={quizData}
+            quizData={liveQuizData}
             onSubmit={handleScoreSubmit}
             onClose={requestExit}
           />
@@ -397,7 +441,7 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
           // update - 9
           <TrueFalseQuiz
             ref={childRef}
-            quizData={quizData}
+            quizData={liveQuizData}
             onSubmit={handleScoreSubmit}
             onClose={requestExit}
           />
@@ -407,7 +451,7 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
           // update - 10
           <FillInBlankQuiz
             ref={childRef}
-            quizData={quizData}
+            quizData={liveQuizData}
             onSubmit={handleScoreSubmit}
             onClose={requestExit}
           />
@@ -418,7 +462,7 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
           <MatchingQuiz
             ref={childRef}
             title={title}
-            quizData={quizData}
+            quizData={liveQuizData}
             onSubmit={handleScoreSubmit}
             onClose={requestExit}
           />

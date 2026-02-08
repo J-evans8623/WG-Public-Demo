@@ -1,0 +1,208 @@
+/**
+ * @file AssessmentSettingsForm.css
+ * @description
+ * Scoped stylesheet for the AssessmentSettingsForm component. It utilizes the 'asf-' prefix 
+ * for all selectors to prevent property leakage or namespace contention with global 
+ * styles like 'QuizStyles.css'. The layout is designed using a flexbox shell with a 
+ * fixed-position footer to ensure that administrative actions remain accessible 
+ * across all viewport sizes.
+ * * Responsibility:
+ * 1. Namespace isolation (asf-).
+ * 2. Responsive modal grid layout.
+ * 3. Branding consistency for administrative forms.
+ */
+
+.asf-overlay {
+  z-index: 1200;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.asf-container {
+  width: 540px !important;
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+  overflow: hidden;
+  border: 1px solid #D4C4B0;
+}
+
+.asf-header {
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: #FAF8F5;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.asf-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2C3E50;
+  margin: 0;
+}
+
+.asf-subtitle {
+  font-size: 13px;
+  color: #6B7280;
+  margin-top: 4px;
+}
+
+.asf-close-btn {
+  background: transparent;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.asf-close-btn:hover {
+  background: #F3F4F6;
+  color: #1F2937;
+}
+
+.asf-body {
+  padding: 24px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.asf-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.asf-section {
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.asf-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6B7280;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.asf-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.asf-text-input, .asf-date-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #D4C4B0;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.asf-time-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.asf-time-picker select {
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #D4C4B0;
+  font-size: 13px;
+  background: white;
+}
+
+.asf-period {
+  font-weight: 600;
+  color: #2C3E50;
+  background: #EEF2FF !important;
+}
+
+.asf-limit-group {
+  border-top: 1px solid #F3F4F6;
+  padding-top: 20px;
+}
+
+.asf-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.asf-hint {
+  font-size: 12px;
+  color: #9CA3AF;
+}
+
+.asf-limit-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.asf-number-input {
+  width: 80px;
+  padding: 10px;
+  border: 1px solid #D4C4B0;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.asf-error-bar {
+  background: #FEF2F2;
+  border: 1px solid #FEE2E2;
+  color: #DC2626;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.asf-footer {
+  padding: 20px 24px;
+  background: #F9FAFB;
+  border-top: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.asf-btn-primary {
+  background: #5B8C5A;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.asf-btn-secondary {
+  background: white;
+  color: #374151;
+  border: 1px solid #D4C4B0;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.asf-icon-muted { color: #9CA3AF; }

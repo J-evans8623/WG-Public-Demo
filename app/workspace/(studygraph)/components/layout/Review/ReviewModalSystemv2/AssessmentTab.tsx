@@ -18,14 +18,15 @@ import AssignQuizModal, {
   type CreateQuizPayload,
   type LessonLite,
 } from '@/app/workspace/(studygraph)/components/layout/Review/AssignQuizModal';
-import { Trash2, X } from 'lucide-react'; 
+import { Trash2, X, Settings } from 'lucide-react'; 
 import { useApiContext } from '@/app/src/context/ApiContext';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext'; 
 import QuizOverlay from '@/app/workspace/(studygraph)/components/layout/Canvas/ReadWriteCanvas/Overlays/QuizOverlay';
 import type { QuizAssessmentResource, QuizBinding } from '@/app/Library/Definitions/Definitions'; 
-import GradebookModal from '@/app/workspace/(studygraph)/components/layout/Review/GradebookModal';
 import '@/app/workspace/(studygraph)/components/layout/Review/AssessmentLayout.css';
 import { gradebookClient } from '@/app/workspace/(studygraph)/services/gradebook/gradebookClient';
+import { useAssessmentEditPrivilege } from '@/app/workspace/(studygraph)/components/layout/Canvas/ReadWriteCanvas/Overlays/quiz/quizCrudops/useAssessmentEditPrivilege';
+import AssessmentSettingsForm from './AssessmentSettingsForm';
 
 export interface AssessmentTabProps {
   onCreateAssignedQuiz?: () => void;
@@ -102,11 +103,17 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
 
   const { selectAllQuizAssessmentsGlobal, removeAssignedQuiz } = useResourceContext();
 
+  // Internal state management for the Metadata Editor transition
+  const [isSettingsOpen, setSettingsOpen] = useState(false);
+  const [editTargetId, setEditTargetId] = useState<string | null>(null);
+
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [overlayTitle, setOverlayTitle] = useState('');
   const [overlayType, setOverlayType] = useState<any>('multipleChoice');
   const [overlayData, setOverlayData] = useState<any[]>([]);
   const [attemptId, setattemptId] = useState<string | null>(null);
+
+  const canEdit = useAssessmentEditPrivilege(docId, true);
 
   const { accountStatus, isAccountLoading, startAttempt, submitAttempt } = useApiContext();
   const isEducator = accountStatus?.accountType === 'educator';
@@ -232,6 +239,26 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
     setCreateModalOpen(false);
   };
 
+
+  /**
+   * handleInitiateEdit
+   * @description
+   * Captures the unique identifier of the assessment the educator intends to modify. 
+   * This function provides a clean, primitive-based entry point for the metadata 
+   * editor without requiring knowledge of the backend's AssignmentHeader interface. 
+   * It handles event propagation and logs telemetry code [6803] for audit purposes.
+   * UPDATE - 8.4
+   */
+  const handleInitiateEdit = (e: React.MouseEvent, assignmentId: string) => {
+    // 1. Prevent the parent row's onClick (selection) from firing when clicking settings icon.
+    e.stopPropagation(); 
+    // 2. Emit audit code for management interface access frequency.
+    console.log('[6803] Educator accessed internal metadata editor for:', assignmentId);
+    // 3. Set the target for hydration and toggle internal visibility.
+    setEditTargetId(assignmentId);
+    setSettingsOpen(true);
+  };
+
   const handleCreateQuizClose = () => setCreateModalOpen(false);
 
   const renderMaxAttemptsChip = (limit: number) => {
@@ -252,6 +279,11 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
   const selectedRow = useMemo(
     () => rows.find(r => r.id === selectedAssignmentId) ?? null,
     [rows, selectedAssignmentId]
+  );
+
+  const editTargetData = useMemo(() => 
+    rows.find(r => r.id === editTargetId) || null, 
+    [rows, editTargetId]
   );
 
   const handlePreviewSelected = useCallback(() => {
@@ -340,7 +372,16 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     {renderMaxAttemptsChip(q.attemptLimit)}
                     {statusChip(q.status)}
-                    {isEducator && (
+
+                    {canEdit &&  (
+                      <div style={{ display: 'flex', gap: 4, marginLeft: 8 }}>
+                        <button 
+                          onClick={(e) => handleInitiateEdit(e, q.id)}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#6B7280' }}
+                          title="Edit Settings"
+                        >
+                          <Settings size={16} />
+                        </button>
                         <button 
                             className="btn-icon-danger"
                             onClick={(e) => handleDeleteQuiz(e, q.id, q.title)}
@@ -349,6 +390,7 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
                         >
                             <Trash2 size={16} />
                         </button>
+                        </div>
                     )}
                   </div>
                 </div>
@@ -391,6 +433,22 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
           </button>
         )}
       </div>
+
+
+      {/*  Internal Metadata Settings Form. 
+          Satisfies SOLID principles by isolating metadata logic from the list logic.
+      */}
+      {isSettingsOpen && editTargetData && (
+        <AssessmentSettingsForm 
+          docId={docId}
+          assignmentId={editTargetData.id}
+          initialTitle={editTargetData.title}
+          initialStart={editTargetData.startAt}
+          initialEnd={editTargetData.endAt}
+          initialLimit={editTargetData.attemptLimit}
+          onClose={() => { setSettingsOpen(false); setEditTargetId(null); }}
+        />
+      )}
 
       {isCreateModalOpen && isEducator && (
         <AssignQuizModal
