@@ -64,3 +64,6 @@ app/firebase-service-account.json
 
 **/mockLessonData.ts
 **/mockEndpoint.ts
+
+
+.venv/

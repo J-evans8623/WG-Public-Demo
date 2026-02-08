@@ -31,6 +31,7 @@ import {
 } from '@/app/src/services/firebase';
 import { authenticateRequest } from '@/app/src/auth/authenticateRequest';
 import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
+import { UserService } from '@/app/src/services/userService';
 
 interface SaveDocumentRequest {
   fileName: string;
@@ -109,6 +110,9 @@ interface SaveDocumentRequest {
     if (!metaSnap.exists) {
       console.log('[save.ts][4702] › first save detected; provisioning metadata');
 
+      const userProfile = await UserService.getUserProfile(session.user.email!);
+      const isEducatorWorkspace = userProfile.accountType === 'educator';
+
       const metadataToStore: any = {
         fileId: docFileID,
         ownerId: session.user.email!,
@@ -125,6 +129,7 @@ interface SaveDocumentRequest {
         lessonCount: lessonCount || 0,
         cardCount: cardCount || 0,
         quizCount: quizCount || 0,
+        isEducatorWorkspace,
       };
 
       if (lessonUnitsMeta) {
@@ -161,12 +166,14 @@ interface SaveDocumentRequest {
         path: ids.path,
         storageGeneration: ids.storageGeneration,
         versionNumber: ids.versionNumber,
+        isEducatorWorkspace,
       });
       return res.status(200).json({
         fileStorageId: fileStoragePath,
         access,
         storageGeneration: ids.storageGeneration ?? null,
         versionNumber: ids.versionNumber ?? (Number.isFinite(version) ? version : 1),
+        isEducatorWorkspace,
       });
     }
 
@@ -245,6 +252,7 @@ interface SaveDocumentRequest {
       access,
       storageGeneration: ids.storageGeneration ?? null,
       versionNumber: ids.versionNumber ?? (Number.isFinite(version) ? version : null),
+      isEducatorWorkspace: metaSnap.data()?.isEducatorWorkspace || false,
     });
   } catch (err) {
     console.error('[save.ts][4799] › save error', err);

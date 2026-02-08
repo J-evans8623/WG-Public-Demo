@@ -24,7 +24,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import { apiService } from '@/app/src/services/ApiService';
 import { parseQuizResponse } from '@/app/workspace/(studygraph)/components/hooks/parseQuizResponse';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
@@ -84,7 +84,8 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
   
   // Local state management
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
-  const [selectedQuizType, setSelectedQuizType] = useState<string>('');
+ const [selectedQuizType, setSelectedQuizType] = useState<string>('matching');
+  
   const [questionCount, setQuestionCount] = useState<number>(5);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,6 +98,7 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
     if (isOpen) {
       setSelectedTopicIds(preselectedTopicIds);
       setSelectedQuizType('');
+      setSelectedQuizType('matching');
       setQuestionCount(5);
       setError(null);
       setIsLoading(false);
@@ -127,7 +129,8 @@ const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
    * @param e React change event containing selected quiz type value
    * @returns Promise resolving when quiz type selection processing is complete
    */
-  const handleQuizTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+ // UPDATE - 3.1: Simplified handler for select element
+  const handleQuizTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedQuizType(e.target.value);
   };
 
@@ -297,6 +300,30 @@ const handleGenerateQuiz = async () => { // update - 2
               />
             </>
           )}
+        </div>
+
+
+        {/* UPDATE - 3.1: Compact Dropdown Selector */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Quiz Type:
+          </label>
+          <div className="relative">
+            <select
+              value={selectedQuizType}
+              onChange={handleQuizTypeChange}
+              disabled={isLoading}
+              className="w-full appearance-none px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-700 cursor-pointer"
+            >
+              <option value="matching">Matching Quiz</option>
+              <option value="multipleChoice">Multiple Choice</option>
+              <option value="true-false">True/False</option>
+              <option value="FIB">Fill in the Blank</option>
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
         </div>
 
         {/* Question Count Input - Row Layout */}

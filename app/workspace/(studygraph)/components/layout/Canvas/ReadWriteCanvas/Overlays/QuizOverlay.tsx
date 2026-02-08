@@ -21,7 +21,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { X } from 'lucide-react';
+import { X, Pencil } from 'lucide-react';
 import { IQuizQuestion, QuizType } from '@/app/Library/Definitions/Definitions';
 import ScoreDisplay from '../../../../utils/quiz/ScoreDisplay';
 import MultipleChoiceQuiz from './quiz/MultipleChoiceQuiz';
@@ -38,6 +38,10 @@ import {
   type ProgressSnapshot,
   type ScoreResult,
 } from './quiz/scoringUtils';
+import QuizEditorView from '@/app/workspace/(studygraph)/components/layout/Canvas/ReadWriteCanvas/Overlays/quiz/quizCrudops/quizEditorView';
+import { useResourceContext } from '@/app/Library/Context/ResourceContext';
+import { useYDoc } from '@/app/Library/Context/YDocContext';
+import { useAssessmentEditPrivilege } from './quiz/quizCrudops/useAssessmentEditPrivilege';
 
 interface QuizOverlayProps {
   isOpen: boolean;
@@ -48,6 +52,7 @@ interface QuizOverlayProps {
   isAssessment: boolean;
   onSubmitResults?: (scorePct: number, details: any[]) => Promise<void>;
    attemptsRemaining?: number;
+   resourceId?: string;
 }
 
 type ProgressDetail = { id: string; isCorrect: boolean; userAnswer: any | null };
@@ -61,12 +66,21 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
   onSubmitResults,
   isAssessment = false,
   attemptsRemaining = 0,
+  resourceId,
 }) => {
+  const { updateQuizContent } = useResourceContext(); 
+  
+  const { isReadOnly, docFileID } = useYDoc();
+  const [isEditing, setIsEditing] = useState(false);
   const { recordQuizAttempt, recordQuizSession } = useUserData();
   const [showScore, setShowScore] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [detailedResults, setDetailedResults] = useState<any[]>([]);
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+
+  // 1. Invoke the specialized privilege gate for editing (UPDATE - 6.3)
+  // This hook evaluates if the user is an Educator and the Owner of the docFileID
+  const hasEditPrivilege = useAssessmentEditPrivilege(docFileID, isAssessment);
 
   // ===== Separate confirm layer state + root (conceptual nesting) =====
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -290,6 +304,26 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
     }
   }, [isAssessment, isSnapshotIncomplete, onClose, showScore]);
 
+
+  /**
+   * @function handleSaveEditedQuiz
+   * @description
+   * Callback handler that receives the updated question array from the QuizEditorView.
+   * It invokes the authoritative ResourceContext update method and resets the 
+   * editing state. This closes the CRUD loop by committing volatile drafts to the 
+   * shared Yjs state. Complexity: O(1) for call, context handles O(N) mapping.
+   */
+  const handleSaveEditedQuiz = async (updatedQuestions: IQuizQuestion[]) => {
+    if (!resourceId) {
+      console.warn('[QuizOverlay.tsx][7401] Cannot save: resourceId is missing');
+      return;
+    }
+    // 1. Trigger the authoritative update in ResourceContext (Phase 1)
+    await updateQuizContent(resourceId, updatedQuestions);
+    // 2. Return to the quiz taking view
+    setIsEditing(false);
+  };
+
   /**
    * @function confirmExit
    * @description
@@ -328,6 +362,17 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
           results={detailedResults}
           onTryAgain={handleTryAgain}
           isAssessment={isAssessment}
+        />
+      );
+    }
+
+    // Conditional render for Editor View
+    if (isEditing && resourceId) {
+      return (
+        <QuizEditorView 
+          initialQuestions={quizData} 
+          onSave={handleSaveEditedQuiz} 
+          onCancel={() => setIsEditing(false)} 
         />
       );
     }
@@ -415,7 +460,7 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
     ? `You have unanswered questions. You have ${Math.max(
         0,
         Number(attemptsRemaining || 0)
-      )} attempts remaining. Submit and exit now?`
+      ) - 1} attempts remaining. Submit and exit now?`
     : 'You have unanswered questions. Submit and exit now?';
   
 
@@ -442,14 +487,28 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
           {!showScore && (
             <div className="quiz-header">
               <h2 className="quiz-title">{title}</h2>
-              {attemptsChip /* update - 2005 */}
-              <button
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}>
+                {attemptsChip}
+                {/* UPDATE - 3.9: Add Edit Button (Role Gated) */}
+                {!isReadOnly && !isEditing && resourceId && hasEditPrivilege && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="slideshow-header-btn edit-btn" // Reuse style for consistent circular button
+                    title="Edit Quiz Items"
+                  >
+                    
+                    <Pencil size={14} />
+                    <span>Edit</span>
+                  </button>
+                )}
+                <button
                 onClick={requestExit}
                 className="quiz-close-btn"
                 aria-label="Close Quiz"
               >
                 <X size={20} />
               </button>
+              </div>
             </div>
           )}
           <div

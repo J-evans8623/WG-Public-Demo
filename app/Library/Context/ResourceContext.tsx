@@ -33,6 +33,7 @@ import {
   GLOBAL_ASSESSMENTS_NODE_ID, 
   QuizAssessmentResource,      
   QuizBinding,
+  IQuizQuestion,
 } from '@/app/Library/Definitions/Definitions';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -81,6 +82,7 @@ export interface ResourceContextType {
   getResourceCard(id: string): ResourceCard | undefined;
   assignQuizUpdateSignal: number;
   triggerQuizUpdate: () => void;
+  updateQuizContent(resourceId: string, updatedQuestions: IQuizQuestion[]): Promise<void>;
   // global undo/redo
   undo(): void;
   redo(): void;
@@ -853,6 +855,108 @@ const selectResourcesFn = useCallback(
     );
   }, [activeDoc, assignQuizUpdateSignal]);
 
+
+
+  /**
+   * @function updateQuizContent
+   * @description
+   * This function provides an authoritative, transactional pathway to modify the internal 
+   * question array of a Quiz resource. It determines the resource type (Practice vs Assessment), 
+   * validates existence, and performs a deep update within a Yjs transaction. By utilizing 
+   * the Delta Engine's record function, it ensures that mass edits or deletions within a 
+   * quiz session can be reverted by the user. Complexity is O(1) for resource lookup and 
+   * O(N) for state reconciliation, where N is the number of questions.
+   */
+  const updateQuizContent = useCallback(
+    async (resourceId: string, updatedQuestions: IQuizQuestion[]) => {
+      // 1. Guard: Block updates if the document is in read-only mode
+      if (isReadOnly) {
+        console.warn('[ResourceContext.tsx][9300] updateQuizContent blocked: Read-Only');
+        return;
+      }
+
+      if (updatedQuestions.length === 0) {
+        console.log('[ResourceContext.tsx][9310] Cascading delete triggered: Quiz array is empty');
+        const cardToRemove = getResourceCard(resourceId);
+        if (cardToRemove) {
+          removeResourcev1(cardToRemove.nodeId, resourceId);
+        }
+        return;
+      }
+
+      // 2. Locate the existing card across all nodes (O(nodeCount * avgResourcesPerNode))
+      let originalCard: ResourceCard | undefined = getResourceCard(resourceId);
+      
+      if (!originalCard) {
+        console.error('[ResourceContext.tsx][9301] Update failed: Resource not found', { resourceId });
+        return;
+      }
+
+      // 3. Create a deep clone for the "Next" state to avoid mutating references prematurely
+      const updatedCard = JSON.parse(JSON.stringify(originalCard)) as ResourceCard;
+
+      // 4. Target the correct internal array path based on resource type (UPDATE - 1.3)
+      if (updatedCard.type === 'practiceSheet') {
+        updatedCard.content.quizContent = updatedQuestions;
+      } else if (updatedCard.type === 'quizAssessment') {
+        updatedCard.binding.spec.quizContent = updatedQuestions;
+      } else {
+        console.warn('[ResourceContext.tsx][9304] Resource is not a quiz type', { type: updatedCard.type });
+        return;
+      }
+
+      // 5. Define the Delta for the Undo/Redo engine
+      const delta: Delta = {
+        type: 'RESOURCE_EDIT',
+        nodeId: originalCard.nodeId,
+        cardId: resourceId,
+        previous: originalCard,
+        next: updatedCard,
+      };
+
+      // 6. Execute atomic Yjs transaction
+      ydoc.transact(() => {
+        record(
+          delta,
+          () => {
+            // APPLY: Update local React state and Y.Map
+            setResources((prev) => {
+              const m = new Map(prev);
+              const nodeArr = m.get(updatedCard.nodeId) || [];
+              m.set(
+                updatedCard.nodeId,
+                nodeArr.map((c) => (c.id === resourceId ? updatedCard : c))
+              );
+              return m;
+            });
+
+            const yMap = yResourcesMap.get(updatedCard.nodeId);
+            if (yMap) {
+              yMap.set(resourceId, updatedCard);
+              console.log('[ResourceContext.tsx][9302] Quiz update committed', { resourceId, count: updatedQuestions.length });
+            }
+          },
+          () => {
+            // REVERT: Restore the original card state
+            setResources((prev) => {
+              const m = new Map(prev);
+              const nodeArr = m.get(originalCard!.nodeId) || [];
+              m.set(
+                originalCard!.nodeId,
+                nodeArr.map((c) => (c.id === resourceId ? originalCard! : c))
+              );
+              return m;
+            });
+
+            yResourcesMap.get(originalCard!.nodeId)?.set(resourceId, originalCard!);
+            console.log('[ResourceContext.tsx][9303] Quiz update reverted (Undo)');
+          }
+        );
+      }, LOCAL_ORIGIN);
+    },
+    [isReadOnly, getResourceCard, ydoc, removeResourcev1, yResourcesMap]
+  );
+
   const value = useMemo<ResourceContextType>(
     () => ({
       resources,
@@ -879,9 +983,10 @@ const selectResourcesFn = useCallback(
        createQuizAssignmentCard,
        selectAllQuizAssessmentsGlobal,
        assignQuizUpdateSignal,
-       triggerQuizUpdate
+       triggerQuizUpdate,
+       updateQuizContent,
     }),
-    [resources, assignQuizUpdateSignal, removeAssignedQuiz, addResourcev1,triggerQuizUpdate, selectAllQuizAssessmentsGlobal, removeResourcev1, editResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard, selectQuizAssessments, getQuizAssessmentById, createQuizAssignmentCard]
+    [resources, addResourcev1, removeResourcev1, editResourcev1, transferResource, selectResourcesFn, selectNoteCards, selectCueCards, removeAssignedQuiz, selectPracticeSheets, setResourcesFn, resetResources, getResourceCard, undo, redo, restoreResource, getGlobalResourceCard, updatedRivisonCard, selectQuizAssessments, getQuizAssessmentById, createQuizAssignmentCard, selectAllQuizAssessmentsGlobal, assignQuizUpdateSignal, triggerQuizUpdate, updateQuizContent]
   );
 
   return (

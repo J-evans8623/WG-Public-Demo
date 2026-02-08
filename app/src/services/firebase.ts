@@ -25,6 +25,7 @@ import * as fs from 'fs';
 import {readAclSnapshot as cacheReadAclSnapshot,   
   readRole as cacheReadRole,               
   bumpAclVersion } from './redisCache/aclCache';
+  import { UserService } from './userService';
 
 
 
@@ -252,6 +253,7 @@ export async function storeFileMetadata(metadata: {
   };
   colorCode?:string;
   version:number;
+  isEducatorWorkspace?: boolean;
 }): Promise<void> {
   try {
     console.log(`[firebase.ts] Storing metadata for file ${metadata.fileId}`);
@@ -292,6 +294,7 @@ export async function updateFileMetadata(params: {
   lessonCount?: number;
   cardCount?: number;
   quizCount?: number;
+  isEducatorWorkspace?: boolean;
 }): Promise<void> {
   console.log('firebase.ts 0009 › updateFileMetadata', params);
   
@@ -303,6 +306,7 @@ export async function updateFileMetadata(params: {
   if (params.fileSize != null) updates.fileSize       = params.fileSize;
   if (params.contentType)      updates.contentType    = params.contentType;
   
+  if (params.isEducatorWorkspace !== undefined) updates.isEducatorWorkspace = params.isEducatorWorkspace;
   // Add lessonUnitsMeta to updates if provided
   if (params.lessonUnitsMeta) {
     updates.lessonUnitsMeta = params.lessonUnitsMeta;
@@ -489,6 +493,7 @@ export async function listUserFiles(userEmail: string): Promise<UserFilesList> {
       lessonUnitsMeta: (data as any).lessonUnitsMeta || undefined,
       version: data.version!,
       // Computed fields
+      
       role: 'Owner',
       updatedAt: data.timestamp 
         ? (data.timestamp as any).toDate?.() 
@@ -998,7 +1003,6 @@ export async function getLatestFileIdentifiers(docId: string): Promise<{
   console.log('firebase.ts [upd-3] › getLatestFileIdentifiers', { docId, path, storageGeneration, versionNumber });
   return { path, storageGeneration, versionNumber };
 }
-
 
 
 /**

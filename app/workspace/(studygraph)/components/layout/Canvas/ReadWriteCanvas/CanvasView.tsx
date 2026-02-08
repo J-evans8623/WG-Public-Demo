@@ -56,6 +56,9 @@ import { PickerFileMeta } from '@/app/Library/Definitions/CalendarDefinitions';
 import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
 import { ResourceQuickActionsProvider} from '@/app/workspace/(studygraph)/components/layout/Canvas/ReadWriteCanvas/ResourceQuickActionsContext';
 import CanvasTitle from './title/CanvasTitle'; // Import the new component
+import FreemiumContextUiTriggers from './freemiumContextUiTriggers';
+import EducatorWorkSpaceModals from '@/app/workspace/(studygraph)/components/layout/Review/ReviewModalSystemv2/EducatorWorkSpaceModals';
+import { useInferWorkspace } from '@/app/src/context/useInferWorkspace';
 
 type PdfViewerRefType = {
   handlePrev: () => void;
@@ -91,10 +94,13 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
   const { selectCueCards } = useResourceContext();
   const { generateRevision } = useUserData();
   const { colorTheme } = useColorThemeContext();
-  const { getVisibility } = useYDoc();
+  const { getVisibility, docFileID } = useYDoc();
   const isPrivate = getVisibility() === 'private';
 
   const { openForum, closeForum, isForumOpen, activeConcept } = useComments();
+
+  // update - 1.4: Resolve functional identity for the active notebook
+  const isEducatorWorkspace = useInferWorkspace(docFileID);
 
   /* ────────────────────────── Lesson title state ─────────────────────────── */
   const lessonModule = getLessonModule();
@@ -103,6 +109,10 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(lessonTitle);
   const [firstView, setFirstView] = useState(true);
+
+  // Educator Work space 
+  const [isAssessmentOpen, setAssessmentOpen] = useState(false);
+  const [isGradebookOpen, setGradebookOpen] = useState(false);
 
 
   useEffect(()=>{
@@ -306,6 +316,9 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
           setCalendarModalOpen(true);
         }}
         onUpgrade={handleUpgrade}
+        onOpenAssessments={() => setAssessmentOpen(true)}
+        onOpenGrades={() => setGradebookOpen(true)}
+        isEducatorWorkspace={isEducatorWorkspace}
       />
 
        <ResourceQuickActionsProvider>
@@ -322,6 +335,12 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
                 mode={mode} 
                 isSaving={autosaveStatus === 'saving'} 
             />
+
+            {/* 2. Step 2: Integrate the Freemium Triggers into the top right of the map cell */}
+            <div className="absolute top-4 right-4 z-[50]">
+              <FreemiumContextUiTriggers onUpgrade={handleUpgrade} />
+            </div>
+            
             {activeView === 'conceptMap' && (
               <div className={colorTheme}>
                 <MapRenderer />
@@ -373,6 +392,14 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ autosaveStatus, handleFi
 
 
       {/* Modals */}
+
+      <EducatorWorkSpaceModals 
+        isAssessmentOpen={isAssessmentOpen}
+        isGradebookOpen={isGradebookOpen}
+        setAssessmentOpen={setAssessmentOpen}
+        setGradebookOpen={setGradebookOpen}
+      />
+
       {isQuizModalOpen &&
         ReactDOM.createPortal(
           <QuizGeneratorModal

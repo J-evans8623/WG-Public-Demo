@@ -611,6 +611,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
               ? (JSON.parse(content).quizContent as IQuizQuestion[])
               : []
           }
+          resourceId={id}
           isAssessment={false}
         />
       )}

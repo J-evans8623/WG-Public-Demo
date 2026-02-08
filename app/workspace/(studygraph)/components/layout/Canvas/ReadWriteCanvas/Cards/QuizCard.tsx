@@ -130,6 +130,7 @@ const QuizCard: React.FC<QuizCardProps> = ({
           quizData={
             selectedQuestions as any
           }
+          resourceId={parentQuizId}
           isAssessment={false}
         />
       )}

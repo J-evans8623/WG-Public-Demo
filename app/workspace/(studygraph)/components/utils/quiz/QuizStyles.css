@@ -512,6 +512,22 @@
   background: rgba(16, 185, 129, 0.05);
 }
 
+/* 3. Explicit Delete Button styling (UPDATE - 3.4) */
+.quiz-btn-delete-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--quiz-error);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 768px) {
   .quiz-modal {

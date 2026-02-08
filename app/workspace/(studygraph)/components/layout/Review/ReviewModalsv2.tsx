@@ -34,7 +34,6 @@ import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
 import { useResourceScanner } from '../../hooks/resourceScanner';
 import PerformanceTab from './PerformanceTab';
 import PracticeTab from './PracticeTab';
-import AssessmentTab from './AssessmentTab';
 import type { PracticeSheetResource } from '@/app/Library/Definitions/Definitions';
 import type { QuizItemStats } from '@/app/Library/Definitions/UserDataDefinitions';
 import type { LessonStats, PerformanceMetrics } from './types';
@@ -185,34 +184,6 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
         {/* Body (single scroll owner) */}
         <div className="rms-body">
           <div className="rms-body-inner">
-            {/* Tabs are hidden on performance to maximize space */}
-            {view !== 'performance' && (
-              <div className="rms-tabs">
-                <button
-                  role="tab"
-                  className="rms-tab-btn"
-                  aria-selected={view === 'practice'}
-                  onClick={() => {
-                    setView('practice');
-                    console.log('[ReviewModalsv2.tsx][6127] tab=practice');
-                  }}
-                >
-                  Practice
-                </button>
-                <button
-                  role="tab"
-                  className="rms-tab-btn"
-                  aria-selected={view === 'assessment'}
-                  onClick={() => {
-                    setView('assessment');
-                    console.log('[ReviewModalsv2.tsx][6128] tab=assessment');
-                  }}
-                >
-                  Assessment
-                </button>
-              </div>
-            )}
-
             {/* Content panes — keep them overflow-visible to avoid nested scrollbars */}
             {view === 'practice' && (
               <div className="rms-avoid-nested-scroll">
@@ -228,7 +199,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               </div>
             )}
 
-            {view === 'assessment' && (
+            {/**view === 'assessment' && (
               <div className="rms-avoid-nested-scroll">
                 <AssessmentTab
                 
@@ -238,7 +209,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   docId={docFileID!}
                   />
               </div>
-            )}
+            )**/}
 
             {view === 'performance' && (
               <div className="rms-avoid-nested-scroll">

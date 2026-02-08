@@ -74,6 +74,11 @@ export interface CanvasHeaderProps {
   onShare: () => void;
   onOpenCalendar?: () => void;
   onUpgrade?: () => void;
+
+  // EducatorContext Buttons
+  onOpenAssessments: () => void;
+  onOpenGrades: () => void;
+  isEducatorWorkspace: boolean;
 }
 
 /**
@@ -97,6 +102,9 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   onShare,
   onOpenCalendar,
   onUpgrade,
+  onOpenAssessments,
+  onOpenGrades,
+  isEducatorWorkspace,
 }) => {
   /* ──────────────────────────────────────────────────────────────────────
    * 1) Context access and derived state (O(1) reads and computations)
@@ -106,7 +114,8 @@ const CanvasHeader: React.FC<CanvasHeaderProps> = ({
   const { isPanelExpanded, togglePanel } = useViewSwitch();
   const { getDirtyThreadTotal } = useComments();
   // Consume subscription status to gate the Upgrade button
-  const { subscriptionUi, remainingDemoCredits } = useAccountStatus();
+  const { accountStatus, subscriptionUi } = useAccountStatus();
+  const isEducator = accountStatus?.accountType === 'educator';
 
   // Consume calendar badge state
   const { hasUnseenUpdates, resetUnseenCount } = useCalendar();
@@ -230,6 +239,27 @@ const isSubscribed = useMemo(() => {
           {/* Converged dropdowns with single source of truth */}
           <UnifiedLessonsDropdown mode={mode} /> 
           <UnifiedUploadsDropdown mode={mode} /> 
+
+          {/* update - 1.8: Integrated Educator-only cluster for Assessments and Grades */}
+          { isEducatorWorkspace && (
+            <>
+              <button
+                onClick={onOpenAssessments}
+                className="ch-nav__trigger"
+                title="Assessments"
+              >
+                <span>Assessments</span>
+              </button>
+
+              <button
+                onClick={onOpenGrades}
+                className="ch-nav__trigger"
+                title="View Grades"
+              >
+                <span>Grades</span>
+              </button>
+            </>
+          )}
         </nav>
         <div className="flex items-center gap-2 ml-2 border-l pl-2 border-gray-200">
              {/* 3. Discuss (Moved to Left) */}
@@ -268,28 +298,6 @@ const isSubscribed = useMemo(() => {
                     </span>
                 )}
             </button>
-
-            {/* 5. Upgrade Button */}
-            {/* update - 9: Added mobile-hidden-btn to move Upgrade to overflow on mobile */}
-            {!isSubscribed && (
-              <button
-                  onClick={onUpgrade}
-                  className="btn btn--upgrade btn-text-color mobile-hidden-btn" /* update - 9: mobile-hidden-btn */
-                  title="Upgrade Subscription"
-              >
-                  <Zap size={16} fill="currentColor" />
-                  <span className="font-bold">Upgrade</span>
-              </button>
-            )}
-
-            {isFreemium && (
-          <div 
-            className="flex items-center gap-1.5 ml-4 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-xs font-semibold text-gray-600"
-            title="Remaining lesson generation credits"
-          >
-            <span>Demo credits: {remainingDemoCredits}</span>
-          </div>
-        )}
         </div>
 
       </div>
@@ -360,6 +368,18 @@ const isSubscribed = useMemo(() => {
                <button onClick={() => { onStartReview(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
                  <CheckCircle2 size={16} /> Start Review
                </button>
+              
+              {isEducatorWorkspace && (
+                 <>
+                   <button onClick={() => { onOpenAssessments(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
+                     <span/> Assessments
+                   </button>
+
+                   <button onClick={() => { onOpenGrades(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
+                     <span/> Grades
+                   </button>
+                 </>
+               )}
 
                <button onClick={() => { onUpgrade && onUpgrade(); setIsMobileMenuOpen(false); }} className="mobile-menu-item">
                  <Zap size={16} /> Upgrade

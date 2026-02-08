@@ -32,8 +32,9 @@ import {
   generateDownloadUrl,        
   getAclSnapshot,
   resolveRole, 
-  addToSharedWith
+  addToSharedWith,
 } from '@/app/src/services/firebase';
+import {   fetchDocumentWorkspaceIdentity } from '@/app/src/services/FBworkspaceRegistry';
 import { withRateLimitNP } from '@/app/src/services/rate-np/withRateLimitNP';
 
 /**
@@ -124,13 +125,16 @@ function normEmail(email: string): string {
     const canRead =
       role === 'Owner' || role === 'Editor' || role === 'Viewer' || acl.publicView;
 
+    const isEducatorWorkspace = await fetchDocumentWorkspaceIdentity(docFileID);
+
     console.log('[download-urlv1.ts][4904] › acl resolved', {
       docId: docFileID,
       user: session.user.email,
       role,
       canRead,
       publicView: acl.publicView,
-      publicEdit: acl.publicEdit
+      publicEdit: acl.publicEdit,
+      isEducatorWorkspace:isEducatorWorkspace,
     });
 
     if (!canRead) {
@@ -230,6 +234,7 @@ function normEmail(email: string): string {
       downloadUrl,
       fileStoragePath,
       access,
+      isEducatorWorkspace,
       // For documents we include identifiers so the client can seed Y.Doc:
       storageGeneration, // null for chats
       versionNumber      // null for chats

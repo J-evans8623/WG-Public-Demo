@@ -83,7 +83,7 @@ import { registerAutosaveHandlers } from '@/app/workspace/(studygraph)/services/
 import { CollabProvider, useCollab } from '@/app/Library/Context/collab/CollabContext'; 
 import { MobileOptimizationModal } from '@/components/layout/MobileOptimizationModal';
 import { StudyLogProvider } from '@/app/Library/Context/studylog/StudyLogContext';
-
+import { WorkspaceRegistryProvider } from '@/app/Library/Context/WorkspaceRegistryContext'; 
 type PickerArg =
   | string
   | {
@@ -450,6 +450,7 @@ export const AppLayout: React.FC = () => {
   return (
     <GoogleOAuthProvider clientId={clientId}>
       <ApiProvider>
+        <WorkspaceRegistryProvider>
         
           <AccessLayerProvider>
             <YDocProvider>
@@ -508,6 +509,7 @@ export const AppLayout: React.FC = () => {
               </CollabProvider>
             </YDocProvider>
           </AccessLayerProvider>
+          </WorkspaceRegistryProvider>
       </ApiProvider>
     </GoogleOAuthProvider>
   );

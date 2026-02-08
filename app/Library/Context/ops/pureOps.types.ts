@@ -81,6 +81,7 @@ export interface OpLoadAuthOutput {
   chat: ChatMessage[];
   /** True when chat.json was missing (404). */
   chatFresh: boolean;
+  isEducatorWorkspace:boolean;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────

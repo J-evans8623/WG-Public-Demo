@@ -57,6 +57,8 @@ import type { UserFileMetadata } from '@/app/src/types/fileTypes';
 import { opHydrateFromBytes, opLoadAuth, opCreateLocal, opBootstrapNewDoc } from './ops/pureOps';
 import { supersedingCall } from '@/app/src/net/SupersedingCaller';
 import { scanDocumentStats } from './ops/DocumentScan'
+import { useWorkspaceRegistry } from '@/app/Library/Context/WorkspaceRegistryContext';
+
 
 interface ChatMessage {
   id: number;
@@ -202,7 +204,9 @@ export const YDocProvider: React.FC<YDocProviderProps> = ({ children }) => {
   // Initialize state for Y.Doc, snapshot, and supporting services.
   const [ydoc, setYDoc] = useState<Y.Doc>(() => new Y.Doc());
   const [snapshotYDoc, setSnapshotYDoc] = useState<Y.Doc | null>(null);
-  const { refreshList, userEmail ,upsertFileMeta} = useApiContext();
+  const { refreshList, userEmail ,upsertFileMeta, accountStatus} = useApiContext();
+  const { upsertIdentity } = useWorkspaceRegistry();
+  const isEducator = accountStatus?.accountType === 'educator';
 
   /** Flag to indicate read-only mode. */
   const isReadOnly = snapshotYDoc !== null;
@@ -1308,6 +1312,7 @@ const commitPersistIds = useCallback((
     visibility: local.visibility,
     version: local.version,
   });
+  upsertIdentity(local.docId, !!isEducator);
 
   // (2) UI gates: paint now, save later
   setRenderReady(true);
@@ -1332,7 +1337,8 @@ case 'BOOTSTRAP_NEW': {
   }
 
   try {
-    const boot = await opBootstrapNewDoc({ docId: handoff.docId, bytes: handoff.bytes });
+    const boot = await opBootstrapNewDoc({ docId: handoff.docId, bytes: handoff.bytes , isEducator: !!isEducator});
+    //upsertIdentity(handoff.docId, !!isEducator);
     if (isStale()) return;
 
     // ---------------------------------------------------------------
@@ -1436,6 +1442,9 @@ case 'BOOTSTRAP_NEW': {
             //await loadFromFirebase(machine.docId);
              // 1) PURE authoritative load: bytes + identifiers + access + ALWAYS chat
             const auth = await opLoadAuth({ docId: machine.docId });
+            // We use the result of the network call to auto-heal the WorkspaceRegistry.
+            // This ensures O(1) lookups for this document for the rest of the session.
+            upsertIdentity(auth.docId, !!auth.isEducatorWorkspace);
             if (isStale()) return;
             const hydrated = await opHydrateFromBytes({
             bytes: auth.bytes,
@@ -1528,7 +1537,7 @@ case 'BOOTSTRAP_NEW': {
       aborted = true;
       ac.abort();
     };
-  }, [machine, docFileID, access,/*addFileMeta*/, userEmail, refreshList, teardownPreviousDoc, ydoc, loadData, commitHydratedDoc, commitPersistIds, emitChatReady]);
+  }, [machine, docFileID, access,/*addFileMeta*/, userEmail, refreshList, teardownPreviousDoc, ydoc, loadData, commitHydratedDoc, commitPersistIds, emitChatReady,isEducator, upsertIdentity]);
 
   //--------------------------------- END STATE MACHINE --------------------------------
 

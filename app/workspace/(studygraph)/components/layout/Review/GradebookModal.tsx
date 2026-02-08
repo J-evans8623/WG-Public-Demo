@@ -12,7 +12,7 @@
  *   support debugging without noise. The modal does not coordinate with Yjs at all by design.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import '@/app/workspace/(studygraph)/components/modals/modalStyles.css';
 import './gradebook.css';
 import { useGradebook } from '@/app/Library/hooks/useGradebook'; // update - 2003
@@ -45,6 +45,19 @@ function formatWindow(startAt: string, endAt: string): string {
 
 const GradebookModal: React.FC<GradebookModalProps> = ({ isOpen, onClose, docId }) => {
   const { assignments, students, grid, status, lastUpdated, error, refresh } = useGradebook(docId); // update - 2005
+
+  //Track visibility state for deleted assignments
+  const [showDeleted, setShowDeleted] = useState(false);
+
+  // Filter assignments based on showDeleted state
+  const visibleAssignments = useMemo(() => {
+    if (showDeleted) return assignments;
+    return assignments.filter(a => a.status !== 'deleted');
+  }, [assignments, showDeleted]);
+
+
+  // Check if there are any deleted items available to show
+  const hasDeletedItems = assignments.some(a => a.status === 'deleted');
 
   // Load on open ( update - 2006 )
   useEffect(() => {
@@ -82,6 +95,17 @@ const GradebookModal: React.FC<GradebookModalProps> = ({ isOpen, onClose, docId 
                 </>
               )}
             </div>
+            {/* update - 3007: Add Recover button only if deleted data exists */}
+            {hasDeletedItems && (
+              <button 
+                className={`btn btn-primary`}
+                
+                onClick={() => setShowDeleted(!showDeleted)}
+              >
+                {showDeleted ? 'Hide Deleted' : 'Show deleted'}
+              </button>
+            )}
+
             <button className="btn btn-secondary" onClick={handleRefresh} disabled={isLoading}>
               {isLoading ? 'Loading…' : 'Refresh'}
             </button>
@@ -116,7 +140,7 @@ const GradebookModal: React.FC<GradebookModalProps> = ({ isOpen, onClose, docId 
                   <th className="gb-th gb-sticky-left gb-sticky-top" style={{ zIndex: 3 }}>
                     Name / Email
                   </th>
-                  {assignments.map((a) => {
+                  {visibleAssignments.map((a) => {
                     // update - 2009: Check status for visual styling
                     const isDeleted = a.status === 'deleted';
                     const bgStyle = isDeleted ? { backgroundColor: '#fee2e2' } : {}; // Light red header
@@ -143,7 +167,7 @@ const GradebookModal: React.FC<GradebookModalProps> = ({ isOpen, onClose, docId 
                         <div className="gb-student-email">{email}</div>
                       </div>
                     </td>
-                    {assignments.map((a, cIndex) => {
+                    {visibleAssignments.map((a, cIndex) => {
                       const cell = grid[email]?.[a.assignmentId] || null;
                       const score = cell ? cell.scorePct : null;
                       const cls =
@@ -166,7 +190,7 @@ const GradebookModal: React.FC<GradebookModalProps> = ({ isOpen, onClose, docId 
             </table>
 
             {/* Empty states ( update - 2008 ) */}
-            {!isLoading && assignments.length === 0 && (
+            {!isLoading && visibleAssignments.length === 0 && (
               <div className="modal-subtext" style={{ marginTop: 12, textAlign: 'left' }}>
                 No assignments yet. Use “Create Assigned Quiz” to add columns.
               </div>

@@ -1,0 +1,137 @@
+/**
+ * @file QuizEditorView.css
+ * @description
+ * This stylesheet provides encapsulated layout and component styling for the Quiz CRUD 
+ * interface using the 'qev-' unique name scope. RESPONSIBILITY: 1) To establish a 
+ * vertical flex container that ensures the action footer is perpetually visible at the 
+ * bottom of the modal. 2) To align buttons to the bottom-right corner for improved UX. 
+ * 3) To eliminate namespace collisions with the global quizstyles.css file. This file 
+ * uses brand variables but isolates layout rules to prevent stylistic drift or 
+ * unintended overrides in the quiz player views.
+ */
+
+/* 1. Main container established as a vertical flexbox for viewport management */
+.qev-main-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--quiz-bg-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 2. Middle area absorbs remaining space and enables independent scrolling */
+.qev-scrollable-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  overflow-x: hidden;
+}
+
+.qev-list-inner {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* 3. Scoped card design utilizing the neutral tan-border brand identity */
+.qev-question-card {
+  background: var(--quiz-bg-white);
+  border: 1px solid var(--quiz-border-tan);
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--quiz-shadow);
+}
+
+.qev-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.qev-question-index {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--quiz-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 4. Explicit Delete row button with isolated red error states */
+.qev-delete-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--quiz-error);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.qev-delete-trigger:hover {
+  background: rgba(239, 68, 68, 0.05);
+  border-color: var(--quiz-error);
+}
+
+/* 5. Input group layout rules unique to the editor view */
+.qev-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.qev-field-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.qev-text-area,
+.qev-single-input {
+  width: 100%;
+  border: 1px solid var(--quiz-border-tan);
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--quiz-text-primary);
+  background: white;
+  transition: border-color 0.2s ease;
+}
+
+.qev-text-area {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.qev-text-area:focus,
+.qev-single-input:focus {
+  outline: none;
+  border-color: var(--quiz-accent-blue);
+  box-shadow: 0 0 0 3px rgba(108, 142, 191, 0.1);
+}
+
+/* 6. Fixed foundation for actions anchored to the bottom right foundation */
+.qev-fixed-footer {
+  flex-shrink: 0;
+  padding: 1.25rem 2rem;
+  border-top: 1px solid var(--quiz-border-tan);
+  background: var(--quiz-bg-white);
+  display: flex;
+  justify-content: flex-end; /* Pin buttons to bottom right */
+  z-index: 10;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.qev-action-group-right {
+  display: flex;
+  gap: 0.75rem;
+}

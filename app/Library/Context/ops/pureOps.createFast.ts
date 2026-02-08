@@ -119,6 +119,7 @@ export function opCreateLocal(): {
 export async function opBootstrapNewDoc(args: {
   docId: string;
   bytes: Uint8Array;
+  isEducator: boolean;
 }): Promise<{
   identifiers: { storageGeneration: string | null; versionNumber: number | null };
   accessEnvelope: AccessEnvelope;
@@ -127,6 +128,7 @@ export async function opBootstrapNewDoc(args: {
   fileStoragePath: string;
   chatPath: string;
   colorCode: string;
+  isEducatorWorkspace: boolean;
 }> {
   // (1)
   const { doc: docTicket, chat: chatTicket, access: uploadAccess } = await initialUpload(args.docId);
@@ -196,6 +198,7 @@ export async function opBootstrapNewDoc(args: {
     chatFresh: true,
     fileStoragePath: docTicket.fileStoragePath,
     chatPath: chatTicket.fileStoragePath,
-    colorCode
+    colorCode,
+    isEducatorWorkspace: args.isEducator
   };
 }

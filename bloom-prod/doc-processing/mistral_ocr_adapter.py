@@ -44,7 +44,7 @@ import json
 import logging
 import time
 from typing import List, Optional, Tuple
-
+from mistral_native_api import process_pdf_natively
 import requests
 
 # ----------------------------
@@ -58,7 +58,7 @@ if not logger.handlers:
 # ----------------------------
 # Constants
 # ----------------------------
-_DEFAULT_MODEL = "mistral-ocr-2503-ncsel"
+_DEFAULT_MODEL = "mistral-ocr-2512"
 _MAX_RETRIES = 4
 _RETRY_DELAY_SECONDS = 2
 
@@ -149,6 +149,18 @@ def mistral_ocr_read_pdf(
         RuntimeError with an actionable message if configuration is missing, the HTTP response is
         non-200 (after retries), or the payload cannot be parsed into page-wise text.
     """
+
+    use_native = os.getenv("USE_NATIVE_MISTRAL", "true").lower() == "true"
+
+    if use_native:
+        try:
+            # Route to the new encapsulated logic
+            return process_pdf_natively(pdf_bytes)
+        except Exception as e:
+            logger.error(f"Native Mistral Failed: {e}. Falling back to Azure logic...")
+            # If native fails, it naturally continues to the old logic below
+
+            
     # [Step 1] Resolve configuration
     endpoint = _get_env("AZURE_MISTRAL_ENDPOINT", required=True)
     api_key = _get_env("AZURE_MISTRAL_API_KEY", required=True)

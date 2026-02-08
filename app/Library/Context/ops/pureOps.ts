@@ -137,7 +137,7 @@ export async function opLoadAuth(params: OpLoadAuthParams): Promise<OpLoadAuthOu
   const { docId } = params;
 
   // (1)
-  const { downloadUrl: docUrl, storageGeneration, versionNumber, access } = await getDownloadUrl(docId, 'doc');
+  const { downloadUrl: docUrl, storageGeneration, versionNumber, access , isEducatorWorkspace} = await getDownloadUrl(docId, 'doc');
   // telemetry (internal only)
   // console.log('[pureOps] opLoadAuth: resolved doc URL', { docId, storageGeneration, versionNumber });
 
@@ -179,6 +179,7 @@ export async function opLoadAuth(params: OpLoadAuthParams): Promise<OpLoadAuthOu
     accessEnvelope: access as AccessEnvelope,
     chat,
     chatFresh,
+    isEducatorWorkspace: !!isEducatorWorkspace,
   };
 }
 

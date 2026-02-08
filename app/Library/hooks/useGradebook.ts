@@ -29,7 +29,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useApiContext } from '@/app/src/context/ApiContext'; // update - 1 (removed ResourceContext/Yjs imports)
+import { useApiContext } from '@/app/src/context/ApiContext';
 import type { // update - 2
   AssignmentHeader,
   GradebookCell,

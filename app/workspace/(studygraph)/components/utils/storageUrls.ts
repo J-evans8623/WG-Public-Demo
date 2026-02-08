@@ -25,6 +25,7 @@ type DownloadOk = {
   access: AccessEnvelope;
   storageGeneration?: string | null;
   versionNumber?: number | null;
+  isEducatorWorkspace: boolean;
 };
 
 function isNonEmptyString(v: unknown): v is string {
@@ -158,6 +159,7 @@ export async function getDownloadUrl(
     access: raw.access,
     storageGeneration: raw.storageGeneration ?? null,
     versionNumber: typeof raw.versionNumber === 'number' ? raw.versionNumber : null,
+    isEducatorWorkspace: !!raw.isEducatorWorkspace,
   };
 }
 
