@@ -145,6 +145,31 @@ const HIDE_DELAY = 300;         // Time (ms) before tooltip disappears on leave
     visible: false,
   });
 
+
+  /**
+   * UPDATE - 1.1
+   * @function scrollToToday
+   * @description
+   * A memoized callback function that receives a DOM node from a ref attachment. If the node 
+   * is valid, it calculates the element's position and triggers a smooth scroll animation 
+   * into view. It includes a slight delay via a timeout to accommodate the modal's entry 
+   * animations, ensuring the scroll coordinates are calculated after the layout has fully settled.
+   */
+  const scrollToToday = useCallback((node: HTMLElement | null) => {
+    // 1. Check if the node exists (React calls this with null on unmount)
+    if (node !== null) {
+      // 2. Wrap in a slight timeout to ensure the parent modal layout has finished its entry transition
+      setTimeout(() => {
+        // 3. Execute the native scrollIntoView API with smooth behavior
+        node.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center', // UPDATE - 1.2: Centers the date in the scroll window
+          inline: 'nearest' 
+        });
+      }, 150);
+    }
+  }, []);
+
   const [contextMenu, setContextMenu] = useState<{
     visible: boolean;
     session: StudySession | null;
@@ -377,9 +402,21 @@ const handleSessionHover = useCallback((session: StudySession, event: React.Mous
             const dayNum = date.getDate();
             const isCurrentDay = date.toDateString() === today.toDateString();
 
+            // Calculate expansion state for the mobile card
+            const dateKey = getDateKey(date);
+            const isExpanded = expandedDayKey === dateKey;
+            const maxVisible = 3;
+            const hasOverflow = sessions.length > maxVisible;
+
+            // Determine which sessions to display based on expansion state
+            const visibleSessions = isExpanded ? sessions : sessions.slice(0, maxVisible);
+            const hiddenCount = sessions.length - maxVisible;
+
             return (
               <div
-                key={getDateKey(date)}
+                key={dateKey}
+                // UPDATE - 1.3: Attach the callback ref only to the card representing today
+                ref={isCurrentDay ? scrollToToday : undefined}
                 className={`calendar-mobile-card ${isCurrentDay ? 'current-day' : ''}`}
               >
                 {/* Standardized Date Column */}
@@ -394,7 +431,7 @@ const handleSessionHover = useCallback((session: StudySession, event: React.Mous
                     <div className="no-sessions">No sessions scheduled</div>
                   ) : (
                     <div className="session-chip-stack">
-                      {sessions.slice(0, 3).map((session) => (
+                      {visibleSessions.map((session) => (
                         <SessionChip
                           key={session.id}
                           session={session}
@@ -413,10 +450,29 @@ const handleSessionHover = useCallback((session: StudySession, event: React.Mous
                           completed={completedSet.has(session.id)}
                         />
                       ))}
-                      {sessions.length > 3 && (
-                        <div className="more-sessions-hint">
-                          + {sessions.length - 3} more
-                        </div>
+
+                      {/* UPDATE - 1.4: Implement interactive expansion triggers for mobile */}
+                      {hasOverflow && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpansion(date);
+                          }}
+                          className="calendar-expand-btn w-full mt-2"
+                          style={{ position: 'relative', height: '32px' }} // Adjusted for mobile touch
+                        >
+                          {isExpanded ? (
+                            <>
+                              <span>Show Less</span>
+                              <ChevronUp size={14} />
+                            </>
+                          ) : (
+                            <>
+                              <span>+ {hiddenCount} more sessions</span>
+                              <ChevronDown size={14} />
+                            </>
+                          )}
+                        </button>
                       )}
                     </div>
                   )}
@@ -471,6 +527,8 @@ const handleSessionHover = useCallback((session: StudySession, event: React.Mous
               isCurrentDay={isCurrentDay}
               isCurrentMonth={isCurrentMonth}
               isExpanded={isExpanded}
+              // Pass the scroll callback to the cell for grid autofocus
+              todayRef={isCurrentDay ? scrollToToday : undefined}
               onSessionClick={(s) => {
                 setTooltip(prev => ({ ...prev, visible: false }));
                 onSessionLaunch(s.id);
@@ -517,6 +575,8 @@ const CalendarDayCell: React.FC<
     onToggleExpansion: (date: Date) => void;
     onSessionContextMenu: (session: StudySession, e: React.MouseEvent) => void;
     isCompleted: (id: string) => boolean;
+    // UPDATE - 1.5: Extend props to include the optional todayRef callback
+    todayRef?: (node: HTMLElement | null) => void;
   }
 > = ({
   date,
@@ -529,6 +589,7 @@ const CalendarDayCell: React.FC<
   onToggleExpansion,
   onSessionContextMenu,
   isCompleted,
+  todayRef,
 }) => {
   const dayNumber = date.getDate();
   const sessions = dailyPlan?.sessions || [];
@@ -540,6 +601,8 @@ const CalendarDayCell: React.FC<
 
   return (
     <div
+    // UPDATE - 1.7: Attach todayRef to the desktop cell container
+      ref={todayRef}
       className={`calendar-day-cell ${isCurrentDay ? 'current-day' : ''} ${
         !isCurrentMonth ? 'other-month' : ''
       } ${isExpanded ? 'expanded' : ''}`}

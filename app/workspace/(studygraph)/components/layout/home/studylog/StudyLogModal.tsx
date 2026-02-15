@@ -17,6 +17,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { X, Clock, Calendar, TrendingUp, Book } from 'lucide-react';
 import './StudyLog.css';
 import { NotebookStudyStats } from '@/app/Library/Definitions/StudyLogDefinitions';
+import { calculateTotalHoursFromStats } from './ComputeAllTimeTotal';
+
 
 export type StudyLogModalProps = {
   isOpen: boolean;
@@ -63,6 +65,12 @@ const StudyLogModal: React.FC<StudyLogModalProps> = ({
   titleLabel = 'Study Summary',
 }) => {
   const [activeTab, setActiveTab] = useState<'week' | 'alltime'>(initialTab);
+
+  // UPDATE - 1.2: Compute the derived total hours directly from the notebookStats map.
+  // This ensures the header is always the sum of the rows visible in the current tab.
+  const derivedTotalHours = useMemo(() => {
+    return calculateTotalHoursFromStats(notebookStats, activeTab);
+  }, [notebookStats, activeTab]);
 
   // Step 1: Reset tab when opening
   useEffect(() => {
@@ -175,20 +183,22 @@ const StudyLogModal: React.FC<StudyLogModalProps> = ({
               </div>
               <div className="studylog-stat__value">
                 {/* Check for NaN/Infinity safety if calculation is pending */}
-                {isFinite(totalHours) ? totalHours.toFixed(1) : '0.0'}h
+                {isFinite(derivedTotalHours) ? derivedTotalHours.toFixed(1) : '0.0'}h
               </div>
             </div>
 
-            <div className="studylog-stat">
+            
+
+            {/* Daily Average only relevant for 'Week' view */}
+            {activeTab === 'week' && (
+              <>
+              <div className="studylog-stat">
               <div className="studylog-stat__label">
                 <Calendar size={14} />
                 <span>Sessions</span>
               </div>
               <div className="studylog-stat__value">{totalSessions}</div>
             </div>
-
-            {/* Daily Average only relevant for 'Week' view */}
-            {activeTab === 'week' && (
                <div className="studylog-stat">
                <div className="studylog-stat__label is-blue">
                  <TrendingUp size={14} />
@@ -198,6 +208,8 @@ const StudyLogModal: React.FC<StudyLogModalProps> = ({
                  {(totalHours / 7).toFixed(1)}h
                </div>
              </div>
+             
+             </>
             )}
           </div>
 
