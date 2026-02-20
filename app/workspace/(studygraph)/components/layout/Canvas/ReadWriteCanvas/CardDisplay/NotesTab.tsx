@@ -27,6 +27,7 @@ import DefaultEmptyResourceCard from '@/app/workspace/(studygraph)/components/la
 import { useNodeSelection } from '@/app/Library/Context/NodeSelectionContext';
 import useCardCrudOperations from '../../../../hooks/useCardCrudOperations';
 import { useSearchContext } from '@/app/Library/Context/SearchContext';
+import StartReviewCard from '@/app/workspace/(studygraph)/components/layout/Canvas/ReadWriteCanvas/CardDisplay/StartReviewCard';
 
 type DisplayType = 'cuecard' | 'note' | 'quiz';
 
@@ -43,8 +44,14 @@ const NotesTab: React.FC<NotesTabProps> = ({
 }) => {
   const ordered = useOrderedResources();
   const { getNodeTitle } = useNodesContext();
-   const { dismissResource } = useNodeSelection();
+   const { dismissResource, getSelectedNodeIds } = useNodeSelection();
     const { deleteResource } = useCardCrudOperations();
+
+
+  const selectedNodeIds = getSelectedNodeIds();
+  const isReviewNodeSelected = selectedNodeIds.includes('reviewNode');
+
+  
 
   const [isHoveringTab, setIsHoveringTab] = useState(false);
   const [isHoveringCard, setIsHoveringCard] = useState(false);
@@ -150,7 +157,14 @@ const NotesTab: React.FC<NotesTabProps> = ({
       }}
     >
       <div className="notes-content-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {visible.length > 0 ? (
+
+      {isReviewNodeSelected && (
+            <div onMouseEnter={handleCardMouseEnter} onMouseLeave={handleCardMouseLeave} style={{ flexShrink: 0 }}>
+                <StartReviewCard />
+            </div>
+        )}
+
+        {visible.length > 0 || isReviewNodeSelected ? (
           visible.map((r) => {
             //console.log('[NotesTab.tsx][7321] render item', { id: r.id, type: r.type });
             return (

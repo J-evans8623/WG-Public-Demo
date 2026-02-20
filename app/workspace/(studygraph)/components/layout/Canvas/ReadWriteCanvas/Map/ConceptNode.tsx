@@ -51,6 +51,8 @@ import '@/app/workspace/customTooltip.css'
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import { useAccessEditSnapshot } from '@/app/Library/Context/AccessLayer/selectors';
 import { useResourceQuickActions } from '@/app/workspace/(studygraph)/components/layout/Canvas/ReadWriteCanvas/ResourceQuickActionsContext';
+import { useLaunchUnitReview } from '@/app/workspace/(studygraph)/components/hooks/useLaunchUnitReview';
+
 
 const GENERAL_SELECTED_COLOR = '#3B82F6';
 const CARET_COLOR = '#FF6500';
@@ -81,10 +83,11 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   const { updateNodeTitle, createNewNode, deleteNode, transferNode, mapId  } = useNodesContext();
   const { dispatch: layoutDispatch } = useLayoutContext();
   const { open } = useSlideShow();
+  const { launchReview } = useLaunchUnitReview();
 
   // 1) DAM → capability gating (centralized here for both RO/RW)  // update - 2
   const {mode, status, editReady} = useAccessEditSnapshot();               // update - 2
-  const canEdit = editReady;                 // update - 2
+  
 
   const { title, depth, x, y, childrenNodeIds, isRoot } = node;
   const [isEditing, setIsEditing] = useState(false);
@@ -108,6 +111,10 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
   const { createNoteDraft, createCueCardDraft } = useResourceQuickActions();
 
   const [isHoveringButton, setIsHoveringButton] = useState(false);
+
+  // We identify the Review Node by its hardcoded ID provided by the backend parser.
+  const isReviewNode = node.id === 'reviewNode';
+  const canEdit = isReviewNode ? false : editReady;                 // update - 2
 
   /**
    * @function handleSelect
@@ -165,9 +172,16 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
    */
   const handleLaunchSlideshow = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('[Canvas/ConceptNode.tsx] Floating play button clicked', { id: node.id });
-    open(node.id, true);
-  }, [node.id, open]);
+    
+    // UPDATE - 1.5: Review Shortcut Logic
+    if (isReviewNode) {
+      console.log('[ConceptNode.tsx] Review Node play button clicked - Redirecting via hook');
+      launchReview();
+    } else {
+      console.log('[Canvas/ConceptNode.tsx] Floating play button clicked', { id: node.id });
+      open(node.id, true);
+    }
+  }, [node.id, open, isReviewNode, launchReview]);
 
   /**
    * @function handleTitleDoubleClick
@@ -178,12 +192,12 @@ const ConceptNode = forwardRef<HTMLDivElement, ConceptNodeProps>(({ node }, ref)
    */
   const handleTitleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!canEdit) {
+    if (!canEdit || isReviewNode) {
       console.log('[Canvas/ConceptNode.tsx][6202] blocked inline rename (read-only)'); // update - 5
       return;
     }
     setIsEditing(true);
-  }, [canEdit]); // update - 5
+  }, [canEdit, isReviewNode]); // update - 5
 
   /**
    * @function handleTitleChange

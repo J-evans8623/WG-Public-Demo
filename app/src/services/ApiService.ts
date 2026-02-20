@@ -479,19 +479,23 @@ export class EnhancedApiService extends EventTarget {
    * @returns Promise resolving to standardized API response with lesson data
    */
   public async generateLesson(
-    file: File,
+    file: File | null,
     docId: string,
-    options: { isPublic?: boolean } = {},
+    options: { isPublic?: boolean; webUrl?: string} = {},
   ): Promise<any> {
 
-     const { isPublic = false } = options;
+    const { isPublic = false} = options;
 
 
  
 
         // Step 5: Construct FormData with enhanced parameter support
     const formData = new FormData();
-    formData.append('file', file);
+    
+    if (file) {
+      formData.append('file', file);
+    }
+
     formData.append('DocID', docId);
     
     // Step 6: Add visibility parameter for new account type system

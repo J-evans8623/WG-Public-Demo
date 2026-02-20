@@ -127,6 +127,10 @@ interface ApiContextType {
   startAttempt: (req: AttemptStartReq) => Promise<AttemptStartRes>;
   submitAttempt: (req: AttemptSubmitReq) => Promise<AttemptSubmitRes>;
   userEmail: string;
+
+  //recover files op
+  listRecoverableFiles: () => Promise<UserFileMetadata[]>;
+  restoreFile: (docId: string) => Promise<void>;
 }
 
 // Step 4: Create context with comprehensive default values
@@ -1198,6 +1202,58 @@ const fetchAccountStatus = useCallback(async (): Promise<void> => {
 
 
 
+  /**
+   * @function listRecoverableFiles
+   * @description 
+   * Fetches the current list of soft-deleted notebooks from the recovery API. 
+   * This is a non-cached, direct fetch that provides the most up-to-date view of 
+   * the owner's bin, allowing the UI to accurately display remaining retention 
+   * times and available documents for restoration.
+   */
+  const listRecoverableFiles = useCallback(async (): Promise<UserFileMetadata[]> => {
+    //console.log('[ApiContext.tsx][6801] Fetching recoverable files');
+    const resp = await fetch('/api/recovery/RecoverFiles', { 
+        method: 'GET', 
+        credentials: 'include' 
+    });
+
+    if (!resp.ok) {
+        throw new Error('Failed to load recovery bin');
+    }
+
+    const data = await resp.json();
+    return data.files || [];
+  }, []);
+
+  // UPDATE - 1.3: Implementation of restoreFile
+  /**
+   * @function restoreFile
+   * @description 
+   * Triggers the restoration of a notebook by its document ID. Upon success, 
+   * this function forces a refresh of the main file list to ensure the restored 
+   * notebook immediately appears in the user's library, providing a seamless 
+   * transition from archived back to active status.
+   */
+  const restoreFile = useCallback(async (docId: string): Promise<void> => {
+    //console.log('[ApiContext.tsx][6802] Restoring file:', docId);
+    const resp = await fetch('/api/recovery/RecoverFiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ docId })
+    });
+
+    if (!resp.ok) {
+        const error = await resp.json();
+        throw new Error(error.error || 'Restoration failed');
+    }
+
+    // Refresh the active lists so the file reappears in the grid
+    await refreshFileList();
+  }, [refreshFileList]);
+
+
+
 useEffect(() => {
     if (status !== 'authenticated' || !normalizedEmail) return;
     // Call listFiles which will hydrate from cache and revalidate in background 
@@ -1252,7 +1308,9 @@ useEffect(() => {
     getGradebook,
     startAttempt,
     submitAttempt,
-    userEmail: normalizedEmail
+    userEmail: normalizedEmail,
+    listRecoverableFiles, 
+    restoreFile,
   };
 
   // Expose read-only file list state to useFileList via non-API properties (internal surface) 

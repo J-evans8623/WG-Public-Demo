@@ -22,7 +22,7 @@ import { useAccountStatus, useFileList } from '@/app/src/context/ApiContext';
 import { generateAILesson } from '@/app/Library/utils/aiServiceApi';
 import { modalEventManager } from '@/app/src/services/modalEventManager';
 import { getModal } from '@/app/workspace/(studygraph)/components/modals/ModalRegistry';
-
+import '@/app/workspace/(studygraph)/components/modals/LessonModalGenerator.css'
 
 // Modal types and props interfaces
 export type ModalType = 'subscribe' | 'rateLimit' | 'fileUpload' | 'lessonGeneration' |'loadingOverlay'  | 'blockingProgress' | 'docUnavailable' | 'flyerCampaignModal';
@@ -576,6 +576,28 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
  * This ensures the parent component only attempts to update the calendar AFTER
  * the generation API has definitively succeeded and returned data.
  */
+/**
+ * @file AppModals.tsx
+ * @description
+ * Centralized modal collection providing a unified interface for all application modal types. 
+ * This file consolidates subscription prompts, rate limit notifications, file upload workflows, 
+ * and educational content generation into a single maintainable hub. Each component is 
+ * engineered to follow strict brand guidelines, utilizing a sophisticated CSS rule set that 
+ * emphasizes clarity, accessibility, and professional appearance. The modals integrate 
+ * seamlessly with the portal-based rendering system and the global account status context, 
+ * ensuring that user interactions are governed by appropriate business rules and tier 
+ * restrictions. This specific update implements a high-fidelity design for the lesson 
+ * generation interface, introducing a tabbed navigation system and a dynamic URL 
+ * aggregation list. The implementation preserves critical functional logic, including 
+ * asynchronous generation sequences and specialized browser painting fixes, to maintain 
+ * a robust and responsive user experience while expanding the platform's input capabilities.
+ * * Responsibilities:
+ * - Render context-aware modals for subscription, rate limiting, and document management.
+ * - Manage complex state for lesson generation, supporting both file and URL inputs.
+ * - Enforce tier-based limits and visibility controls within the user interface.
+ * - Ensure high-performance rendering and state synchronization across API interactions.
+ */
+
 export const EnhancedLessonGenerationModal: React.FC<LessonGenerationModalProps> = ({
   onClose,
   onSuccess,

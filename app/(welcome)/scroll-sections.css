@@ -161,6 +161,9 @@
   align-items: center;
 }
 
+
+
+
 /* Retention panel: centered image + optional quote */
 .wg-retention-panel {
   width: 100%;
@@ -168,6 +171,21 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+
+.wg-retention-panel--visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+
+/* update - 3.3: Hidden state class - only styled with transitions on mobile (see media query below) */
+.wg-retention-panel--hidden {
+  opacity: 0;
+  transform: translateY(20px) scale(0.98);
+  pointer-events: none;
 }
 
 .wg-retention-image-shell {
@@ -260,6 +278,42 @@
   .wg-scene-video-shell {
     max-width: 100%; /* Remove 720px constraint on mobile */
     aspect-ratio: 16/9; /* Switch from 1:1 to widescreen for better mobile UX */
+  }
+
+
+.wg-retention-panel {
+    /* Step 1: Set minimum height to prevent layout collapse during fade transitions */
+    min-height: 350px;
+    
+    /* Step 2: Define smooth transition timing for opacity and transform properties */
+    transition: opacity 700ms ease-in-out, transform 700ms ease-in-out;
+    
+    /* Step 3: Enable GPU acceleration for smoother 60fps animations */
+    will-change: opacity, transform;
+  }
+  
+  /* update - 3.5: Mobile-only enhancement for image shell smooth movement */
+  .wg-retention-image-shell {
+    max-width: 100%;
+    border-radius: 16px;
+    /* Step 4: Add subtle transform transition for cascading reveal effect */
+    transition: transform 400ms ease-in-out;
+  }
+  
+  /* update - 3.6: Mobile-only delayed fade-in for quote text (cascading effect) */
+  .wg-retention-quote {
+    font-size: 0.92rem;
+    padding: 0 6px;
+    /* Step 5: Delayed opacity transition creates pleasing cascading reveal */
+    transition: opacity 400ms ease-in-out 200ms;
+  }
+}
+
+/* update - 3.7: Extra-small mobile devices get even longer transitions for fast swipe scrolling */
+@media (max-width: 640px) {
+  .wg-retention-panel {
+    /* Step 6: Extend transition duration on smallest screens to compensate for rapid scrolling */
+    transition: opacity 800ms ease-in-out, transform 800ms ease-in-out;
   }
 }
 

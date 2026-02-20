@@ -50,7 +50,7 @@ export function generateLessonUnits(ydoc: Y.Doc): LessonUnit[] {
     }
 
     const allNodes = Array.from(nodesMap.values());
-    const primary = allNodes.filter((n) => n.depth === 1);
+    const primary = allNodes.filter((n) => n.depth === 1 && n.id !== 'reviewNode');
     console.log('[lessonUnitExtractor.ts][1006] › Primary nodes found:', primary.length);
 
     const sortedPrimary = primary.sort((a, b) => {

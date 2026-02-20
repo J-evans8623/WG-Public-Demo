@@ -41,6 +41,8 @@ import { v4 as uuidv4 } from 'uuid';
 import pdfParse from 'pdf-parse';
 import UsageTracker from '@/app/src/services/UsageTracker';
 
+import { convertMarkdownToPdf } from '@/doc-preprocessing-service/gotenberg-service-client'; 
+
 /**
  * 
  *  NextApiRequestWithFile
@@ -177,14 +179,15 @@ export default async function handler(
     
     const userEmail = sessionData.user.email;
 
-
-       // Step 6: Parse uploaded file using Multer (preserved from original)
+    // UPDATE - 1.1: Run Multer first to parse fields immediately.
+    // This is required because req.body is empty until this middleware parses the stream.
     await runMiddleware(req, res, upload.single('file'));
+    
 
     if (!req.file) {
       return res.status(400).json({ 
         error: 'FILE_REQUIRED',
-        message: 'No file uploaded',
+        message: 'No file uploaded or YouTube URLs provided.',
         service: 'lessonGeneration'
       });
     }

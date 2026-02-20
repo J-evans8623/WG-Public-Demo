@@ -267,7 +267,7 @@ useEffect(() => {
                     className="text-input sm-select-native"
                   >
                     <option value="public-edit">Anyone with the link can edit</option>
-                    <option value="public-view">Anyone with the link can view</option>
+                    <option value="public-view">Anyone with the link can view (edits are disabled)</option>
                     <option value="private">Only editors on the list can edit</option>
                   </select>
                 </div>

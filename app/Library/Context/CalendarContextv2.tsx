@@ -34,6 +34,7 @@ import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useFileList, useApiContext, useAccountStatus  } from '@/app/src/context/ApiContext'; 
 import type { UserFileMetadata } from '@/app/src/types/fileTypes';
 import { useGlobalModal } from '@/app/workspace/(studygraph)/components/modals/GlobalModalProvider';
+import { sanitizeStudySessions } from '@/app/Library/Context/SanitizeLegacyReviewNode';
 
 const Ctx = createContext<CalendarContextType | undefined>(undefined);
 
@@ -68,6 +69,9 @@ function reviveStudyPlan(rawPlan: any): StudyPlanOutput | null {
     const parsed = new Date(d);
     return isNaN(parsed.getTime()) ? new Date() : parsed;
   };
+
+  const rawSessions = Array.isArray(rawPlan.sessions) ? rawPlan.sessions : [];
+  const sanitizedFlatSessions = sanitizeStudySessions(rawSessions);
 
   // ---- notebookProgress: Object/Map → Map and deep revive progress dates ----
   let progressMap = rawPlan.state.notebookProgress;
@@ -128,7 +132,12 @@ function reviveStudyPlan(rawPlan: any): StudyPlanOutput | null {
     if (typeof sessionsMap === 'object' && sessionsMap !== null) {
       const entries = Object.entries(sessionsMap).map(([key, val]) => {
         const sessions = Array.isArray(val) ? val : [];
-        const revivedSessionsForDay = sessions.map((s: any) => ({
+
+        // 3. Step 3: Implement UPDATE - 3.3 - Sanitize grouped sessions for the specific date
+        // This removes the sentinel ID and prunes sessions that only contained the review shortcut.
+        const sanitizedDay = sanitizeStudySessions(sessions);
+
+        const revivedSessionsForDay = sanitizedDay.map((s: any) => ({
           ...s,
           date: reviveDate(s.date),
           notebookMeta: {
@@ -145,7 +154,7 @@ function reviveStudyPlan(rawPlan: any): StudyPlanOutput | null {
   }
 
   // ---- Flat sessions array: revive session + notebookMeta dates ----
-  const revivedSessions = (rawPlan.sessions || []).map((s: any) => ({
+  const revivedSessions = sanitizedFlatSessions.map((s: any) => ({
     ...s,
     date: reviveDate(s.date),
     notebookMeta: {

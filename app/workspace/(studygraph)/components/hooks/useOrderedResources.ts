@@ -39,7 +39,9 @@ export function useOrderedResources(): ResourceCard[] {
 
     // 2️⃣ Group existing resources by node
     const group = <T extends ResourceCard>(arr: T[]) =>
-      arr.reduce((acc: Record<string, T[]>, r) => {
+      arr
+    .filter(r => r.nodeId !== 'reviewNode')
+    .reduce((acc: Record<string, T[]>, r) => {
         (acc[r.nodeId] ||= []).push(r);
         return acc;
       }, {});

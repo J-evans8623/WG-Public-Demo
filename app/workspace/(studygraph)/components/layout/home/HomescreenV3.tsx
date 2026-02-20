@@ -17,7 +17,7 @@ import { Trash, Calendar, Map, Book, Sparkles, Check } from 'lucide-react';
 import { Role } from '../../../types/access';
 import { deleteDocBytes } from '../../../services/localCacheStore';
 import ReactDOM from 'react-dom';
-
+import RecoveryBinList from './RecoveryBinList';
 // Import Modal Components
 import CalendarModal from '@/app/workspace/(studygraph)/components/layout/Calendar/CalendarModal';
 import OnboardingModal, { TUTORIAL_DATA, TutorialContent } from './onboarding-modal';
@@ -67,7 +67,7 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
   const { ownedFiles, sharedFiles, isHydrated, refresh } = useFileList();
   const [greeting, setGreeting] = useState('');
 
-  const [activeTab, setActiveTab] = useState<'recent' | 'favorites' | 'shared'>('recent');
+  const [activeTab, setActiveTab] = useState<'recent' | 'favorites' | 'shared'| 'bin'>('recent');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Step 2: Modal state for Onboarding Tutorials
@@ -350,16 +350,22 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
             <div className="files-card">
               <div className="files-header">
                 <div className="files-header-top">
-                  <div className="files-title">Your Notebooks</div>
-                  <div className="files-search">
-                    <input
-                      type="text"
-                      className="files-search-input"
-                      placeholder="Search notebooks..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                  <div className="files-title">
+                    {activeTab === 'bin' ? 'Recovery Bin' : 'Your Notebooks'}
                   </div>
+
+                  {/* Search input is hidden when in Bin tab because RecoveryBinList has its own internal search */}
+                  {activeTab !== 'bin' && (
+                    <div className="files-search">
+                      <input
+                        type="text"
+                        className="files-search-input"
+                        placeholder="Search notebooks..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="tab-controls">
                   <div
@@ -368,23 +374,38 @@ const HomescreenV3: React.FC<HomeScreenProps> = ({
                   >
                     Recent
                   </div>
-                  {/**<div
-                    className={`tab ${activeTab === 'favorites' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('favorites')}
-                  >
-                    Favorites
-                  </div>**/}
                   <div
                     className={`tab ${activeTab === 'shared' ? 'active' : ''}`}
                     onClick={() => setActiveTab('shared')}
                   >
                     Shared
                   </div>
+
+                  {/* UPDATE - 3.4: Add the Recovery Bin navigation tab */}
+                  <div 
+                    className={`tab ${activeTab === 'bin' ? 'active' : ''}`} 
+                    onClick={() => setActiveTab('bin')}
+                    style={{ 
+                      marginLeft: 'auto', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '6px', // Provides spacing between text and icon
+                      color: activeTab === 'bin' ? '#dc2626' : '#6b7280' 
+                    }}
+                  >{/* 1. Place text node first per requested order */}
+                    <span>Recovery Bin</span>
+                    
+                    {/* 2. Place icon node second (to the right of the text) */}
+                    <Trash size={14} className={activeTab === 'bin' ? 'text-red-500' : ''} />
+                  </div>
                 </div>
               </div>
 
               <div className="files-content">
-                {!isHydrated ? (
+                {/* UPDATE - 3.5: Conditional rendering for the Bin view */}
+                {activeTab === 'bin' ? (
+                  <RecoveryBinList />
+                ) :!isHydrated ? (
                   <div className="files-grid">
                     {/* Render 8 skeletons to fill the grid area */}
                     {[...Array(8)].map((_, i) => (

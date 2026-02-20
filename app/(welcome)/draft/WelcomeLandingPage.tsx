@@ -54,21 +54,35 @@ function WelcomeLandingPage(): JSX.Element {
   }, [searchParams]);
 
   useEffect(() => {
+    /* update - 1.1: Mobile detection for device-specific observer configuration
+       Purpose: Detect if user is on mobile device to apply mobile-optimized settings
+       without affecting desktop behavior */
+    const isMobile = window.innerWidth <= 960;
+    
+    /* update - 1.2: Configure mobile-specific IntersectionObserver options
+       Desktop: Uses original settings (threshold 0.3, rootMargin -10%)
+       Mobile: Uses relaxed settings (threshold 0.15, rootMargin -5%) for stability */
+    const observerOptions = {
+      threshold: isMobile ? [0, 0.15, 0.3, 0.5, 0.7, 1] : [0, 0.3, 0.6, 1],
+      rootMargin: isMobile ? '-5% 0px -5% 0px' : '-10% 0px -10% 0px',
+    };
+
     const observers = scenesRef.current.map((sceneEl, index) => {
       if (!sceneEl) return null;
 
-      const observer = new IntersectionObserver(
+       const observer = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
-            if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
+            /* update - 1.3: Apply device-specific activation threshold
+               Desktop: 0.3 (original, proven to work well)
+               Mobile: 0.15 (lower threshold for earlier activation and longer visibility) */
+            const activationThreshold = isMobile ? 0.15 : 0.3;
+            if (entry.isIntersecting && entry.intersectionRatio > activationThreshold) {
               setActiveScene(index + 1);
             }
           });
         },
-        {
-          threshold: [0, 0.3, 0.6, 1],
-          rootMargin: '-10% 0px -10% 0px',
-        }
+        observerOptions
       );
 
       observer.observe(sceneEl);
@@ -242,8 +256,12 @@ function WelcomeLandingPage(): JSX.Element {
             <p className="wg-section-body">{scene.body}</p>
 
             {/* Scene 3: show a single centered planner graphic (no stacked visuals) */}
-            {isScene3Active && (
-              <div className="wg-retention-panel" role="group" aria-label="Spaced repetition planner cycle">
+            {isScene3 && (
+              <div 
+                className={`wg-retention-panel ${isScene3Active ? 'wg-retention-panel--visible' : 'wg-retention-panel--hidden'}`}
+                role="group" 
+                aria-label="Spaced repetition planner cycle"
+              >
                 <div className="wg-retention-image-shell">
                   <Image
                     src="/brand/spaced-repetition-planner.webp"

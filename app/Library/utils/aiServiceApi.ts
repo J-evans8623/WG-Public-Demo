@@ -44,9 +44,9 @@ export async function askQuestionAPI(
  * integrates seamlessly with the updated GenerateLesson.ts endpoint.
  */
 export async function generateAILesson(
-  file: File, 
+  file: File| null, 
   docId: string, 
-  options: { isPublic?: boolean } = {}
+  options: { isPublic?: boolean} = {}
 ): Promise<any> {
   console.log('[aiServiceApi.ts] generateAILesson delegating to apiService', { docId, isPublic: options.isPublic });
 
