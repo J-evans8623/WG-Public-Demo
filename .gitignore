@@ -30,6 +30,7 @@ yarn-error.log*
 
 # Environment files
 .env
+prod.env
 .env.local
 .env.*.local
 /collab-service/.env
@@ -71,3 +72,5 @@ app/firebase-service-account.json
 **/mockEndpoint.ts
 
 docker-compose.override.yml
+
+exportableemails.csv

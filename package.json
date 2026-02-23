@@ -93,6 +93,7 @@
     "@types/cookie-parser": "^1.4.9",
     "@types/file-saver": "^2.0.7",
     "@types/http-proxy": "^1.17.16",
+    "@types/jest": "^30.0.0",
     "@types/js-cookie": "^3.0.6",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/lodash": "^4.17.13",
@@ -112,9 +113,12 @@
     "dotenv-cli": "^8.0.0",
     "eslint": "^8",
     "eslint-config-next": "14.2.7",
+    "jest": "^30.2.0",
     "postcss": "^8",
     "supertest": "^7.0.0",
     "tailwindcss": "^3.4.13",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
     "tsx": "^4.20.5"
   }
 }

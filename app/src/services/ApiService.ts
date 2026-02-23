@@ -674,6 +674,43 @@ export class EnhancedApiService extends EventTarget {
   public getActiveRequestCount(): number {
     return this.activeRequests.size;
   }
+
+
+
+  /**
+   * createFeedbackQuiz
+   * @description
+   * This function provides the public API contract for generating quizzes enriched with 
+   * pedagogical feedback (explanations and citations). It shapes the request to target 
+   * the isolated 'feedbackQuiz' action in the AI Service Layer, ensuring that 
+   * feedback generation traffic remains distinct from standard quiz generation.
+   * @param params - Configuration including lessonId, fileID, and question metadata.
+   * @param config - Optional request configuration for timeouts and abort signals.
+   * @returns A promise resolving to a standardized ApiResponse containing the enriched quiz.
+   */
+  // UPDATE - 1.1: Add the specialized feedback method to the public service surface
+  public async createFeedbackQuiz(
+    params: {
+      lessonId: string;
+      fileID: string;
+      questionCount?: number;
+      quizTypes?: string[];
+    },
+    config: ApiRequestConfig = {}
+  ): Promise<ApiResponse> {
+    // 1. Step 1: Forward the request to the isolated feedback pipeline in the BFF
+    // We use the private makeApiRequest to maintain internal lifecycle management
+    return await this.makeApiRequest(
+      '/api/aiServiceLayer?action=feedbackQuiz',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      },
+      'createQuiz', // Map to standard createQuiz service type for consistent error handling
+      config
+    );
+  }
 }
 
 // Step 27: Export singleton instance for application-wide usage

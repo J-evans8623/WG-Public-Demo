@@ -116,7 +116,7 @@ function WelcomeLandingPage(): JSX.Element {
       eyebrow: 'End the cycle of procrastination and cramming',
       heading: 'A study plan that keeps you on track',
       body:
-        "Each time you upload your course notes, WiseGraph builds and updates your study plan by spacing lessons and weaving topics together. Your study plan will always be ready to use whenever you are ready to jump back in.",
+        "Each time you upload your course notes, WiseGraph builds and updates your study plan with study sessions containing summarized notes, flash cards and practice quizzes. Keeping you on track with your study goals. Your study plan will always be ready to use whenever you are ready to jump back in.",
       videoSrc: '/demo/calendar-scene-2-opt.mp4',
       stageBg: "url('/brand/scene-2-stage.png')",
       themeColor: '#e27312',

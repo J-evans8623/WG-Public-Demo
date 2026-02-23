@@ -251,6 +251,16 @@ export interface IQuizQuestion {
   correctAnswer: string | string[] | Boolean;
   parentQuizId: string;
   mapId: string;
+  // Add support for feedback-enriched metadata
+  explanation?: string;
+  /** VERBATIM quote from the source material used as proof for the question. */
+  citation?: {
+    text: string;
+  };
+  /** The simplified LLM-facing token (A0, A1) used to map performance back to original topics. */
+  topicKey?: string;
+  /** The original system UUID of the topic, resolved during post-processing. */
+  topicId?: string;
 }
 
 // Multiple choice specific interface
@@ -317,6 +327,7 @@ export type QuizBinding = {
 export interface InlineQuizSpec {
   quizType: QuizType;             // Reuses existing union: 'matching' | 'multipleChoice' | 'true-false' | 'FIB'
   quizContent: IQuizQuestion[];   // Reuses existing question interfaces
+  topicMapping?: Record<string, string>;
 }
 
 // -------------------------------------------------------------------------------------------------

@@ -23,6 +23,8 @@ import AIController from '@/app/src/controllers/aiController';
 import { validatePremiumAccess, mapActionToServiceType, ServiceType } from '@/app/src/services/validatePremiumAccess';
 import { UserService } from '@/app/src/services/userService';
 import { extractLessonsFromDocId} from '@/app/src/services/lessonExtraction/lessonExtractionService';
+import { TopicIdMapper } from '@/app/src/utils/topicIdMapper';
+import FeedbackAiController from '@/app/src/controllers/FeedbackAiController';
 
 // update - 1: Define Safety Constants
 const SAFETY_LIMITS = {
@@ -221,7 +223,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         sessionData.user.email,
         'createQuiz'
       );
-    } else {
+    }
+
+    else if (action === 'feedbackQuiz') {
+      console.log('[aiServiceLayer.ts][3020] Routing to isolated feedback quiz pipeline');
+
+      const body = req.body || {};
+      const fileID: string | undefined = body.fileID || body.docId;
+      const lessonId: string | undefined = body.lessonId;
+
+      if (!fileID || !lessonId) {
+        return res.status(400).json({ error: 'MISSING_PARAMETERS', message: 'fileID and lessonId are required' });
+      }
+
+      // 1. Extract the requested lesson specifically for this new pipeline
+      const lessons = await extractLessonsFromDocId(fileID, { mapIds: [lessonId] });
+      const extractedLesson = lessons?.[0] as ExtractedLesson | undefined;
+
+      if (!extractedLesson) {
+        return res.status(404).json({ error: 'LESSON_NOT_FOUND', service: 'feedbackQuiz' });
+      }
+
+      // 2. Step 2: Initialize mapping logic for the LLM
+      const mapper = new TopicIdMapper();
+      const mappingData = extractedLesson.topics.map((t, idx) => ({ id: `topic-${idx}`, title: t.topicTitle }));
+      mapper.generateMapping(mappingData);
+
+      // 3. Step 3: Package the mapping context for the AI Controller
+      (req.body as any).promptExtension = mapper.getPromptExtension();
+      (req.body as any).topicMapperInstance = mapper;
+      (req.body as any).exportData = formatExportDataFromExtractedLesson(extractedLesson);
+
+      // 4. Step 4: Delegate to a specialized controller method (Phase 2 objective)
+      processingResult = await processAIServiceRequest(
+        () => FeedbackAiController.handleFeedbackQuiz(req, res), // Temporary bridge until FeedbackAiController is built
+        sessionData.user.email,
+        'createQuiz'
+      );
+    }
+
+    
+    else {
       console.log('[aiServiceLayer.ts][3011] Invalid action parameter provided', { action });
       return res.status(400).json({ 
         error: 'INVALID_ACTION',

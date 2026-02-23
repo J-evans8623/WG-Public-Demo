@@ -101,7 +101,13 @@ public async list(): Promise<NotebookSummary[]> {
     if (meta.unitsByMap && typeof meta.unitsByMap === 'object') {
       let total = 0;
       for (const arr of Object.values(meta.unitsByMap)) {
-        if (Array.isArray(arr)) total += arr.length;
+        if (Array.isArray(arr)) {
+
+          const validUnits = arr.filter((u: any) => 
+              u.primaryConceptNodeID !== 'reviewNode' && u.id !== 'reviewNode'
+            );
+          total += validUnits.length;
+        }
       }
       return total;
     }
@@ -158,7 +164,7 @@ public async list(): Promise<NotebookSummary[]> {
             // We only use the cache if it actually has the lesson units we need
             if (hit && hit.lessonUnitsMeta && hit.lessonUnitsMeta.units) {
               // Convert UserFileMetadata (Cache) -> NotebookMeta (Service)
-              const unitsFlat = Object.values(hit.lessonUnitsMeta.units).flat() as any[];
+              const unitsFlat = Object.values(hit.lessonUnitsMeta.units).flat().filter((u: any) => u.primaryConceptNodeID !== 'reviewNode');;
               
               result.push({
                 fileId: hit.fileId,
@@ -204,6 +210,11 @@ public async list(): Promise<NotebookSummary[]> {
       const notebooks: NotebookDetailsWire[] = Array.isArray(body?.notebooks) ? body.notebooks : [];
       
       const mapped: NotebookMeta[] = notebooks
+        .map((nb) => ({
+          ...nb,
+          // step 1: filter out sentinel reviewNode from the raw units array
+          lessonUnits: (nb.lessonUnits || []).filter(u => u.primaryConceptNodeID !== 'reviewNode')
+        }))
         .filter((nb) => Array.isArray(nb.lessonUnits) && nb.lessonUnits.length > 0)
         .map((nb) => ({
           fileId: nb.fileId,

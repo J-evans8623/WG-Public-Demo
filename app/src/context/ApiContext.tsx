@@ -115,6 +115,18 @@ interface ApiContextType {
   generateLesson: (file: File, docId: string, options?: { isPublic?: boolean }, config?: ApiRequestConfig) => Promise<ApiResponse>;
   exploreTopic: (userTopicRequest: string, exportData: any, fileID: string, textSelection?: string, config?: ApiRequestConfig) => Promise<ApiResponse>;
   createQuiz: (lessonId:string, quizTypes: string[], fileID: string,  questionCount?:number, exportData?: string, textSelection?: string, config?: ApiRequestConfig) => Promise<ApiResponse>;
+
+  /**
+   * createFeedbackQuiz
+   * @description Specialized entry point for the Quiz Feedback Pipeline.
+   * Targets the isolated feedback controller to generate citation-backed assessments.
+   */
+  createFeedbackQuiz: (params: {
+    lessonId: string;
+    fileID: string;
+    questionCount?: number;
+    quizTypes?: string[];
+  }, config?: ApiRequestConfig) => Promise<ApiResponse>;
   
   // Request management
   cancelRequest: (requestId: string) => boolean;
@@ -1254,6 +1266,45 @@ const fetchAccountStatus = useCallback(async (): Promise<void> => {
 
 
 
+  /**
+   * createFeedbackQuiz
+   * @description
+   * This handler acts as the React-aware bridge to the EnhancedApiService. It coordinates 
+   * the request lifecycle, ensuring that global loading states are updated while 
+   * delegating the actual network execution to the public service method. It ensures 
+   * that feedback generation is isolated from the legacy generation pathway.
+   * @param params - Parameters required for extracting lesson context and generating feedback.
+   * @param config - API request configuration for lifecycle management.
+   */
+  const createFeedbackQuiz = useCallback(
+    async (
+      params: {
+        lessonId: string;
+        fileID: string;
+        questionCount?: number;
+        quizTypes?: string[];
+      },
+      config: ApiRequestConfig = {}
+    ): Promise<ApiResponse> => {
+      // 1. Step 1: Notify the platform of an active AI request to trigger UI spin-states
+      updateRequestActivityState();
+
+      try {
+        // 2. Step 2: Invoke the NEW public method from the EnhancedApiService
+        // This ensures compiled code can legally access the feedback pipeline
+        console.log('[ApiContext.tsx][3060] Dispatching feedback quiz request', { lessonId: params.lessonId });
+        return await apiService.createFeedbackQuiz(params, config);
+
+      } finally {
+        // 3. Step 3: Cleanup activity state once the network task resolves or fails
+        updateRequestActivityState();
+      }
+    },
+    [updateRequestActivityState]
+  );
+
+
+
 useEffect(() => {
     if (status !== 'authenticated' || !normalizedEmail) return;
     // Call listFiles which will hydrate from cache and revalidate in background 
@@ -1286,6 +1337,7 @@ useEffect(() => {
     clearApiError,
     isApiRequestActive,
     activeRequestCount,
+    createFeedbackQuiz,
 
     // Enhanced API methods
     askAssistant,
