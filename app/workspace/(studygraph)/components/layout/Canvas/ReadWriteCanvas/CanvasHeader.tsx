@@ -240,7 +240,7 @@ const isSubscribed = useMemo(() => {
           <UnifiedLessonsDropdown mode={mode} /> 
           <UnifiedUploadsDropdown mode={mode} /> 
 
-          {/* update - 1.8: Integrated Educator-only cluster for Assessments and Grades */}
+          {/* Integrated Educator-only cluster for Assessments and Grades */}
           { isEducatorWorkspace && (
             <>
               <button
@@ -251,8 +251,7 @@ const isSubscribed = useMemo(() => {
                 <span>Assessments</span>
               </button>
 
-              {
-                isEducator && (
+              
                   <button
                 onClick={onOpenGrades}
                 className="ch-nav__trigger"
@@ -260,9 +259,7 @@ const isSubscribed = useMemo(() => {
               >
                 <span>Grades</span>
               </button>
-                )
-              }
-              
+                             
             </>
           )}
         </nav>

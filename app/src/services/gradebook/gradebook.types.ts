@@ -61,6 +61,9 @@ export interface AssignmentMetaFS {
 
   //
   status?:'active'|'deleted'
+
+  quizResultFeedback?: 'immediately' | 'after_close';
+  lessonTitle?: string;
 }
 
 /**
@@ -91,6 +94,8 @@ export interface AssignmentMeta {
 
   // entry status
   status?:'active'|'deleted'
+  quizResultFeedback?: 'immediately' | 'after_close';
+  lessonTitle?: string;
 }
 
 /** Minimal assignment header used by gradebook columns (alias of AssignmentMeta fields) */
@@ -130,6 +135,8 @@ export interface AssignMetaUpsertReq {
   startAt: string;                 // ISO-8601
   endAt: string;                   // ISO-8601
   attemptLimit: number;            // >= 1
+  quizResultFeedback?: 'immediately' | 'after_close';
+  lessonTitle?: string;
 }
 export interface AssignMetaUpsertRes {
   saved: AssignmentMeta;
@@ -143,6 +150,7 @@ export interface AssignMetaPatchReq {
   endAt?: string;                  // ISO-8601
   attemptLimit?: number;           // >= 1
   title?: string;
+  quizResultFeedback?: 'immediately' | 'after_close';
 }
 export interface AssignMetaPatchRes {
   saved: AssignmentMeta;
@@ -169,11 +177,19 @@ export interface AttemptStartRes {
 export interface AttemptSubmitReq {
   docId: DocId;
   attemptId: AttemptId;
+  assignmentId: AssignmentId; 
   scorePct: number;                // inclusive 0..100 (server will clamp/validate)
   clientMeta?: {                   // optional client hints (non-authoritative)
     userAgent?: string;
     clientTs?: string;             // ISO-8601 client local time
   };
+  feedbackItems?: Array<{         // update - 3.4: optional, from feedbackquiz service response
+    questionId:    string;
+    topicId:       string;
+    topicLabel:    string;
+    yourAnswer:    string;
+  }>;
+  totalQuestions?: number; 
 }
 export interface AttemptSubmitRes {
   accepted: boolean;               // idempotent OK (true when write accepted or already submitted)

@@ -49,7 +49,14 @@ components.json
 .eslintrc.json
 
 # 8. Scripts & Tests
-test.ts
+exportableemails.csv
+
+probable_students.csv
+
+tests/
+jest.config.js
+**/test.ts
+
 root.txt
 
 #dev scripts

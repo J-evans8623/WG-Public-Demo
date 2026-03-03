@@ -412,6 +412,50 @@
 }
 .quiz-questions-label { font-size: 13px; color: #6B7280; margin-top: 6px; }
 
+
+/* (update - 106.1) ---------- Students Can Review Corrections card ---------- */
+/*
+ * Full-width card that sits beneath the quiz-meta-row two-column grid.
+ * Shares the same beige background, tan border, border-radius, and padding
+ * as .quiz-attempts-section and .quiz-questions-section so the three blocks
+ * are visually consistent siblings.
+ */
+.quiz-feedback-section {
+  background: #FAF8F5;
+  border: 1px solid #E8E0D6;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 12px; /* (update - 106.2) gap between meta-row and this card */
+}
+
+/* (update - 106.3) Horizontal radio row — mirrors .quiz-time-picker spacing */
+.quiz-feedback-options {
+  display: flex;
+  gap: 28px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+/* (update - 106.4) Individual radio label — inherits cursor + size from existing quiz labels */
+.quiz-feedback-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #2C3E50;
+  cursor: pointer;
+}
+
+/* (update - 106.5) Brand-green accent on the radio dot, consistent with all other inputs */
+.quiz-feedback-option input[type="radio"] {
+  accent-color: #5B8C5A;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
 /* Mobile responsiveness (kept for completeness; single column already default) */
 @media (max-width: 600px) {
   .quiz-datetime-row { grid-template-columns: 1fr; gap: 12px; }

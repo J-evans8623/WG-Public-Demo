@@ -25,6 +25,7 @@ import { UserService } from '@/app/src/services/userService';
 import { extractLessonsFromDocId} from '@/app/src/services/lessonExtraction/lessonExtractionService';
 import { TopicIdMapper } from '@/app/src/utils/topicIdMapper';
 import FeedbackAiController from '@/app/src/controllers/FeedbackAiController';
+import { shapeRemediationContext } from '@/app/src/utils/feedbackPromptShaper';
 
 // update - 1: Define Safety Constants
 const SAFETY_LIMITS = {
@@ -37,7 +38,7 @@ const SAFETY_LIMITS = {
 type ExtractedLesson = {
   lessonId: string;
   lessonTitle: string;
-  topics: { topicTitle: string; topicContent: string }[];
+  topics: { topicTitle: string; topicContent: string ; nodeId?: string;}[];
 };
 
 function formatExportDataFromExtractedLesson(lesson: ExtractedLesson): string {
@@ -186,6 +187,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!req.body.exportData) {
         const lessons = await extractLessonsFromDocId(fileID, { mapIds: [selectedLessonId] });
         const extractedLesson = lessons?.[0] as ExtractedLesson | undefined;
+
+        console.log(`Here is proof 1113 that the data was extracted server side not client side ${JSON.stringify(lessons)}`)
               if (!extractedLesson) {
         console.log('[aiServiceLayer.ts][3010C] No lesson returned for given map id', { fileID, selectedLessonId });
         return res.status(404).json({
@@ -237,7 +240,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // 1. Extract the requested lesson specifically for this new pipeline
-      const lessons = await extractLessonsFromDocId(fileID, { mapIds: [lessonId] });
+      const lessons = await extractLessonsFromDocId(fileID, { 
+        mapIds: [lessonId], 
+        includeNodeID: true 
+      });
       const extractedLesson = lessons?.[0] as ExtractedLesson | undefined;
 
       if (!extractedLesson) {
@@ -246,13 +252,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // 2. Step 2: Initialize mapping logic for the LLM
       const mapper = new TopicIdMapper();
-      const mappingData = extractedLesson.topics.map((t, idx) => ({ id: `topic-${idx}`, title: t.topicTitle }));
+      const mappingData = extractedLesson.topics.map((t) => ({ 
+        id: t.nodeId || "unknown", 
+        title: t.topicTitle 
+      }));
       mapper.generateMapping(mappingData);
+
+
+      // 3. Step 3: Utilize the shaper to ground the context in units (PHASE 3 INTEGRATION)
+      // UPDATE - 3.3: Replace raw data with structured remediation units
+      const groundedContext = shapeRemediationContext(
+        extractedLesson.topics as any, 
+        mapper
+      );
 
       // 3. Step 3: Package the mapping context for the AI Controller
       (req.body as any).promptExtension = mapper.getPromptExtension();
       (req.body as any).topicMapperInstance = mapper;
-      (req.body as any).exportData = formatExportDataFromExtractedLesson(extractedLesson);
+      (req.body as any).exportData = groundedContext;
 
       // 4. Step 4: Delegate to a specialized controller method (Phase 2 objective)
       processingResult = await processAIServiceRequest(

@@ -32,7 +32,7 @@ import { useGradebook } from '@/app/Library/hooks/useGradebook';
 import { useApiContext } from '@/app/src/context/ApiContext';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
 import { useLessonModule } from '@/app/Library/Context/LessonModuleContext';
-import { parseQuizResponse } from '../../hooks/parseQuizResponse';
+import { parseQuizResponse } from '@/app/workspace/(studygraph)/components/hooks/parseQuizFeedbackResponse';
 import type { QuizBinding } from '@/app/Library/Definitions/Definitions'; 
 // (no CSS changes)
 export type QuizType = 'multipleChoice' | 'matching' | 'trueFalse' | 'fillBlanks';
@@ -160,11 +160,11 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
   onCreated,     
 }) => {
 
-  const { createQuizAssignmentCard } = useResourceContext();
+  const { createFeedbackQuizCard } = useResourceContext();
   const {docFileID: docId} = useYDoc();
   const api = useApiContext();
   const { upsertAssignmentMeta} = useGradebook(docId!);
-  const { activeConceptMapId, getLessonModule } = useLessonModule();
+  const { getLessonModule } = useLessonModule();
   
   const contextLessons: LessonLite[] = useMemo(() => {
     const lm = getLessonModule();
@@ -177,6 +177,7 @@ const AssignQuizModal: React.FC<AssignQuizModalProps> = ({
   const [chosenLesson, setChosenLesson] = useState<string>('');
   const [isOpenSelect, setOpenSelect] = useState<boolean>(defaultOpenDropdown);
   const [quizTitle, setQuizTitle] = useState<string>('');
+  const [feedbackSetting, setFeedbackSetting] = useState<'immediately' | 'after_close'>('after_close');
 
   // 2) Quiz type
   const [quizType, setQuizType] = useState<QuizType | ''>('');
@@ -264,15 +265,15 @@ const handleCreate = async () => {
     console.log('[AssignQuizModal.tsx][9413] generateQuiz begin', {
       docId, lessonId: payload.lessonId, apiQuizType, questionCount: payload.numQuestions,
     });
-    const quizResponse = await api.createQuiz(
-      payload.lessonId,
-      [apiQuizType],
-      docId,
-      payload.numQuestions
-    );
+    const response = await api.createFeedbackQuiz({
+        lessonId: payload.lessonId,
+        fileID: docId,
+        questionCount: payload.numQuestions,
+        quizTypes: [mapQuizTypeToApiValue(payload.quizType as any)],
+      });
   
     // Step 4: Parse response → create inline binding ---------------------------------------------
-    const parsedResource = parseQuizResponse((quizResponse as any)?.data ?? quizResponse, payload.lessonId);
+    const parsedResource = parseQuizResponse(response.data, payload.lessonId);
     if (!parsedResource) {
       console.error('[AssignQuizModal.tsx][9422] parseQuizResponse returned null');
       throw new Error('Failed to parse quiz response');
@@ -292,7 +293,7 @@ const handleCreate = async () => {
     });
 
     // Step 5: Create Yjs quizAssessment card (authoritative assignmentId origin) ------------------
-    const yjsCard = await createQuizAssignmentCard({
+    const yjsCard = await createFeedbackQuizCard({
       mapId: payload.lessonId,
       title: payload.title,
       binding: inlineBinding,
@@ -311,6 +312,8 @@ const handleCreate = async () => {
       startAt: payload.startAtISO,
       endAt: payload.endAtISO,
       attemptLimit: payload.attempts,
+      quizResultFeedback: feedbackSetting, // New field
+      lessonTitle: lessonOptions.find(l => l.id === chosenLesson)?.title // New field
     });
     const saved = (savedHeader as any).saved ?? savedHeader; // backward-compatible unwrapping
 
@@ -592,36 +595,74 @@ function handleFix() {
               </div>
 
               {/* Attempts + Questions */}
-              <div className="quiz-meta-row">
-                <div className="quiz-attempts-section">
-                  <div className="quiz-group-label">Quiz Attempts</div>
-                  <input
-                    type="number"
-                    className="quiz-attempts-input"
-                    min={1}
-                    step={1}
-                    value={attempts}
-                    onChange={(e) => setAttempts(Math.max(1, Number(e.target.value) || 1))}
-                  />
-                  <div className="quiz-attempts-label">Maximum number of attempts allowed</div>
-                </div>
-
-                <div className="quiz-questions-section">
-                  <div className="quiz-group-label">Quiz Questions</div>
-                  <input
-                    type="number"
-                    className="quiz-questions-input"
-                    min={1}
-                    max={25}
-                    step={1}
-                    value={numQuestions}
-                    onChange={(e) =>
-                      setNumQuestions(Math.min(25, Math.max(1, Number(e.target.value) || 1)))
-                    }
-                  />
-                  <div className="quiz-questions-label">Total number of questions (max 25)</div>
-                </div>
+              {/* (update - 107.1) Attempts + Questions — strict two-column meta row.
+                The feedback card has been extracted from this grid and rendered
+                independently below so it never competes for a grid column. */}
+            <div className="quiz-meta-row">
+              {/* (update - 107.2) Quiz Attempts card — unchanged content */}
+              <div className="quiz-attempts-section">
+                <div className="quiz-group-label">Quiz Attempts</div>
+                <input
+                  type="number"
+                  className="quiz-attempts-input"
+                  min={1}
+                  step={1}
+                  value={attempts}
+                  onChange={(e) => setAttempts(Math.max(1, Number(e.target.value) || 1))}
+                />
+                <div className="quiz-attempts-label">Maximum number of attempts allowed</div>
               </div>
+
+              {/* (update - 107.3) Quiz Questions card — unchanged content */}
+              <div className="quiz-questions-section">
+                <div className="quiz-group-label">Quiz Questions</div>
+                <input
+                  type="number"
+                  className="quiz-questions-input"
+                  min={1}
+                  max={25}
+                  step={1}
+                  value={numQuestions}
+                  onChange={(e) =>
+                    setNumQuestions(Math.min(25, Math.max(1, Number(e.target.value) || 1)))
+                  }
+                />
+                <div className="quiz-questions-label">Total number of questions (max 25)</div>
+              </div>
+            </div>
+
+            {/* (update - 107.4) Students Can Review Corrections — full-width card rendered
+                outside quiz-meta-row so it spans both columns naturally. Uses the new
+                .quiz-feedback-section and .quiz-feedback-options classes from
+                ReviewModalSystem.css instead of ad-hoc inline styles. */}
+            <div className="quiz-feedback-section">
+              <div className="quiz-group-label">Students can review corrections</div>
+              <div className="quiz-feedback-options">
+                {/* (update - 107.5) Immediately option */}
+                <label className="quiz-feedback-option">
+                  <input
+                    type="radio"
+                    name="feedback"
+                    value="immediately"
+                    checked={feedbackSetting === 'immediately'}
+                    onChange={() => setFeedbackSetting('immediately')}
+                  />
+                  Immediately
+                </label>
+
+                {/* (update - 107.6) After quiz closes option */}
+                <label className="quiz-feedback-option">
+                  <input
+                    type="radio"
+                    name="feedback"
+                    value="after_close"
+                    checked={feedbackSetting === 'after_close'}
+                    onChange={() => setFeedbackSetting('after_close')}
+                  />
+                  After quiz closes
+                </label>
+              </div>
+            </div>
 
               {datesFilled && !datesValid && (
                 <div className="rms-inline-hint">Start must be before end.</div>

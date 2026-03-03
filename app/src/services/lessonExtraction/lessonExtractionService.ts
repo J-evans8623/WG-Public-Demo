@@ -47,7 +47,7 @@ export interface LessonExtraction {
   /** Title of the specific lesson (concept map title, not the module title) */
   lessonTitle: string;
   /** Topics for this lesson, aggregated from node-level note resources */
-  topics: { topicTitle: string; topicContent: string }[];
+  topics: { topicTitle: string; topicContent: string; nodeId?: string; }[];
 }
 
 export class UnprocessableBytesError extends Error {
@@ -69,6 +69,7 @@ export class DocNotFoundError extends Error {
 export interface ExtractOpts {
   /** Optional filter of concept-map ids (lessons) to include. Omit → include all lessons. */
   mapIds?: string[];
+  includeNodeID?: boolean;
 }
 
 /* ========================================================================== *
@@ -121,7 +122,7 @@ export function extractLessonsFromBytes(bytes: Uint8Array, opts?: ExtractOpts): 
   for (const cm of selectedMaps) {
     const mapId = safeId(cm?.id) || 'default';
     const lessonTitle = safeString(cm?.title) || 'Unnamed Lesson';
-    const topics = collectTopicsForMap(ydoc, mapId);
+    const topics = collectTopicsForMap(ydoc, mapId, opts?.includeNodeID);
     results.push({ lessonId: mapId, lessonTitle, topics });
   }
 
@@ -193,44 +194,72 @@ export async function extractFromDocId(docId: string): Promise<LessonExtraction>
  * ========================================================================== */
 
 /**
- * collectTopicsForMap
+ * collectTopicsForMap (UPDATE - 4.1)
  * @description
- *   Reads nodes and resources for a specific concept map (identified by `mapId`) and returns
- *   topic rows with note-only content joined by newlines. Supports both per-node keyed arrays
- *   and flat resource maps with `nodeId`. Complexity is O(N + R_mapScope).
+ * Reads nodes and resources for a specific concept map. It implements a Tiered Extraction
+ * strategy to navigate the Yjs structure: resources are retrieved from a nested Y.Map 
+ * keyed by nodeId. It filters for 'note' and 'cueCard' types to ensure all instructional 
+ * content is aggregated. Complexity: O(N + R).
  */
-function collectTopicsForMap(ydoc: Y.Doc, mapId: string): { topicTitle: string; topicContent: string }[] { // update - 4
+function collectTopicsForMap(ydoc: Y.Doc, mapId: string, includeNodeID: boolean = false): { topicTitle: string; topicContent: string ; nodeId?: string}[] {
   const nodesKey = `nodes:${mapId}`;
   const resourcesKey = `resources:${mapId}`;
   const nodesMap = ydoc.getMap<any>(nodesKey);
-  const resMap = ydoc.getMap<any>(resourcesKey);
+  const resMap = ydoc.getMap<any>(resourcesKey); // This is a Y.Map of Y.Maps
 
-  // eslint-disable-next-line no-console
   console.log('lessonExtractionService.ts [7701] › map traversal', { mapId, nodes: nodesMap?.size ?? 0, resources: resMap?.size ?? 0 });
 
-  const topics: { topicTitle: string; topicContent: string }[] = [];
+  const topics: { topicTitle: string; topicContent: string, nodeId?: string }[] = [];
 
   for (const [nodeId, nodeVal] of nodesMap) {
     const topicTitle = safeString(nodeVal?.title) || 'Unnamed Topic';
     let noteTexts: string[] = [];
 
-    // Per-node keyed array
-    const perNode = resMap?.get?.(nodeId);
-    if (Array.isArray(perNode)) {
-      noteTexts = extractNotesFromArray(perNode);
-    } else {
-      // Flat scan of resources in this map scope
-      for (const [_rid, rVal] of resMap) {
-        if (!rVal) continue;
-        const belongs = (rVal.nodeId ?? rVal.nodeID) === nodeId;
-        if (!belongs) continue;
-        if (isNoteResource(rVal)) {
-          const text = coerceNoteText(rVal);
-          if (text) noteTexts.push(text);
+    // UPDATE - 4.2: Tiered Extraction Logic
+    // 1. Step 1: Retrieve the inner Y.Map associated with this specific nodeId.
+    const innerResMap = resMap?.get?.(nodeId);
+
+    // 2. Step 2: Validate the inner map structure and convert values to an array.
+    // This replaces the failing Array.isArray check.
+    if (innerResMap instanceof Y.Map || (innerResMap && typeof innerResMap.values === 'function')) {
+      const resourceArray = Array.from(innerResMap.values() as Iterable<any>);
+      
+      // 3. Step 3: Extract text from all valid text-bearing resources (notes and cueCards).
+      noteTexts = extractNotesFromArray(resourceArray);
+    } 
+
+    const topicEntry: { topicTitle: string; topicContent: string; nodeId?: string } = {
+      topicTitle,
+      topicContent: joinNoteTexts(noteTexts),
+    };
+
+    /***
+    console.log(`[1414] Node Extraction Trace (ID: ${nodeId}):`, JSON.stringify({
+      input: {
+        nodeTitle: topicTitle,
+        innerMapFound: !!innerResMap,
+        resourceCountInNode: noteTexts.length
+      },
+      processing: {
+        noteTextsCaptured: noteTexts
+      },
+      output: {
+        finalTopicEntry: {
+          topicTitle,
+          contentLength: topicEntry.topicContent.length,
+          topicContent: topicEntry.topicContent
         }
       }
+    }, null, 2));
+
+     */
+
+    // Logical Gate: Include nodeId only if requested for AI grounding pipeline
+    if (includeNodeID) {
+      topicEntry.nodeId = nodeId;
     }
-    topics.push({ topicTitle, topicContent: joinNoteTexts(noteTexts) });
+
+    topics.push(topicEntry);
   }
 
   return topics;
@@ -246,12 +275,24 @@ function normalizeIds(ids?: string[]): string[] {
   if (!Array.isArray(ids) || ids.length === 0) return [];
   return ids.map(safeId).filter(Boolean);
 }
+/**
+ * isNoteResource (UPDATE - 4.3)
+ * @description
+ * Broadened filter to include both 'note' and 'cueCard' resource types.
+ * This ensures flashcard content is no longer ignored by the extraction service.
+ */
 function isNoteResource(r: any): boolean {
   const t = safeString(r?.type).toLowerCase();
-  return t === 'note';
+  return t === 'note' || t === 'cuecard'; // UPDATE - 4.3
 }
+/**
+ * coerceNoteText (UPDATE - 4.4)
+ * @description
+ * Extracts text from the 'content' field, which is the standard property 
+ * defined in the NoteResource and CueCardResource interfaces.
+ */
 function coerceNoteText(r: any): string {
-  return safeString(r?.text) || safeString(r?.content) || safeString(r?.body);
+  return safeString(r?.content) || safeString(r?.text) || safeString(r?.body);
 }
 function extractNotesFromArray(arr: any[]): string[] {
   const out: string[] = [];

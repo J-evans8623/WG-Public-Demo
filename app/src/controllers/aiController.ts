@@ -271,6 +271,10 @@ public static async handleQuizTool(req: NextApiRequest, res: NextApiResponse): P
     const aiService = AIController.getAIService();
 
 
+    const DataPrint = {systemPrompt, userInput}
+    console.log(` 4355 Standard Quiz Pipeline Input data : ${JSON.stringify(DataPrint)}`)
+
+
     // update - 5: Pass DualSchemaValidation
     const structuredResponse = await aiService.generateStructuredOutput(
       { openai: schemaForCall, gemini: schemaForCall } as any,

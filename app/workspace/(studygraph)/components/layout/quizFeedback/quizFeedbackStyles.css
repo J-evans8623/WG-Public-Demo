@@ -1,0 +1,732 @@
+/**
+ * quizFeedbackStyles.css
+ *
+ * Shared stylesheet for the QuizFeedback feature family: StudentGradeList,
+ * StudentQuizDetail, EducatorQuizList, and EducatorHistogram. All brand colour
+ * tokens are declared as CSS custom properties on :root so they are accessible
+ * from both class rules and the rare inline-style overrides that remain in the
+ * component files (only where the value is computed at runtime, e.g. histogram
+ * bar fill colour and educator grade-chip accent colour). Every class is prefixed
+ * with `qf-` to prevent collisions with any existing global or component styles
+ * already present in the application. Hover and focus states are handled here
+ * via CSS pseudo-selectors, removing the need for onMouseEnter/onMouseLeave
+ * handlers in the JSX. The file is organised into sections that mirror the
+ * component hierarchy: tokens → shared primitives → view-specific blocks.
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   [1] Brand design tokens
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --qf-bg:           #FAF8F5;
+  --qf-white:        #FFFFFF;
+  --qf-text:         #2C3E50;
+  --qf-text-muted:   #6B7A8D;
+
+  --qf-green:        #5B8C5A;
+  --qf-green-light:  #EAF2EA;
+  --qf-green-dark:   #4A7249;
+
+  --qf-blue:         #6C8EBF;
+  --qf-blue-light:   #EBF1F8;
+
+  --qf-tan:          #D4C4B0;
+  --qf-tan-light:    #F0EBE3;
+
+  --qf-red:          #C0392B;
+  --qf-red-light:    #FDECEA;
+
+  --qf-amber:        #D4860A;
+  --qf-amber-light:  #FEF5E4;
+
+  --qf-border:       #E8E0D5;
+  --qf-shadow:       0 2px 8px rgba(44, 62, 80, 0.08);
+  --qf-shadow-md:    0 4px 16px rgba(44, 62, 80, 0.12);
+
+  --qf-font-heading: 'Georgia', 'Cambria', serif;
+  --qf-font-ui:      'DM Sans', 'Segoe UI', sans-serif;
+
+  --qf-radius-sm:    6px;
+  --qf-radius-md:    8px;
+  --qf-radius-lg:    12px;
+  --qf-radius-pill:  20px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   [2] Shared primitives — Tag, GradeChip, Card, Btn, SectionLabel
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Tag base */
+.qf-tag {
+  display:         inline-flex;
+  align-items:     center;
+  border-radius:   var(--qf-radius-pill);
+  padding:         2px 10px;
+  font-size:       12px;
+  font-weight:     600;
+  font-family:     var(--qf-font-ui);
+  white-space:     nowrap;
+  line-height:     1.6;
+}
+
+.qf-tag--green  { background: var(--qf-green-light); color: var(--qf-green);  }
+.qf-tag--blue   { background: var(--qf-blue-light);  color: var(--qf-blue);   }
+.qf-tag--amber  { background: var(--qf-amber-light); color: var(--qf-amber);  }
+.qf-tag--red    { background: var(--qf-red-light);   color: var(--qf-red);    }
+.qf-tag--tan    { background: var(--qf-tan-light);   color: #7A6A55;          }
+
+/* Card */
+.qf-card {
+  background:    var(--qf-white);
+  border-radius: var(--qf-radius-lg);
+  border:        1px solid var(--qf-border);
+  box-shadow:    var(--qf-shadow);
+  padding:       20px;
+}
+
+.qf-card--no-pad {
+  padding:   0;
+  overflow:  hidden;
+}
+
+.qf-card--amber-callout {
+  background: var(--qf-amber-light);
+  border:     1px solid #EACB8A;
+  margin-top: 14px;
+}
+
+/* Button base */
+.qf-btn {
+  border-radius:  var(--qf-radius-md);
+  padding:        8px 18px;
+  font-size:      13px;
+  font-weight:    600;
+  font-family:    var(--qf-font-ui);
+  cursor:         pointer;
+  transition:     opacity 0.15s ease;
+  line-height:    1;
+  display:        inline-flex;
+  align-items:    center;
+  gap:            6px;
+}
+
+.qf-btn:hover { opacity: 0.85; }
+
+.qf-btn--primary   { background: var(--qf-green); color: #fff; border: none; }
+.qf-btn--secondary { background: var(--qf-blue);  color: #fff; border: none; }
+.qf-btn--ghost     { background: transparent; color: var(--qf-blue); border: 1.5px solid var(--qf-blue); }
+.qf-btn--danger    { background: transparent; color: var(--qf-red);  border: 1.5px solid var(--qf-red);  }
+
+.qf-btn--small {
+  padding:   5px 14px;
+  font-size: 12px;
+}
+
+/* Back navigation button — plain text style */
+.qf-back-btn {
+  background:  none;
+  border:      none;
+  color:       var(--qf-blue);
+  cursor:      pointer;
+  font-family: var(--qf-font-ui);
+  font-size:   13px;
+  font-weight: 600;
+  padding:     0;
+  transition:  opacity 0.15s;
+}
+
+.qf-back-btn:hover { opacity: 0.75; }
+
+/* Section label — uppercase eyebrow text */
+.qf-section-label {
+  font-family:     var(--qf-font-ui);
+  font-size:       11px;
+  font-weight:     700;
+  letter-spacing:  0.08em;
+  text-transform:  uppercase;
+  color:           var(--qf-text-muted);
+  margin:          0 0 10px;
+}
+
+
+/* Tertiary button style for gradebook actions */
+.tertiary-button-grades {
+  background: transparent;
+  border: 1.5px solid #6C8EBF;
+  color: #6C8EBF;
+  border-radius: 999px; /* Pill shape */
+  padding: 6px 16px;
+  font-weight: 500;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.tertiary-button-grades:hover {
+  background: rgba(108, 142, 191, 0.05);
+  border-color: #5a7aa8;
+  color: #5a7aa8;
+}
+
+.tertiary-button-grades:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   [3] Shared view scaffolding — header, title, subtitle, badges row
+   ───────────────────────────────────────────────────────────────────────── */
+
+.qf-view-header {
+  margin-bottom: 20px;
+}
+
+.qf-view-header--spaced {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     flex-start;
+  flex-wrap:       wrap;
+  gap:             8px;
+  margin-bottom:   20px;
+}
+
+.qf-view-title {
+  font-family: var(--qf-font-heading);
+  font-size:   22px;
+  color:       var(--qf-text);
+  margin:      0;
+}
+
+.qf-view-subtitle {
+  font-family: var(--qf-font-ui);
+  font-size:   13px;
+  color:       var(--qf-text-muted);
+  margin:      4px 0 0;
+}
+
+.qf-view-subtitle--tight {
+  margin: 3px 0 0;
+}
+
+.qf-badges-row {
+  display:     flex;
+  gap:         8px;
+  align-items: center;
+  flex-wrap:   wrap;
+}
+
+.qf-back-row {
+  display:     flex;
+  align-items: center;
+  gap:         12px;
+  margin-bottom: 4px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   [4] Loading and error states (shared across all four views)
+   ───────────────────────────────────────────────────────────────────────── */
+
+.qf-state-wrapper {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  padding:         48px 24px;
+  gap:             12px;
+  font-family:     var(--qf-font-ui);
+  color:           var(--qf-text-muted);
+  font-size:       14px;
+}
+
+.qf-spinner {
+  width:        32px;
+  height:       32px;
+  border:       3px solid var(--qf-border);
+  border-top:   3px solid var(--qf-green);
+  border-radius: 50%;
+  animation:    qf-spin 0.8s linear infinite;
+}
+
+@keyframes qf-spin {
+  to { transform: rotate(360deg); }
+}
+
+.qf-error-banner {
+  background:    var(--qf-red-light);
+  border:        1px solid #EBBBB6;
+  border-radius: var(--qf-radius-md);
+  padding:       12px 16px;
+  font-family:   var(--qf-font-ui);
+  font-size:     13px;
+  color:         var(--qf-red);
+  margin-bottom: 16px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   [5] View ① — StudentGradeList
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Table card wrapper (Card with no padding) */
+.qf-grade-table-card {
+  /* Extends .qf-card .qf-card--no-pad */
+}
+
+/* Shared grid layout for both header and data rows */
+.qf-grade-table-grid {
+  display:               grid;
+  grid-template-columns: 2fr 2fr 90px 90px 130px;
+  gap:                   0;
+  align-items:           center;
+  padding:               10px 20px;
+}
+
+/* Header row */
+.qf-grade-table-header {
+  background:    var(--qf-tan-light);
+  border-bottom: 1px solid var(--qf-border);
+}
+
+.qf-grade-table-col-label {
+  font-family:     var(--qf-font-ui);
+  font-size:       11px;
+  font-weight:     700;
+  letter-spacing:  0.07em;
+  text-transform:  uppercase;
+  color:           var(--qf-text-muted);
+}
+
+/* Data rows */
+.qf-grade-table-row {
+  padding:    13px 20px;
+  transition: background 0.12s ease;
+  cursor:     default;
+}
+
+.qf-grade-table-row:not(:last-child) {
+  border-bottom: 1px solid var(--qf-border);
+}
+
+/* Alternating row backgrounds */
+.qf-grade-table-row:nth-child(odd)  { background: var(--qf-white); }
+.qf-grade-table-row:nth-child(even) { background: #FDFCFA;         }
+
+.qf-grade-table-row:hover { background: var(--qf-tan-light); }
+
+/* Individual cell text styles */
+.qf-grade-cell--lesson {
+  font-family: var(--qf-font-ui);
+  font-size:   13px;
+  color:       var(--qf-text-muted);
+}
+
+.qf-grade-cell--quiz {
+  font-family: var(--qf-font-ui);
+  font-size:   13px;
+  color:       var(--qf-text);
+  font-weight: 500;
+}
+
+.qf-feedback-star {
+  color:        var(--qf-green);
+  margin-left:  6px;
+  font-size:    10px;
+}
+
+.qf-grade-cell--date {
+  font-family: var(--qf-font-ui);
+  font-size:   12px;
+  color:       var(--qf-text-muted);
+}
+
+.qf-grade-cell--legacy-text {
+  font-family: var(--qf-font-ui);
+  font-size:   12px;
+  color:       var(--qf-tan);
+}
+
+/* Footer hint below table */
+.qf-grade-table-hint {
+  font-family: var(--qf-font-ui);
+  font-size:   11px;
+  color:       var(--qf-text-muted);
+  margin-top:  12px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   [6] View ② — StudentQuizDetail
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Individual feedback card */
+.qf-feedback-card {
+  /* Extends .qf-card */
+  margin-bottom: 16px;
+}
+
+.qf-feedback-card__topic-row {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  margin-bottom:   14px;
+}
+
+.qf-feedback-card__q-index {
+  font-family: var(--qf-font-ui);
+  font-size:   11px;
+  color:       var(--qf-text-muted);
+}
+
+.qf-feedback-card__question {
+  font-family:   var(--qf-font-ui);
+  font-size:     14px;
+  color:         var(--qf-text);
+  font-weight:   600;
+  margin:        0 0 14px;
+  line-height:   1.5;
+}
+
+/* Answer comparison grid */
+.qf-answer-grid {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   10px;
+  margin-bottom:         14px;
+}
+
+.qf-answer-box {
+  border-radius: var(--qf-radius-md);
+  padding:       10px 14px;
+}
+
+.qf-answer-box--wrong {
+  background: var(--qf-red-light);
+  border:     1px solid #EBBBB6;
+}
+
+.qf-answer-box--correct {
+  background: var(--qf-green-light);
+  border:     1px solid #AECFAD;
+}
+
+.qf-answer-box__label {
+  font-family:     var(--qf-font-ui);
+  font-size:       10px;
+  font-weight:     700;
+  letter-spacing:  0.07em;
+  text-transform:  uppercase;
+  margin:          0 0 4px;
+}
+
+.qf-answer-box--wrong  .qf-answer-box__label { color: var(--qf-red);       }
+.qf-answer-box--correct .qf-answer-box__label { color: var(--qf-green);    }
+
+.qf-answer-box__text {
+  font-family:  var(--qf-font-ui);
+  font-size:    13px;
+  margin:       0;
+  line-height:  1.5;
+}
+
+.qf-answer-box--wrong   .qf-answer-box__text { color: #8B2020;            }
+.qf-answer-box--correct .qf-answer-box__text { color: var(--qf-green-dark); }
+
+/* Explanation box */
+.qf-explanation-box {
+  background:    var(--qf-blue-light);
+  border:        1px solid #C2D5ED;
+  border-radius: var(--qf-radius-md);
+  padding:       10px 14px;
+  margin-bottom: 12px;
+}
+
+.qf-explanation-box__label {
+  font-family:     var(--qf-font-ui);
+  font-size:       10px;
+  font-weight:     700;
+  letter-spacing:  0.07em;
+  text-transform:  uppercase;
+  color:           var(--qf-blue);
+  margin:          0 0 4px;
+}
+
+.qf-explanation-box__text {
+  font-family:  var(--qf-font-ui);
+  font-size:    13px;
+  color:        var(--qf-text);
+  margin:       0;
+  line-height:  1.6;
+}
+
+/* Source quote blockquote */
+.qf-source-quote {
+  border-left:    3px solid var(--qf-tan);
+  padding-left:   12px;
+  margin-bottom:  14px;
+}
+
+.qf-source-quote__label {
+  font-family:     var(--qf-font-ui);
+  font-size:       10px;
+  font-weight:     700;
+  letter-spacing:  0.07em;
+  text-transform:  uppercase;
+  color:           var(--qf-text-muted);
+  margin:          0 0 4px;
+}
+
+.qf-source-quote__text {
+  font-family: var(--qf-font-heading);
+  font-size:   13px;
+  color:       var(--qf-text-muted);
+  font-style:  italic;
+  margin:      0;
+  line-height: 1.6;
+}
+
+/* Review topic CTA row */
+.qf-cta-row {
+  display:          flex;
+  justify-content:  flex-end;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   [7] View ③ — EducatorQuizList
+   ───────────────────────────────────────────────────────────────────────── */
+
+.qf-insight-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap:                   14px;
+}
+
+/* Insight card */
+.qf-insight-card {
+  /* Extends .qf-card */
+  cursor:     pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.qf-insight-card:hover {
+  box-shadow: var(--qf-shadow-md);
+  transform:  translateY(-2px);
+}
+
+.qf-insight-card__header {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     flex-start;
+  margin-bottom:   10px;
+}
+
+.qf-insight-card__title {
+  font-family: var(--qf-font-ui);
+  font-size:   14px;
+  font-weight: 700;
+  color:       var(--qf-text);
+  margin:      0;
+}
+
+.qf-insight-card__subtitle {
+  font-family: var(--qf-font-ui);
+  font-size:   12px;
+  color:       var(--qf-text-muted);
+  margin:      2px 0 0;
+}
+
+/* The grade badge on the insight card uses a dynamic color — background and
+   border-color are set via inline style in the component since they depend
+   on the computed avgGrade value. Only the shared structural styles live here. */
+.qf-insight-card__grade-badge {
+  border-radius:  var(--qf-radius-pill);
+  padding:        2px 10px;
+  font-size:      13px;
+  font-weight:    700;
+  font-family:    var(--qf-font-ui);
+  white-space:    nowrap;
+  flex-shrink:    0;
+}
+
+.qf-insight-card__stats {
+  display:        flex;
+  gap:            16px;
+  border-top:     1px solid var(--qf-border);
+  padding-top:    10px;
+}
+
+.qf-insight-card__stat-label {
+  font-family:     var(--qf-font-ui);
+  font-size:       10px;
+  font-weight:     700;
+  letter-spacing:  0.07em;
+  text-transform:  uppercase;
+  color:           var(--qf-text-muted);
+  margin:          0 0 2px;
+}
+
+.qf-insight-card__stat-value--large {
+  font-family:  var(--qf-font-ui);
+  font-size:    18px;
+  font-weight:  700;
+  color:        var(--qf-text);
+  margin:       0;
+}
+
+.qf-insight-card__stat-value--small {
+  font-family: var(--qf-font-ui);
+  font-size:   12px;
+  color:       var(--qf-text-muted);
+  margin:      0;
+}
+
+.qf-insight-card__cta {
+  margin-top:   12px;
+  color:        var(--qf-blue);
+  font-family:  var(--qf-font-ui);
+  font-size:    12px;
+  font-weight:  600;
+  text-align:   right;
+}
+
+
+/* Custom Scrollbar for the Histogram View */
+.quiz-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--qf-tan) transparent;
+}
+
+.quiz-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.quiz-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.quiz-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--qf-tan);
+  border-radius: 10px;
+}
+
+/* Ensure the main view doesn't get squashed */
+.qf-main-container {
+  flex: 1 1 auto; /* Grow and shrink as needed */
+  min-height: 0;   /* CRITICAL: Allows flex child to overflow */
+}
+
+/* Optional: Prevent the card from shrinking too much */
+.qf-card {
+  flex-shrink: 0; 
+  margin-bottom: 16px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   [8] View ④ — EducatorHistogram
+   ───────────────────────────────────────────────────────────────────────── */
+
+.qf-histogram-description {
+  font-family:   var(--qf-font-ui);
+  font-size:     12px;
+  color:         var(--qf-text-muted);
+  margin:        0 0 18px;
+}
+
+.qf-histogram-bars {
+  display:        flex;
+  flex-direction: column;
+  gap:            14px;
+}
+
+/* One topic row */
+.qf-histogram-topic {
+  /* no additional styles needed; layout handled by children */
+}
+
+.qf-histogram-topic__row {
+  display:         flex;
+  justify-content: space-between;
+  margin-bottom:   5px;
+}
+
+.qf-histogram-topic__label {
+  font-family: var(--qf-font-ui);
+  font-size:   13px;
+  color:       var(--qf-text);
+  font-weight: 500;
+}
+
+.qf-histogram-topic__count {
+  font-family: var(--qf-font-ui);
+  font-size:   12px;
+  color:       var(--qf-text-muted);
+}
+
+/* Track (background rail) */
+.qf-histogram-track {
+  background:    var(--qf-tan-light);
+  border-radius: var(--qf-radius-sm);
+  height:        20px;
+  overflow:      hidden;
+}
+
+/* Bar fill — width and background-color are set via inline style in the component
+   because they depend on computed percentage and error-rate thresholds. */
+.qf-histogram-bar {
+  height:          100%;
+  border-radius:   var(--qf-radius-sm);
+  transition:      width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display:         flex;
+  align-items:     center;
+  justify-content: flex-end;
+  padding-right:   6px;
+}
+
+.qf-histogram-bar__pct {
+  font-family:  var(--qf-font-ui);
+  font-size:    10px;
+  font-weight:  700;
+  color:        #fff;
+}
+
+/* Legend */
+.qf-legend {
+  display:      flex;
+  gap:          16px;
+  margin-top:   20px;
+  padding-top:  16px;
+  border-top:   1px solid var(--qf-border);
+}
+
+.qf-legend__item {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+}
+
+.qf-legend__dot {
+  width:         10px;
+  height:        10px;
+  border-radius: 2px;
+  flex-shrink:   0;
+}
+
+.qf-legend__label {
+  font-family: var(--qf-font-ui);
+  font-size:   11px;
+  color:       var(--qf-text-muted);
+}
+
+/* Insight callout */
+.qf-callout {
+  font-family:  var(--qf-font-ui);
+  font-size:    13px;
+  color:        var(--qf-text);
+  margin:       0;
+  line-height:  1.6;
+}

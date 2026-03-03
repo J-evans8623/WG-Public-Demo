@@ -26,6 +26,7 @@ interface AssessmentSettingsFormProps {
   initialStart: string; // ISO String
   initialEnd: string;   // ISO String
   initialLimit: number;
+  initialFeedback: 'immediately' | 'after_close';
   onClose: () => void;
 }
 
@@ -52,6 +53,7 @@ const AssessmentSettingsForm: React.FC<AssessmentSettingsFormProps> = ({
   initialEnd,
   initialLimit,
   onClose,
+  initialFeedback,
 }) => {
   const { assignMetaPatch } = useApiContext();
   const { upsertAssignmentMeta } = useGradebook(docId);
@@ -70,6 +72,7 @@ const AssessmentSettingsForm: React.FC<AssessmentSettingsFormProps> = ({
   
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<'immediately' | 'after_close'>(initialFeedback || 'after_close');
 
   /**
    * constructIso
@@ -115,6 +118,7 @@ const AssessmentSettingsForm: React.FC<AssessmentSettingsFormProps> = ({
         startAt: startIso,
         endAt: endIso,
         attemptLimit: limit,
+        quizResultFeedback: feedback,
       });
 
       // 3. Step 2: Update the local Gradebook cache for consistent Gradebook modal views.
@@ -135,6 +139,7 @@ const AssessmentSettingsForm: React.FC<AssessmentSettingsFormProps> = ({
           title: res.saved.title,
           window: { startAt: res.saved.startAt, endAt: res.saved.endAt },
           attemptLimit: res.saved.attemptLimit,
+          quizResultFeedback: feedback,
         };
         // Commit the deep update to the Yjs Map via record().
         await editResourcev1(updatedCard);
@@ -211,6 +216,35 @@ const AssessmentSettingsForm: React.FC<AssessmentSettingsFormProps> = ({
                   <option value="AM">AM</option><option value="PM">PM</option>
                 </select>
               </div>
+            </div>
+          </div>
+
+
+          {/* UPDATE - 4.8: New UI section for Correction Review */}
+          <div className="asf-input-group" style={{ marginTop: '20px' }}>
+            <label className="asf-label">Students can review corrections</label>
+            <div className="quiz-feedback-options" style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
+              <label className="quiz-feedback-option" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="feedback"
+                  value="immediately"
+                  checked={feedback === 'immediately'}
+                  onChange={() => setFeedback('immediately')}
+                />
+                <span className="asf-hint" style={{ color: '#374151', fontWeight: 500 }}>Immediately</span>
+              </label>
+
+              <label className="quiz-feedback-option" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="feedback"
+                  value="after_close"
+                  checked={feedback === 'after_close'}
+                  onChange={() => setFeedback('after_close')}
+                />
+                <span className="asf-hint" style={{ color: '#374151', fontWeight: 500 }}>After quiz closes</span>
+              </label>
             </div>
           </div>
 

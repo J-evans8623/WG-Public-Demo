@@ -29,6 +29,11 @@ import { resolveRole } from '@/app/src/services/firebase';
 import { submitAttempt } from '@/app/src/services/gradebook/gradebookFB';
 import type { AttemptSubmitReq, AttemptSubmitRes } from '@/app/src/services/gradebook/gradebook.types';
 import { UserService } from '@/app/src/services/userService';
+import {
+  writeAttemptFeedbackDocument,
+  incrementInsightSummary,
+} from '@/app/src/quizFeedback/ProducerAdapter'; // update - 3.1
+import type { FeedbackItemInput } from '@/app/src/quizFeedback/ProducerAdapter'; // update - 3.1
 
 /* ──────────────────────────────────────────────────────────────────────────────
  * [Local utilities]
@@ -71,6 +76,17 @@ function validateBody(body: any): asserts body is AttemptSubmitReq {
   if (!body?.docId || typeof body.docId !== 'string') errors.push('docId');
   if (!body?.attemptId || typeof body.attemptId !== 'string') errors.push('attemptId');
   if (typeof body?.scorePct !== 'number' || !Number.isFinite(body.scorePct)) errors.push('scorePct');
+  // update - 3.2: feedbackItems is optional — present only for feedback-enabled submissions.
+  // assignmentId is now required to support ProducerAdapter calls.
+  if (!body?.assignmentId || typeof body.assignmentId !== 'string') {
+    throw new Error('VALIDATION_ERROR: assignmentId');
+  }
+  if (body?.feedbackItems !== undefined && !Array.isArray(body.feedbackItems)) {
+    throw new Error('VALIDATION_ERROR: feedbackItems must be an array');
+  }
+  if (body?.totalQuestions !== undefined && (typeof body.totalQuestions !== 'number' || body.totalQuestions < 1)) {
+    throw new Error('VALIDATION_ERROR: totalQuestions');
+  }
   if (errors.length) throw new Error(`VALIDATION_ERROR: ${errors.join(', ')}`);
 }
 
@@ -121,23 +137,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return sendJson(res, 403, { error: 'ACL_DENIED' });
     }
 
+    const docId = body.docId
+
     // 6) Delegate to submitAttempt (transactional; clamps score; enforces limit and window).
-    const result: AttemptSubmitRes = await submitAttempt(
-      body.docId,
-      session.user.email,
-      body.attemptId,
-      body.scorePct
-    );
+    const result = await submitAttempt(docId, session.user.email, body.attemptId, body.scorePct);
 
-    console.log('pages/api/gradebook/attempt/submit.ts [7305] › POST submit ok', {
-      docId: body.docId,
-      attemptId: body.attemptId,
-      accepted: result.accepted,
-      remainingAttempts: result.remainingAttempts,
-    });
+    // update - 3.3: If the submission was accepted AND the client provided feedback items,
+    // trigger the two ProducerAdapter writes for the QuizFeedback feature.
+    // Both writes are non-fatal: a failure here does not invalidate the grade submission.
+    if (result.accepted && Array.isArray(body.feedbackItems)) {
+      const feedbackItems = body.feedbackItems as FeedbackItemInput[];
+      const totalQuestions: number = body.totalQuestions ?? feedbackItems.length;
 
-    // 7) Respond success.
+      try {
+        // Step A: Write the per-student feedback detail document + stamp hasFeedback flag.
+        await writeAttemptFeedbackDocument({
+          docId,
+          userEmail:      session.user.email,
+          attemptId:      body.attemptId,
+          assignmentId:   body.assignmentId,
+          feedbackItems,
+          totalQuestions,
+        });
+
+        // Step B: Atomically increment the pre-aggregated insight summary.
+        await incrementInsightSummary({
+          docId,
+          assignmentId:  body.assignmentId,
+          scorePct:      result.latestResult.scorePct,
+          feedbackItems,
+        });
+
+        console.log('pages/api/gradebook/attempt/submit.ts [7XXX] › producer writes ok', {
+          docId, attemptId: body.attemptId, assignmentId: body.assignmentId,
+        });
+      } catch (producerErr: any) {
+        // Non-fatal: grade submission already succeeded. Log for monitoring.
+        console.error('pages/api/gradebook/attempt/submit.ts [7X99] › producer write failed (non-fatal)', {
+          error: producerErr?.message,
+          attemptId: body.attemptId,
+        });
+      }
+    }
+
     return sendJson(res, 200, result);
+
   } catch (err: any) {
     // 8) Map known errors to stable HTTP codes to preserve client expectations.
     const msg = String(err?.message ?? 'INTERNAL');

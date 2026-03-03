@@ -83,8 +83,24 @@ function validateUpsertInput(body: any): asserts body is AssignMetaUpsertReq & {
   if (!body?.title || typeof body.title !== 'string') errors.push('title');
   if (!body?.startAt || isNaN(new Date(body.startAt).getTime())) errors.push('startAt');
   if (!body?.endAt || isNaN(new Date(body.endAt).getTime())) errors.push('endAt');
+
   if (typeof body?.attemptLimit !== 'number' || !Number.isFinite(body.attemptLimit) || body.attemptLimit < 1)
     errors.push('attemptLimit');
+
+  // UPDATE - 4.3: Optional quizResultFeedback validation for Lean Strategy
+  if (
+    body?.quizResultFeedback !== undefined &&
+    body.quizResultFeedback !== 'immediately' &&
+    body.quizResultFeedback !== 'after_close'
+  ) {
+    errors.push('quizResultFeedback (must be "immediately" or "after_close")');
+  }
+
+  // UPDATE - 4.4: Optional lessonTitle validation
+  if (body?.lessonTitle !== undefined && typeof body.lessonTitle !== 'string') {
+    errors.push('lessonTitle (must be a string)');
+  }
+
   if (errors.length) throw new Error(`VALIDATION_ERROR: ${errors.join(', ')}`);
   if (new Date(body.endAt).getTime() <= new Date(body.startAt).getTime()) {
     throw new Error('VALIDATION_INVALID_WINDOW');

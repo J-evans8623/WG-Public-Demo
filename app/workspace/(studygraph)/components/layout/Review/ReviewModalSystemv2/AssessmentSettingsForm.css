@@ -20,10 +20,11 @@
 
 .asf-container {
   width: 540px !important;
+  max-height: 90vh;          /* ← cap the modal height */
   display: flex;
   flex-direction: column;
   padding: 0 !important;
-  overflow: hidden;
+  overflow: hidden;          /* ← keeps header/footer from leaking */
   border: 1px solid #D4C4B0;
 }
 

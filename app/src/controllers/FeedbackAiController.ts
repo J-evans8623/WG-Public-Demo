@@ -1,20 +1,24 @@
 /**
  * @file FeedbackAiController.ts
  * @description
- * This controller serves as the authoritative orchestrator for the Quiz Feedback Pipeline. 
- * Its primary responsibility is to manage the request-response lifecycle for feedback-enriched 
- * assessments, acting as the bridge between the API layer and the AiFeedbackService. 
- * It handles the critical 'Post-Process' phase where simplified LLM tokens (A0, A1) are 
- * mapped back to actual system UUIDs using the TopicIdMapper instance. This ensures 
- * that the resulting quiz data is structurally valid for database insertion and 
- * student remediation links. By existing as a separate controller, it provides the 
- * one-click 'Pipeline Toggle' required for system safety; routing traffic here enables 
- * advanced feedback, while routing to the legacy AIController reverts the system to 
- * standard generation, satisfying the sprint's core safety and SOLID design objectives.
+ * (update - 1.1)
+ * This controller has been refactored to resolve the argument mismatch error by explicitly 
+ * handling dynamic quiz types within the Feedback Quiz Pipeline. Its primary responsibility 
+ * is to act as the authoritative orchestrator between the API routing layer (aiServiceLayer) 
+ * and the specialized AiFeedbackService. It extracts format preferences (e.g., matching, 
+ * true-false) from the request body and propagates them to the AI engine to ensure the 
+ * correct pedagogical JSON schema is resolved. Following the AI generation phase, the 
+ * controller executes a critical post-processing step: it utilizes the TopicIdMapper 
+ * instance to translate simplified LLM tokens back into authoritative system UUIDs. 
+ * This ensures that citation-enriched questions are accurately attributed to the 
+ * correct conceptual nodes, facilitating interactive remediation navigation for scholars. 
+ * The implementation maintains the redundant pipeline architecture required for system 
+ * safety and adheres to O(N) complexity for token reconciliation.
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { AiFeedbackService } from '@/app/src/services/feedback/aiFeedbackService';
+import { raw } from 'express';
 
 class FeedbackAiController {
   private static feedbackService: AiFeedbackService = new AiFeedbackService();
@@ -22,40 +26,57 @@ class FeedbackAiController {
   /**
    * handleFeedbackQuiz
    * @description
-   * The entry point for the feedback pipeline. It extracts request metadata, coordinates 
-   * the feedback-enriched AI call, and translates simplified tokens back to real IDs.
-   * @param req - The NextApiRequest containing exportData and mapping context.
-   * @param res - The NextApiResponse for returning the finalized enriched quiz.
+   * (update - 1.2) Refactored entry point that resolves the 'Expected 4 arguments' error. 
+   * It captures the 'quizTypes' array from the request, normalizes the primary format, 
+   * and forwards it to the feedback service to enable format-aware, citation-backed 
+   * assessment generation.
+   * @param req - The NextApiRequest containing lesson context, mapping data, and quiz format.
+   * @param res - The NextApiResponse for returning the finalized enriched assessment.
    */
   public static async handleFeedbackQuiz(req: NextApiRequest, res: NextApiResponse): Promise<void> {
     try {
-      // 1. Extract the context and mapper from the Phase 1 aiServiceLayer update
-      const { exportData, questionCount, promptExtension, topicMapperInstance } = req.body;
+      // 1. Step 1: Extract request metadata, including the previously missing quizTypes
+      const { 
+        exportData, 
+        questionCount, 
+        promptExtension, 
+        topicMapperInstance,
+        quizTypes // update - 1.3: Capture the format preference
+      } = req.body;
 
-      // 2. Call the specialized feedback service
-      console.log('[FeedbackAiController.ts][5401] Initiating feedback-enriched generation');
+      // 2. Step 2: Normalize the quiz type to ensure a valid 4th argument for the service
+      // We prioritize the first type in the array, defaulting to multipleChoice if none provided.
+      const requestedType = (Array.isArray(quizTypes) && quizTypes.length > 0) 
+        ? String(quizTypes[0]) 
+        : 'multipleChoice';
+
+      // 3. Step 3: Call the service with the correct 4rd argument (quizType)
+      // Logic satisfies the argument synchronization requirement
+      console.log('[FeedbackAiController.ts][5401] Initiating format-aware feedback generation:', requestedType);
       const rawQuiz = await this.feedbackService.generateFeedbackQuiz(
         exportData,
         promptExtension,
-        questionCount
+        questionCount,
+        requestedType // update - 1.4: Propagate the quiz type
       );
 
-      // 3. Post-Process: Remap tokens (A0, B1) back to real system UUIDs
-      // Time Complexity: O(N) where N is the number of questions.
+      // 4. Step 4: Post-Process: Remap tokens (A0, B1) back to real system UUIDs
+      // Time Complexity: O(N) where N is the number of generated questions.
+      // This ensures the frontend can locate study resources in ResourceContext
       if (rawQuiz && rawQuiz.questions && topicMapperInstance) {
         rawQuiz.questions = rawQuiz.questions.map((q: any) => {
           const realTopicId = topicMapperInstance.getRealId(q.topicKey);
           
           return {
             ...q,
-            // 4. Map the temporary key to the permanent ID used for remediation navigation
+            // 5. Step 5: Map the temporary key to the permanent ID used for remediation navigation
             topicId: realTopicId || "unknown",
             attributionValid: !!realTopicId
           };
         });
       }
 
-      console.log('[FeedbackAiController.ts][5402] Enriched quiz generation successful');
+      console.log(`[FeedbackAiController.ts][5402] Enriched assessment generation successful data payload 4356 : ${JSON.stringify(rawQuiz)} `);
       res.status(200).json(rawQuiz);
 
     } catch (error) {

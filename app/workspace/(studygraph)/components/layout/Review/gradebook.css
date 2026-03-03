@@ -31,6 +31,7 @@
 
 /* Header */
 .gb-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -72,10 +73,10 @@
 
 /* Body: make sure the flex child can actually shrink so vertical overflow is allowed */
 .gb-body {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;              /* (update - 2) critical: enables vertical scrolling inside the child */
-  padding: 6px 2px 2px 2px;
+  flex:           1 1 0%;
+  min-height:     0;        /* CRITICAL: prevents unbounded expansion */
+  display:        flex;
+  flex-direction: column;
 }
 
 /* Single scroll owner (both axes) */
@@ -210,6 +211,46 @@
   color: #6B7280;
   background: #F9F7F3;
   border-color: #E8E0D6;
+}
+
+
+
+.gb-insights-panel {
+  flex:           1 1 0%;
+  min-height:     0;        /* CRITICAL: same reason as .gb-body above */
+  display:        flex;
+  flex-direction: column;
+}
+
+
+/* Tertiary button style for gradebook actions */
+.tertiary-button-grades {
+  background: transparent;
+  border: 1.5px solid #6C8EBF;
+  color: #6C8EBF;
+  border-radius: 999px; /* Pill shape */
+  padding: 6px 16px;
+  font-weight: 500;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.tertiary-button-grades:hover {
+  background: rgba(108, 142, 191, 0.05);
+  border-color: #5a7aa8;
+  color: #5a7aa8;
+}
+
+.tertiary-button-grades:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Responsive */

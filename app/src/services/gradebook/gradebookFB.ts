@@ -176,7 +176,7 @@ function fsMetaToWire(id: string, fs: AssignmentMetaFS): AssignmentMeta {
  *   Owner+Educator enforcement happens in the route. This is a pure Firestore operation.
  */
 export async function upsertAssignedQuizMeta(input: AssignMetaUpsertReq & { createdBy: string }): Promise<AssignmentMeta> {
-  const { docId, assignmentId, title, startAt, endAt, attemptLimit, createdBy } = input;
+  const { docId, assignmentId, title, startAt, endAt, attemptLimit, createdBy, quizResultFeedback, lessonTitle } = input;
 
   // Step 1: Validate simple constraints
   const startDate = new Date(startAt);
@@ -214,6 +214,8 @@ export async function upsertAssignedQuizMeta(input: AssignMetaUpsertReq & { crea
         createdAt: now,
         updatedAt: now,
         status: 'active',
+        ...(quizResultFeedback && { quizResultFeedback }),
+      ...(lessonTitle && { lessonTitle })
       } as AssignmentMetaFS);
     } else {
       // Merge/update (preserve createdBy/createdAt)
@@ -223,6 +225,8 @@ export async function upsertAssignedQuizMeta(input: AssignMetaUpsertReq & { crea
         endAt: admin.firestore.Timestamp.fromDate(endDate),
         attemptLimit,
         updatedAt: now,
+        ...(quizResultFeedback && { quizResultFeedback }),
+      ...(lessonTitle && { lessonTitle })
       });
     }
   });
@@ -256,6 +260,8 @@ export async function patchAssignedQuizMeta(input: AssignMetaPatchReq): Promise<
   const nextEnd = input.endAt ? new Date(input.endAt) : cur.endAt.toDate();
   const nextLimit = input.attemptLimit ?? cur.attemptLimit;
 
+  const nextFeedback = input.quizResultFeedback ?? cur.quizResultFeedback;
+
   if (!Number.isFinite(nextStart.getTime()) || !Number.isFinite(nextEnd.getTime()) || nextEnd <= nextStart) {
     console.log('gradebookFB.ts [7222] › patch: invalid window', { docId, assignmentId, start: nextStart, end: nextEnd });
     throw new Error('VALIDATION_INVALID_WINDOW');
@@ -270,6 +276,7 @@ export async function patchAssignedQuizMeta(input: AssignMetaPatchReq): Promise<
     endAt: admin.firestore.Timestamp.fromDate(nextEnd),
     attemptLimit: nextLimit,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    quizResultFeedback: nextFeedback,
   });
 
   const saved = (await ref.get()).data() as AssignmentMetaFS;

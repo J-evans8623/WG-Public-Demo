@@ -108,9 +108,9 @@ export interface ResourceContextType {
     mapId: string;
     title: string;
     binding: QuizBinding;
-    topicMapping?: Record<string, string>;
     window?: { startAt?: string; endAt?: string };
     attemptLimit?: number;
+    quizResultFeedback?: 'immediately' | 'after_close';
     instructions?: string;
     createdByEmail?: string;
   }) => Promise<QuizAssessmentResource>;
@@ -985,9 +985,9 @@ const selectResourcesFn = useCallback(
     mapId: string;
     title: string;
     binding: QuizBinding;
-    topicMapping?: Record<string, string>;
     window?: { startAt?: string; endAt?: string };
     attemptLimit?: number;
+    quizResultFeedback?: 'immediately' | 'after_close';
     instructions?: string;
     createdByEmail?: string;
   }): Promise<QuizAssessmentResource> => {
@@ -1017,12 +1017,11 @@ const selectResourcesFn = useCallback(
         ...args.binding,
         spec: {
           ...args.binding.spec,
-          // 4. Critical: Persist the ID mapping dictionary directly in the card spec
-          topicMapping: args.topicMapping || {}
         }
       },
       window: args.window,
       attemptLimit: args.attemptLimit,
+      quizResultFeedback: args.quizResultFeedback,
       instructions: args.instructions,
       createdByEmail: args.createdByEmail,
       createdAt: new Date().toISOString(),

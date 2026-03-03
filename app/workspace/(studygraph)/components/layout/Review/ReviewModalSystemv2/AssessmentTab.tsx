@@ -143,7 +143,9 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
         _sortStart: startMs, 
         attemptLimit: Number.isFinite(c.attemptLimit) && (c.attemptLimit as number) > 0 
           ? (c.attemptLimit as number) 
-          : 1 
+          : 1,
+        quizResultFeedback: c.quizResultFeedback ?? 'after_close' 
+      
       };
     });
 
@@ -223,16 +225,46 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
       }
   };
 
-  const submitResults = useCallback(
-    async (scorePct: number, details: any[]) => {
-      try {
-        await submitAttempt({ docId, attemptId, scorePct, clientMeta: { clientTs: new Date().toISOString() } } as any);
-      } catch (e: any) {
-        console.warn('[AssessmentTab.tsx] submitAttempt failed', e?.message);
-      }
-    },
-    [attemptId, docId, submitAttempt]
-  );
+  /**
+ * submitResults
+ * Responsibility:
+ * (UPDATE - 5.2) Construct and ship the "Lean" submission payload to the database.
+ * 1) Filters for incorrect items only.
+ * 2) Maps enriched UI data into the pointer-based relational shape.
+ * 3) Delegates persistence to the Gradebook API client.
+ */
+const submitResults = useCallback(
+  async (scorePct: number, enrichedDetails: any[]) => {
+    try {
+      // 1. Step 1: Prepare the Lean Producer Payload (UPDATE - 5.3)
+      // Logic: Firestore feedbackDetails only needs what the student did and where they struggled.
+      const feedbackItems = enrichedDetails
+        .filter(d => !d.correct)
+        .map(d => ({
+          questionId: d.questionId, // Relay pointer back to Yjs Resource Card
+          topicId:    d.topicId,    // Required for server-side aggregation (Histogram)
+          topicLabel: d.topicLabel, // Required for server-side aggregation (Histogram)
+          yourAnswer: String(d.userAnswer), // Unique student data
+        }));
+
+      // 2. Step 2: Submit to BFF with lean identifiers (UPDATE - 5.4)
+      await submitAttempt({ 
+        docId, 
+        attemptId, 
+        assignmentId: selectedAssignmentId!, // Relational key
+        scorePct, 
+        feedbackItems, // Lean array (no static strings)
+        totalQuestions: enrichedDetails.length,
+        clientMeta: { clientTs: new Date().toISOString() } 
+      } as any);
+
+      console.log('[AssessmentTab.tsx][7XXX] Lean producer payload submitted ok');
+    } catch (e: any) {
+      console.warn('[AssessmentTab.tsx] submitAttempt failed', e?.message);
+    }
+  },
+  [attemptId, docId, submitAttempt, selectedAssignmentId]
+);
 
   const handleCreateQuizSubmit = (payload: CreateQuizPayload) => {
     onCreateQuiz?.(payload);
@@ -446,6 +478,7 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({
           initialStart={editTargetData.startAt}
           initialEnd={editTargetData.endAt}
           initialLimit={editTargetData.attemptLimit}
+          initialFeedback={editTargetData.quizResultFeedback as any}
           onClose={() => { setSettingsOpen(false); setEditTargetId(null); }}
         />
       )}

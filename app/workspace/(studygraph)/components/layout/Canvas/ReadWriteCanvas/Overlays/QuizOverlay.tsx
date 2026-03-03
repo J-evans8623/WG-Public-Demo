@@ -277,11 +277,27 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
     results.forEach((r) => recordQuizAttempt(r.id, quizType, r.correct));
     recordQuizSession();
 
+
+  // 1. Step 1: Perform Metadata Enrichment Pass (UPDATE - 4.3)
+  // We map volatile UI results back to the authoritative curriculum card (liveQuizData)
+  const enrichedResults = (detailed || []).map(uiResult => {
+    const meta = liveQuizData.find(q => q.id === uiResult.id);
+    return {
+      ...uiResult,
+      // 2. Step 2: Inject stable relational pointers required for Lean Strategy (UPDATE - 4.4)
+      topicId: meta?.topicId || "unknown",
+      topicLabel: (meta as any)?.topicLabel || "General Topic",
+      // 3. Step 3: Normalize result keys across Matching/FIB/MCQ types (UPDATE - 4.5)
+      questionId: uiResult.id,
+      userAnswer: uiResult.selectedAnswer || uiResult.userAnswer || "",
+    };
+  });
+
     const correctCount = results.filter((r) => r.correct).length;
     const finalScore = { correct: correctCount, total: results.length };
 
     setScore(finalScore);
-    setDetailedResults(detailed || []);
+    setDetailedResults(enrichedResults); // update from quizfeedback sprint
     setShowScore(true);
     console.log('[QuizOverlay.tsx][7303] submit: local score computed', {
       correct: finalScore.correct,
@@ -290,7 +306,7 @@ const QuizOverlay: React.FC<QuizOverlayProps> = ({
 
     if (onSubmitResults) {
       const pct = results.length ? Math.round((correctCount / results.length) * 100) : 0;
-      onSubmitResults(pct, detailed || []).catch((e) => {
+      onSubmitResults(pct, enrichedResults).catch((e) => {
         console.warn('[QuizOverlay.tsx][7398] onSubmitResults failed (non-blocking)', e?.message);
       });
     }

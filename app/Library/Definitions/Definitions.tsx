@@ -257,8 +257,6 @@ export interface IQuizQuestion {
   citation?: {
     text: string;
   };
-  /** The simplified LLM-facing token (A0, A1) used to map performance back to original topics. */
-  topicKey?: string;
   /** The original system UUID of the topic, resolved during post-processing. */
   topicId?: string;
 }
@@ -327,7 +325,6 @@ export type QuizBinding = {
 export interface InlineQuizSpec {
   quizType: QuizType;             // Reuses existing union: 'matching' | 'multipleChoice' | 'true-false' | 'FIB'
   quizContent: IQuizQuestion[];   // Reuses existing question interfaces
-  topicMapping?: Record<string, string>;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -356,6 +353,7 @@ export interface QuizAssessmentResource extends BaseResource {
   createdByEmail?: string;
   createdAt?: string;
   updatedAt?: string;
+  quizResultFeedback?: 'immediately' | 'after_close';
 }
 
 

@@ -58,7 +58,7 @@ import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext';
 import { FileAssetProvider } from '@/app/Library/Context/FileAssetContext';
 import { SelectionAttachmentProvider } from '@/app/Library/Context/SelectionAttachmentContext';
 
-
+import { QuizFeedbackProvider } from '@/app/Library/Context/QuizFeedbackDataContext';
 import SelectionAttachmentHandler from './components/layout/Canvas/SelectionAttachmentHandler';
 import HomeScreen from './components/layout/home/HomescreenV3';
 import NavigationPanel from './NavigationPanel';
@@ -478,8 +478,10 @@ export const AppLayout: React.FC = () => {
                                                   <SearchProvider>
                                                     <StudyLogProvider>
                                                     <SlideShowProvider>
+                                                      <QuizFeedbackProvider> 
                                                       
                                                       <AppLayoutContent />
+                                                      </QuizFeedbackProvider>
                                                      
                                                     </SlideShowProvider>
                                                      </StudyLogProvider>

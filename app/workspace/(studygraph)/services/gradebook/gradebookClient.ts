@@ -77,6 +77,8 @@ export interface AssignMetaUpsertReq {
   startAt: string;
   endAt: string;
   attemptLimit: number;
+  quizResultFeedback?: 'immediately' | 'after_close';
+  lessonTitle?: string;
 }
 export interface AssignMetaUpsertRes {
   saved: AssignmentHeader & {
@@ -94,6 +96,7 @@ export interface AssignMetaPatchReq {
   endAt?: string;
   attemptLimit?: number;
   title?: string;
+  quizResultFeedback?: 'immediately' | 'after_close';
 }
 export interface AssignMetaPatchRes {
   saved: AssignmentHeader & {
@@ -138,6 +141,13 @@ export interface AttemptSubmitReq {
     userAgent?: string;
     clientTs?: string;
   };
+  feedbackItems?: Array<{
+    questionId: string;
+    topicId: string;
+    topicLabel: string;
+    yourAnswer: string;
+  }>;
+  totalQuestions?: number;
 }
 export interface AttemptSubmitRes {
   accepted: boolean;
@@ -274,6 +284,10 @@ async function assignMetaPatch(req: AssignMetaPatchReq): Promise<AssignMetaPatch
   if (req.endAt && !isIso(req.endAt)) throw new Error('CLIENT_VALIDATION_ERROR');
   if (req.attemptLimit != null && (req.attemptLimit < 1 || !Number.isFinite(req.attemptLimit))) {
     throw new Error('CLIENT_VALIDATION_ERROR');
+  }
+
+  if (req.quizResultFeedback && req.quizResultFeedback !== 'immediately' && req.quizResultFeedback !== 'after_close') {
+    throw new Error('CLIENT_VALIDATION_ERROR: Invalid feedback setting');
   }
 
   const data = await fetchJsonNoStore<AssignMetaPatchRes>('/api/gradebook/assign-meta', {

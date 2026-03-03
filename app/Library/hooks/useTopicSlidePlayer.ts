@@ -1,76 +1,87 @@
-/**
+/***************************************************************************************************
  * @file useTopicSlidePlayer.ts
  * @description
- * This hook serves as the critical "Interactive Navigation" bridge within the Quiz Feedback Pipeline. 
- * Its primary responsibility is to facilitate the seamless transition of a scholar from a 
- * "remediation" state (viewing quiz feedback) to a "review" state (viewing study material). 
- * By consuming the SlideShowContext and ResourceContext, it provides a functional gateway 
- * that resolves a specific topicId (which corresponds to a Concept Node UUID) into a 
- * tangible slide index. When a scholar clicks "Review Topic" on a failed question, 
- * this hook programmatically identifies the first available 'note' or 'cueCard' resource 
- * associated with that node and forces the Slide Player to synchronize its viewport. 
- * This effectively eliminates manual navigation friction, allowing students to verify 
- * citations in their original pedagogical context instantly. The hook is designed with 
- * performance in mind, utilizing linear search logic (O(N)) to find target slides within 
- * the current session deck, ensuring that the jump-gate mechanism remains responsive 
- * regardless of the document's complexity. This file satisfies the sprint's core usability 
- * requirement by closing the loop between assessment struggles and content mastery.
- */
+ * (update - 2.1)
+ * This hook has been refactored to act as the authoritative "Remediation Bridge" for scholars.
+ * Its core responsibility is to resolve a 'topicId' from a failed quiz question into a 
+ * focused study session. This update implements a strict pedagogical ordering logic 
+ * as required by the sprint: Notes first, then FlashCards, then Practice Quizzes. 
+ * By consuming ResourceContext selectors directly, the hook bypasses the massive 
+ * global deck and assembles a specialized deck of parent-level resources for the 
+ * conceptual struggle at hand. This ensures a high-fidelity, low-friction 
+ * transition from corrections to review, satisfying the interactive 
+ * navigation requirements of the Quiz Feedback Pipeline.
+ ***************************************************************************************************/
 
 import { useCallback } from 'react';
 import { useSlideShow } from '@/app/Library/Context/SlideShowContext';
 import { useResourceContext } from '@/app/Library/Context/ResourceContext';
+import { useNodesContext } from '@/app/Library/Context/NodesProvider'; // update - 2.2: Needed for title resolution
+import type { ResourceCard } from '@/app/Library/Definitions/Definitions';
 
 /**
  * useTopicSlidePlayer
  * @description
- * A custom hook that provides a standardized method for jumping to a specific topic 
- * within the global SlideShow player. It translates abstract topic IDs from 
- * quiz metadata into concrete slide indices and handles the required context 
- * orchestration to open the player at the exact point of conceptual struggle.
+ * Standardized hook for launching the SlideShow player for a specific conceptual topic.
+ * (update - 2.3) Implements Notes → Cues → Quizzes ordering for focused review.
  */
 export const useTopicSlidePlayer = () => {
-  // 1. Initialize context dependencies to control the global slideshow state
-  const { openCustom, slides: currentDeck } = useSlideShow();
-  const { selectResources } = useResourceContext();
+  const { openCustom } = useSlideShow();
+  const { getNodeTitle } = useNodesContext();
+  const { 
+    selectNoteCards, 
+    selectCueCards, 
+    selectPracticeSheets 
+  } = useResourceContext();
 
   /**
    * jumpToTopic
    * @description
-   * Resolves the target nodeId into a slide index and initiates the jump-gate 
-   * transition. It prioritizes finding the topic within the current active deck 
-   * before attempting to rebuild the session context.
-   * @param topicId - The system UUID of the concept node (topic) to review.
+   * Prepares a focused slide deck for the given topic and launches the player.
+   * (update - 2.4) Refactored to build a new ordered deck rather than searching indices.
+   * Time Complexity: O(R) where R is the number of resources in the single topic node.
+   * * @param topicId - The Node UUID (topic) to review.
    */
   const jumpToTopic = useCallback((topicId: string) => {
-    console.log('[useTopicSlidePlayer.ts][4050] Initiating jump-gate for topic:', topicId);
+    console.log('[useTopicSlidePlayer.ts][4050] Preparing ordered review for topic:', topicId);
 
     if (!topicId) return;
 
-    // 2. Step 2: Attempt to locate the topic in the current active slideshow deck
-    // Time Complexity: O(N) where N is the number of slides in the deck.
-    const existingIndex = currentDeck.findIndex(slide => slide.nodeId === topicId);
+    // 1. Step 1: Resolve the conceptual title for slide headers
+    const title = getNodeTitle(topicId) || 'Review Topic';
 
-    if (existingIndex >= 0) {
-      console.log('[useTopicSlidePlayer.ts][4051] Topic found in current deck at index:', existingIndex);
-      // Re-trigger the custom deck with the new starting index (resuming slide logic)
-      openCustom(currentDeck, "review", true); 
-      // Note: In a real implementation, SlideShowContext 'open' or index setters would be used here.
-      return;
-    }
+    // 2. Step 2: Extract and hydrate resources in the specific pedagogical order (update - 2.5)
+    // Group A: Lecture Notes (Notes)
+    const notes = selectNoteCards(topicId).map(raw => ({
+      ...raw,
+      conceptNodeTitle: title
+    }));
 
-    // 3. Step 3: Fallback logic - If the topic isn't in the current deck, fetch the node's resources
-    const nodeResources = selectResources(topicId);
+    // Group B: Flash Cards (Cues)
+    const cues = selectCueCards(topicId).map(raw => ({
+      ...raw,
+      conceptNodeTitle: title
+    }));
 
-    if (nodeResources.length > 0) {
-      console.log('[useTopicSlidePlayer.ts][4052] Topic not in current deck. Opening isolated review.');
-      // 4. Step 4: Open a new slideshow context focusing specifically on these resources
-      // This ensures the scholar lands on the correct content even if their session deck was filtered.
-      openCustom(nodeResources, "review", false);
+    // Group C: Practice Quizzes (Sheets)
+    const quizzes = selectPracticeSheets(topicId).map(raw => ({
+      ...raw,
+      conceptNodeTitle: title
+    }));
+
+    // 3. Step 3: Concatenate into the final study deck (Notes -> Cues -> Quizzes)
+    const topicDeck: ResourceCard[] = [...notes, ...cues, ...quizzes];
+
+    // 4. Step 4: Logic Gate - ensure we have material before launching
+    if (topicDeck.length > 0) {
+      console.log('[useTopicSlidePlayer.ts][4051] Launching player with', topicDeck.length, 'slides');
+      
+      // 5. Step 5: Open the custom deck and disable "Resume" logic to ensure student starts at Note 1
+      openCustom(topicDeck, "review", false); 
     } else {
-      console.warn('[useTopicSlidePlayer.ts][4053] Jump failed: No reviewable resources found for node:', topicId);
+      console.warn('[useTopicSlidePlayer.ts][4053] No study resources found for node:', topicId);
     }
-  }, [currentDeck, openCustom, selectResources]);
+  }, [getNodeTitle, selectNoteCards, selectCueCards, selectPracticeSheets, openCustom]);
 
   return {
     jumpToTopic

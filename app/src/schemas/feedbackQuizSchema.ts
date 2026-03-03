@@ -28,9 +28,12 @@ const feedbackFields = {
     "properties": {
       "text": { "type": "string", "description": "The exact verbatim quote from the study material context that proves the answer." },
     },
-    "required": ["text"]
+    "required": ["text"],
+    "additionalProperties": false
   }
 };
+
+const baseRequiredFields = [ "topicKey", "explanation", "citation"];
 
 // 2. Define the enriched Multiple Choice Schema
 export const FeedbackMultipleChoiceSchema = {
@@ -78,7 +81,8 @@ export const FeedbackMultipleChoiceSchema = {
             "id",
             "question",
             "options",
-            "correctAnswer"
+            "correctAnswer",
+            ...baseRequiredFields
           ],
           "additionalProperties": false
         }
@@ -135,7 +139,8 @@ export const TrueFalseSchema ={
             "id",
             "type",
             "question",
-            "correctAnswer"
+            "correctAnswer",
+            ...baseRequiredFields
           ],
           "additionalProperties": false
         }
@@ -196,7 +201,8 @@ export const FillInBlankSchema = {
             "id",
             "type",
             "questionText",
-            "correctAnswer"
+            "correctAnswer",
+            ...baseRequiredFields
           ],
           "additionalProperties": false
         }
@@ -258,7 +264,8 @@ export const MatchingQuizSchema ={
             "id",
             "type",
             "matchingQuestion",
-            "matchingAnswer"
+            "matchingAnswer",
+            ...baseRequiredFields
           ],
           "additionalProperties": false
         }

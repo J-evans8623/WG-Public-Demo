@@ -76,3 +76,7 @@ docker-compose.override.yml
 exportableemails.csv
 
 probable_students.csv
+
+tests/
+jest.config.js
+**/test.ts
