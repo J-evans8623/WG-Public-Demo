@@ -1,0 +1,38 @@
+/**
+ * @file app/(welcome)/draft/landingPageB/VideoHeroShot.css
+ * @description
+ * This stylesheet provides the layout constraints and responsive scaling logic for the 
+ * VideoHeroShot component. Its primary responsibility is to enforce a visual hierarchy 
+ * by limiting the maximum footprint of the hero video. By using a percentage-based 
+ * width and an aspect-ratio container, it ensures the video feels like a balanced 
+ * "monitor" element rather than a full-width background. It also handles the 
+ * centering within the hero's visual column and ensures the 12px burgundy frame 
+ * scales elegantly across different screen sizes.
+ */
+
+/* update - 1.1: Main container to control the proportional size of the video shot */
+.wg-video-hero-wrapper {
+  width: 85%; /* Reduces size to 85% of the parent column for better hierarchy */
+  max-width: 680px; /* Prevents it from becoming too massive on ultra-wide screens */
+  margin: 0 auto; /* Centers the video within the right-side visual area */
+  aspect-ratio: 16 / 10; /* Mimics a modern monitor profile */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease; /* Smooth hover interaction potential */
+}
+
+/* update - 1.2: Mobile overrides to ensure it fills more space on small screens */
+@media (max-width: 960px) {
+  .wg-video-hero-wrapper {
+    width: 100%;
+    max-width: 500px;
+    margin-top: 2rem;
+  }
+}
+
+/* update - 1.3: Shadow enhancement to add depth against the ambient desk background */
+.wg-video-hero-frame {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  transition: box-shadow 0.3s ease;
+}

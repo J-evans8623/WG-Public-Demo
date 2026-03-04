@@ -22,6 +22,73 @@
   height: var(--wg-nav-height); 
   max-height: var(--wg-nav-height);
   overflow: visible; /* Allows dropdowns if you add them later, but keeps bar height fixed */
+
+   /*
+   * Smooth property hand-off when the floating class is added/removed.
+   * border-radius and box-shadow animate; width/position cannot be
+   * transitioned (different stacking contexts), so those switch instantly.
+   * The keyframe handles the entrance animation instead.
+   */
+  transition:
+    border-radius 0.25s ease,
+    box-shadow    0.25s ease,
+    background    0.25s ease;
+}
+
+
+.wg-nav--floating {
+  /*
+   * Switch to fixed so the nav follows the viewport regardless of
+   * how deep the user has scrolled. left/right + margin: auto centre it.
+   */
+  position: fixed;
+  top: 12px;
+
+  /* Horizontal inset: 24px per side on large screens, 12px on small */
+  left: clamp(12px, 3vw, 24px);
+  right: clamp(12px, 3vw, 24px);
+
+  /* Never wider than the main content column */
+  max-width: calc(var(--wg-content) - clamp(24px, 6vw, 48px));
+  margin: 0 auto;
+
+  /* Pill shape */
+  border-radius: 100px;
+
+  /* Elevated shadow to visually lift the bar off the page */
+  box-shadow:
+    0 4px 6px  rgba(0, 0, 0, 0.04),
+    0 10px 28px rgba(0, 0, 0, 0.10),
+    0 1px  3px  rgba(0, 0, 0, 0.06);
+
+  /* Slightly more opaque so content beneath doesn't bleed through */
+  background: rgba(254, 253, 252, 0.97);
+
+  /* Slide-in entrance */
+  animation: wg-nav-float-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+
+
+@keyframes wg-nav-float-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Honour reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .wg-nav--floating {
+    animation: none;
+  }
+  .wg-nav {
+    transition: none;
+  }
 }
 
 .wg-nav-inner {
@@ -85,7 +152,7 @@
 /* CTA BUTTON */
 .wg-nav-cta {
   padding: 8px 18px;
-  border-radius: 999px;
+  border-radius: 4px;
   background-color: #E34432; 
   color: #ffffff;
   font-size: 0.95rem;
@@ -111,5 +178,11 @@
   }
   .wg-nav-inner {
     padding-inline: 16px;
+  }
+
+    .wg-nav--floating {
+    left: 10px;
+    right: 10px;
+    top: 8px;
   }
 }

@@ -37,7 +37,7 @@
 .wg-main{
   max-width: var(--wg-content);
   margin: 0 auto;
-  padding: clamp(32px, 4vw, 48px) var(--wg-gutter) clamp(56px, 7vw, 80px);
+  padding: clamp(16px, 2vw, 24px) var(--wg-gutter) clamp(56px, 7vw, 80px);
 }
 
 /* ===========================
@@ -47,7 +47,7 @@
 .wg-hero {
   position: relative;
   overflow: hidden;
-  padding: 80px 48px 88px;
+  padding: 20px 24px 22px;
   background-color: #fff6ea;
 
   /* desk stage artwork */
@@ -80,7 +80,7 @@
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 48px;
+  gap: 16px;
 }
 
 /* 35% text column */
@@ -94,7 +94,7 @@
 /* typography */
 .wg-hero-heading {
   font-family: 'Crimson Text', serif;
-  font-size: 2.6rem;
+  font-size: 3.6rem;
   line-height: 1.1;
   margin-bottom: 1.25rem;
   color: #2c3e50;
@@ -151,7 +151,7 @@
    =========================== */
 
 .wg-video-showcase {
-  padding: clamp(40px, 6vw, 80px) var(--wg-gutter);
+  padding: clamp(20px, 6vw, 40px) var(--wg-gutter);
   background: linear-gradient(to bottom, #fff6ea 0%, #fefdfc 100%); /* Adjusted gradient start to match hero */
 }
 
@@ -243,7 +243,7 @@
   align-items: center;
   justify-content: center;
   padding: 14px 28px;
-  border-radius: 999px;
+  border-radius: 4px;
   font-size: 0.98rem;
   font-weight: 600;
   text-decoration: none;
@@ -384,33 +384,39 @@
 
 @media (max-width: 960px) {
   .wg-main {
-    padding-top: 64px;
+    padding-top: 4px;
   }
 
   /* Hero: stack text + visual, keep bleed background */
   .wg-hero {
-    padding: 64px 20px 72px;
-    background-position: center bottom;
-    background-size: 130%;
+    padding:  16px 16px 16px;
+    /* UPDATE - 3.2: Positioned background at 95% vertical to move it away from the text */
+    background-position: center 80%; 
+    background-image: none;
+    background-size: 140%;
   }
 
   .wg-hero-inner {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 28px;
+    /* UPDATE - 3.4: Changed to center to fix the left-aligned mobile issue */
+    align-items: center; 
+    gap: 16px;
   }
 
+  /* UPDATE - 3.5: centering text and removing max-width constraints */
   .wg-hero-text {
     max-width: 100%;
     flex: 0 0 auto;
+    /* UPDATE - 3.6: Explicitly centered text for the headline and subtitle */
+    text-align: center; 
   }
 
   .wg-hero-visual {
     width: 100%;
-    min-height: 260px;
-    margin-top: 8px;
+    /* UPDATE - 3.7: reduced min-height to prevent empty gaps on small screens */
+    min-height: auto; 
+    margin-top: 0px;
   }
-
   .wg-hero-monitor {
     position: relative;
     right: auto;

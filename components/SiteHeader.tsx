@@ -6,14 +6,51 @@
 
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import BrandIcon from '@/public/brand/brand-wordmark-1.svg'; // Ensure this path matches your asset folder
 import './site-header.css';
 
+const FLOAT_THRESHOLD = 80;
+
 const SiteHeader = () => {
+  const [isFloating, setIsFloating] = useState(false);
+  
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  useEffect(() => {
+    // The YouTube video section is our trigger boundary.
+    // Once it fully leaves the viewport upward, float the nav.
+    const sentinel = document.querySelector('#video');
+
+    if (!sentinel) {
+      // Fallback: if the anchor doesn't exist, never float.
+      return;
+    }
+
+    observerRef.current = new IntersectionObserver(
+      ([entry]) => {
+        // isIntersecting goes false when the element has scrolled out of view.
+        // We only want to float when scrolling DOWN (not when it re-enters
+        // from below on scroll-up past the hero), so we also check that
+        // the element's bottom edge has crossed above the viewport top.
+        const scrolledPast = !entry.isIntersecting && entry.boundingClientRect.bottom < 0;
+        setIsFloating(scrolledPast);
+      },
+      {
+        // No rootMargin — trigger exactly when #video exits the viewport.
+        threshold: 0,
+      }
+    );
+
+    observerRef.current.observe(sentinel);
+
+    return () => observerRef.current?.disconnect();
+  }, []);
+
+  
   return (
-    <header className="wg-nav">
+    <header className={`wg-nav${isFloating ? ' wg-nav--floating' : ''}`}>
       <div className="wg-nav-inner">
         {/* LEFT: LOGO */}
         <div className="wg-nav-left">
@@ -44,8 +81,8 @@ const SiteHeader = () => {
             Log in
           </Link>
           
-          <Link href="/workspace" className="wg-nav-cta">
-            Start Today
+          <Link href="/billing/offer" className="wg-nav-cta">
+            TRIAL FOR FREE
           </Link>
         </nav>
       </div>

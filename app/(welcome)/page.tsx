@@ -2,12 +2,12 @@
 
 import type { Metadata } from 'next';
 import React from 'react';
-import WelcomeLandingPage from '@/app/(welcome)/draft/WelcomeLandingPage';
+import WelcomeLandingPage from '@/app/(welcome)/draft/landingPageB/WelcomeLandingPage';
 import SiteFooter from '@/components/SiteFooter';
 import SiteHeader from '@/components/SiteHeader';
 import SoftwareSchema from '@/components/seo/SoftwareSchema';
 import VideoSchema from '@/components/seo/VideoSchema';
-
+// app\(welcome)\draft\landingPageB\WelcomeLandingPage.tsx
 export const metadata: Metadata = {
   // Keep keywords, but no "Free" promise here seo
   title: 'WiseGraph | Spaced Repetition App & AI Study Planner',
