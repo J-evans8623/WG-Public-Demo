@@ -95,7 +95,7 @@ const SchoolBanner: React.FC = () => {
           }}
           transition={{
             ease: 'linear',
-            duration: 35,
+            duration: 60,
             repeat: Infinity,
           }}
         >

@@ -108,6 +108,7 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
   const [busyPlan, setBusyPlan] = useState<'scholar' | 'educator' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentPriceId, setCurrentPriceId] = useState<string | null>(null);
+  const [hasUsedTrial, setHasUsedTrial] = useState<boolean>(false);
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/signin?returnTo=/billing/offer' });
@@ -136,8 +137,10 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
           headers: { 'Content-Type': 'application/json' },
         });
         if (!res.ok) return;
-        const data = (await res.json()) as AccountStatusShape;
-        if (!cancelled) setCurrentPriceId(data?.billing?.priceId ?? null);
+        const data = (await res.json())
+        if (!cancelled) 
+          setCurrentPriceId(data?.billing?.priceId ?? null);
+        setHasUsedTrial(data?.hasUsedTrial ?? false);
       } catch (err) {
         console.warn('[OfferPageClient] Failed to load account status:', err);
       }
@@ -146,6 +149,29 @@ export default function OfferPageClient({ planConfig, paymentsEnabled }: Props) 
     loadStatus();
     return () => { cancelled = true; };
   }, [status]);
+
+
+
+  /**
+   * getButtonText
+   * @description
+   * Determines the appropriate call-to-action label for a specific plan card based on the 
+   * user's current subscription status and their one-time trial eligibility. This function 
+   * serves as the final gatekeeper for the UI, ensuring that ineligible users are not 
+   * promised a trial they cannot claim. It performs this string resolution in O(1) time 
+   * complexity and provides immediate feedback during the plan selection process.
+   */
+  /* UPDATE - 8.3: Implementation of dynamic CTA text */
+  const getButtonText = (planType: 'scholar' | 'educator', isCurrent: boolean, isBusy: boolean) => {
+    if (isCurrent) return 'Current Plan';
+    if (isBusy) return 'Processing...';
+    
+    // If the user hasn't used their trial, show the promotional text
+    if (!hasUsedTrial) return 'Start 3-Day Free Trial';
+    
+    // Fallback for returning customers or those who already exhausted their trial
+    return 'Subscribe Now';
+  };
 
   const handlePlanSelect = async (planKey: 'scholar' | 'educator') => {
     setError(null);
@@ -321,7 +347,7 @@ const audienceTagStyle: React.CSSProperties = {
                     onClick={() => handlePlanSelect('scholar')}
                     disabled={scholarIsBusy || scholarIsCurrent}
                   >
-                    {scholarIsCurrent ? 'Current Plan' : scholarIsBusy ? 'Processing...' : 'Start 3-Day Free Trial'}
+                    {getButtonText('scholar', scholarIsCurrent, scholarIsBusy)}
                   </button>
                 ) : (
                   <button className="wg-card-btn wg-btn-primary-p" disabled>Coming Soon</button>
@@ -362,7 +388,7 @@ const audienceTagStyle: React.CSSProperties = {
                     onClick={() => handlePlanSelect('educator')}
                     disabled={educatorIsBusy || educatorIsCurrent}
                   >
-                    {educatorIsCurrent ? 'Current Plan' : educatorIsBusy ? 'Processing...' : 'Start 3-Day Free Trial'}
+                    {getButtonText('educator', educatorIsCurrent, educatorIsBusy)}
                   </button>
                 ) : (
                   <button className="wg-card-btn wg-btn-primary-p" disabled>Coming Soon</button>

@@ -24,6 +24,7 @@
 import React, { useState, useMemo } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import Image from "next/image";
+import { ArrowLeft } from "lucide-react";
 import "./UserInfoPanel.css";
 import { useAccountStatus } from "@/app/src/context/ApiContext"; 
 
@@ -230,6 +231,15 @@ const formattedRenewalDate = useMemo(() => {
         {/* Authenticated state with real subscription data */}
         {!isSessionLoading && isAuthed && (
           <div className="user-info-card">
+
+            <button 
+              onClick={onClose}
+              className="user-info-back-contextua"
+              aria-label="Return to previous screen"
+              title="Back"
+            >
+              <ArrowLeft size={20} />
+            </button>
             {/* Header Section */}
             <div className="user-info-header">
               <div className="user-info-avatar-wrapper">
@@ -263,8 +273,11 @@ const formattedRenewalDate = useMemo(() => {
                 </div>
               )}
 
+
               {!showSubscriptionSkeleton && (
+              
                 <>
+                {/* UPDATE - 1.1: Refactored Trial Banner to handle Canceled trials vs Active trials */}
                   {subscriptionFlags.isSubscribed ? (
                     <>
                       {/* Subscribed State — premium or cancel-at-period-end */}
@@ -296,28 +309,6 @@ const formattedRenewalDate = useMemo(() => {
                             </span>
                             <span className="user-info-renewal-value">
                               {subscriptionUi.planLabel}
-                            </span>
-                          </div>
-                        )}
-
-                        {formattedRenewalDate && subscriptionUi?.renewalCopy && (
-                          <div className="user-info-renewal-row">
-                            <span className="user-info-renewal-label">
-                              {subscriptionUi.renewalCopy}
-                            </span>
-                            <span className="user-info-renewal-value">
-                              {formattedRenewalDate}
-                            </span>
-                          </div>
-                        )}
-
-                        {subscriptionFlags.isCanceledAtPeriodEnd && (
-                          <div className="user-info-renewal-row">
-                            <span className="user-info-renewal-label">
-                              Status
-                            </span>
-                            <span className="user-info-renewal-value">
-                              Will end at period close
                             </span>
                           </div>
                         )}

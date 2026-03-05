@@ -110,6 +110,10 @@ const AppLayoutContent: React.FC = () => {
   // View state
   const [currentView, setCurrentView] = useState<'home' | 'map' | 'user'>('home');
 
+
+  //  New state to track the previous context for return navigation.
+  // This allows the back button in the user profile to be context-aware.
+  const [lastActiveView, setLastActiveView] = useState<'home' | 'map'>('home');
   // update - 4: read only from YDocContextv2
   const {
     ydoc,
@@ -264,6 +268,14 @@ const AppLayoutContent: React.FC = () => {
   }, [renderReady, saveReady, docFileID, setActiveView, hideModal, triggerViewSwitch, setTriggerViewSwitch]); // update - 8
 
 
+  // We capture the view state only when it is not 'user', ensuring we always have 
+  // the correct "source" scene to return to when the profile is dismissed.
+  // Time complexity: O(1)
+  useEffect(() => {
+    if (currentView !== 'user') {
+      setLastActiveView(currentView as 'home' | 'map');
+    }
+  }, [currentView]);
 
   useEffect(() => {
     if (!bootError) return;
@@ -423,7 +435,7 @@ const AppLayoutContent: React.FC = () => {
 
       {currentView === 'user' && (
         <div className="flex-1">
-          <UserInfoPanel onClose={() => setCurrentView('map')} />
+          <UserInfoPanel onClose={() => setCurrentView(lastActiveView)} />
         </div>
       )}
 

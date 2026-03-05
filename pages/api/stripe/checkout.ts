@@ -75,6 +75,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const userProfile = await UserService.getUserProfile(session.user.email);
   const email = userProfile.email;
   const appUserId = userProfile.userId;
+  const isTrialEligible = !userProfile.hasUsedTrial;
 
   // Step 4 — Duplicate-plan guard using session-only data.
   //          If the user is in the premium tier and the requested priceId matches
@@ -109,6 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     cancelUrl: cancelUrl(),
     email,
     idempotencyKey,
+    trialDays: isTrialEligible ? 3 : undefined,
   });
 
   // Step 7 — Return URL and session ID.

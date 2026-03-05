@@ -69,6 +69,7 @@ interface AccountStatus {
   reachedMilestones?: string[]; // Milestone checkmark support
   trialStartDate?: number | null;
   trialEndDate?: number | null;         // Countdown calculation support
+  hasUsedTrial:boolean;
   features: {
     canCreatePublicFiles: boolean;
     canInviteEditors: boolean;
@@ -163,6 +164,35 @@ export const useAccountStatus = () => {
   }
 
 
+  /**
+   * trialDaysRemaining
+   * @description
+   * React hook calculation that determines the number of days left in a user's trial period.
+   * It performs an O(1) computation using the current system time and the authoritative 
+   * trialEndDate provided by the status API. This value is used by dashboard components 
+   * to provide full billing transparency (Criterion #8). It is memoized based on the 
+   * accountStatus to prevent unnecessary re-calculations during component re-renders.
+   */
+  const trialDaysRemaining = React.useMemo(() => {
+    /* UPDATE - 4.1: Internalize unit conversion for UI transparency (Criterion #8) */
+    // We only calculate this if the user is in a 'trialing' status.
+    const isTrialing = context.accountStatus?.billing?.status === 'trialing';
+    if (!isTrialing) return null;
+
+    // Use Stripe's currentPeriodEnd (seconds) as the primary authority if available.
+    const rawStripeSeconds = context.accountStatus?.billing?.currentPeriodEnd;
+    const rawLocalMs = context.accountStatus?.trialEndDate;
+
+    // Logic: Convert to ms only at the point of calculation to preserve API purity.
+    const endMs = rawStripeSeconds ? rawStripeSeconds * 1000 : rawLocalMs;
+    
+    if (!endMs) return null;
+
+    const diff = endMs - Date.now();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return Math.max(0, days);
+  }, [context.accountStatus]);
+
     /* Derive a normalized, UI-friendly subscription snapshot in O(1). */
   const subscriptionUi: SubscriptionUiSnapshot | null = React.useMemo(() => {
     if (!context.accountStatus) return null;
@@ -185,6 +215,8 @@ export const useAccountStatus = () => {
     isTrialUser,
     remainingDemoCredits: context.accountStatus?.remainingDemoCredits ?? 0,
     isLoading: context.isAccountLoading,
+    hasUsedTrial: context.accountStatus?.hasUsedTrial ?? false,
+    trialDaysRemaining,
     refresh: context.refreshAccountStatus,
     hasFeature: context.hasFeature,
     canUpgrade: context.canUpgrade,
@@ -863,6 +895,7 @@ const fetchAccountStatus = useCallback(async (): Promise<void> => {
         email: normalizedEmail || 'unknown',
         accountType: 'scholar',
         subscriptionTier: 'freemium',
+        hasUsedTrial:false,
         features: {
           canCreatePublicFiles: false,
           canInviteEditors: false,

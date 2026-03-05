@@ -195,7 +195,7 @@ export interface UserProfile {
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
   lastActiveAt: admin.firestore.Timestamp;
-  
+  hasUsedTrial: boolean;
   // Account limits based on subscription tier
   limits: {
     maxCollaborators: number;
@@ -384,6 +384,7 @@ export class UserService {
       features,
       samplesProvisioned: true,
       isFirstSessionFlyerTracking: true,
+      hasUsedTrial: false,
     };
     
     // Step 5: Initialize enhanced usage tracking with secondary services
@@ -469,16 +470,28 @@ export class UserService {
    */
 static async getUserProfile(email: string): Promise<UserProfile> { 
     const normalizedEmail = email.toLowerCase().trim(); 
+
+    // --- Definitive Diagnostic Trace ---
+    let loaderWasExecuted = false;
+    let isPoisonedCacheHit = false;
+    let isLegacyDocumentDetected = false;
+    let writeCommandIssued = false;
+    // -----------------------------------
+
     const loader = async (): Promise<UserProfile | null> => {
+      loaderWasExecuted = true; 
       const userRef = firestore.collection('users').doc(normalizedEmail);
       const snapshot = await userRef.get();
 
-      let profile: UserProfile;
-
-
       if (snapshot.exists) {
-        profile = snapshot.data() as UserProfile;
-        console.log(`8000 getUSerProfile profile response from firebase ${JSON.stringify({profile})}`);
+        const profile = snapshot.data() as UserProfile;
+        
+        // Step 1: Detect if the actual DB record is missing the flag
+        if (profile.hasUsedTrial === undefined) {
+            isLegacyDocumentDetected = true;
+        }
+
+        console.log(`8000 getUSerProfile DB response for ${normalizedEmail}: ${JSON.stringify({profile})}`);
 
         if (!profile.samplesProvisioned) {
           console.log(`[userService] Migrating existing user x8x: ${normalizedEmail}`);
@@ -498,36 +511,62 @@ static async getUserProfile(email: string): Promise<UserProfile> {
         }
 
         // 2. Inject Campaign Status (Phase 1 Sprint Objective)
-      // Check if user has an existing application record (PENDING, APPROVED, etc.)
-      const appRecord = await getApplicationStatus(normalizedEmail); // update - 5
+        const appRecord = await getApplicationStatus(normalizedEmail);
 
-      if (appRecord) {
-        profile.campaignStatus = appRecord.status as CampaignStatus; // update - 6
-      } else {
-        // Fallback to eligibility check for fresh leads
-        profile.campaignStatus = await this.resolveCampaignEligibility(normalizedEmail); // update - 7
-      }
-
+        if (appRecord) {
+          profile.campaignStatus = appRecord.status as CampaignStatus;
+        } else {
+          profile.campaignStatus = await this.resolveCampaignEligibility(normalizedEmail);
+        }
 
         return profile
       }
 
-
       console.log('[userService.ts][7005] Profile loader creating default', { email: normalizedEmail });
-      const created = await this.createUserProfile(normalizedEmail); // creates usage too
-      // createUserProfile already bumps version
+      const created = await this.createUserProfile(normalizedEmail); 
       return created;
     };
 
-    
-
     const hit = await cacheReadUserProfile(normalizedEmail, loader); 
-    if (!hit) {
-      // Defensive: should not happen because loader creates; return a minimal default if needed.
-      console.warn('[userService.ts][7005a] Profile cache returned null after loader (unexpected)', { email: normalizedEmail }); 
-      return await this.createUserProfile(normalizedEmail); 
+
+    if (hit && !loaderWasExecuted) {
+        // Step 2: Check if Redis is returning data that prevents the repair
+        if (hit.hasUsedTrial !== undefined) {
+            isPoisonedCacheHit = true;
+        }
     }
-    return hit;
+
+    if (!hit) return await this.createUserProfile(normalizedEmail);
+
+    // Step 3: The Persistent Repair Trigger (Outside Loader)
+    if (hit.hasUsedTrial === undefined) {
+      console.log(`[UserService] Initiating Persistent Heal for ${normalizedEmail}`);
+      const userRef = firestore.collection('users').doc(normalizedEmail);
+      
+      try {
+          await userRef.update({ 
+            hasUsedTrial: false,
+            updatedAt: admin.firestore.Timestamp.now() 
+          });
+          writeCommandIssued = true;
+      } catch (e) {
+          console.error('[UserService] Persistent write failed:', e);
+      }
+
+      hit.hasUsedTrial = false;
+      await bumpUserVersion(normalizedEmail);
+    }
+
+    // --- THE ONLY LOG THAT MATTERS ---
+    console.log(`[DEBUG][getUserProfile] Execution Trace for ${normalizedEmail}: ${JSON.stringify({
+        loaderWasExecuted,
+        isPoisonedCacheHit,
+        isLegacyDocumentDetected,
+        writeCommandIssued,
+        finalFlagState: hit.hasUsedTrial
+    })}`);
+
+    return hit; 
   }
   
   /**
@@ -1555,6 +1594,29 @@ static async getUserUsage(email: string): Promise<UserUsage> { // update - 9
     return result;
   }
 
+/**
+   * markTrialAsUsed
+   * @description
+   * Atomically updates a user's Firestore record to indicate that they have consumed their 
+   * one-time trial eligibility. This method is invoked immediately upon the creation of a 
+   * trial-enabled checkout session, effectively burning the trial bridge to prevent abuse.
+   * After the Firestore update, it executes a Redis version bump to invalidate all cached
+   * instances of the profile across the application's API layer. This ensures that any 
+   * permission checks performed by the checkout gatekeeper or dashboard will immediately 
+   * recognize the user's new eligibility status, satisfying Condition #4.
+   */
+  static async markTrialAsUsed(email: string): Promise<void> {
+    const normalizedEmail = email.toLowerCase().trim();
+    const userRef = firestore.collection('users').doc(normalizedEmail);
+
+    await userRef.update({
+      hasUsedTrial: true,
+      updatedAt: admin.firestore.Timestamp.now(),
+    });
+
+    // Invalidate cache immediately so UI and API gates reflect the change
+    await bumpUserVersion(normalizedEmail);
+  }
 
 
   /**
@@ -1612,3 +1674,4 @@ static async getUserUsage(email: string): Promise<UserUsage> { // update - 9
     console.log(`[UserService] Decoupled reward granted and version bumped for: ${userId}`);
   }
 }
+

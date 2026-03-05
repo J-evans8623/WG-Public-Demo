@@ -47,7 +47,6 @@
       "src/**/*.{ts,tsx,d.ts}",
     ".next/types/**/*.ts",
     "app/**/*.d.ts",
-    "app/src/services/*.js", "app/src/services/yjs/yjs-server.js",  
   ],
   "exclude": [
     "node_modules",

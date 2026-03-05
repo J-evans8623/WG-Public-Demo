@@ -76,8 +76,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
 
-        if (subId) {
+         if (subId) {
             const snap = await retrieveSubscription(subId);
+
+            if (snap.status === 'trialing') {
+            console.log(`[webhook] Trial confirmed for ${email}. Burning eligibility.`);
+            await UserService.markTrialAsUsed(email);
+          }
             
             // Define Price IDs for both tiers from Environment
             const educatorPrices = [

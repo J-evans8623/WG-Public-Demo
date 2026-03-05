@@ -40,6 +40,7 @@ interface AccountStatusResponse {
   subscriptionTier: 'freemium' | 'premium';
   remainingDemoCredits?: number;
   campaignStatus?: CampaignStatus;
+  hasUsedTrial: boolean;
   features: {
     canCreatePublicFiles: boolean;
     canInviteEditors: boolean;
@@ -99,6 +100,9 @@ export default async function handler(
       UserService.getUserUsage(userEmail)
     ]);
 
+
+    console.log(`is the cache still posioned  8896? : ${JSON.stringify({userProfile})}`)
+
     //  Fetch progress from the application collection (The Source of Truth)
     const appDoc = await firestore.collection('referral_applications').doc(userEmail).get();
     const appData = appDoc.exists ? appDoc.data() : null;
@@ -124,6 +128,7 @@ export default async function handler(
       email: userProfile.email,
       accountType: userProfile.accountType,
       subscriptionTier: userProfile.subscriptionTier,
+      hasUsedTrial: userProfile.hasUsedTrial,
       remainingDemoCredits: userUsage.demoCredits?.remaining ?? 0,
       campaignStatus: userProfile.campaignStatus,
       features: userProfile.features,

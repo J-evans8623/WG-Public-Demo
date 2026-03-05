@@ -23,8 +23,10 @@ export interface CheckoutParams {
   priceId: string;
   successUrl: string;
   cancelUrl: string;
+  trialDays?: number; // Added to allow the API to signal trial intent to the adapter
   email?: string;
   idempotencyKey?: string;
+
 }
 
 export interface CheckoutResult {

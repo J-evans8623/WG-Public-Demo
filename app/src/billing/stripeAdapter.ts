@@ -57,9 +57,22 @@ export async function getOrCreateCustomer(email: string, appUserId: string): Pro
   return created.id;
 }
 
+
+/**
+ * createCheckoutSession
+ * @description
+ * Creates a hosted Stripe Checkout session with specialized configurations for free trials.
+ * This function implements the "Hard Trial" logic by passing a trial_period_days value to 
+ * Stripe's subscription_data. Crucially, it sets payment_method_collection to 'always' 
+ * whenever a trial is active. This forces the Stripe UI to collect credit card information 
+ * immediately, satisfying the success criteria for upfront collection. This prevents 
+ * invoices from going into a 'past_due' or 'unpaid' state at the end of the 72-hour window 
+ * because the billing engine will already have a valid payment source on file to charge 
+ * automatically on the user's behalf.
+ */
 export async function createCheckoutSession(params: CheckoutParams): Promise<CheckoutResult> {
   const stripe = getStripe();
-  const { customerId, priceId, successUrl, cancelUrl, email, idempotencyKey } = params;
+  const { customerId, priceId, successUrl, cancelUrl, email, idempotencyKey, trialDays } = params;
 
   // Basic validation for priceId
   if (!priceId) throw new Error('createCheckoutSession: missing priceId');
@@ -71,8 +84,20 @@ export async function createCheckoutSession(params: CheckoutParams): Promise<Che
     cancel_url: cancelUrl,
     allow_promotion_codes: true,
     customer_update: { address: 'auto', name: 'auto' },
-  };
 
+    /* UPDATE - 3.2: Inject Trial Data if requested */
+    subscription_data: trialDays ? {
+      trial_period_days: trialDays,
+      trial_settings: {
+        end_behavior: {
+          missing_payment_method: 'cancel', // Safety: cancel if payment can't be resolved later
+        },
+      },
+    } : undefined,
+
+    /* UPDATE - 3.3: The Zero-Dollar Guard - Force collection for trials */
+    payment_method_collection: 'always' ,
+  };
   const identity: Partial<Stripe.Checkout.SessionCreateParams> =
     customerId
       ? { customer: customerId }
