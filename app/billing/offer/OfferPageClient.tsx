@@ -304,7 +304,7 @@ const audienceTagStyle: React.CSSProperties = {
              * shadow to serve as the visual anchor — restoring the hierarchy
              * that a three-card layout provides through its middle option.
              */}
-            <div className="wg-cards-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+            <div className="wg-cards-grid wg-cards-grid--two-tier">
 
               {/* ── Scholar Premium (elevated / featured) ─────────────── */}
               <div

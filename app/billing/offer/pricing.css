@@ -153,6 +153,10 @@
   align-items: stretch;
 }
 
+.wg-cards-grid--two-tier {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 /* =========================================
    CARD COMPONENT STYLING
    ========================================= */
@@ -280,6 +284,10 @@
 @media (max-width: 960px) {
   .wg-ribbon-banner {
     margin: 0 0 24px 0;
+  }
+
+  .wg-cards-grid--two-tier {
+    grid-template-columns: 1fr;
   }
   
   .wg-ribbon-content {

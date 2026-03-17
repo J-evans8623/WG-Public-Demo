@@ -45,7 +45,7 @@ const VideoHeroShot = () => {
         >
           {/* update - 2.3: Video source remains the trimmed study planner demo */}
           <source 
-            src="/demo/heroVideo/hero-shot-work-flow.webm"  // public\demo\heroVideo\
+            src="/demo/heroVideo/hero-shot-work-flow.webm"  // public\demo\life-learner-take-4-trimmed.webm
             type="video/webm" 
           />
           Your browser does not support the video tag.

@@ -30,8 +30,8 @@ import QuizCard from '../Cards/QuizCard';
 import AskAssistantPanel from '../../../CardDisplay/Cards/AskAssistantPanel';
 import '@/app/workspace/(studygraph)/components/layout/CardDisplay/Cards/SlideShowv2.css';
 
-import { useComments } from '@/app/Library/Context/forum/CommentContext';
-import DiscussionFormInput from '../../../forum/DiscussionFormInput';
+//import { useComments } from '@/app/Library/Context/forum/CommentContext';
+//import DiscussionFormInput from '../../../forum/DiscussionFormInput';
 import { useUserData } from '@/app/Library/Context/UserDataContext';
 import { useNodesContext } from '@/app/Library/Context/NodesProvider';
 import { useYDoc } from '@/app/Library/Context/YDocContext';
@@ -46,6 +46,9 @@ import { calculateMaxStudyTime, isSignificantDuration } from '@/app/Library/Cont
 import { useCalendar } from '@/app/Library/Context/CalendarContextv2';
 import { useViewSwitch } from '@/app/workspace/(studygraph)/components/layout/Canvas/pdf/ViewSwitchContext';
 import StudyPlanButton from '../../../Calendar/StudyPlanButton';
+
+import { useSlideComments } from '@/app/Library/Context/SlideCommentsContext';
+import SlideCommentsModal from './SlideCommentsModal';
 
 /**
  * @function SlideShowOverlay
@@ -68,6 +71,20 @@ const SlideShowOverlay: React.FC = () => {
     open,
   } = useSlideShow();
   const {isReadOnly, docFileID} = useYDoc();
+
+  /**
+   * @description
+   * Consume the slide comments context directly inside the overlay so the header badge and footer trigger
+   * always reflect the current slide’s comment state without introducing duplicate local stores.
+   */
+  const {
+    activeDocId: activeCommentsDocId,
+    isHydrated: areCommentsHydrated,
+    isLoading: areCommentsLoading,
+    loadDocumentComments,
+    getCommentCountForSlide,
+    hasCommentsForSlide,
+  } = useSlideComments();
 
 
   // update - 18: Consume Study Log Context
@@ -93,18 +110,25 @@ const SlideShowOverlay: React.FC = () => {
   const [askLoading, setAskLoading] = useState(false);
   const prevAskLoading = useRef(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [composerOpen, setComposerOpen] = useState(false);
   const [isEditingSlideNumber, setIsEditingSlideNumber] = useState(false);
   const [tempSlideNumber, setTempSlideNumber] = useState('');
   const slideInputRef = useRef<HTMLInputElement>(null);
-
+  const [commentsModalOpen, setCommentsModalOpen] = useState(false);
   const { toggleBookmark, isBookmarked } = useUserData();
   const { getGlobalNode } = useNodesContext();
-  const { addPost } = useComments();
+  //const { addPost } = useComments();
 
   const total = slides.length;
   const nodetitle = currentSlide ? getGlobalNode(currentSlide.mapId, currentSlide.nodeId)?.title : '';
   const bookmarked = currentSlide ? isBookmarked(currentSlide.id) : false;
+
+   /**
+   * @description
+   * Derive current-slide comment presence and count using O(1) slideId selectors from SlideCommentsContext.
+   * These values drive both the top-right badge state and the footer + Comment trigger label if needed.
+   */
+  const currentSlideCommentCount = currentSlide ? getCommentCountForSlide(currentSlide.id) : 0;
+  const currentSlideHasComments = currentSlide ? hasCommentsForSlide(currentSlide.id) : false;
 
   useEffect(() => {
     if (isOpen) console.log('[SlideShowOverlay.tsx][1201] overlay open; total slides:', total, 'mode:', mode, 'status:', status);
@@ -115,9 +139,12 @@ const SlideShowOverlay: React.FC = () => {
     console.log('[SlideShowOverlay.tsx][1202] slide index →', currentIndex);
     setAskOpen(false);
     setCueFlipped(false);
+     setCommentsModalOpen(false);
     setIsEditing(false);
     setIsEditingSlideNumber(false);
   }, [isOpen, currentIndex]);
+
+
 
   useEffect(() => {
     // O(1) check + side-effects; auto-advance remains unchanged
@@ -268,7 +295,7 @@ const SlideShowOverlay: React.FC = () => {
     setIsEditingSlideNumber(false);
   };
 
-  const handleComposerSubmit = (title: string, content: string) => {
+/**   const handleComposerSubmit = (title: string, content: string) => {
     if (!currentSlide) return;
     console.log('[SlideShowOverlay.tsx][1306] create post for slide', currentSlide.id);
     addPost({
@@ -280,6 +307,36 @@ const SlideShowOverlay: React.FC = () => {
       body: `${content}`,
     });
     setComposerOpen(false);
+  }; */
+
+
+  /**
+   * @function handleOpenComments
+   * @description
+   * Opens the dedicated comment manager modal from either the footer trigger or the top-right comment badge.
+   * The modal is now the single interaction surface for all slide comment work, replacing the old Discuss
+   * composer path within the slideshow.
+   */
+  const handleOpenComments = (): void => {
+    console.log('[SlideShowOverlay.tsx][1902] open slide comments modal', {
+      slideId: currentSlide?.id,
+      count: currentSlideCommentCount,
+    });
+    setCommentsModalOpen(true);
+  };
+
+
+  /**
+   * @function handleCloseComments
+   * @description
+   * Closes the dedicated comment manager modal while preserving the rest of the slideshow overlay state.
+   * This keeps comments as an auxiliary surface rather than replacing slideshow navigation itself.
+   */
+  const handleCloseComments = (): void => {
+    console.log('[SlideShowOverlay.tsx][1903] close slide comments modal', {
+      slideId: currentSlide?.id,
+    });
+    setCommentsModalOpen(false);
   };
 
   if (!isOpen || !currentSlide) return null;
@@ -312,7 +369,7 @@ const SlideShowOverlay: React.FC = () => {
   };
 
   // update - 9: Composer modal uses the same portal host; matches legacy form class + wrapper
-  if (composerOpen) {
+  /**if (composerOpen) {
     return ReactDOM.createPortal(
       <>
         <div className="slideshow-backdrop" onClick={() => setComposerOpen(false)} />
@@ -326,7 +383,7 @@ const SlideShowOverlay: React.FC = () => {
       </>,
       document.body
     );
-  }
+  }   */
 
   // update - 17: When editing, replace dialog body with the full-screen edit form (restored)
   if (isEditing) { // update - 17
@@ -361,6 +418,8 @@ const SlideShowOverlay: React.FC = () => {
               )}
             </div>
           </div>
+
+
           <div className="slideshow-header-actions"> 
             {/* update - 12: Per requirement, hide Edit entirely when read-only (do not render at all) */}
             {caps.canEdit && ( 
@@ -373,6 +432,44 @@ const SlideShowOverlay: React.FC = () => {
                 Edit
               </button>
             )}
+
+
+            <button
+              className="slideshow-bookmark-btn"
+              title={currentSlideHasComments ? `${currentSlideCommentCount} comment(s)` : 'Open comments'}
+              onClick={handleOpenComments}
+              aria-label="Open comments"
+              style={{
+                position: 'relative',
+                color: currentSlideHasComments ? '#8b6b47' : undefined,
+              }}
+            >
+              <MessageSquare size={16} />
+              {currentSlideCommentCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-6px',
+                    right: '-6px',
+                    minWidth: '18px',
+                    height: '18px',
+                    padding: '0 5px',
+                    borderRadius: '999px',
+                    background: '#8b6b47',
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    lineHeight: '18px',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {currentSlideCommentCount > 9 ? '9+' : currentSlideCommentCount}
+                </span>
+              )}
+            </button>
+
+
             <button
               className="slideshow-bookmark-btn" 
               title={bookmarked ? 'Remove Bookmark' : 'Add Bookmark'}
@@ -384,6 +481,9 @@ const SlideShowOverlay: React.FC = () => {
               <X size={16} />
             </button>
           </div>
+
+
+
         </header>
 
         {/* update - 13: Main body stays unchanged aside from legacy classes */}
@@ -415,15 +515,13 @@ const SlideShowOverlay: React.FC = () => {
               Ask AI
             </button>
 
+                        {/* update - 24.1: Replace legacy Discuss action with the dedicated + Comment trigger required by the PRD. */}
             <button
-              className="slideshow-header-btn discussion-btn" /* update - 14 */
-              onClick={() => {
-                console.log('[SlideShowOverlay.tsx][1307] open discussion composer');
-                setComposerOpen(true);
-              }}
+              className="slideshow-header-btn discussion-btn"
+              onClick={handleOpenComments}
+              title="Open slide comments"
             >
-              <MessageSquare size={14} />
-              Discuss
+              + Comment
             </button>
 
             {/* Conditionally render the StudyPlanButton for untracked content */}
@@ -507,6 +605,15 @@ const SlideShowOverlay: React.FC = () => {
           </div>
         </div>
       </div>
+
+
+      {/* Mount the dedicated slide comments modal inside the slideshow portal tree. */}
+      <SlideCommentsModal
+        isOpen={commentsModalOpen}
+        onClose={handleCloseComments}
+        currentSlide={currentSlide}
+        currentLessonTitle={nodetitle || 'Current Lesson'}
+      />
 
       {/* update - 15: Legacy mount/unmount for Ask Assistant with only onClose/onLoading */}
       {askOpen && (

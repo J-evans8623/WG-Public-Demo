@@ -52,7 +52,7 @@ import { ColorThemeProvider } from '@/app/Library/Context/ColorThemeProvider';
 import { UndoRedoProvider, useUndoRedo } from './components/Context/UndoRedoContext';
 import { ResourceProvider } from '@/app/Library/Context/ResourceContext';
 import { LessonDataProvider } from '@/app/Library/Context/LessonDataContext';
-
+import { SlideCommentsProvider } from '@/app/Library/Context/SlideCommentsContext';
 import { YDocProvider, useYDoc } from '@/app/Library/Context/YDocContext'; 
 
 import { FileAssetProvider } from '@/app/Library/Context/FileAssetContext';
@@ -489,13 +489,16 @@ export const AppLayout: React.FC = () => {
                                                 <ChatHistoryProvider>
                                                   <SearchProvider>
                                                     <StudyLogProvider>
+                                                       <SlideCommentsProvider>
                                                     <SlideShowProvider>
                                                       <QuizFeedbackProvider> 
-                                                      
+                                                     
                                                       <AppLayoutContent />
+                                                      
                                                       </QuizFeedbackProvider>
                                                      
                                                     </SlideShowProvider>
+                                                    </SlideCommentsProvider>
                                                      </StudyLogProvider>
                                                     <SelectionAttachmentHandler />
                                                     <div id="modal-root" />

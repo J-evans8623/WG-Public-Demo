@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * @file app\(marketing)\welcome1\WelcomeLandingPage.tsx
+ * @file app\(welcome)\WelcomeLandingPage.tsx
  * @description
  *   WiseGraph marketing welcome page with sticky scroll "scenes" that adapts
  *   seamlessly between desktop and mobile viewports. On desktop (>960px), this

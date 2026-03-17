@@ -1,63 +1,51 @@
 /**
- * @file app\(marketing)\welcome1\welcomepage.css
- * @description 
- * Consolidated styling for the WiseGraph marketing page. 
- * - Restores the .wg-hero (2-column desk stage)
- * - Includes .wg-video-showcase (Video embed section)
- * - Includes scrollytelling and shared styles
+ * @file app/(marketing)/welcome1/welcomepage.css
+ * @description
+ * Consolidated styling for the WiseGraph marketing page.
+ * Desktop design is preserved.
+ * Mobile-only rules tighten the hero, hide the duplicate hero CTA,
+ * and bring the product visual higher into the fold.
  */
 
-/* Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:wght@400;600;700&display=swap');
 
-/* Design Tokens */
 :root{
-  --wg-gutter: clamp(12px, 2vw, 32px); 
-  --wg-content: min(96vw, 1440px);      
+  --wg-gutter: clamp(12px, 2vw, 32px);
+  --wg-content: min(96vw, 1440px);
   --wg-measure: clamp(56ch, 68vw, 84ch);
   --wg-gap: clamp(24px, 4vw, 64px);
 }
 
-/* Base reset */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-/* Page shell */
 .wg-page {
   min-height: 100vh;
-  background-color: #fefdfc; /* warm off-white */
+  background-color: #fefdfc;
   color: #2c3e50;
   font-family: 'Inter', sans-serif;
 }
 
-/* Main layout wrapper */
 .wg-main{
   max-width: var(--wg-content);
   margin: 0 auto;
   padding: clamp(16px, 2vw, 24px) var(--wg-gutter) clamp(56px, 7vw, 80px);
 }
 
-/* ===========================
-   HERO LAYOUT (Design 1 - Restored)
-   =========================== */
-
 .wg-hero {
   position: relative;
   overflow: hidden;
   padding: 20px 24px 22px;
   background-color: #fff6ea;
-
-  /* desk stage artwork */
   background-image: url('/brand/scene-0-desk-stage-A.png');
   background-repeat: no-repeat;
   background-position: right center;
   background-size: min(60vw, 900px);
 }
 
-/* soft fade between left copy panel and right desk art */
 .wg-hero::before {
   content: '';
   position: absolute;
@@ -70,12 +58,12 @@
     rgba(255, 246, 234, 0) 60%,
     rgba(255, 246, 234, 0) 100%
   );
-  z-index: 0; 
+  z-index: 0;
 }
 
 .wg-hero-inner {
   position: relative;
-  z-index: 1;           
+  z-index: 1;
   max-width: 1160px;
   margin: 0 auto;
   display: flex;
@@ -83,7 +71,6 @@
   gap: 16px;
 }
 
-/* 35% text column */
 .wg-hero-text {
   flex: 0 0 35%;
   max-width: 35%;
@@ -91,7 +78,6 @@
   z-index: 1;
 }
 
-/* typography */
 .wg-hero-heading {
   font-family: 'Crimson Text', serif;
   font-size: 3.6rem;
@@ -116,22 +102,20 @@
   color: #6b7280;
 }
 
-/* 65% visual column (monitor only – desk is the background) */
 .wg-hero-visual {
   flex: 0 0 65%;
   position: relative;
   min-height: 360px;
 }
 
-/* MONITOR FRAME OVERLAY */
 .wg-hero-monitor {
   position: absolute;
   right: 8%;
   top: 8%;
-  width: min(720px, 58vw);   
+  width: min(720px, 58vw);
   border-radius: 18px;
   padding: 10px;
-  background-color: #151515; /* charcoal frame */
+  background-color: #151515;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
 }
 
@@ -146,13 +130,9 @@
   height: auto;
 }
 
-/* ===========================
-   VIDEO SHOWCASE (Design 2 - Retained)
-   =========================== */
-
 .wg-video-showcase {
   padding: clamp(20px, 6vw, 40px) var(--wg-gutter);
-  background: linear-gradient(to bottom, #fff6ea 0%, #fefdfc 100%); /* Adjusted gradient start to match hero */
+  background: linear-gradient(to bottom, #fff6ea 0%, #fefdfc 100%);
 }
 
 .wg-video-showcase-inner {
@@ -160,11 +140,10 @@
   margin: 0 auto;
 }
 
-/* Wrapper for "See how it works" label and curled arrow */
 .wg-video-pointer-wrapper {
   position: relative;
   display: flex;
-  align-items: center; 
+  align-items: center;
   gap: 16px;
   margin-bottom: 24px;
   margin-left: clamp(40px, 6vw, 80px);
@@ -201,10 +180,9 @@
   border: 1px solid rgba(212, 196, 176, 0.4);
 }
 
-/* 16:9 aspect ratio wrapper */
 .wg-video-wrapper {
   position: relative;
-  padding-bottom: 56.25%; 
+  padding-bottom: 56.25%;
   background: #000;
 }
 
@@ -232,12 +210,6 @@
   color: #4b5563;
 }
 
-
-/* ===========================
-   GENERIC & SHARED SECTIONS
-   =========================== */
-
-/* Buttons */
 .wg-btn {
   display: inline-flex;
   align-items: center;
@@ -253,7 +225,7 @@
 }
 
 .wg-btn-primary {
-  background-color: #E34432; 
+  background-color: #E34432;
   color: #ffffff;
   box-shadow: 0 4px 12px rgba(227, 68, 50, 0.25);
 }
@@ -276,7 +248,6 @@
   transform: translateY(-1px);
 }
 
-/* Section Text */
 .wg-section-eyebrow {
   font-size: 0.85rem;
   font-weight: 600;
@@ -301,7 +272,6 @@
   opacity: 0.9;
 }
 
-/* Demo Placeholders */
 .wg-demo-placeholder {
   display: flex;
   align-items: center;
@@ -323,10 +293,6 @@
   color: #2c3e50;
   opacity: 0.85;
 }
-
-/* ===========================
-   FINAL CTA SECTION
-   =========================== */
 
 .wg-final-cta {
   padding: clamp(60px, 10vw, 100px) 0;
@@ -365,58 +331,48 @@
   color: #6b7280;
 }
 
-/* Scene Stages */
 .wg-scene-stage {
   position: relative;
   width: 100%;
-  max-width: 540px;           
+  max-width: 540px;
   border-radius: 2px;
-  padding: clamp(14px, 2.4vw, 22px); 
+  padding: clamp(14px, 2.4vw, 22px);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  border: 1px solid rgba(212, 196, 176, 0.9); 
+  border: 1px solid rgba(212, 196, 176, 0.9);
 }
-
-/* ===========================
-   RESPONSIVE ADJUSTMENTS
-   =========================== */
 
 @media (max-width: 960px) {
   .wg-main {
     padding-top: 4px;
   }
 
-  /* Hero: stack text + visual, keep bleed background */
   .wg-hero {
-    padding:  16px 16px 16px;
-    /* UPDATE - 3.2: Positioned background at 95% vertical to move it away from the text */
-    background-position: center 80%; 
+    padding: 16px 16px 16px;
+    background-position: center 80%;
     background-image: none;
     background-size: 140%;
   }
 
   .wg-hero-inner {
     flex-direction: column;
-    /* UPDATE - 3.4: Changed to center to fix the left-aligned mobile issue */
-    align-items: center; 
-    gap: 16px;
+    align-items: center;
+    gap: 14px;
   }
 
-  /* UPDATE - 3.5: centering text and removing max-width constraints */
   .wg-hero-text {
     max-width: 100%;
     flex: 0 0 auto;
-    /* UPDATE - 3.6: Explicitly centered text for the headline and subtitle */
-    text-align: center; 
+    text-align: center;
   }
 
   .wg-hero-visual {
     width: 100%;
-    /* UPDATE - 3.7: reduced min-height to prevent empty gaps on small screens */
-    min-height: auto; 
+    min-height: auto;
     margin-top: 0px;
   }
+
   .wg-hero-monitor {
     position: relative;
     right: auto;
@@ -428,8 +384,7 @@
   .wg-hero-heading {
     font-size: 2.4rem;
   }
-  
-  /* Video Pointer Adjustment */
+
   .wg-video-pointer-wrapper {
     margin-left: clamp(12px, 3vw, 24px);
     margin-bottom: 24px;
@@ -445,22 +400,43 @@
 }
 
 @media (max-width: 640px) {
-  .wg-nav-inner {
-    padding-inline: 16px;
-  }
-
   .wg-main {
     padding-inline: 16px;
   }
 
+  .wg-hero {
+    padding: 14px 12px 10px;
+  }
+
+  .wg-hero-inner {
+    gap: 10px;
+  }
+
   .wg-hero-heading {
     font-size: 2.15rem;
+    margin-bottom: 0.9rem;
   }
 
   .wg-hero-subtitle {
     font-size: 1rem;
+    line-height: 1.55;
+    margin-bottom: 0;
   }
-  
+
+  .wg-hero-cta-row {
+    display: none;
+  }
+
+  .wg-hero-visual {
+    margin-top: 2px;
+  }
+
+  .wg-hero-monitor {
+    width: min(360px, 100%);
+    padding: 8px;
+    border-radius: 16px;
+  }
+
   .wg-cta-heading {
     font-size: 2rem;
   }
@@ -469,7 +445,6 @@
     font-size: 1.05rem;
   }
 
-  /* Video Mobile */
   .wg-video-pointer-wrapper {
     gap: 8px;
     margin-bottom: 20px;
@@ -479,16 +454,13 @@
     font-size: 0.95rem;
   }
 
-.wg-video-pointer-arrow {
-  width: clamp(70px, 10vw, 100px);
-  
-  /* ADD THIS LINE: This forces the height to respect the aspect ratio */
-  height: auto; 
-  
-  flex-shrink: 0;
-  animation: arrow-float 3s ease-in-out infinite;
-}
-  
+  .wg-video-pointer-arrow {
+    width: clamp(70px, 10vw, 100px);
+    height: auto;
+    flex-shrink: 0;
+    animation: arrow-float 3s ease-in-out infinite;
+  }
+
   .wg-video-container {
     border-radius: 12px;
   }

@@ -1,37 +1,23 @@
-// app/(marketing)/welcome/page.tsx
+/**
+ * @file app/(welcome)/page.tsx
+ * @description
+ * Actual application root route for "/".
+ *
+ * Responsibilities:
+ *  - Performs a server-side redirect from "/" to the configured default
+ *    marketing audience landing page
+ *  - Reads DEFAULT_AUDIENCE from marketing.config.ts so changing the default
+ *    homepage target requires editing exactly one value in one file
+ *
+ * Note:
+ *  - This is the real root page currently resolving localhost:3000 and
+ *    wisegraph.app, so the redirect belongs here.
+ *  - No UI is rendered to avoid a flash of the legacy welcome page.
+ */
 
-import type { Metadata } from 'next';
-import React from 'react';
-import WelcomeLandingPage from '@/app/(welcome)/draft/landingPageB/WelcomeLandingPage';
-import SiteFooter from '@/components/SiteFooter';
-import SiteHeader from '@/components/SiteHeader';
-import SoftwareSchema from '@/components/seo/SoftwareSchema';
-import VideoSchema from '@/components/seo/VideoSchema';
-// app\(welcome)\draft\landingPageB\WelcomeLandingPage.tsx
-export const metadata: Metadata = {
-  // Keep keywords, but no "Free" promise here seo
-  title: 'WiseGraph | Spaced Repetition App & AI Study Planner',
-  
-  description:
-    'Turn your study material into a schedule with lessons, flash cards and quizzes proven to sink what you learn into long term memory.',
-    
-  // SOCIAL SHARING (Discord/TikTok/Slack)
-  openGraph: {
-    title: 'WiseGraph | Spaced Repetition App & AI Study Planner',
-    // UPDATE: Changed "The free AI tool" to "Try the AI tool"
-    description: 'Try the AI tool that plans your studying so you don\'t burn out.',
-    images: ['/brand/hero-shot-highest-res.png'],
-  },
-};
+import { redirect } from 'next/navigation';
+import { DEFAULT_AUDIENCE, AUDIENCE_ROUTES } from '@/app/marketing.config';
 
-export default function Page(): JSX.Element {
-  return (
-    <>
-      <SoftwareSchema />
-      <VideoSchema />
-      <SiteHeader />
-      <WelcomeLandingPage />
-      <SiteFooter />
-    </>
-  );
+export default function WelcomeRootPage(): never {
+  redirect(AUDIENCE_ROUTES[DEFAULT_AUDIENCE]);
 }

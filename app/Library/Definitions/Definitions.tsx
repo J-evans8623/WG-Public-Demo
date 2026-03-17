@@ -197,6 +197,117 @@ export interface SubtreeData {
 export type ResourceType = 'cueCard' | 'picture' | 'practiceSheet';
 
 
+
+// update - 1.1
+/**
+ * @section Slide Comment Types
+ * @description
+ * This section defines the canonical shared contracts for the Slide Comment System. These types are
+ * intentionally placed in the shared Definitions module so the slideshow UI, the SlideCommentsContext,
+ * and later backend-facing adapters all reference the same authoritative frontend contract. The main
+ * model is `Comment`, which captures the document, lesson, and slide scope required by the PRD. We also
+ * define a compact set of helper types used by the context layer to index comments in O(1) by slideId
+ * and to track optimistic session-only metadata without polluting the canonical persisted comment shape.
+ * These helpers are designed to keep later phases narrow, predictable, and free of duplicate local types.
+ */
+export type CommentTimestamp = string;
+
+// update - 1.2
+/**
+ * @interface Comment
+ * @description
+ * Canonical frontend comment model for the Slide Comment System. This shape is scoped to a specific
+ * document, lesson, and slide, which ensures comments remain correctly attached to the active study
+ * surface. The timestamp fields use a transport-safe string representation so the frontend can work
+ * with persisted values from backend endpoints without coupling directly to Firebase timestamp objects.
+ */
+export interface Comment {
+  id: string;
+  slideId: string;
+  lessonId: string;
+  docId: string;
+  userId: string;
+  text: string;
+  createdAt: CommentTimestamp;
+  updatedAt: CommentTimestamp;
+}
+
+// update - 1.3
+/**
+ * @type CommentSyncState
+ * @description
+ * Tracks session-level synchronization state for optimistic comment operations. This type is not part of
+ * the canonical persisted model; instead, it exists to help the React context reason about whether a
+ * comment is newly inserted, being updated, pending deletion, or fully synchronized with backend truth.
+ */
+export type CommentSyncState =
+  | 'synced'
+  | 'pending-create'
+  | 'pending-update'
+  | 'pending-delete'
+  | 'error';
+
+// update - 1.4
+/**
+ * @interface SlideCommentRecord
+ * @description
+ * Session-level extension of the canonical Comment contract. This allows the React context to preserve
+ * optimistic metadata needed for rollback and reconciliation while keeping the persisted `Comment` model
+ * clean. Later phases can use this shape to swap temporary ids with server ids and track failed writes.
+ */
+export interface SlideCommentRecord extends Comment {
+  syncState?: CommentSyncState;
+  isOptimistic?: boolean;
+  requestId?: string;
+}
+
+// update - 1.5
+/**
+ * @type CommentsBySlideId
+ * @description
+ * In-memory indexing structure for document-scoped comment caching. Each slideId maps directly to the
+ * list of comments for that slide, allowing O(1) access to slide comments during slideshow navigation.
+ */
+export type CommentsBySlideId = Record<string, SlideCommentRecord[]>;
+
+// update - 1.6
+/**
+ * @interface CreateSlideCommentInput
+ * @description
+ * Input contract for optimistic comment creation. The context uses this payload to create a new
+ * slide-scoped comment before the backend call completes.
+ */
+export interface CreateSlideCommentInput {
+  docId: string;
+  lessonId: string;
+  slideId: string;
+  userId: string;
+  text: string;
+}
+
+// update - 1.7
+/**
+ * @interface UpdateSlideCommentInput
+ * @description
+ * Input contract for optimistic comment updates. The context uses commentId to locate the current
+ * record and patch its text immediately.
+ */
+export interface UpdateSlideCommentInput {
+  commentId: string;
+  text: string;
+}
+
+// update - 1.8
+/**
+ * @interface DeleteSlideCommentInput
+ * @description
+ * Input contract for optimistic comment deletion. The context uses commentId to remove the record from
+ * the indexed cache immediately and later reconcile with backend results.
+ */
+export interface DeleteSlideCommentInput {
+  commentId: string;
+}
+
 export interface Citation {
   /** The inline index used in the rendered sup tag */
   index: number;
