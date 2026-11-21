@@ -22,6 +22,7 @@ import admin from 'firebase-admin';
 import { publishRevokeAllNonOwner, publishRevokeUser } from '../utils/revocationBus';
 import { UserFileMetadata } from '../types/fileTypes';
 import * as fs from 'fs';
+import { generateKeyPairSync } from 'crypto';
 import {readAclSnapshot as cacheReadAclSnapshot,   
   readRole as cacheReadRole,               
   bumpAclVersion } from './redisCache/aclCache';
@@ -62,7 +63,12 @@ try {
     serviceAccount = {
       projectId: 'mock-build-project',
       clientEmail: 'build@mock.local',
-      privateKey: '-----BEGIN PRIVATE KEY-----\n***REMOVED***\n-----END PRIVATE KEY-----\n',
+      // Throwaway key generated per build so no key material lives in source.
+      privateKey: generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      }).privateKey,
     };
   }
   else {

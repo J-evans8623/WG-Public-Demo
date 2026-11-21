@@ -2,6 +2,11 @@
 /node_modules
 /collab-service/node_modules
 
+# Python environments and bytecode
+.venv/
+__pycache__/
+*.pyc
+
 # Yarn (if applicable)
 /.pnp
 .pnp.js
@@ -16,6 +21,7 @@
 
 # Production builds
 /build
+/dist
 /collab-service/dist
 
 # Miscellaneous
@@ -23,10 +29,12 @@
 *.pem
 *.log
 
-# Debug logs
+# Debug logs and output
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+full.txt
+big-output.txt
 
 # Environment files
 .env
@@ -34,8 +42,16 @@ prod.env
 .env.local
 .env.*.local
 /collab-service/.env
+
+# Private keys (public .pub keys stay tracked; Docker builds copy them)
+*.key
+
+# Firebase service account credentials
+**/firebase-service-account.json
+
 # Dev tools
 /scripts/dev
+
 # Vercel
 .vercel
 
@@ -50,33 +66,16 @@ next-env.d.ts
 .idea
 .vscode
 
-./workflow
-/Archived
-/Archived/**
-./big-output.txt
+/workflow
+/Archived/
 *.pdf
-"__pycache__/"
 
-
-
-#local value 
-app\firebase-service-account.json
-app/firebase-service-account.json
-# ignore any file by this name
-**/firebase-service-account.json 
-
-
+# Local mocks
 **/mockLessonData.ts
-
-
 **/mockEndpoint.ts
 
 docker-compose.override.yml
 
+# User data exports
 exportableemails.csv
-
 probable_students.csv
-
-tests/
-jest.config.js
-**/test.ts
